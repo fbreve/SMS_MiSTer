@@ -4,7 +4,7 @@
 // combos into one-cycle ss_save / ss_load pulses and slot selection.
 //
 // Info message indices for hps_io (1-based; 0 = no display):
-//   1    : hint message ("Slot=LR|Save=Pause+Down|Load=Pause+Up")
+//   1    : hint message ("Slot=LR|Save=SS+Down|Load=SS+Up")
 //   2-5  : "Active Slot 1..4"
 //   6,8,10,12 : "Save to state 1..4"
 //   7,9,11,13 : "Restore state 1..4"
@@ -16,8 +16,8 @@
 // Gamepad combos (SaveState button = joy[12]):
 //   SS + Left              → switch to prev slot
 //   SS + Right             → switch to next slot
-//   SS + Pause + Down      → save state
-//   SS + Pause + Up        → load state
+//   SS + Down              → save state
+//   SS + Up                → load state
 //
 // PS/2 keyboard:  F1 = load state,  Alt+F1 = save state
 
@@ -180,15 +180,15 @@ always @(posedge clk) begin
             ss_info              <= 8'd2 + ((slot == 2'd3) ? 2'd0 : slot + 2'd1);
             ss_combo_done        <= 1;
         end
-        // Rising edge of Down while Pause held: save
-        if (joyPause & ~joyDown_r & joyDown & allow_ss) begin
+        // Rising edge of Down (no Pause needed): save
+        if (~joyDown_r & joyDown & ~joyLeft & ~joyRight & allow_ss) begin
             ss_save       <= 1;
             ss_info_req   <= 1;
             ss_info       <= 8'd6 + {slot, 1'b0};
             ss_combo_done <= 1;
         end
-        // Rising edge of Up while Pause held: load
-        if (joyPause & ~joyUp_r & joyUp & allow_ss) begin
+        // Rising edge of Up (no Pause needed): load
+        if (~joyUp_r & joyUp & ~joyLeft & ~joyRight & allow_ss) begin
             ss_load       <= 1;
             ss_info_req   <= 1;
             ss_info       <= 8'd7 + {slot, 1'b0};

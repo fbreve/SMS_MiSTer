@@ -165,7 +165,28 @@ entity system is
 		-- MREQ_n: low = normal opcode fetch, high = interrupt acknowledge
 		z80_mreq_n   : out STD_LOGIC;
 		-- ISet: "00" = no prefix active (clean instruction boundary)
-		z80_iset     : out STD_LOGIC_VECTOR(1 downto 0)
+		z80_iset     : out STD_LOGIC_VECTOR(1 downto 0);
+		-- Save-state interface for VDP2 (System E second VDP)
+		vdp2_regs_out : out STD_LOGIC_VECTOR(127 downto 0);
+		vdp2_regs_in  : in  STD_LOGIC_VECTOR(127 downto 0) := (others => '0');
+		vdp2_regs_set : in  STD_LOGIC := '0';
+		vdp2_cram_out : out STD_LOGIC_VECTOR(383 downto 0);
+		ss_cram2_wr   : in  STD_LOGIC := '0';
+		ss_cram2_A    : in  STD_LOGIC_VECTOR(4 downto 0)  := (others => '0');
+		ss_cram2_D    : in  STD_LOGIC_VECTOR(11 downto 0) := (others => '0');
+		ss_vram2_en   : in  STD_LOGIC := '0';
+		ss_vram2_A    : in  STD_LOGIC_VECTOR(14 downto 0) := (others => '0');
+		ss_vram2_D    : out STD_LOGIC_VECTOR(7 downto 0);
+		ss_vram2_WE   : in  STD_LOGIC := '0';
+		ss_vram2_WA   : in  STD_LOGIC_VECTOR(14 downto 0) := (others => '0');
+		ss_vram2_WD   : in  STD_LOGIC_VECTOR(7 downto 0)  := (others => '0');
+		-- Save-state interface for PSG2 (System E second PSG)
+		psg2_out      : out STD_LOGIC_VECTOR(55 downto 0);
+		psg2_in       : in  STD_LOGIC_VECTOR(55 downto 0) := (others => '0');
+		psg2_set      : in  STD_LOGIC := '0';
+		-- System E hardware pause: gates Z80 clock independently of ce_pix
+		-- (ce_pix keeps running so VDP scanout and sync are unaffected)
+		se_pause      : in  STD_LOGIC := '0'
 	);
 end system;
 
@@ -228,6 +249,13 @@ architecture Behavioral of system is
 	signal vdp_se_bank:		std_logic := '0';
 	signal vdp2_se_bank:		std_logic := '0';
 	signal vdp_cpu_bank:		std_logic := '0';
+
+	-- VDP2 save-state internal wires (System E)
+	signal vdp2_regs_out_i   : std_logic_vector(127 downto 0);
+	signal vdp2_cram_out_i   : std_logic_vector(383 downto 0);
+	signal vdp2_vram_D_i     : std_logic_vector(7 downto 0);
+	-- PSG2 save-state internal wire
+	signal psg2_out_i        : std_logic_vector(55 downto 0);
 	signal rom_bank:			std_logic_vector(3 downto 0) := "0000";
 
 	signal PSG_disable:		std_logic;
@@ -548,7 +576,20 @@ begin
 		ysj_quirk	=> ysj_quirk,
 --		mask_column => mask2_column,
 		black_column => black_column,
-		reset_n  => RESET_n
+		reset_n  => RESET_n,
+		ss_regs_out => vdp2_regs_out_i,
+		ss_regs_in  => vdp2_regs_in,
+		ss_regs_set => vdp2_regs_set,
+		ss_cram_out => vdp2_cram_out_i,
+		ss_cram_wr  => ss_cram2_wr,
+		ss_cram_A   => ss_cram2_A,
+		ss_cram_D   => ss_cram2_D,
+		ss_vram_en  => ss_vram2_en,
+		ss_vram_A   => ss_vram2_A,
+		ss_vram_D   => vdp2_vram_D_i,
+		ss_vram_WE  => ss_vram2_WE,
+		ss_vram_WA  => ss_vram2_WA,
+		ss_vram_WD  => ss_vram2_WD
 	);
 
 	psg_inst: jt89
@@ -581,7 +622,10 @@ begin
 		soundL	=> PSG2_outL,
 		soundR	=> PSG2_outR,
 
-		rst		=> not RESET_n
+		rst		=> not RESET_n,
+		ss_out => psg2_out_i,
+		ss_set => psg2_set,
+		ss_in  => psg2_in
 	);
 	
 	fm: work.opll
@@ -714,14 +758,22 @@ port map(
 		gg_link_nmi_n => gg_link_nmi_n,
 		systeme	=> systeme,
 		region	=> region,
+		se_mapper_in  => mapper_in(7 downto 0),
+		se_mapper_set => mapper_set,
 		RESET_n	=> RESET_n
 	);
 	
-	ce_z80 <= ce_pix when (systeme = '1' or turbo='1') else ce_cpu;
+	ce_z80 <= '0' when se_pause='1' else
+	          ce_pix when (systeme = '1' or turbo='1') else ce_cpu;
 	io_cycle <= '1' when IORQ_n='0' and M1_n='1' else '0';
 	z80_m1_n   <= M1_n;
 	z80_mreq_n <= MREQ_n;
 	z80_iset   <= z80_iset_int;
+	-- VDP2 / PSG2 SS output port connections
+	vdp2_regs_out <= vdp2_regs_out_i;
+	vdp2_cram_out <= vdp2_cram_out_i;
+	ss_vram2_D    <= vdp2_vram_D_i;
+	psg2_out      <= psg2_out_i;
 	io_upper_port <= '1' when A(7 downto 6)="11" else '0';
 	io_sms_port <= '1' when A(7 downto 6)="00" and (A(0)='1' or (gg='1' and A(5 downto 3)="000")) else '0';
 	io_gg_port <= '1' when gg='1' and A(7 downto 3)="00000" and A(2 downto 1)/="11" else '0';
@@ -1296,11 +1348,14 @@ port map(
 	-- [55]spare [54]bootloader_n [53]nvram_cme [52]nvram_p [51]nvram_ex [50]nvram_e
 	-- [49]detect_sega_locked [48]detect_dahjee_a [47:40]nem_bank0 [39:32]pak4_reg2
 	-- [31:24]bank3 [23:16]bank2 [15:8]bank1 [7:0]bank0
-	mapper_out <= detect_linear & detect_wonderkid & detect_castle & mapper_codies_lock &
+	-- Note: when systeme='1', bits [7:0] mirror IO port 0xF7:
+	--   [7]=vdp_se_bank [6]=vdp2_se_bank [5]=vdp_cpu_bank [3:0]=rom_bank
+	mapper_out(63 downto 8) <= detect_linear & detect_wonderkid & detect_castle & mapper_codies_lock &
 	              lock_mapper_B & mapper_codies & mapper_4pak & '0' &
 	              '0' & bootloader_n & nvram_cme & nvram_p & nvram_ex & nvram_e &
 	              detect_sega_locked & detect_dahjee_a &
-	              nem_bank0 & pak4_reg2 & bank3 & bank2 & bank1 & bank0;
+	              nem_bank0 & pak4_reg2 & bank3 & bank2 & bank1;
+	mapper_out(7 downto 0) <= vdp_se_bank & vdp2_se_bank & vdp_cpu_bank & '0' & rom_bank when systeme='1' else bank0;
 
 	-- Active for any Zemina-family mapper.
 	-- mapper_zemina_force (OSD): user explicitly selected Zemina mapper.

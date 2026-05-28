@@ -69,6 +69,8 @@ entity io is
 		gg_link_nmi_n:	out STD_LOGIC;
 		systeme:	in  STD_LOGIC;
 		region:	in	 STD_LOGIC;
+		se_mapper_in:  in  STD_LOGIC_VECTOR(7 downto 0) := (others => '0');
+		se_mapper_set: in  STD_LOGIC := '0';
 		RESET_n:	in  STD_LOGIC);
 end io;
 
@@ -407,6 +409,13 @@ begin
 				gg_tx_wr_d <= '1';
 			else
 				gg_tx_wr_d <= '0';
+			end if;
+			-- savestate restore: System E IO port 0xF7 state
+			if se_mapper_set = '1' then
+				vdp1_bank    <= se_mapper_in(7);
+				vdp2_bank    <= se_mapper_in(6);
+				vdp_cpu_bank <= se_mapper_in(5);
+				rom_bank     <= se_mapper_in(3 downto 0);
 			end if;
 		end if;
 	end process;

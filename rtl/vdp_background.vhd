@@ -7,6 +7,7 @@ entity vdp_background is
 port (
 	clk_sys:			in  STD_LOGIC;
 	ce_pix:				in  STD_LOGIC;
+	ss_regs_set:		in  STD_LOGIC := '0';
 	reset:				in  std_logic;
 	screen_x:			in  std_logic_vector(8 downto 0);
 	table_address:		in  std_logic_vector(13 downto 10);
@@ -79,7 +80,9 @@ begin
 	-- -------------------------------------------------------------------------
 	process (clk_sys) begin
 		if rising_edge(clk_sys) then
-			if ce_pix = '1' then
+			if ss_regs_set='1' then
+				x <= (others=>'0');
+			elsif ce_pix = '1' then
 				if (reset='1') then
 					if smode_M4='0' then
 						x <= "11110000" ; -- 240
@@ -107,7 +110,10 @@ begin
 	-- -------------------------------------------------------------------------
 	process (clk_sys) begin
 		if rising_edge(clk_sys) then
-			if ce_pix = '1' then
+			if ss_regs_set='1' then
+				text_phase  <= (others=>'0');
+				text_column <= (others=>'0');
+			elsif ce_pix = '1' then
 				if reset='1' or text_mode='0' then
 					text_phase  <= (others=>'0');
 					text_column <= (others=>'0');
@@ -140,7 +146,9 @@ begin
 		variable text_name		: integer;
 	begin
 		if rising_edge(clk_sys) then
-			if ce_pix = '1' then
+			if ss_regs_set='1' then
+				vram_A <= (others=>'0');
+			elsif ce_pix = '1' then
 				sx := conv_integer(screen_x);
 
 				if text_mode='1' then
@@ -235,7 +243,20 @@ begin
 	-- -------------------------------------------------------------------------
 	process (clk_sys) begin
 		if rising_edge(clk_sys) then
-			if ce_pix = '1' then
+			if ss_regs_set='1' then
+				text_tile_index <= (others=>'0');
+				text_pattern    <= (others=>'0');
+				tile_index      <= (others=>'0');
+				flip_x          <= '0';
+				tile_y          <= (others=>'0');
+				palette         <= '0';
+				priority_latch  <= '0';
+				datac           <= (others=>'0');
+				data0           <= (others=>'0');
+				data1           <= (others=>'0');
+				data2           <= (others=>'0');
+				data3           <= (others=>'0');
+			elsif ce_pix = '1' then
 				if text_mode='1' then
 					if conv_integer(screen_x)=1 then
 						text_tile_index <= vram_D;
@@ -318,7 +339,15 @@ begin
 	-- -------------------------------------------------------------------------
 	process (clk_sys) begin
 		if rising_edge(clk_sys) then
-			if ce_pix = '1' then
+			if ss_regs_set='1' then
+				text_shift    <= (others=>'0');
+				priority      <= '0';
+				shift0        <= (others=>'0');
+				shift1        <= (others=>'0');
+				shift2        <= (others=>'0');
+				shift3        <= (others=>'0');
+				palette_shift <= '0';
+			elsif ce_pix = '1' then
 				if text_mode='1' then
 					if conv_integer(screen_x)=7 then
 						text_shift <= text_pattern(7 downto 2);

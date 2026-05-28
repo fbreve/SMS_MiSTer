@@ -191,8 +191,49 @@ assign BUTTONS   = osd_btn;
 assign VGA_SCALER= 0;
 assign VGA_DISABLE = 0;
 wire ss_freeze;
-assign HDMI_FREEZE = ss_freeze;
+// System E toggle-pause: joy[8] = Pause button (position 5 in J1 layout)
+wire       joy8_sig = swap ? joy_1[8] : joy_0[8];
+reg        joy8_r;
+reg        se_paused;
+reg        se_pause_pending;    // waiting for VBlank fall (y=0) to freeze CPU
+reg        se_unpause_pending;  // waiting for VBlank rising edge to release CPU
+reg        VBlank_r;            // one-cycle delay for VBlank edge detection
+wire       se_pause_gate = systeme & se_paused;
+assign HDMI_FREEZE   = ss_freeze;
 assign HDMI_BLACKOUT = 0;
+
+always @(posedge clk_sys) begin
+	joy8_r   <= joy8_sig;
+	VBlank_r <= VBlank;
+	if (raw_reset | ~systeme) begin
+		se_paused          <= 0;
+		se_pause_pending   <= 0;
+		se_unpause_pending <= 0;
+	end else begin
+		// Rising edge of pause button (not during savestates, not already pending)
+		if (~joy8_r & joy8_sig & ~ss_freeze & ~se_unpause_pending & ~se_pause_pending) begin
+			if (se_paused)
+				// Defer CPU release to the next VBlank rising edge so the game's
+				// VBlank handler always runs *during* VBlank, not active display.
+				se_unpause_pending <= 1;
+			else
+				// Defer CPU freeze to the next VBlank fall (y=0) so the game's
+				// VBlank handler always completes before freezing; prevents
+				// tile/sprite corruption from a partially-updated VDP state.
+				se_pause_pending <= 1;
+		end
+		// VBlank fall (y=0): apply the deferred pause
+		if (se_pause_pending & VBlank_r & ~VBlank) begin
+			se_paused        <= 1;
+			se_pause_pending <= 0;
+		end
+		// VBlank rising edge: release the deferred unpause
+		if (se_unpause_pending & ~VBlank_r & VBlank) begin
+			se_paused          <= 0;
+			se_unpause_pending <= 0;
+		end
+	end
+end
 assign HDMI_BOB_DEINT = 0;
 assign FB_FORCE_BLANK = 0;
 
@@ -290,16 +331,16 @@ video_freak video_freak
 
 `include "build_id.v"
 parameter CONF_STR = {
-	"SMS;SS3E000000:10000;",
+	"SMS;SS3E000000:18000;",
 	"-;",
 	"H8FS1,SMSSG SC ;",
 	"H8FS2,GG;",
 	"-;",
-	"H8O[16:15],SaveState Slot,1,2,3,4;",
-	"H8R[61],Save State (Alt+F1);",
-	"H8R[62],Load State (F1);",
-	"DIP;",
+	"O[16:15],SaveState Slot,1,2,3,4;",
+	"R[61],Save State (Alt+F1);",
+	"R[62],Load State (F1);",
 	"-;",
+	"DIP;",
 	"C,Cheats;",
 	"H1OO,Cheats Enabled,ON,OFF;",
 	"-;",
@@ -360,11 +401,11 @@ parameter CONF_STR = {
 	"H8RB,Soft Reset;",
 	"H8R9,Eject ROM;",
 	"R0,Reset;",
-	"J1,Fire 1,Fire 2,Pause,Coin,Arcade 3,Soft Reset,-,-,SaveState;",
+	"J1,Fire 1,Fire 2,Pause,-,-,Soft Reset,-,-,SaveState;",
 	"jn,A|P,B,Start,Coin,X,Select;",
 	"jp,Y|P,A,Start,Coin,X,Select;",
 	"I,",
-	"Slot=DPAD|Save/Load=Pause+DPAD,",
+	"Slot=DPAD L/R|Save=Down|Load=Up,",
 	"Active Slot 1,",
 	"Active Slot 2,",
 	"Active Slot 3,",
@@ -604,6 +645,18 @@ wire code_index = &ioctl_index;
 wire code_download = ioctl_download & code_index;
 wire bios_download = ioctl_download & (ioctl_index[4:0] == 3);
 wire cart_download = ioctl_download & ~code_index & (ioctl_index[4:0]!=3) & (ioctl_index!=4) & (ioctl_index!=254);
+
+// Rolling signature of the currently loaded ROM image.
+// Used by savestates header validation to reject cross-ROM loads.
+reg [31:0] ss_game_id = 32'h00000000;
+reg        cart_download_r = 1'b0;
+always @(posedge clk_sys) begin
+	cart_download_r <= cart_download;
+	if (~cart_download_r & cart_download)
+		ss_game_id <= 32'h811C9DC5;
+	else if (ioctl_wr & cart_download)
+		ss_game_id <= {ss_game_id[30:0], ss_game_id[31]} ^ {24'd0, ioctl_dout} ^ {7'd0, ioctl_addr[0], ioctl_addr[8], ioctl_addr[16]};
+end
 
 // BIOS mode: status[44:43] == 2'b00->Disable, 01->Internal, 10->Ext. File
 wire bios_en      = (status[44:43] != 2'b00) & ~systeme;
@@ -926,6 +979,19 @@ wire [55:0]  ss_psg_out, ss_psg_in;
 wire         ss_psg_set;
 wire [63:0]  ss_mapper_out, ss_mapper_in;
 wire         ss_mapper_set;
+// System E VDP2 / PSG2 save-state wires
+wire [127:0] ss_vdp2_regs, ss_vdp2_regs_in;
+wire         ss_vdp2_regs_set;
+wire [383:0] ss_vdp2_cram;
+wire  [4:0]  ss_cram2_A;
+wire [11:0]  ss_cram2_D;
+wire         ss_cram2_wr;
+wire         ss_vram2_en;
+wire [14:0]  ss_vram2_A, ss_vram2_WA;
+wire  [7:0]  ss_vram2_D, ss_vram2_WD;
+wire         ss_vram2_WE;
+wire [55:0]  ss_psg2_out, ss_psg2_in;
+wire         ss_psg2_set;
 wire [13:0]  ss_wram_A, ss_wram_WA;
 wire  [7:0]  ss_wram_WD;
 wire         ss_wram_WE;
@@ -971,7 +1037,7 @@ wire  [7:0] ss_nvram_WD;   // DMA write data
 system #(63) system
 (
 	.clk_sys(clk_sys),
-	.ce_cpu(ce_cpu & ~ss_freeze),
+	.ce_cpu(ce_cpu & ~ss_freeze & ~se_pause_gate),
 	.ce_vdp(ce_vdp & ~ss_freeze),
 	.ce_pix(ce_pix & ~ss_freeze),
 	.ce_sp(ce_sp  & ~ss_freeze),
@@ -1005,9 +1071,9 @@ system #(63) system
 	.j1_tl(joya[4]),
 	.j1_tr(joya[5]),
 	.j1_th(joya_th),
-	.j1_start(swap ? joy_1[11] : joy_0[11]),
-	.j1_coin(swap ? joy_1[10] : joy_0[10]),
-	.j1_a3(swap ? joy_1[8] : joy_0[8]),
+	.j1_start(swap ? joy_1[6] : joy_0[6]),
+	.j1_coin(swap ? joy_1[7] : joy_0[7]),
+	.j1_a3(swap ? joy_1[6] : joy_0[6]),
 
 	.j2_up(joyb[3]),
 	.j2_down(joyb[2]),
@@ -1016,11 +1082,12 @@ system #(63) system
 	.j2_tl(joyb[4]),
 	.j2_tr(joyb[5]),
 	.j2_th(joyb_th),
-	.pause(joya[6]&joyb[6]),
+	.pause(systeme ? 1'b1 : (joya[6]&joyb[6])),
+	.se_pause(se_pause_gate),
 	.soft_reset(soft_reset_btn),
-	.j2_start(swap ? joy_0[11] : joy_1[11]),
-	.j2_coin(swap ? joy_0[10] : joy_1[10]),
-	.j2_a3(swap ? joy_0[8] : joy_1[8]),
+	.j2_start(swap ? joy_0[6] : joy_1[6]),
+	.j2_coin(swap ? joy_0[7] : joy_1[7]),
+	.j2_a3(swap ? joy_0[6] : joy_1[6]),
 
 	.j1_tr_out(joya_tr_out),
 	.j1_th_out(joya_th_out),
@@ -1118,7 +1185,24 @@ system #(63) system
 	.mapper_set  (ss_mapper_set),
 	.z80_m1_n    (ss_z80_m1_n),
 	.z80_mreq_n  (ss_z80_mreq_n),
-	.z80_iset    (ss_z80_iset)
+	.z80_iset    (ss_z80_iset),
+	// System E VDP2 / PSG2 save-state
+	.vdp2_regs_out(ss_vdp2_regs),
+	.vdp2_regs_in (ss_vdp2_regs_in),
+	.vdp2_regs_set(ss_vdp2_regs_set),
+	.vdp2_cram_out(ss_vdp2_cram),
+	.ss_cram2_wr  (ss_cram2_wr),
+	.ss_cram2_A   (ss_cram2_A),
+	.ss_cram2_D   (ss_cram2_D),
+	.ss_vram2_en  (ss_vram2_en),
+	.ss_vram2_A   (ss_vram2_A),
+	.ss_vram2_D   (ss_vram2_D),
+	.ss_vram2_WE  (ss_vram2_WE),
+	.ss_vram2_WA  (ss_vram2_WA),
+	.ss_vram2_WD  (ss_vram2_WD),
+	.psg2_out     (ss_psg2_out),
+	.psg2_in      (ss_psg2_in),
+	.psg2_set     (ss_psg2_set)
 );
 
 savestate_ui savestate_ui_inst (
@@ -1149,6 +1233,7 @@ savestates savestates_inst (
 	.ss_load         (ss_load),
 	.ss_slot         (ss_slot),
 	.ss_bios_mode    (ss_bios_mode),
+	.ss_game_id      (ss_game_id),
 	.ss_freeze       (ss_freeze),
 	.vblank          (VBlank),
 	// Z80
@@ -1196,6 +1281,28 @@ savestates savestates_inst (
 	.nvram_WE        (ss_nvram_WE),
 	.nvram_WA        (ss_nvram_WA),
 	.nvram_WD        (ss_nvram_WD),
+	// System E mode (enables VDP2/PSG2/VRAM2 save-restore)
+	.systeme         (systeme),
+	// VDP2 registers (System E)
+	.vdp2_regs       (ss_vdp2_regs),
+	.vdp2_regs_in    (ss_vdp2_regs_in),
+	.vdp2_regs_set   (ss_vdp2_regs_set),
+	// CRAM2 (System E)
+	.cram2_out       (ss_vdp2_cram),
+	.cram2_A         (ss_cram2_A),
+	.cram2_D         (ss_cram2_D),
+	.cram2_wr        (ss_cram2_wr),
+	// VRAM2 DMA (System E)
+	.vram2_en        (ss_vram2_en),
+	.vram2_A         (ss_vram2_A),
+	.vram2_D         (ss_vram2_D),
+	.vram2_WE        (ss_vram2_WE),
+	.vram2_WA        (ss_vram2_WA),
+	.vram2_WD        (ss_vram2_WD),
+	// PSG2 (System E)
+	.psg2_out        (ss_psg2_out),
+	.psg2_in         (ss_psg2_in),
+	.psg2_set        (ss_psg2_set),
 	// DDRAM
 	.DDRAM_ADDR      (ss_ddram_addr),
 	.DDRAM_DIN       (ss_ddram_din),
@@ -1465,6 +1572,10 @@ always @(posedge CLK_VIDEO) begin
 	if(~HSync & HS) VSync <= VS;
 end
 
+wire [3:0] vid_r = se_pause_gate ? {1'b0, color[3:1]}  : color[3:0];
+wire [3:0] vid_g = se_pause_gate ? {1'b0, color[7:5]}  : color[7:4];
+wire [3:0] vid_b = se_pause_gate ? {1'b0, color[11:9]} : color[11:8];
+
 video_mixer #(.HALF_DEPTH(1), .LINE_LENGTH(300), .GAMMA(1)) video_mixer
 (
 	.*,
@@ -1473,9 +1584,9 @@ video_mixer #(.HALF_DEPTH(1), .LINE_LENGTH(300), .GAMMA(1)) video_mixer
 	.freeze_sync(),
 
 	.VGA_DE(vga_de),
-	.R((gun_en & gun_target && (~&gun_crosshair)) ? 8'd255 : {2{color[3:0]}}),
-	.G((gun_en & gun_target && (~&gun_crosshair)) ? 8'd0   : {2{color[7:4]}}),
-	.B((gun_en & gun_target && (~&gun_crosshair)) ? 8'd0   : {2{color[11:8]}})
+	.R((gun_en & gun_target && (~&gun_crosshair)) ? 8'd255 : {2{vid_r}}),
+	.G((gun_en & gun_target && (~&gun_crosshair)) ? 8'd0   : {2{vid_g}}),
+	.B((gun_en & gun_target && (~&gun_crosshair)) ? 8'd0   : {2{vid_b}})
 );
 
 
