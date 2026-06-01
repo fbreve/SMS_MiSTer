@@ -100,7 +100,6 @@ begin
 	port map (
 		clk_sys			=> clk_sys,
 		ce_pix			=> ce_pix,
-		ss_regs_set		=> ss_regs_set,
 		table_address	=> bg_address,
 		pt_address		=> m2mg_address,
 		ct_address		=> m2ct_address,

@@ -214,6 +214,7 @@ begin
 				
 		x					=> x,
 		y					=> y,
+		ss_regs_set		    => ss_regs_set,
 
 		color				=> color,
 		palettemode			=> palettemode,
@@ -246,8 +247,7 @@ begin
 		spr_tall			=> spr_tall,
 		spr_wide			=> spr_wide,
 		spr_collide		=> spr_collide,
-		spr_overflow	=> spr_overflow,
-		ss_regs_set		=> ss_regs_set);
+		spr_overflow	=> spr_overflow);
 
     
 	-- combine/mux port-A signals for DPRAM
