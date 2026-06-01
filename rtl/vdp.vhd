@@ -246,7 +246,8 @@ begin
 		spr_tall			=> spr_tall,
 		spr_wide			=> spr_wide,
 		spr_collide		=> spr_collide,
-		spr_overflow	=> spr_overflow);
+		spr_overflow	=> spr_overflow,
+		ss_regs_set		=> ss_regs_set);
 
     
 	-- combine/mux port-A signals for DPRAM

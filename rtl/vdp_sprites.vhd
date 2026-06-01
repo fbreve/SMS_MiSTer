@@ -27,7 +27,9 @@ port (
 	y					: in  STD_LOGIC_VECTOR (8 downto 0);
 	collide			: out std_logic;
 	overflow			: out std_logic;
-	color				: out STD_LOGIC_VECTOR (3 downto 0));
+	color				: out STD_LOGIC_VECTOR (3 downto 0);
+	-- Save-state: reset scanner to clean state when '1' (held one cycle)
+	ss_regs_set		: in  STD_LOGIC := '0');
 end vdp_sprites;
 
 architecture Behavioral of vdp_sprites is
@@ -70,6 +72,7 @@ begin
 		port map(
 			clk_sys=> clk_sys,
 			ce_pix=> ce_pix,
+			ss_regs_set => ss_regs_set,
 			x		=> x(7 downto 0),
 			spr_x	=> spr_x(i),
 			-- as we pass only 8 bits for the x address, we need to make the difference
@@ -117,7 +120,15 @@ begin
 		variable delta : std_logic_vector(8 downto 0);
 	begin
 		if rising_edge(clk_sys) then
-			if ce_spload='1' then
+			-- Save-state restore: reset scanner so first frame after load
+			-- uses correct sprite data for y=0 (no stale overflow/collide).
+			if ss_regs_set = '1' then
+				count    <= 0;
+				enable   <= (others => false);
+				state    <= COMPARE;
+				index    <= (others => '0');
+				overflow <= '0';
+			elsif ce_spload='1' then
 			
 				if x=257 then  -- we need step 256 to display the very last sprite pixel
 									-- and one more pixel because the test here is made sync'ed
@@ -281,7 +292,10 @@ begin
 		variable collision 	: std_logic_vector(7 downto 0);
 	begin
 		if rising_edge(clk_sys) then
-			if ce_pix='1' then  -- ce_vdp?? 
+			if ss_regs_set='1' then
+				color <= (others=>'0');
+				collide <= '0';
+			elsif ce_pix='1' then  -- ce_vdp?? 
 				color <= (others=>'0');
 				collision := (others=>'0');
 				for i in MAX_SPPL downto 8 loop
