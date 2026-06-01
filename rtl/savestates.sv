@@ -200,6 +200,7 @@ localparam ST_LOAD_WRAM    = 6'd32;
 localparam ST_LOAD_RESTORE = 6'd33;
 localparam ST_UNFREEZE     = 6'd34;
 localparam ST_SAVE_NVRAM   = 6'd35;
+localparam ST_PRE_UNFREEZE = 6'd56;
 localparam ST_LOAD_NVRAM   = 6'd36;
 localparam ST_WAIT_VBLANK  = 6'd38;  // wait for VBlank before unfreeze (load path)
 localparam ST_WAIT_RESTORE_BOUNDARY = 6'd39;  // one-cycle mapper-settle phase before core restore
@@ -949,7 +950,7 @@ always @(posedge clk or negedge reset_n) begin
             if (DDRAM_BUSY)
                 freeze_drain_cnt <= 0;
             else if (freeze_drain_cnt == 6'd31)
-                state <= ST_UNFREEZE;
+                state <= ST_PRE_UNFREEZE;
             else
                 freeze_drain_cnt <= freeze_drain_cnt + 6'd1;
         end
@@ -975,7 +976,7 @@ always @(posedge clk or negedge reset_n) begin
                     state   <= ST_LOAD_CPU0;
                 end else begin
                     // Invalid magic: abort
-                    state <= ST_UNFREEZE;
+                    state <= ST_PRE_UNFREEZE;
                 end
             end
         end
@@ -1387,7 +1388,19 @@ always @(posedge clk or negedge reset_n) begin
             // is set immediately, so we unfreeze on the next falling edge (y=0)
             // rather than exiting right away mid-VBlank.
             if (vblank)                   vblank_seen <= 1;
-            if (vblank_seen && !vblank)   state <= ST_UNFREEZE;
+            if (vblank_seen && !vblank)   state <= ST_PRE_UNFREEZE;
+        end
+
+        // ---------------------------------------------------------------
+        ST_PRE_UNFREEZE: begin
+            // Pulse vdp_regs_set one cycle BEFORE dropping ss_freeze.
+            // This guarantees the VDP gated clock (ce_vdp) is exactly 0 when the
+            // edge detectors and flags are re-primed, eliminating race conditions.
+            if (!do_save) begin
+                vdp_regs_set <= 1;
+                if (systeme) vdp2_regs_set <= 1;
+            end
+            state <= ST_UNFREEZE;
         end
 
         // ---------------------------------------------------------------
@@ -1399,19 +1412,6 @@ always @(posedge clk or negedge reset_n) begin
                 ss_freeze <= 0;
                 op_cooldown <= OP_COOLDOWN_MAX;
                 state     <= ST_IDLE;
-                // After a load, re-pulse vdp_regs_set to re-prime the VDP edge
-                // detectors (old_WR_n, old_RD_n, etc.) and repair any overflow/
-                // collision flags corrupted during the freeze window.  The VDP
-                // overflow detection runs on ce_vdp='0' -- which is ALWAYS true
-                // while ss_freeze is asserted -- so flags can drift from their
-                // saved values.  Re-pulsing here restores them at the exact
-                // moment ce_vdp resumes, eliminating phantom I/O edges and
-                // stale flag state.  vdp_regs_in still holds the correct data
-                // from ST_LOAD_RESTORE.
-                if (!do_save) begin
-                    vdp_regs_set <= 1;
-                    if (systeme) vdp2_regs_set <= 1;
-                end
             end else begin
                 ss_freeze <= 1;
             end

@@ -119,10 +119,14 @@ begin
 		variable delta : std_logic_vector(8 downto 0);
 	begin
 		if rising_edge(clk_sys) then
-			-- Save-state restore: reset enable array so first frame after load
-			-- uses correct sprite data for y=0 (no stale phantom sprites).
+			-- Save-state restore: reset scanner fully so first frame after load
+			-- uses correct sprite data for y=0 (no stale phantom sprites/state).
 			if ss_regs_set = '1' then
-				enable <= (others => false);
+				count    <= 0;
+				enable   <= (others => false);
+				state    <= COMPARE;
+				index    <= (others => '0');
+				overflow <= '0';
 			elsif ce_spload='1' then
 			
 				if x=257 then  -- we need step 256 to display the very last sprite pixel
