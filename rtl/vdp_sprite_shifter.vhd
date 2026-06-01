@@ -7,7 +7,6 @@ entity vpd_sprite_shifter is
 Port(
 	clk_sys:in  STD_LOGIC;
 	ce_pix: in  STD_LOGIC;
-	ss_regs_set: in STD_LOGIC := '0';
 	x		: in  std_logic_vector (7 downto 0);
 	spr_x	: in  std_logic_vector (7 downto 0);
 	load  : in  boolean;
@@ -35,13 +34,7 @@ begin
 
 	process (clk_sys)	begin
 		if rising_edge(clk_sys) then
-			if ss_regs_set='1' then
-				shift0 <= (others=>'0');
-				shift1 <= (others=>'0');
-				shift2 <= (others=>'0');
-				shift3 <= (others=>'0');
-				wideclock <= false;
-			elsif ce_pix = '1' then
+			if ce_pix = '1' then
 				if (spr_x=x and ((load and (m4 or spr_d3(7)='0')) or 
 									 (x224 and spr_d3(7)='1'))) or 
 					(spr_x=x+8 and x248) then

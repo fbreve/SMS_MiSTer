@@ -72,7 +72,6 @@ begin
 		port map(
 			clk_sys=> clk_sys,
 			ce_pix=> ce_pix,
-			ss_regs_set => ss_regs_set,
 			x		=> x(7 downto 0),
 			spr_x	=> spr_x(i),
 			-- as we pass only 8 bits for the x address, we need to make the difference
@@ -120,14 +119,10 @@ begin
 		variable delta : std_logic_vector(8 downto 0);
 	begin
 		if rising_edge(clk_sys) then
-			-- Save-state restore: reset scanner so first frame after load
-			-- uses correct sprite data for y=0 (no stale overflow/collide).
+			-- Save-state restore: reset enable array so first frame after load
+			-- uses correct sprite data for y=0 (no stale phantom sprites).
 			if ss_regs_set = '1' then
-				count    <= 0;
-				enable   <= (others => false);
-				state    <= COMPARE;
-				index    <= (others => '0');
-				overflow <= '0';
+				enable <= (others => false);
 			elsif ce_spload='1' then
 			
 				if x=257 then  -- we need step 256 to display the very last sprite pixel
@@ -292,10 +287,7 @@ begin
 		variable collision 	: std_logic_vector(7 downto 0);
 	begin
 		if rising_edge(clk_sys) then
-			if ss_regs_set='1' then
-				color <= (others=>'0');
-				collide <= '0';
-			elsif ce_pix='1' then  -- ce_vdp?? 
+			if ce_pix='1' then  -- ce_vdp?? 
 				color <= (others=>'0');
 				collision := (others=>'0');
 				for i in MAX_SPPL downto 8 loop
