@@ -205,7 +205,7 @@ assign HDMI_BLACKOUT = 0;
 always @(posedge clk_sys) begin
 	joy8_r   <= joy8_sig;
 	VBlank_r <= VBlank;
-	if (raw_reset | ~systeme) begin
+	if (raw_reset | ~systeme | ss_freeze) begin
 		se_paused          <= 0;
 		se_pause_pending   <= 0;
 		se_unpause_pending <= 0;

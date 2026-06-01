@@ -1153,7 +1153,6 @@ always @(posedge clk or negedge reset_n) begin
                             vram_byte_cnt    <= 0;
                             vram_load_active <= 0;
                             word_cnt         <= 0;
-                            dout_expected    <= 0;
                             ddram_read(base_addr + 29'h1901);
                             state <= ST_LOAD_VRAM1_PASSIVE;
                         end else begin
@@ -1271,7 +1270,6 @@ always @(posedge clk or negedge reset_n) begin
                         vram_byte_cnt    <= 0;
                         vram_load_active <= 0;
                         word_cnt         <= 0;
-                        dout_expected    <= 0;
                         ddram_read(base_addr + 29'h2101);
                         state <= ST_LOAD_VRAM2_PASSIVE;
                     end

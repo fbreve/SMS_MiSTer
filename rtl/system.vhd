@@ -1081,11 +1081,18 @@ port map(
 		else
 			if rising_edge(clk_sys) then
 				if mapper_set = '1' then
-					bank0              <= mapper_in(7 downto 0);
+					-- For System E, mapper_in(7:0) is IO port 0xF7 state (VDP bank
+					-- selects + rom_bank), NOT bank0.  The IO module restores the
+					-- SE banking via se_mapper_set, so skip bank0/pak4_reg0 here.
+					if systeme = '0' then
+						bank0          <= mapper_in(7 downto 0);
+					end if;
 					bank1              <= mapper_in(15 downto 8);
 					bank2              <= mapper_in(23 downto 16);
 					bank3              <= mapper_in(31 downto 24);
-					pak4_reg0          <= mapper_in(7 downto 0);
+					if systeme = '0' then
+						pak4_reg0      <= mapper_in(7 downto 0);
+					end if;
 					pak4_reg2          <= mapper_in(39 downto 32);
 					nem_bank0          <= mapper_in(47 downto 40);
 					nvram_e            <= mapper_in(50);
