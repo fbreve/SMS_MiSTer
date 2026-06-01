@@ -1399,6 +1399,19 @@ always @(posedge clk or negedge reset_n) begin
                 ss_freeze <= 0;
                 op_cooldown <= OP_COOLDOWN_MAX;
                 state     <= ST_IDLE;
+                // After a load, re-pulse vdp_regs_set to re-prime the VDP edge
+                // detectors (old_WR_n, old_RD_n, etc.) and repair any overflow/
+                // collision flags corrupted during the freeze window.  The VDP
+                // overflow detection runs on ce_vdp='0' -- which is ALWAYS true
+                // while ss_freeze is asserted -- so flags can drift from their
+                // saved values.  Re-pulsing here restores them at the exact
+                // moment ce_vdp resumes, eliminating phantom I/O edges and
+                // stale flag state.  vdp_regs_in still holds the correct data
+                // from ST_LOAD_RESTORE.
+                if (!do_save) begin
+                    vdp_regs_set <= 1;
+                    if (systeme) vdp2_regs_set <= 1;
+                end
             end else begin
                 ss_freeze <= 1;
             end
