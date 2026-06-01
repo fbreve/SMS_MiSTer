@@ -124,7 +124,7 @@ begin
 			if ss_regs_set = '1' then
 				count    <= 0;
 				enable   <= (others => false);
-				state    <= COMPARE;
+				state    <= WAITING;
 				index    <= (others => '0');
 				overflow <= '0';
 			elsif ce_spload='1' then
