@@ -438,19 +438,10 @@ always @(posedge clk or negedge reset_n) begin
                 cur_magic <= ss_bios_mode ? MAGIC_BIOS : MAGIC;
                 cur_game_id <= ss_game_id;
 
-                // Capture snapshot in the same cycle the boundary is detected.
-                // Capturing one cycle later can occasionally grab post-boundary
-                // state (or partially advanced mapper/VDP side effects), creating
-                // non-deterministic loads that crash or glitch.
+                // Z80 snapshot MUST be captured in the same cycle the boundary is detected.
+                // Capturing one cycle later grabs the post-tick state (where PC is already
+                // incremented), creating non-deterministic loads that skip an instruction.
                 z80_snap    <= z80_reg;
-                vdp_snap    <= vdp_regs;
-                cram_snap   <= cram_out;
-                psg_snap    <= psg_out;
-                mapper_snap <= mapper_out;
-                // System E: capture second VDP/PSG snapshots
-                vdp2_snap   <= vdp2_regs;
-                cram2_snap  <= cram2_out;
-                psg2_snap   <= psg2_out;
                 state       <= ST_ARM_FREEZE;
             end
         end
@@ -459,7 +450,20 @@ always @(posedge clk or negedge reset_n) begin
         ST_ARM_FREEZE: begin
             // Freeze is asserted one clk_sys cycle after boundary detection so
             // it is guaranteed active before the next CPU/VDP CE pulse.
-            // This prevents one extra micro-step after snapshot capture.
+            // We capture VDP/PSG snapshots here (one cycle late) so they reflect
+            // the post-tick state. This ensures they are perfectly synchronized
+            // with the internal x/y counters (which also advanced on the boundary tick
+            // and are not saved/restored, but merely frozen).
+            vdp_snap    <= vdp_regs;
+            cram_snap   <= cram_out;
+            psg_snap    <= psg_out;
+            mapper_snap <= mapper_out;
+            if (systeme) begin
+                vdp2_snap   <= vdp2_regs;
+                cram2_snap  <= cram2_out;
+                psg2_snap   <= psg2_out;
+            end
+            
             ss_freeze        <= 1;
             freeze_drain_cnt <= 0;
             state            <= ST_FREEZE_DRAIN;
@@ -950,7 +954,7 @@ always @(posedge clk or negedge reset_n) begin
             if (DDRAM_BUSY)
                 freeze_drain_cnt <= 0;
             else if (freeze_drain_cnt == 6'd31)
-                state <= ST_PRE_UNFREEZE;
+                state <= ST_UNFREEZE;
             else
                 freeze_drain_cnt <= freeze_drain_cnt + 6'd1;
         end
@@ -976,7 +980,7 @@ always @(posedge clk or negedge reset_n) begin
                     state   <= ST_LOAD_CPU0;
                 end else begin
                     // Invalid magic: abort
-                    state <= ST_PRE_UNFREEZE;
+                    state <= ST_UNFREEZE;
                 end
             end
         end
@@ -1208,7 +1212,7 @@ always @(posedge clk or negedge reset_n) begin
                             state <= ST_LOAD_NVRAM;
                         end else begin
                             // All memory restored; restore mapper first, then core.
-                            state      <= ST_WAIT_RESTORE_BOUNDARY;
+                            state      <= ST_LOAD_RESTORE;
                             cram_entry <= 0;
                         end
                     end
@@ -1237,7 +1241,7 @@ always @(posedge clk or negedge reset_n) begin
                         ddram_read(base_addr + 29'h0D01 + {18'd0, word_cnt + 11'd1});
                     end else begin
                         // All memory restored; restore mapper first, then core.
-                        state      <= ST_WAIT_RESTORE_BOUNDARY;
+                        state      <= ST_LOAD_RESTORE;
                         cram_entry <= 0;
                     end
                 end
@@ -1331,7 +1335,7 @@ always @(posedge clk or negedge reset_n) begin
                         word_cnt <= word_cnt + 11'd1;
                         ddram_read(base_addr + 29'h2101 + {18'd0, word_cnt + 11'd1});
                     end else begin
-                        state      <= ST_WAIT_RESTORE_BOUNDARY;
+                        state      <= ST_LOAD_RESTORE;
                         cram_entry <= 0;
                     end
                 end
@@ -1369,38 +1373,9 @@ always @(posedge clk or negedge reset_n) begin
                 cram2_D  <= cram2_snap[12*cram_entry +: 12];
             end
             if (cram_entry == 31) begin
-                // All state applied; wait for VBlank before unfreezing so the
-                // game always resumes at y=0 (clean frame boundary).
-                vblank_seen <= 0;
-                state <= ST_WAIT_VBLANK;
+                state <= ST_UNFREEZE;
             end else
                 cram_entry <= cram_entry + 5'd1;
-        end
-
-        // ---------------------------------------------------------------
-        ST_WAIT_VBLANK: begin
-            // Wait for a full VBlank rising → falling edge so we always unfreeze
-            // at y=0 (the very start of active display).  This guarantees:
-            //   • hbl_counter has been reloaded from irq_line_count by the VDP
-            //     during at least one VBlank line at x=486.
-            //   • The game resumes at the cleanest possible frame boundary.
-            // If we enter this state already inside VBlank (vblank=1), vblank_seen
-            // is set immediately, so we unfreeze on the next falling edge (y=0)
-            // rather than exiting right away mid-VBlank.
-            if (vblank)                   vblank_seen <= 1;
-            if (vblank_seen && !vblank)   state <= ST_PRE_UNFREEZE;
-        end
-
-        // ---------------------------------------------------------------
-        ST_PRE_UNFREEZE: begin
-            // Pulse vdp_regs_set one cycle BEFORE dropping ss_freeze.
-            // This guarantees the VDP gated clock (ce_vdp) is exactly 0 when the
-            // edge detectors and flags are re-primed, eliminating race conditions.
-            if (!do_save) begin
-                vdp_regs_set <= 1;
-                if (systeme) vdp2_regs_set <= 1;
-            end
-            state <= ST_UNFREEZE;
         end
 
         // ---------------------------------------------------------------
@@ -1409,9 +1384,9 @@ always @(posedge clk or negedge reset_n) begin
             // on a CPU/VDP enable pulse edge, which can cause rare load-time
             // glitches or resets in timing-sensitive games.
             if (!cpu_ce && !vdp_ce) begin
-                ss_freeze <= 0;
+                ss_freeze   <= 0;
                 op_cooldown <= OP_COOLDOWN_MAX;
-                state     <= ST_IDLE;
+                state       <= ST_IDLE;
             end else begin
                 ss_freeze <= 1;
             end
