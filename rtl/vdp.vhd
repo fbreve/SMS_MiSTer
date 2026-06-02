@@ -545,9 +545,8 @@ begin
 	begin
 		if rising_edge(clk_sys) then
 			if ss_regs_set = '1' then
-				-- vbl_irq is transient; starting from asserted state can trigger
-				-- immediate post-restore interrupts on rapid consecutive loads.
-				vbl_irq <= '0';
+				-- Restore the interrupt state from save-state instead of clearing it
+				vbl_irq <= ss_regs_in(115);
 			elsif ce_vdp = '1' then
 --				485 instead of 487 to please VDPTEST 
 				if	x=485 and ((y=224 and xmode_M1='1') 
@@ -573,7 +572,7 @@ begin
 				-- Restoring the save-time countdown would cause the first post-restore
 				-- line IRQ to fire at the wrong scanline → garbled scroll effects.
 				hbl_counter <= ss_regs_in(69 downto 62); -- irq_line_count
-				hbl_irq <= '0';
+				hbl_irq <= ss_regs_in(116);
 			elsif ce_vdp = '1' then
 				last_x0 <= std_logic(x(0));
 				if x=486 and not (last_x0=std_logic(x(0))) then
@@ -598,7 +597,7 @@ begin
 	begin
 		if rising_edge(clk_sys) then
 			if ss_regs_set = '1' then
-				irq_delay     <= "111";
+				irq_delay     <= ss_regs_in(114 downto 112);
 				collide_flag  <= ss_regs_in(117);
 				overflow_flag <= ss_regs_in(118);
 				line_overflow <= ss_regs_in(119);

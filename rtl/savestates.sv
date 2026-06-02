@@ -422,17 +422,16 @@ always @(posedge clk or negedge reset_n) begin
 
         // ---------------------------------------------------------------
         ST_WAIT_BOUNDARY: begin
-            // Wait for a clean Z80 instruction boundary.
-            // For saves, also require VBlank so the snapshot is taken from a
-            // quiet display phase instead of an arbitrary mid-frame pipeline
-            // position. Loads keep the old behavior and only require a clean
-            // CPU boundary before freeze.
+            // Wait for a clean Z80 instruction boundary during VBlank.
+            // This ensures both save and load freeze the system at a clean
+            // instruction boundary during the VBlank phase, avoiding mid-frame
+            // raster-timing inconsistencies.
             //   - M1_n low  : opcode-fetch machine cycle
             //   - MREQ_n low: normal memory read (not interrupt acknowledge)
             //   - ISet=00   : no prefix active (not mid-way through CB/DD/ED/FD sequence)
             //   - cpu_ce     : only act on an actual CPU tick, not on held bus
             //                  levels between ticks.
-            if (cpu_ce && !z80_m1_n && !z80_mreq_n && z80_iset == 2'b00 && (!do_save || vblank)) begin
+            if (cpu_ce && !z80_m1_n && !z80_mreq_n && z80_iset == 2'b00 && vblank) begin
                 base_addr <= ss_bios_mode ? bios_slot_base(cur_slot) : slot_base(cur_slot);
                 cur_bios_mode <= ss_bios_mode;
                 cur_magic <= ss_bios_mode ? MAGIC_BIOS : MAGIC;
@@ -687,7 +686,7 @@ always @(posedge clk or negedge reset_n) begin
                             word_cnt       <= 0;
                             vram_d_latched <= 0;
                             state          <= ST_SAVE_VRAM1_PASSIVE;
-                            // vram_en stays 1 for the passive-save state
+                            vram_en        <= 1;
                         end else begin
                             vram_en <= 0;
                             // Start WRAM DMA
@@ -1212,7 +1211,7 @@ always @(posedge clk or negedge reset_n) begin
                             state <= ST_LOAD_NVRAM;
                         end else begin
                             // All memory restored; restore mapper first, then core.
-                            state      <= ST_LOAD_RESTORE;
+                            state      <= ST_WAIT_RESTORE_BOUNDARY;
                             cram_entry <= 0;
                         end
                     end
@@ -1241,7 +1240,7 @@ always @(posedge clk or negedge reset_n) begin
                         ddram_read(base_addr + 29'h0D01 + {18'd0, word_cnt + 11'd1});
                     end else begin
                         // All memory restored; restore mapper first, then core.
-                        state      <= ST_LOAD_RESTORE;
+                        state      <= ST_WAIT_RESTORE_BOUNDARY;
                         cram_entry <= 0;
                     end
                 end
@@ -1335,13 +1334,14 @@ always @(posedge clk or negedge reset_n) begin
                         word_cnt <= word_cnt + 11'd1;
                         ddram_read(base_addr + 29'h2101 + {18'd0, word_cnt + 11'd1});
                     end else begin
-                        state      <= ST_LOAD_RESTORE;
+                        state      <= ST_WAIT_RESTORE_BOUNDARY;
                         cram_entry <= 0;
                     end
                 end
             end
         end
 
+        // ---------------------------------------------------------------
         ST_LOAD_RESTORE: begin
             // VRAM/WRAM and mapper are fully restored. Apply CPU+VDP+PSG state,
             // then stream CRAM while remaining frozen.
@@ -1373,9 +1373,23 @@ always @(posedge clk or negedge reset_n) begin
                 cram2_D  <= cram2_snap[12*cram_entry +: 12];
             end
             if (cram_entry == 31) begin
-                state <= ST_UNFREEZE;
+                vblank_seen <= 0;
+                state <= ST_WAIT_VBLANK;
             end else
                 cram_entry <= cram_entry + 5'd1;
+        end
+
+        ST_WAIT_VBLANK: begin
+            if (vblank)                   vblank_seen <= 1;
+            if (vblank_seen && !vblank)   state <= ST_PRE_UNFREEZE;
+        end
+
+        ST_PRE_UNFREEZE: begin
+            if (!do_save) begin
+                vdp_regs_set <= 1;
+                if (systeme) vdp2_regs_set <= 1;
+            end
+            state <= ST_UNFREEZE;
         end
 
         // ---------------------------------------------------------------
