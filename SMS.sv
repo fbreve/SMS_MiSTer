@@ -827,6 +827,11 @@ wire [55:0]  ss_psg_out, ss_psg_in;
 wire         ss_psg_set;
 wire [63:0]  ss_mapper_out, ss_mapper_in;
 wire         ss_mapper_set;
+wire [31:0]  ss_io_out, ss_io_in;
+wire         ss_io_set;
+reg          ss_freeze_d;
+always @(posedge clk_sys) ss_freeze_d <= ss_freeze;
+
 // System E VDP2 / PSG2 save-state wires
 wire [127:0] ss_vdp2_regs, ss_vdp2_regs_in;
 wire         ss_vdp2_regs_set;
@@ -886,7 +891,7 @@ system #(63) system
 (
 	.clk_sys(clk_sys),
 	.ce_cpu(ce_cpu & ~ss_freeze & ~se_pause_gate),
-	.ce_vdp(ce_vdp & ~ss_freeze),
+	.ce_vdp(ce_vdp & ~ss_freeze & ~ss_freeze_d),
 	.ce_pix(ce_pix & ~ss_freeze),
 	.ce_sp(ce_sp  & ~ss_freeze),
 	.turbo(turbo),
@@ -1050,7 +1055,10 @@ system #(63) system
 	.ss_vram2_WD  (ss_vram2_WD),
 	.psg2_out     (ss_psg2_out),
 	.psg2_in      (ss_psg2_in),
-	.psg2_set     (ss_psg2_set)
+	.psg2_set     (ss_psg2_set),
+	.io_state_out (ss_io_out),
+	.io_state_in  (ss_io_in),
+	.io_state_set (ss_io_set)
 );
 
 savestate_ui savestate_ui_inst (
@@ -1117,6 +1125,9 @@ savestates savestates_inst (
 	.mapper_out      (ss_mapper_out),
 	.mapper_in       (ss_mapper_in),
 	.mapper_set      (ss_mapper_set),
+	.io_out          (ss_io_out),
+	.io_in           (ss_io_in),
+	.io_set          (ss_io_set),
 	// WRAM DMA
 	.wram_A          (ss_wram_A),
 	.wram_D          (ram_q),

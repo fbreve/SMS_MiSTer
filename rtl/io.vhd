@@ -71,6 +71,9 @@ entity io is
 		region:	in	 STD_LOGIC;
 		se_mapper_in:  in  STD_LOGIC_VECTOR(7 downto 0) := (others => '0');
 		se_mapper_set: in  STD_LOGIC := '0';
+		io_state_out: out STD_LOGIC_VECTOR(31 downto 0);
+		io_state_in:  in  STD_LOGIC_VECTOR(31 downto 0) := (others => '0');
+		io_state_set: in  STD_LOGIC := '0';
 		RESET_n:	in  STD_LOGIC);
 end io;
 
@@ -179,6 +182,14 @@ begin
 	sk1100_row_sel <= sk1100_port_c(2 downto 0);
 	sk1100_port_a <= sk1100_row_data(7 downto 0);
 	sk1100_port_b <= sk1100_row_data(11 downto 8);
+
+	io_state_out(7 downto 0) <= ctrl;
+	io_state_out(15 downto 8) <= sc_multicart_latch;
+	io_state_out(23 downto 16) <= sk1100_port_c;
+	io_state_out(24) <= analog_select;
+	io_state_out(25) <= analog_player;
+	io_state_out(26) <= analog_upper;
+	io_state_out(31 downto 27) <= (others => '0');
 
 	process (clk, RESET_n)
 	begin
@@ -416,6 +427,14 @@ begin
 				vdp2_bank    <= se_mapper_in(6);
 				vdp_cpu_bank <= se_mapper_in(5);
 				rom_bank     <= se_mapper_in(3 downto 0);
+			end if;
+			if io_state_set = '1' then
+				ctrl               <= io_state_in(7 downto 0);
+				sc_multicart_latch <= io_state_in(15 downto 8);
+				sk1100_port_c      <= io_state_in(23 downto 16);
+				analog_select      <= io_state_in(24);
+				analog_player      <= io_state_in(25);
+				analog_upper       <= io_state_in(26);
 			end if;
 		end if;
 	end process;
