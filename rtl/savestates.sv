@@ -126,6 +126,11 @@ module savestates (
     output reg [55:0] psg2_in,
     output reg        psg2_set,
 
+    // ---- IO snapshot / restore ----
+    input      [31:0] io_out,
+    output reg [31:0] io_in,
+    output reg        io_set,
+
     // ---- DDRAM interface ----
     output reg [28:0] DDRAM_ADDR,
     output reg [63:0] DDRAM_DIN,
@@ -218,6 +223,8 @@ localparam ST_LOAD_VRAM1_PASSIVE = 6'd50; // load/zero-fill VDP1 passive bank (S
 localparam ST_LOAD_VRAM2_PASSIVE = 6'd51; // load/zero-fill VDP2 passive bank (System E)
 localparam ST_SAVE_VRAM1_PASSIVE = 6'd52; // save VDP1 passive bank to DDRAM (System E)
 localparam ST_SAVE_VRAM2_PASSIVE = 6'd53; // save VDP2 passive bank to DDRAM (System E)
+localparam ST_SAVE_IO            = 6'd57;
+localparam ST_LOAD_IO            = 6'd58;
 
 // Post-op guard time to avoid pathological immediate re-entry (rapid hammering).
 localparam [20:0] OP_COOLDOWN_MAX = 21'd1200000; // ~22ms @ 53.7MHz
@@ -247,6 +254,7 @@ reg  [63:0] mapper_snap;
 reg [127:0] vdp2_snap;
 reg [383:0] cram2_snap;
 reg  [55:0] psg2_snap;
+reg  [31:0] io_snap;
 
 // VRAM DMA pipelining: address issued, wait 2 clocks for data
 reg  [2:0]  vram_pipe;
@@ -367,6 +375,9 @@ always @(posedge clk or negedge reset_n) begin
         vram2_en        <= 0;
         vram2_WE        <= 0;
         dout_latch      <= 64'd0;
+        io_in           <= 32'd0;
+        io_set          <= 0;
+        io_snap         <= 32'd0;
         vblank_seen     <= 0;
         dout_expected   <= 0;
         ddram_watchdog  <= 0;
@@ -389,6 +400,7 @@ always @(posedge clk or negedge reset_n) begin
         cram2_wr     <= 0;
         psg2_set     <= 0;
         vram2_WE     <= 0;
+        io_set       <= 0;
         ddram_idle();
 
         // DDRAM read watchdog: abort if no response after ~640ms
@@ -462,6 +474,7 @@ always @(posedge clk or negedge reset_n) begin
                 cram2_snap  <= cram2_out;
                 psg2_snap   <= psg2_out;
             end
+            io_snap          <= io_out;
             
             ss_freeze        <= 1;
             freeze_drain_cnt <= 0;
@@ -572,6 +585,13 @@ always @(posedge clk or negedge reset_n) begin
         ST_SAVE_MAPPER: begin
             if (!DDRAM_BUSY) begin
                 ddram_write(base_addr + 29'd15, mapper_snap, 8'hFF);
+                state <= ST_SAVE_IO;
+            end
+        end
+
+        ST_SAVE_IO: begin
+            if (!DDRAM_BUSY) begin
+                ddram_write(base_addr + 29'h019, {32'd0, io_snap}, 8'hFF);
                 if (systeme) begin
                     // System E: save VDP2/CRAM2/PSG2 before VRAM1
                     cram_idx  <= 0;
@@ -1054,6 +1074,15 @@ always @(posedge clk or negedge reset_n) begin
             if (DDRAM_DOUT_READY && dout_expected) begin
                 dout_expected    <= 0;
                 mapper_snap      <= DDRAM_DOUT;
+                ddram_read(base_addr + 29'h019);
+                state            <= ST_LOAD_IO;
+            end
+        end
+
+        ST_LOAD_IO: begin
+            if (DDRAM_DOUT_READY && dout_expected) begin
+                dout_expected    <= 0;
+                io_snap          <= DDRAM_DOUT[31:0];
                 if (systeme) begin
                     // System E: read VDP2/CRAM2/PSG2 before restoring VRAM
                     ddram_read(base_addr + 29'h10);
@@ -1354,6 +1383,8 @@ always @(posedge clk or negedge reset_n) begin
                 vdp_regs_set <= 1;
                 psg_in       <= psg_snap;
                 psg_set      <= 1;
+                io_in        <= io_snap;
+                io_set       <= 1;
                 // System E: restore second VDP/PSG
                 if (systeme) begin
                     vdp2_regs_in  <= vdp2_snap;
