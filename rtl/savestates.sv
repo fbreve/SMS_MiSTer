@@ -225,6 +225,7 @@ localparam ST_SAVE_VRAM1_PASSIVE = 6'd52; // save VDP1 passive bank to DDRAM (Sy
 localparam ST_SAVE_VRAM2_PASSIVE = 6'd53; // save VDP2 passive bank to DDRAM (System E)
 localparam ST_SAVE_IO            = 6'd57;
 localparam ST_LOAD_IO            = 6'd58;
+localparam ST_FLUSH_PIPELINE     = 6'd59;
 
 // Post-op guard time to avoid pathological immediate re-entry (rapid hammering).
 localparam [20:0] OP_COOLDOWN_MAX = 21'd1200000; // ~22ms @ 53.7MHz
@@ -244,6 +245,7 @@ reg  [2:0] cram_idx;    // 0..5 for CRAM 64-bit words
 reg  [4:0] cram_entry;  // 0..31 for entry-by-entry restore
 reg  [2:0] cpu_idx;     // 0..3 for CPU words
 reg  [2:0] vdp_idx;     // 0..1 for VDP reg words
+reg  [5:0] flush_cnt;
 // Latching buffers for multi-word state
 reg [227:0] z80_snap;
 reg [127:0] vdp_snap;
@@ -383,6 +385,7 @@ always @(posedge clk or negedge reset_n) begin
         ddram_watchdog  <= 0;
         freeze_drain_cnt <= 0;
         op_cooldown    <= 0;
+        flush_cnt       <= 0;
         DDRAM_WE        <= 0;
         DDRAM_RD        <= 0;
         DDRAM_BURSTCNT  <= 8'd1;
@@ -1413,7 +1416,18 @@ always @(posedge clk or negedge reset_n) begin
 
         ST_WAIT_VBLANK: begin
             if (vblank)                   vblank_seen <= 1;
-            if (vblank_seen && !vblank)   state <= ST_PRE_UNFREEZE;
+            if (vblank_seen && !vblank) begin
+                flush_cnt <= 6'd0;
+                state     <= ST_FLUSH_PIPELINE;
+            end
+        end
+
+        ST_FLUSH_PIPELINE: begin
+            if (flush_cnt == 6'd63) begin
+                state <= ST_PRE_UNFREEZE;
+            end else begin
+                flush_cnt <= flush_cnt + 6'd1;
+            end
         end
 
         ST_PRE_UNFREEZE: begin

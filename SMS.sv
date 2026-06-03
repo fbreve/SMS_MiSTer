@@ -1372,6 +1372,7 @@ video video
 	.smode_M1(smode_M1),
 	.smode_M2(smode_M2),
 	.smode_M3(smode_M3),
+	.ss_reset(ss_vdp_regs_set),
 	.x(x),
 	.y(y),
 	.hsync(HS),

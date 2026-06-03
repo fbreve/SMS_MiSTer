@@ -16,6 +16,7 @@ entity video is
 		smode_M2:		in	 std_logic;
 		smode_M3:		in	 std_logic;
 		smode_M4:		in	 std_logic;
+		ss_reset:		in  std_logic := '0';
 		
 		x: 				out std_logic_vector(8 downto 0);
 		y:					out std_logic_vector(8 downto 0);
@@ -37,7 +38,12 @@ begin
 	process (clk)
 	begin
 		if rising_edge(clk) then
-			if ce_pix = '1' then
+			if ss_reset = '1' then
+				hcount <= (others => '0');
+				vcount <= (others => '0');
+				vsync <= '0';
+				hsync <= '0';
+			elsif ce_pix = '1' then
 				if hcount=487	then
 					vcount <= vcount + 1;
 					if pal = '1' then
@@ -143,7 +149,10 @@ begin
 	process (clk)
 	begin
 		if rising_edge(clk) then
-			if ce_pix = '1' then
+			if ss_reset = '1' then
+				hblank <= '0';
+				vblank <= '0';
+			elsif ce_pix = '1' then
 				if (hcount=hbl_end) then
 					hblank <= '0';
 				elsif (hcount=hbl_st) then
