@@ -81,7 +81,13 @@ begin
 	process (clk_sys) begin
 		if rising_edge(clk_sys) then
 			if ss_restore = '1' then
-				x <= (others => '0');
+				if smode_M4='0' then
+					x <= "11110000" ; -- 240
+				elsif disable_hscroll='0' or screen_y>=16 then
+					x <= 232-scroll_x;
+				else
+					x <= "11101000"; -- 256-24=232
+				end if;
 			elsif ce_pix = '1' then
 				if (reset='1') then
 					if smode_M4='0' then
