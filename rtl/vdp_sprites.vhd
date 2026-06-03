@@ -88,7 +88,8 @@ begin
 			spr_d2=> spr_d2(i),
 			spr_d3=> spr_d3(i),
 			color => spr_color(i),
-			active=> spr_active(i)
+			active=> spr_active(i),
+			ss_regs_set => ss_regs_set
 		);
 
 	end generate;
