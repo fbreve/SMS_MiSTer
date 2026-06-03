@@ -122,6 +122,7 @@ begin
 		ysj_quirk			=> ysj_quirk,
 		text_fg_color	=> text_fg_color,
 		overscan			=> overscan,
+		ss_restore			=> ss_regs_set,
 		priority			=> bg_priority);
 		
 	vdp_spr_inst: entity work.vdp_sprites
