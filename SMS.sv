@@ -1525,7 +1525,7 @@ wire turbo = status[40];
 video video
 (
 	.clk(clk_sys),
-	.ce_pix(ce_pix),
+	.ce_pix(ce_pix & ~ss_freeze),
 	.pal(pal),
 	.ggres(ggres),
 	.border(border),
