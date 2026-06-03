@@ -118,10 +118,10 @@ entity T80 is
 		IntE       : out std_logic;
 		Stop       : out std_logic;
 		out0       : in  std_logic := '0';  -- 0 => OUT(C),0, 1 => OUT(C),255
-		REG        : out std_logic_vector(211 downto 0); -- IFF2, IFF1, IM, IY, HL', DE', BC', IX, HL, DE, BC, PC, SP, R, I, F', A', F, A
+		REG        : out std_logic_vector(227 downto 0); -- WZ, IFF2, IFF1, IM, IY, HL', DE', BC', IX, HL, DE, BC, PC, SP, R, I, F', A', F, A
 
 		DIRSet     : in  std_logic := '0';
-		DIR        : in  std_logic_vector(211 downto 0) := (others => '0'); -- IFF2, IFF1, IM, IY, HL', DE', BC', IX, HL, DE, BC, PC, SP, R, I, F', A', F, A
+		DIR        : in  std_logic_vector(227 downto 0) := (others => '0'); -- WZ, IFF2, IFF1, IM, IY, HL', DE', BC', IX, HL, DE, BC, PC, SP, R, I, F', A', F, A
 		-- Prefix/instruction-set state: '00'=no prefix (clean save point)
 		ISet_out   : out std_logic_vector(1 downto 0)
 	);
@@ -262,8 +262,8 @@ begin
 
 	ISet_out <= ISet;
 
-	REG <= IntE_FF2 & IntE_FF1 & IStatus & DOR & std_logic_vector(PC) & std_logic_vector(SP) & std_logic_vector(R) & I & Fp & Ap & F & ACC when Alternate = '0'
-			 else IntE_FF2 & IntE_FF1 & IStatus & DOR(127 downto 112) & DOR(47 downto 0) & DOR(63 downto 48) & DOR(111 downto 64) &
+	REG <= WZ & IntE_FF2 & IntE_FF1 & IStatus & DOR & std_logic_vector(PC) & std_logic_vector(SP) & std_logic_vector(R) & I & Fp & Ap & F & ACC when Alternate = '0'
+			 else WZ & IntE_FF2 & IntE_FF1 & IStatus & DOR(127 downto 112) & DOR(47 downto 0) & DOR(63 downto 48) & DOR(111 downto 64) &
 						std_logic_vector(PC) & std_logic_vector(SP) & std_logic_vector(R) & I & Fp & Ap & F & ACC;
 
 	mcode : work.T80_MCode
@@ -418,6 +418,7 @@ begin
 				SP  <= unsigned(DIR(63 downto 48));
 				PC  <= unsigned(DIR(79 downto 64));
 				A   <= DIR(79 downto 64);
+				WZ  <= DIR(227 downto 212);
 				IStatus <= DIR(209 downto 208);
 				ISet <= "00";
 				XY_State <= "00";
