@@ -829,8 +829,6 @@ wire [63:0]  ss_mapper_out, ss_mapper_in;
 wire         ss_mapper_set;
 wire [31:0]  ss_io_out, ss_io_in;
 wire         ss_io_set;
-reg          ss_freeze_d;
-always @(posedge clk_sys) ss_freeze_d <= ss_freeze;
 
 // System E VDP2 / PSG2 save-state wires
 wire [127:0] ss_vdp2_regs, ss_vdp2_regs_in;
@@ -891,7 +889,7 @@ system #(63) system
 (
 	.clk_sys(clk_sys),
 	.ce_cpu(ce_cpu & ~ss_freeze & ~se_pause_gate),
-	.ce_vdp(ce_vdp & ~ss_freeze & ~ss_freeze_d),
+	.ce_vdp(ce_vdp & ~ss_freeze),
 	.ce_pix(ce_pix & ~ss_freeze),
 	.ce_sp(ce_sp  & ~ss_freeze),
 	.turbo(turbo),
