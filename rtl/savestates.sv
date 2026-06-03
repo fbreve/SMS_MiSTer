@@ -611,6 +611,13 @@ always @(posedge clk or negedge reset_n) begin
         ST_SAVE_IO: begin
             if (!DDRAM_BUSY) begin
                 ddram_write(base_addr + 29'h019, {32'd0, io_snap}, 8'hFF);
+                state <= ST_SAVE_VIDEO;
+            end
+        end
+
+        ST_SAVE_VIDEO: begin
+            if (!DDRAM_BUSY) begin
+                ddram_write(base_addr + 29'h01a, {42'd0, video_snap}, 8'hFF);
                 if (systeme) begin
                     // System E: save VDP2/CRAM2/PSG2 before VRAM1
                     cram_idx  <= 0;
@@ -1102,6 +1109,15 @@ always @(posedge clk or negedge reset_n) begin
             if (DDRAM_DOUT_READY && dout_expected) begin
                 dout_expected    <= 0;
                 io_snap          <= DDRAM_DOUT[31:0];
+                ddram_read(base_addr + 29'h01a);
+                state            <= ST_LOAD_VIDEO;
+            end
+        end
+
+        ST_LOAD_VIDEO: begin
+            if (DDRAM_DOUT_READY && dout_expected) begin
+                dout_expected    <= 0;
+                video_snap       <= DDRAM_DOUT[21:0];
                 if (systeme) begin
                     // System E: read VDP2/CRAM2/PSG2 before restoring VRAM
                     ddram_read(base_addr + 29'h10);
@@ -1404,6 +1420,8 @@ always @(posedge clk or negedge reset_n) begin
                 psg_set      <= 1;
                 io_in        <= io_snap;
                 io_set       <= 1;
+                video_state_in  <= video_snap;
+                video_state_set <= 1;
                 // System E: restore second VDP/PSG
                 if (systeme) begin
                     vdp2_regs_in  <= vdp2_snap;
@@ -1423,8 +1441,8 @@ always @(posedge clk or negedge reset_n) begin
                 cram2_D  <= cram2_snap[12*cram_entry +: 12];
             end
             if (cram_entry == 31) begin
-                vblank_seen <= 0;
-                state <= ST_WAIT_VBLANK;
+                flush_cnt <= 12'd0;
+                state     <= ST_FLUSH_PIPELINE;
             end else
                 cram_entry <= cram_entry + 5'd1;
         end
