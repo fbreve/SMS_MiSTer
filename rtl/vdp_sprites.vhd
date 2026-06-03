@@ -127,6 +127,13 @@ begin
 				state    <= WAITING;
 				index    <= (others => '0');
 				overflow <= '0';
+				for i in 0 to MAX_SPPL loop
+					spr_x(i)  <= (others => '0');
+					spr_d0(i) <= (others => '0');
+					spr_d1(i) <= (others => '0');
+					spr_d2(i) <= (others => '0');
+					spr_d3(i) <= (others => '0');
+				end loop;
 			elsif ce_spload='1' then
 			
 				if x=257 then  -- we need step 256 to display the very last sprite pixel
