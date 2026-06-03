@@ -1404,8 +1404,6 @@ always @(posedge clk or negedge reset_n) begin
                 psg_set      <= 1;
                 io_in        <= io_snap;
                 io_set       <= 1;
-                video_state_in  <= video_snap;
-                video_state_set <= 1;
                 // System E: restore second VDP/PSG
                 if (systeme) begin
                     vdp2_regs_in  <= vdp2_snap;
@@ -1448,10 +1446,6 @@ always @(posedge clk or negedge reset_n) begin
         end
 
         ST_PRE_UNFREEZE: begin
-            if (!do_save) begin
-                vdp_regs_set <= 1;
-                if (systeme) vdp2_regs_set <= 1;
-            end
             unfreeze_cnt <= 0;
             state <= ST_UNFREEZE;
         end
