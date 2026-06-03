@@ -981,6 +981,8 @@ wire [63:0]  ss_mapper_out, ss_mapper_in;
 wire         ss_mapper_set;
 wire [31:0]  ss_io_out, ss_io_in;
 wire         ss_io_set;
+wire [21:0]  ss_video_state_out, ss_video_state_in;
+wire         ss_video_state_set;
 
 // System E VDP2 / PSG2 save-state wires
 wire [127:0] ss_vdp2_regs, ss_vdp2_regs_in;
@@ -1278,6 +1280,9 @@ savestates savestates_inst (
 	.io_out          (ss_io_out),
 	.io_in           (ss_io_in),
 	.io_set          (ss_io_set),
+	.video_state_out (ss_video_state_out),
+	.video_state_in  (ss_video_state_in),
+	.video_state_set (ss_video_state_set),
 	// WRAM DMA
 	.wram_A          (ss_wram_A),
 	.wram_D          (ram_q),
@@ -1524,7 +1529,9 @@ video video
 	.smode_M1(smode_M1),
 	.smode_M2(smode_M2),
 	.smode_M3(smode_M3),
-	.ss_reset(ss_vdp_regs_set),
+	.video_state_out(ss_video_state_out),
+	.video_state_in(ss_video_state_in),
+	.video_state_set(ss_video_state_set),
 	.x(x),
 	.y(y),
 	.hsync(HS),
