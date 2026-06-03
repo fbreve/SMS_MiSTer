@@ -46,12 +46,7 @@ begin
 	process (clk)
 	begin
 		if rising_edge(clk) then
-			if video_state_set = '1' then
-				hcount    <= video_state_in(21 downto 13);
-				vcount    <= video_state_in(12 downto 4);
-				hsync_reg <= video_state_in(3);
-				vsync_reg <= video_state_in(2);
-			elsif ce_pix = '1' then
+			if ce_pix = '1' then
 				if hcount=487	then
 					vcount <= vcount + 1;
 					if pal = '1' then
@@ -163,10 +158,7 @@ begin
 	process (clk)
 	begin
 		if rising_edge(clk) then
-			if video_state_set = '1' then
-				hblank_reg <= video_state_in(1);
-				vblank_reg <= video_state_in(0);
-			elsif ce_pix = '1' then
+			if ce_pix = '1' then
 				if (hcount=hbl_end) then
 					hblank_reg <= '0';
 				elsif (hcount=hbl_st) then
