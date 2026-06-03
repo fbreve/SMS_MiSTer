@@ -131,6 +131,11 @@ module savestates (
     output reg [31:0] io_in,
     output reg        io_set,
 
+    // ---- Video State snapshot / restore ----
+    input      [21:0] video_state_out,
+    output reg [21:0] video_state_in,
+    output reg        video_state_set,
+
     // ---- DDRAM interface ----
     output reg [28:0] DDRAM_ADDR,
     output reg [63:0] DDRAM_DIN,
@@ -226,6 +231,8 @@ localparam ST_SAVE_VRAM2_PASSIVE = 6'd53; // save VDP2 passive bank to DDRAM (Sy
 localparam ST_SAVE_IO            = 6'd57;
 localparam ST_LOAD_IO            = 6'd58;
 localparam ST_FLUSH_PIPELINE     = 6'd59;
+localparam ST_SAVE_VIDEO         = 6'd60;
+localparam ST_LOAD_VIDEO         = 6'd61;
 
 // Post-op guard time to avoid pathological immediate re-entry (rapid hammering).
 localparam [20:0] OP_COOLDOWN_MAX = 21'd1200000; // ~22ms @ 53.7MHz
@@ -257,6 +264,7 @@ reg [127:0] vdp2_snap;
 reg [383:0] cram2_snap;
 reg  [55:0] psg2_snap;
 reg  [31:0] io_snap;
+reg  [21:0] video_snap;
 
 // VRAM DMA pipelining: address issued, wait 2 clocks for data
 reg  [2:0]  vram_pipe;
@@ -380,6 +388,9 @@ always @(posedge clk or negedge reset_n) begin
         io_in           <= 32'd0;
         io_set          <= 0;
         io_snap         <= 32'd0;
+        video_state_in  <= 22'd0;
+        video_state_set <= 0;
+        video_snap      <= 22'd0;
         vblank_seen     <= 0;
         dout_expected   <= 0;
         ddram_watchdog  <= 0;
@@ -404,6 +415,7 @@ always @(posedge clk or negedge reset_n) begin
         psg2_set     <= 0;
         vram2_WE     <= 0;
         io_set       <= 0;
+        video_state_set <= 0;
         ddram_idle();
 
         // DDRAM read watchdog: abort if no response after ~640ms
@@ -478,6 +490,7 @@ always @(posedge clk or negedge reset_n) begin
                 psg2_snap   <= psg2_out;
             end
             io_snap          <= io_out;
+            video_snap       <= video_state_out;
             
             ss_freeze        <= 1;
             freeze_drain_cnt <= 0;
@@ -596,6 +609,13 @@ always @(posedge clk or negedge reset_n) begin
         ST_SAVE_IO: begin
             if (!DDRAM_BUSY) begin
                 ddram_write(base_addr + 29'h019, {32'd0, io_snap}, 8'hFF);
+                state <= ST_SAVE_VIDEO;
+            end
+        end
+
+        ST_SAVE_VIDEO: begin
+            if (!DDRAM_BUSY) begin
+                ddram_write(base_addr + 29'h01A, {42'd0, video_snap}, 8'hFF);
                 if (systeme) begin
                     // System E: save VDP2/CRAM2/PSG2 before VRAM1
                     cram_idx  <= 0;
@@ -1087,6 +1107,15 @@ always @(posedge clk or negedge reset_n) begin
             if (DDRAM_DOUT_READY && dout_expected) begin
                 dout_expected    <= 0;
                 io_snap          <= DDRAM_DOUT[31:0];
+                ddram_read(base_addr + 29'h01A);
+                state            <= ST_LOAD_VIDEO;
+            end
+        end
+
+        ST_LOAD_VIDEO: begin
+            if (DDRAM_DOUT_READY && dout_expected) begin
+                dout_expected    <= 0;
+                video_snap       <= DDRAM_DOUT[21:0];
                 if (systeme) begin
                     // System E: read VDP2/CRAM2/PSG2 before restoring VRAM
                     ddram_read(base_addr + 29'h10);
@@ -1389,6 +1418,8 @@ always @(posedge clk or negedge reset_n) begin
                 psg_set      <= 1;
                 io_in        <= io_snap;
                 io_set       <= 1;
+                video_state_in  <= video_snap;
+                video_state_set <= 1;
                 // System E: restore second VDP/PSG
                 if (systeme) begin
                     vdp2_regs_in  <= vdp2_snap;
