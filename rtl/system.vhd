@@ -1478,6 +1478,11 @@ port map(
 				detect_linear      <= mapper_in(63);
 				detect_dahjee_a    <= mapper_in(48);
 				detect_sega_locked <= mapper_in(49);
+				mapper_detect_ticks <= to_unsigned(65535, 16);
+				castle_write_count <= 0;
+				bank_write_seen <= '0';
+				sega_mapper_write_seen <= '0';
+				wonderkid_write_count <= 0;
 			else
 				if bootloader_n = '0' then
 					mapper_detect_ticks <= (others => '0');

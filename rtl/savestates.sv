@@ -1405,6 +1405,7 @@ always @(posedge clk or negedge reset_n) begin
                 io_in        <= io_snap;
                 io_set       <= 1;
                 video_state_in  <= video_snap;
+                video_state_set <= 1;
                 // System E: restore second VDP/PSG
                 if (systeme) begin
                     vdp2_regs_in  <= vdp2_snap;
