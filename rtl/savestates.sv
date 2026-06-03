@@ -252,7 +252,7 @@ reg  [2:0] cram_idx;    // 0..5 for CRAM 64-bit words
 reg  [4:0] cram_entry;  // 0..31 for entry-by-entry restore
 reg  [2:0] cpu_idx;     // 0..3 for CPU words
 reg  [2:0] vdp_idx;     // 0..1 for VDP reg words
-reg  [5:0] flush_cnt;
+reg  [7:0] flush_cnt;
 // Latching buffers for multi-word state
 reg [227:0] z80_snap;
 reg [127:0] vdp_snap;
@@ -1448,16 +1448,16 @@ always @(posedge clk or negedge reset_n) begin
         ST_WAIT_VBLANK: begin
             if (vblank)                   vblank_seen <= 1;
             if (vblank_seen && !vblank) begin
-                flush_cnt <= 6'd0;
+                flush_cnt <= 8'd0;
                 state     <= ST_FLUSH_PIPELINE;
             end
         end
 
         ST_FLUSH_PIPELINE: begin
-            if (flush_cnt == 6'd63) begin
+            if (flush_cnt == 8'd255) begin
                 state <= ST_PRE_UNFREEZE;
             end else begin
-                flush_cnt <= flush_cnt + 6'd1;
+                flush_cnt <= flush_cnt + 8'd1;
             end
         end
 
