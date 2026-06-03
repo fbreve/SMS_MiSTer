@@ -39,6 +39,11 @@ assign BUTTONS   = osd_btn;
 assign VGA_SCALER= 0;
 assign VGA_DISABLE = 0;
 wire ss_freeze;
+reg  ss_freeze_r;
+always @(posedge clk_sys) begin
+	ss_freeze_r <= ss_freeze;
+end
+wire ss_unfreeze = ss_freeze_r & ~ss_freeze;
 // System E toggle-pause: joy[8] = Pause button (position 5 in J1 layout)
 wire       joy8_sig = swap ? joy_1[8] : joy_0[8];
 reg        joy8_r;
@@ -53,7 +58,7 @@ assign HDMI_BLACKOUT = 0;
 always @(posedge clk_sys) begin
 	joy8_r   <= joy8_sig;
 	VBlank_r <= VBlank;
-	if (raw_reset | ~systeme | ss_freeze) begin
+	if (raw_reset | ~systeme | ss_freeze | ss_unfreeze) begin
 		se_paused          <= 0;
 		se_pause_pending   <= 0;
 		se_unpause_pending <= 0;

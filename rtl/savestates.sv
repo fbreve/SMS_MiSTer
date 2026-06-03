@@ -252,8 +252,8 @@ reg  [2:0] cram_idx;    // 0..5 for CRAM 64-bit words
 reg  [4:0] cram_entry;  // 0..31 for entry-by-entry restore
 reg  [2:0] cpu_idx;     // 0..3 for CPU words
 reg  [2:0] vdp_idx;     // 0..1 for VDP reg words
-reg  [9:0] flush_cnt;
-reg  [3:0] unfreeze_cnt;
+reg  [11:0] flush_cnt;
+reg  [4:0] unfreeze_cnt;
 // Latching buffers for multi-word state
 reg [227:0] z80_snap;
 reg [127:0] vdp_snap;
@@ -1433,16 +1433,16 @@ always @(posedge clk or negedge reset_n) begin
         ST_WAIT_VBLANK: begin
             if (vblank)                   vblank_seen <= 1;
             if (vblank_seen && !vblank) begin
-                flush_cnt <= 10'd0;
+                flush_cnt <= 12'd0;
                 state     <= ST_FLUSH_PIPELINE;
             end
         end
 
         ST_FLUSH_PIPELINE: begin
-            if (flush_cnt == 10'd1023) begin
+            if (flush_cnt == 12'd4095) begin
                 state <= ST_PRE_UNFREEZE;
             end else begin
-                flush_cnt <= flush_cnt + 10'd1;
+                flush_cnt <= flush_cnt + 12'd1;
             end
         end
 
@@ -1460,8 +1460,8 @@ always @(posedge clk or negedge reset_n) begin
             // Release freeze only on a quiet CE phase to avoid resuming exactly
             // on a CPU/VDP enable pulse edge, which can cause rare load-time
             // glitches or resets in timing-sensitive games.
-            if (unfreeze_cnt < 4'd15) begin
-                unfreeze_cnt <= unfreeze_cnt + 4'd1;
+            if (unfreeze_cnt < 5'd31) begin
+                unfreeze_cnt <= unfreeze_cnt + 5'd1;
                 ss_freeze <= 1;
             end else if (!cpu_ce && !vdp_ce) begin
                 ss_freeze   <= 0;
