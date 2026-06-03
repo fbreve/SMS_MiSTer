@@ -601,7 +601,6 @@ begin
 				collide_flag  <= ss_regs_in(117);
 				overflow_flag <= ss_regs_in(118);
 				line_overflow <= ss_regs_in(119);
-				IRQ_n         <= '1';
 			else
 				-- using the other phase of ce_vdp permits to please VDPTEST ovr HCounter
 				-- very tight condition;
