@@ -1430,8 +1430,8 @@ always @(posedge clk or negedge reset_n) begin
         end
 
         ST_WAIT_VBLANK: begin
-            if (vblank)                   vblank_seen <= 1;
-            if (vblank_seen && !vblank) begin
+            if (!vblank)                  vblank_seen <= 1;
+            if (vblank_seen && vblank) begin
                 flush_cnt <= 12'd0;
                 state     <= ST_FLUSH_PIPELINE;
             end
