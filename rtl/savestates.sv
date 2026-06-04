@@ -1421,7 +1421,6 @@ always @(posedge clk or negedge reset_n) begin
                 io_in        <= io_snap;
                 io_set       <= 1;
                 video_state_in  <= video_snap;
-                video_state_set <= 1;
                 // System E: restore second VDP/PSG
                 if (systeme) begin
                     vdp2_regs_in  <= vdp2_snap;
@@ -1441,8 +1440,8 @@ always @(posedge clk or negedge reset_n) begin
                 cram2_D  <= cram2_snap[12*cram_entry +: 12];
             end
             if (cram_entry == 31) begin
-                flush_cnt <= 12'd0;
-                state     <= ST_FLUSH_PIPELINE;
+                vblank_seen <= 0;
+                state <= ST_WAIT_VBLANK;
             end else
                 cram_entry <= cram_entry + 5'd1;
         end
@@ -1464,6 +1463,7 @@ always @(posedge clk or negedge reset_n) begin
         end
 
         ST_PRE_UNFREEZE: begin
+            video_state_set <= 1;
             unfreeze_cnt <= 0;
             state <= ST_UNFREEZE;
         end
