@@ -1628,6 +1628,7 @@ wire [3:0] vid_b = se_pause_gate ? {1'b0, color[11:9]} : color[11:8];
 video_mixer #(.HALF_DEPTH(1), .LINE_LENGTH(300), .GAMMA(1)) video_mixer
 (
 	.*,
+	.HDMI_FREEZE(ss_freeze),
 	.scandoubler(scale || forced_scandoubler),
 	.hq2x(scale==1),
 	.freeze_sync(),

@@ -743,11 +743,11 @@ always @(posedge clk or negedge reset_n) begin
                     end else if (vram_byte_cnt == 7) begin
                         if (systeme) begin
                             // System E: save VDP1 passive bank before WRAM
-                            vram_save_addr <= {mapper_snap[7], 14'b0};
+                            vram_save_addr <= {~mapper_snap[7], 14'b0};
                             vram_byte_cnt  <= 0;
                             vram_word_buf  <= 0;
                             vram_pipe      <= 0;
-                            vram_A         <= {mapper_snap[7], 14'b0};
+                            vram_A         <= {~mapper_snap[7], 14'b0};
                             word_cnt       <= 0;
                             vram_d_latched <= 0;
                             state          <= ST_SAVE_VRAM1_PASSIVE;
