@@ -1040,7 +1040,16 @@ port map(
 			mapper_msx <= '0' ;
 		else
 			if rising_edge(clk_sys) then
-			if bootloader_n='1' and sc3000_en='0' and mapper_wonderkid='0' and not mapper_msx_lock then
+				if mapper_set = '1' then
+					mapper_msx <= mapper_in(56);
+					if mapper_in(56) = '1' then
+						mapper_msx_lock <= true;
+						mapper_msx_lock0 <= true;
+					else
+						mapper_msx_lock <= false;
+						mapper_msx_lock0 <= false;
+					end if;
+				elsif bootloader_n='1' and sc3000_en='0' and mapper_wonderkid='0' and not mapper_msx_lock then
 					if MREQ_n='0' then 
 					-- in this state, A is stable but not D_out
 						if A=x"0000" then
@@ -1372,7 +1381,7 @@ port map(
 	-- Note: when systeme='1', bits [7:0] mirror IO port 0xF7:
 	--   [7]=vdp_se_bank [6]=vdp2_se_bank [5]=vdp_cpu_bank [3:0]=rom_bank
 	mapper_out(63 downto 8) <= detect_linear & detect_wonderkid & detect_castle & mapper_codies_lock &
-	              lock_mapper_B & mapper_codies & mapper_4pak & '0' &
+	              lock_mapper_B & mapper_codies & mapper_4pak & mapper_msx &
 	              '0' & bootloader_n & nvram_cme & nvram_p & nvram_ex & nvram_e &
 	              detect_sega_locked & detect_dahjee_a &
 	              nem_bank0 & pak4_reg2 & bank3 & bank2 & bank1;

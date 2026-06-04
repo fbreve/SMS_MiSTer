@@ -204,7 +204,7 @@ reg        se_pause_pending;    // waiting for VBlank fall (y=0) to freeze CPU
 reg        se_unpause_pending;  // waiting for VBlank rising edge to release CPU
 reg        VBlank_r;            // one-cycle delay for VBlank edge detection
 wire       se_pause_gate = systeme & se_paused;
-assign HDMI_FREEZE   = ss_freeze;
+assign HDMI_FREEZE   = ss_freeze | se_pause_gate;
 assign HDMI_BLACKOUT = 0;
 
 always @(posedge clk_sys) begin
@@ -1061,9 +1061,9 @@ wire  [7:0] nvram_d;
 wire  [7:0] nvram_q;
 
 // NVRAM DMA wires (savestates → nvram_inst during ss_freeze)
-wire [12:0] ss_nvram_A;    // DMA read address
+wire [14:0] ss_nvram_A;    // DMA read address
 wire        ss_nvram_WE;   // DMA write enable
-wire [12:0] ss_nvram_WA;   // DMA write address
+wire [14:0] ss_nvram_WA;   // DMA write address
 wire  [7:0] ss_nvram_WD;   // DMA write data
 // nvram_q feeds ss_nvram_D directly (read data back to savestates)
 
@@ -1655,7 +1655,7 @@ end
 dpram #(.widthad_a(15)) nvram_inst
 (
 	.clock_a     (clk_sys),
-	.address_a   (ss_freeze ? (ss_nvram_WE ? {2'b00, ss_nvram_WA} : {2'b00, ss_nvram_A}) : nvram_a),
+	.address_a   (ss_freeze ? (ss_nvram_WE ? ss_nvram_WA : ss_nvram_A) : nvram_a),
 	.wren_a      (ss_freeze ? ss_nvram_WE : nvram_we),
 	.data_a      (ss_freeze ? ss_nvram_WD : nvram_d),
 	.q_a         (nvram_q),
