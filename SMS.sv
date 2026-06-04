@@ -986,6 +986,29 @@ wire [63:0]  ss_mapper_out, ss_mapper_in;
 wire         ss_mapper_set;
 wire [31:0]  ss_io_out, ss_io_in;
 wire         ss_io_set;
+reg [1:0] restored_vdp_enables;
+reg [1:0] restored_psg_enables;
+reg       has_restored_enables = 0;
+reg [1:0] last_status_vdp_enables;
+reg [1:0] last_status_psg_enables;
+
+always @(posedge clk_sys) begin
+	last_status_vdp_enables <= status[34:33];
+	last_status_psg_enables <= status[36:35];
+
+	if (raw_reset) begin
+		has_restored_enables <= 1'b0;
+	end else begin
+		if (ss_io_set) begin
+			restored_vdp_enables <= ss_io_in[28:27];
+			restored_psg_enables <= ss_io_in[30:29];
+			has_restored_enables <= 1'b1;
+		end else if (status[34:33] != last_status_vdp_enables || status[36:35] != last_status_psg_enables) begin
+			has_restored_enables <= 1'b0;
+		end
+	end
+end
+
 wire [21:0]  ss_video_state_out, ss_video_state_in;
 wire         ss_video_state_set;
 
@@ -1141,8 +1164,8 @@ system #(63) system
 	.mapper_dahjee_a_force(mapper_force_dahjee_a),
 	.mapper_linear_force(mapper_force_linear),
 	.mapper_zemina_force(mapper_force_zemina),
-	.vdp_enables(dbg_menu ? status[34:33] : 2'b00),
-	.psg_enables(dbg_menu ? status[36:35] : 2'b00),
+	.vdp_enables(has_restored_enables ? restored_vdp_enables : (dbg_menu ? status[34:33] : 2'b00)),
+	.psg_enables(has_restored_enables ? restored_psg_enables : (dbg_menu ? status[36:35] : 2'b00)),
 
 	.fm_ena(~status[12] | gg),
 	.audioL(audio_l),
@@ -1359,8 +1382,12 @@ spram #(.widthad_a(13)) encrypt_key
 	.q(key_d)
 );
 
-assign joy[0] = status[1] ? joy_1[7:0] : joy_0[7:0];
-assign joy[1] = status[1] ? joy_0[7:0] : joy_1[7:0];
+wire ss_hotkey = joy_0[12] | joy_1[12];
+wire [7:0] joy_0_masked = ss_hotkey ? {joy_0[7:4], 4'b0000} : joy_0[7:0];
+wire [7:0] joy_1_masked = ss_hotkey ? {joy_1[7:4], 4'b0000} : joy_1[7:0];
+
+assign joy[0] = status[1] ? joy_1_masked : joy_0_masked;
+assign joy[1] = status[1] ? joy_0_masked : joy_1_masked;
 assign joy[2] = joy_2[7:0];
 assign joy[3] = joy_3[7:0];
 
@@ -1525,7 +1552,7 @@ wire turbo = status[40];
 video video
 (
 	.clk(clk_sys),
-	.ce_pix(ce_pix),
+	.ce_pix(ce_pix & ~ss_freeze),
 	.pal(pal),
 	.ggres(ggres),
 	.border(border),

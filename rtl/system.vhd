@@ -762,6 +762,8 @@ port map(
 		gg_link_nmi_n => gg_link_nmi_n,
 		systeme	=> systeme,
 		region	=> region,
+		vdp_enables   => vdp_enables,
+		psg_enables   => psg_enables,
 		se_mapper_in  => mapper_in(7 downto 0),
 		se_mapper_set => mapper_set,
 		io_state_out  => io_state_out,

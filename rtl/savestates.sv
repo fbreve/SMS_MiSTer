@@ -235,7 +235,7 @@ localparam ST_SAVE_VIDEO         = 6'd60;
 localparam ST_LOAD_VIDEO         = 6'd61;
 
 // Post-op guard time to avoid pathological immediate re-entry (rapid hammering).
-localparam [20:0] OP_COOLDOWN_MAX = 21'd1200000; // ~22ms @ 53.7MHz
+localparam [27:0] OP_COOLDOWN_MAX = 28'd80000000; // ~1.5s @ 53.7MHz
 
 reg [5:0]  state;
 reg        do_save;     // 1=save, 0=load
@@ -252,8 +252,8 @@ reg  [2:0] cram_idx;    // 0..5 for CRAM 64-bit words
 reg  [4:0] cram_entry;  // 0..31 for entry-by-entry restore
 reg  [2:0] cpu_idx;     // 0..3 for CPU words
 reg  [2:0] vdp_idx;     // 0..1 for VDP reg words
-reg  [11:0] flush_cnt;
-reg  [4:0] unfreeze_cnt;
+reg  [12:0] flush_cnt;
+reg  [5:0] unfreeze_cnt;
 // Latching buffers for multi-word state
 reg [227:0] z80_snap;
 reg [127:0] vdp_snap;
@@ -319,7 +319,7 @@ reg [5:0]   freeze_drain_cnt;
 
 // VBlank edge-detection for clean unfreeze
 reg         vblank_seen;   // goes 1 once we have seen vblank=1 in ST_WAIT_VBLANK
-reg [20:0]  op_cooldown;
+reg [27:0]  op_cooldown;
 
 // -----------------------------------------------------------------------
 // DDRAM helper tasks (inline)
@@ -436,8 +436,8 @@ always @(posedge clk or negedge reset_n) begin
         ST_IDLE: begin
             ss_freeze   <= 0;
             vblank_seen <= 0;  // reset for next VBlank wait
-            if (op_cooldown != 0)
-                op_cooldown <= op_cooldown - 21'd1;
+             if (op_cooldown != 0)
+                 op_cooldown <= op_cooldown - 28'd1;
             else if (ss_save) begin
                 do_save   <= 1;
                 cur_slot  <= ss_slot;
@@ -1421,6 +1421,7 @@ always @(posedge clk or negedge reset_n) begin
                 io_in        <= io_snap;
                 io_set       <= 1;
                 video_state_in  <= video_snap;
+                video_state_set <= 1;
                 // System E: restore second VDP/PSG
                 if (systeme) begin
                     vdp2_regs_in  <= vdp2_snap;
@@ -1440,8 +1441,8 @@ always @(posedge clk or negedge reset_n) begin
                 cram2_D  <= cram2_snap[12*cram_entry +: 12];
             end
             if (cram_entry == 31) begin
-                vblank_seen <= 0;
-                state <= ST_WAIT_VBLANK;
+                flush_cnt <= 13'd0;
+                state     <= ST_FLUSH_PIPELINE;
             end else
                 cram_entry <= cram_entry + 5'd1;
         end
@@ -1449,21 +1450,20 @@ always @(posedge clk or negedge reset_n) begin
         ST_WAIT_VBLANK: begin
             if (!vblank)                  vblank_seen <= 1;
             if (vblank_seen && vblank) begin
-                flush_cnt <= 12'd0;
+                flush_cnt <= 13'd0;
                 state     <= ST_FLUSH_PIPELINE;
             end
         end
 
         ST_FLUSH_PIPELINE: begin
-            if (flush_cnt == 12'd4095) begin
+            if (flush_cnt == 13'd8191) begin
                 state <= ST_PRE_UNFREEZE;
             end else begin
-                flush_cnt <= flush_cnt + 12'd1;
+                flush_cnt <= flush_cnt + 13'd1;
             end
         end
 
         ST_PRE_UNFREEZE: begin
-            video_state_set <= 1;
             unfreeze_cnt <= 0;
             state <= ST_UNFREEZE;
         end
@@ -1473,8 +1473,8 @@ always @(posedge clk or negedge reset_n) begin
             // Release freeze only on a quiet CE phase to avoid resuming exactly
             // on a CPU/VDP enable pulse edge, which can cause rare load-time
             // glitches or resets in timing-sensitive games.
-            if (unfreeze_cnt < 5'd31) begin
-                unfreeze_cnt <= unfreeze_cnt + 5'd1;
+            if (unfreeze_cnt < 6'd63) begin
+                unfreeze_cnt <= unfreeze_cnt + 6'd1;
                 ss_freeze <= 1;
             end else if (!cpu_ce && !vdp_ce) begin
                 ss_freeze   <= 0;
