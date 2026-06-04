@@ -52,7 +52,7 @@ reg        se_pause_pending;    // waiting for VBlank fall (y=0) to freeze CPU
 reg        se_unpause_pending;  // waiting for VBlank rising edge to release CPU
 reg        VBlank_r;            // one-cycle delay for VBlank edge detection
 wire       se_pause_gate = systeme & se_paused;
-assign HDMI_FREEZE   = ss_freeze | se_pause_gate;
+assign HDMI_FREEZE   = ss_freeze;
 assign HDMI_BLACKOUT = 0;
 
 always @(posedge clk_sys) begin
