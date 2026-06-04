@@ -91,12 +91,11 @@ module savestates (
     output reg [13:0] wram_WA,
     output reg  [7:0] wram_WD,
 
-    // ---- NVRAM DMA (Dahjee A expansion RAM, 8KB at $2000-$3FFF) ----
-    // Only saved/restored when mapper_snap[48] (detect_dahjee_a) is set.
-    output reg [12:0] nvram_A,          // read address
+    // ---- NVRAM DMA (SRAM / NVRAM, up to 32KB) ----
+    output reg [14:0] nvram_A,          // read address
     input       [7:0] nvram_D,          // read data
     output reg        nvram_WE,
-    output reg [12:0] nvram_WA,
+    output reg [14:0] nvram_WA,
     output reg  [7:0] nvram_WD,
 
     // ---- System E mode (enables VDP2 / PSG2 / VRAM2 save-restore) ----
@@ -237,6 +236,16 @@ localparam ST_LOAD_VIDEO         = 6'd61;
 // Post-op guard time to avoid pathological immediate re-entry (rapid hammering).
 localparam [27:0] OP_COOLDOWN_MAX = 28'd80000000; // ~1.5s @ 53.7MHz
 
+// NVRAM size calculation helpers
+wire has_nvram_8k  = mapper_snap[48] | mapper_snap[53]; // Dahjee A / Codemasters CME
+wire has_nvram_16k = mapper_snap[50];                   // Sega mapper nvram_e
+wire has_nvram_32k = mapper_snap[51] | mapper_snap[52] | mapper_snap[61]; // nvram_ex / nvram_p / The Castle
+wire has_nvram     = has_nvram_8k | has_nvram_16k | has_nvram_32k;
+
+wire [14:0] nvram_size_minus_1 = has_nvram_32k ? 15'd32767 :
+                                 has_nvram_16k ? 15'd16383 :
+                                                 15'd8191;
+
 reg [5:0]  state;
 reg        do_save;     // 1=save, 0=load
 reg [1:0]  cur_slot;
@@ -247,13 +256,13 @@ reg [31:0] cur_game_id;
 reg        cur_bios_mode;
 
 // counters
-reg [10:0] word_cnt;    // general DMA word counter
+reg [11:0] word_cnt;    // general DMA word counter (expanded to 12 bits for 32KB NVRAM)
 reg  [2:0] cram_idx;    // 0..5 for CRAM 64-bit words
 reg  [4:0] cram_entry;  // 0..31 for entry-by-entry restore
 reg  [2:0] cpu_idx;     // 0..3 for CPU words
 reg  [2:0] vdp_idx;     // 0..1 for VDP reg words
-reg  [12:0] flush_cnt;
-reg  [5:0] unfreeze_cnt;
+reg  [15:0] flush_cnt;  // expanded to 16 bits for 65535 cycles
+reg  [6:0] unfreeze_cnt; // expanded to 7 bits for 127 cycles
 // Latching buffers for multi-word state
 reg [227:0] z80_snap;
 reg [127:0] vdp_snap;
@@ -290,9 +299,9 @@ reg         wram_load_active; // 1 while writing 8 bytes from dout_latch
 reg  [7:0]  wram_d_latch;
 reg         wram_d_latched;
 
-// NVRAM DMA (8KB Dahjee A expansion RAM)
-reg [12:0]  nvram_save_addr;
-reg [12:0]  nvram_load_addr;
+// NVRAM DMA (SRAM / NVRAM, up to 32KB)
+reg [14:0]  nvram_save_addr;
+reg [14:0]  nvram_load_addr;
 reg  [2:0]  nvram_byte_cnt;
 reg [63:0]  nvram_word_buf;
 reg  [1:0]  nvram_pipe;
@@ -528,7 +537,17 @@ always @(posedge clk or negedge reset_n) begin
             // restored core cycle.
             mapper_in  <= mapper_snap;
             mapper_set <= 1;
-            state      <= ST_LOAD_RESTORE;
+            if (has_nvram) begin
+                nvram_load_addr   <= 0;
+                nvram_byte_cnt    <= 0;
+                nvram_load_active <= 0;
+                word_cnt          <= 0;
+                ddram_read(base_addr + 29'h0D01);
+                state             <= ST_LOAD_NVRAM;
+            end else begin
+                state             <= ST_LOAD_RESTORE;
+                cram_entry        <= 0;
+            end
         end
 
         // ===============================================================
@@ -712,10 +731,10 @@ always @(posedge clk or negedge reset_n) begin
                                       vram_word_buf[63:8]};
                     vram_byte_cnt <= vram_byte_cnt + 3'd1;
                     if (vram_byte_cnt == 7) begin
-                        ddram_write(base_addr + 29'h101 + {18'd0, word_cnt},
+                        ddram_write(base_addr + 29'h101 + {17'd0, word_cnt},
                                     {vram_d_latched ? vram_d_latch : vram_D,
                                      vram_word_buf[63:8]}, 8'hFF);
-                        word_cnt <= word_cnt + 11'd1;
+                        word_cnt <= word_cnt + 12'd1;
                     end
                     // Advance address pipeline
                     if (vram_save_addr[13:0] < 14'h3FFF) begin
@@ -724,11 +743,11 @@ always @(posedge clk or negedge reset_n) begin
                     end else if (vram_byte_cnt == 7) begin
                         if (systeme) begin
                             // System E: save VDP1 passive bank before WRAM
-                            vram_save_addr <= {~mapper_snap[7], 14'b0};
+                            vram_save_addr <= {mapper_snap[7], 14'b0};
                             vram_byte_cnt  <= 0;
                             vram_word_buf  <= 0;
                             vram_pipe      <= 0;
-                            vram_A         <= {~mapper_snap[7], 14'b0};
+                            vram_A         <= {mapper_snap[7], 14'b0};
                             word_cnt       <= 0;
                             vram_d_latched <= 0;
                             state          <= ST_SAVE_VRAM1_PASSIVE;
@@ -773,10 +792,10 @@ always @(posedge clk or negedge reset_n) begin
                                       vram_word_buf[63:8]};
                     vram_byte_cnt <= vram_byte_cnt + 3'd1;
                     if (vram_byte_cnt == 7) begin
-                        ddram_write(base_addr + 29'h1901 + {18'd0, word_cnt},
+                        ddram_write(base_addr + 29'h1901 + {17'd0, word_cnt},
                                     {vram_d_latched ? vram_d_latch : vram_D,
                                      vram_word_buf[63:8]}, 8'hFF);
-                        word_cnt <= word_cnt + 11'd1;
+                        word_cnt <= word_cnt + 12'd1;
                     end
                     if (vram_save_addr[13:0] < 14'h3FFF) begin
                         vram_save_addr <= vram_save_addr + 15'd1;
@@ -817,10 +836,10 @@ always @(posedge clk or negedge reset_n) begin
                                       wram_word_buf[63:8]};
                     wram_byte_cnt <= wram_byte_cnt + 3'd1;
                     if (wram_byte_cnt == 7) begin
-                        ddram_write(base_addr + 29'h901 + {18'd0, word_cnt},
+                        ddram_write(base_addr + 29'h901 + {17'd0, word_cnt},
                                     {wram_d_latched ? wram_d_latch : wram_D,
                                      wram_word_buf[63:8]}, 8'hFF);
-                        word_cnt <= word_cnt + 11'd1;
+                        word_cnt <= word_cnt + 12'd1;
                     end
                     if (wram_save_addr < (systeme ? 14'd16383 : 14'd8191)) begin
                         wram_save_addr <= wram_save_addr + 14'd1;
@@ -837,8 +856,8 @@ always @(posedge clk or negedge reset_n) begin
                             word_cnt       <= 0;
                             vram_d_latched <= 0;
                             state          <= ST_SAVE_VRAM2;
-                        end else if (mapper_snap[48]) begin
-                            // Dahjee A: save 8KB nvram (expansion RAM at $2000-$3FFF)
+                        end else if (has_nvram) begin
+                            // Save NVRAM (up to 32KB)
                             nvram_save_addr <= 0;
                             nvram_byte_cnt  <= 0;
                             nvram_word_buf  <= 0;
@@ -863,8 +882,8 @@ always @(posedge clk or negedge reset_n) begin
         ST_SAVE_NVRAM: begin
             if (nvram_pipe < 2'd2) begin
                 nvram_pipe <= nvram_pipe + 2'd1;
-                if (nvram_pipe >= 1 && nvram_save_addr < 13'd8191)
-                    nvram_A <= nvram_save_addr + 13'd1;
+                if (nvram_pipe >= 1 && nvram_save_addr < nvram_size_minus_1)
+                    nvram_A <= nvram_save_addr + 15'd1;
             end else begin
                 // Stall at 8-byte boundary if DDRAM is busy (same pattern as VRAM/WRAM)
                 if (nvram_byte_cnt < 7 || !DDRAM_BUSY) begin
@@ -873,14 +892,14 @@ always @(posedge clk or negedge reset_n) begin
                                        nvram_word_buf[63:8]};
                     nvram_byte_cnt <= nvram_byte_cnt + 3'd1;
                     if (nvram_byte_cnt == 7) begin
-                        ddram_write(base_addr + 29'h0D01 + {18'd0, word_cnt},
+                        ddram_write(base_addr + 29'h0D01 + {17'd0, word_cnt},
                                     {nvram_d_latched ? nvram_d_latch : nvram_D,
                                      nvram_word_buf[63:8]}, 8'hFF);
-                        word_cnt <= word_cnt + 11'd1;
+                        word_cnt <= word_cnt + 12'd1;
                     end
-                    if (nvram_save_addr < 13'd8191) begin
-                        nvram_save_addr <= nvram_save_addr + 13'd1;
-                        nvram_A         <= nvram_save_addr + 13'd2;
+                    if (nvram_save_addr < nvram_size_minus_1) begin
+                        nvram_save_addr <= nvram_save_addr + 15'd1;
+                        nvram_A         <= nvram_save_addr + 15'd2;
                     end else if (nvram_byte_cnt == 7) begin
                         state <= ST_SAVE_DONE;
                     end
@@ -909,10 +928,10 @@ always @(posedge clk or negedge reset_n) begin
                                       vram_word_buf[63:8]};
                     vram_byte_cnt <= vram_byte_cnt + 3'd1;
                     if (vram_byte_cnt == 7) begin
-                        ddram_write(base_addr + 29'h1101 + {18'd0, word_cnt},
+                        ddram_write(base_addr + 29'h1101 + {17'd0, word_cnt},
                                     {vram_d_latched ? vram_d_latch : vram2_D,
                                      vram_word_buf[63:8]}, 8'hFF);
-                        word_cnt <= word_cnt + 11'd1;
+                        word_cnt <= word_cnt + 12'd1;
                     end
                     if (vram_save_addr[13:0] < 14'h3FFF) begin
                         vram_save_addr <= vram_save_addr + 15'd1;
@@ -953,10 +972,10 @@ always @(posedge clk or negedge reset_n) begin
                                       vram_word_buf[63:8]};
                     vram_byte_cnt <= vram_byte_cnt + 3'd1;
                     if (vram_byte_cnt == 7) begin
-                        ddram_write(base_addr + 29'h2101 + {18'd0, word_cnt},
+                        ddram_write(base_addr + 29'h2101 + {17'd0, word_cnt},
                                     {vram_d_latched ? vram_d_latch : vram2_D,
                                      vram_word_buf[63:8]}, 8'hFF);
-                        word_cnt <= word_cnt + 11'd1;
+                        word_cnt <= word_cnt + 12'd1;
                     end
                     if (vram_save_addr[13:0] < 14'h3FFF) begin
                         vram_save_addr <= vram_save_addr + 15'd1;
@@ -1211,9 +1230,9 @@ always @(posedge clk or negedge reset_n) begin
                 if (vram_byte_cnt == 3'd7) begin
                     // Last byte - deactivate and fetch next word
                     vram_load_active <= 0;
-                    if (word_cnt < 11'd2047) begin
-                        word_cnt <= word_cnt + 11'd1;
-                        ddram_read(base_addr + 29'h101 + {18'd0, word_cnt + 11'd1});
+                    if (word_cnt < 12'd2047) begin
+                        word_cnt <= word_cnt + 12'd1;
+                        ddram_read(base_addr + 29'h101 + {17'd0, word_cnt + 12'd1});
                     end else begin
                         if (systeme) begin
                             // System E: restore VDP1 passive bank from inline slot data.
@@ -1253,9 +1272,9 @@ always @(posedge clk or negedge reset_n) begin
                 wram_byte_cnt   <= wram_byte_cnt + 3'd1;
                 if (wram_byte_cnt == 3'd7) begin
                     wram_load_active <= 0;
-                    if (word_cnt < (systeme ? 11'd2047 : 11'd1023)) begin
-                        word_cnt <= word_cnt + 11'd1;
-                        ddram_read(base_addr + 29'h901 + {18'd0, word_cnt + 11'd1});
+                    if (word_cnt < (systeme ? 12'd2047 : 12'd1023)) begin
+                        word_cnt <= word_cnt + 12'd1;
+                        ddram_read(base_addr + 29'h901 + {17'd0, word_cnt + 12'd1});
                     end else begin
                         if (systeme) begin
                             // System E: restore VRAM2 to VDP2's active se_bank half
@@ -1265,16 +1284,8 @@ always @(posedge clk or negedge reset_n) begin
                             word_cnt         <= 0;
                             ddram_read(base_addr + 29'h1101);
                             state <= ST_LOAD_VRAM2;
-                        end else if (mapper_snap[48]) begin
-                            // Dahjee A: restore 8KB nvram
-                            nvram_load_addr   <= 0;
-                            nvram_byte_cnt    <= 0;
-                            nvram_load_active <= 0;
-                            word_cnt          <= 0;
-                            ddram_read(base_addr + 29'h0D01);
-                            state <= ST_LOAD_NVRAM;
                         end else begin
-                            // All memory restored; restore mapper first, then core.
+                            // WRAM done, transition to mapper restore first
                             state      <= ST_WAIT_RESTORE_BOUNDARY;
                             cram_entry <= 0;
                         end
@@ -1295,16 +1306,15 @@ always @(posedge clk or negedge reset_n) begin
                 nvram_WE        <= 1;
                 nvram_WA        <= nvram_load_addr;
                 nvram_WD        <= dout_latch[8*nvram_byte_cnt +: 8];
-                nvram_load_addr <= nvram_load_addr + 13'd1;
+                nvram_load_addr <= nvram_load_addr + 15'd1;
                 nvram_byte_cnt  <= nvram_byte_cnt + 3'd1;
                 if (nvram_byte_cnt == 3'd7) begin
                     nvram_load_active <= 0;
-                    if (word_cnt < 11'd1023) begin
-                        word_cnt <= word_cnt + 11'd1;
-                        ddram_read(base_addr + 29'h0D01 + {18'd0, word_cnt + 11'd1});
+                    if (word_cnt < (nvram_size_minus_1 >> 3)) begin
+                        word_cnt <= word_cnt + 12'd1;
+                        ddram_read(base_addr + 29'h0D01 + {17'd0, word_cnt + 12'd1});
                     end else begin
-                        // All memory restored; restore mapper first, then core.
-                        state      <= ST_WAIT_RESTORE_BOUNDARY;
+                        state      <= ST_LOAD_RESTORE;
                         cram_entry <= 0;
                     end
                 end
@@ -1329,9 +1339,9 @@ always @(posedge clk or negedge reset_n) begin
                 vram_byte_cnt    <= vram_byte_cnt + 3'd1;
                 if (vram_byte_cnt == 3'd7) begin
                     vram_load_active <= 0;
-                    if (word_cnt < 11'd2047) begin
-                        word_cnt <= word_cnt + 11'd1;
-                        ddram_read(base_addr + 29'h1101 + {18'd0, word_cnt + 11'd1});
+                    if (word_cnt < 12'd2047) begin
+                        word_cnt <= word_cnt + 12'd1;
+                        ddram_read(base_addr + 29'h1101 + {17'd0, word_cnt + 12'd1});
                     end else begin
                         // Restore VDP2 passive bank from inline slot area.
                         vram_load_addr   <= {~mapper_snap[6], 14'b0};
@@ -1362,9 +1372,9 @@ always @(posedge clk or negedge reset_n) begin
                 vram_byte_cnt   <= vram_byte_cnt + 3'd1;
                 if (vram_byte_cnt == 3'd7) begin
                     vram_load_active <= 0;
-                    if (word_cnt < 11'd2047) begin
-                        word_cnt <= word_cnt + 11'd1;
-                        ddram_read(base_addr + 29'h1901 + {18'd0, word_cnt + 11'd1});
+                    if (word_cnt < 12'd2047) begin
+                        word_cnt <= word_cnt + 12'd1;
+                        ddram_read(base_addr + 29'h1901 + {17'd0, word_cnt + 12'd1});
                     end else begin
                         wram_load_addr   <= 0;
                         wram_byte_cnt    <= 0;
@@ -1394,9 +1404,9 @@ always @(posedge clk or negedge reset_n) begin
                 vram_byte_cnt   <= vram_byte_cnt + 3'd1;
                 if (vram_byte_cnt == 3'd7) begin
                     vram_load_active <= 0;
-                    if (word_cnt < 11'd2047) begin
-                        word_cnt <= word_cnt + 11'd1;
-                        ddram_read(base_addr + 29'h2101 + {18'd0, word_cnt + 11'd1});
+                    if (word_cnt < 12'd2047) begin
+                        word_cnt <= word_cnt + 12'd1;
+                        ddram_read(base_addr + 29'h2101 + {17'd0, word_cnt + 12'd1});
                     end else begin
                         state      <= ST_WAIT_RESTORE_BOUNDARY;
                         cram_entry <= 0;
@@ -1456,10 +1466,10 @@ always @(posedge clk or negedge reset_n) begin
         end
 
         ST_FLUSH_PIPELINE: begin
-            if (flush_cnt == 13'd8191) begin
+            if (flush_cnt == 16'd65535) begin
                 state <= ST_PRE_UNFREEZE;
             end else begin
-                flush_cnt <= flush_cnt + 13'd1;
+                flush_cnt <= flush_cnt + 16'd1;
             end
         end
 
@@ -1473,8 +1483,8 @@ always @(posedge clk or negedge reset_n) begin
             // Release freeze only on a quiet CE phase to avoid resuming exactly
             // on a CPU/VDP enable pulse edge, which can cause rare load-time
             // glitches or resets in timing-sensitive games.
-            if (unfreeze_cnt < 6'd63) begin
-                unfreeze_cnt <= unfreeze_cnt + 6'd1;
+            if (unfreeze_cnt < 7'd127) begin
+                unfreeze_cnt <= unfreeze_cnt + 7'd1;
                 ss_freeze <= 1;
             end else if (!cpu_ce && !vdp_ce) begin
                 ss_freeze   <= 0;
