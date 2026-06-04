@@ -71,6 +71,8 @@ entity io is
 		region:	in	 STD_LOGIC;
 		se_mapper_in:  in  STD_LOGIC_VECTOR(7 downto 0) := (others => '0');
 		se_mapper_set: in  STD_LOGIC := '0';
+		vdp_enables:   in  STD_LOGIC_VECTOR(1 downto 0) := (others => '0');
+		psg_enables:   in  STD_LOGIC_VECTOR(1 downto 0) := (others => '0');
 		io_state_out: out STD_LOGIC_VECTOR(31 downto 0);
 		io_state_in:  in  STD_LOGIC_VECTOR(31 downto 0) := (others => '0');
 		io_state_set: in  STD_LOGIC := '0';
@@ -189,7 +191,9 @@ begin
 	io_state_out(24) <= analog_select;
 	io_state_out(25) <= analog_player;
 	io_state_out(26) <= analog_upper;
-	io_state_out(31 downto 27) <= (others => '0');
+	io_state_out(28 downto 27) <= vdp_enables;
+	io_state_out(30 downto 29) <= psg_enables;
+	io_state_out(31) <= '0';
 
 	process (clk, RESET_n)
 	begin
