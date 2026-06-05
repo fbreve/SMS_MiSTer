@@ -600,6 +600,16 @@ begin
 				overflow_flag <= ss_regs_in(118);
 				line_overflow <= ss_regs_in(119);
 				xspr_collide_shift <= (others => '0');
+				-- Immediately restore IRQ_n level corresponding to the restored snapshot state
+				if ((ss_regs_in(115) = '1' and ss_regs_in(8) = '1') or (ss_regs_in(116) = '1' and ss_regs_in(3) = '1')) then
+					if ss_regs_in(114 downto 112) = "000" then
+						IRQ_n <= '0';
+					else
+						IRQ_n <= '1';
+					end if;
+				else
+					IRQ_n <= '1';
+				end if;
 			else
 				-- using the other phase of ce_vdp permits to please VDPTEST ovr HCounter
 				-- very tight condition;
