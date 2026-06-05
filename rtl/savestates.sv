@@ -261,8 +261,8 @@ reg  [2:0] cram_idx;    // 0..5 for CRAM 64-bit words
 reg  [4:0] cram_entry;  // 0..31 for entry-by-entry restore
 reg  [2:0] cpu_idx;     // 0..3 for CPU words
 reg  [2:0] vdp_idx;     // 0..1 for VDP reg words
-reg  [15:0] flush_cnt;  // expanded to 16 bits for 65535 cycles
-reg  [6:0] unfreeze_cnt; // expanded to 7 bits for 127 cycles
+reg  [16:0] flush_cnt;  // expanded to 17 bits for 131071 cycles
+reg  [7:0] unfreeze_cnt; // expanded to 8 bits for 255 cycles
 // Latching buffers for multi-word state
 reg [227:0] z80_snap;
 reg [127:0] vdp_snap;
@@ -1451,7 +1451,7 @@ always @(posedge clk or negedge reset_n) begin
                 cram2_D  <= cram2_snap[12*cram_entry +: 12];
             end
             if (cram_entry == 31) begin
-                flush_cnt <= 13'd0;
+                flush_cnt <= 17'd0;
                 state     <= ST_FLUSH_PIPELINE;
             end else
                 cram_entry <= cram_entry + 5'd1;
@@ -1460,21 +1460,21 @@ always @(posedge clk or negedge reset_n) begin
         ST_WAIT_VBLANK: begin
             if (!vblank)                  vblank_seen <= 1;
             if (vblank_seen && vblank) begin
-                flush_cnt <= 13'd0;
+                flush_cnt <= 17'd0;
                 state     <= ST_FLUSH_PIPELINE;
             end
         end
 
         ST_FLUSH_PIPELINE: begin
-            if (flush_cnt == 16'd65535) begin
+            if (flush_cnt == 17'd131071) begin
                 state <= ST_PRE_UNFREEZE;
             end else begin
-                flush_cnt <= flush_cnt + 16'd1;
+                flush_cnt <= flush_cnt + 17'd1;
             end
         end
 
         ST_PRE_UNFREEZE: begin
-            unfreeze_cnt <= 0;
+            unfreeze_cnt <= 8'd0;
             state <= ST_UNFREEZE;
         end
 
@@ -1483,8 +1483,8 @@ always @(posedge clk or negedge reset_n) begin
             // Release freeze only on a quiet CE phase to avoid resuming exactly
             // on a CPU/VDP enable pulse edge, which can cause rare load-time
             // glitches or resets in timing-sensitive games.
-            if (unfreeze_cnt < 7'd127) begin
-                unfreeze_cnt <= unfreeze_cnt + 7'd1;
+            if (unfreeze_cnt < 8'd255) begin
+                unfreeze_cnt <= unfreeze_cnt + 8'd1;
                 ss_freeze <= 1;
             end else if (!cpu_ce && !vdp_ce) begin
                 ss_freeze   <= 0;

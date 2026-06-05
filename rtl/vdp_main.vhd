@@ -55,7 +55,8 @@ entity vdp_main is
 		spr_collide:		out std_logic;
 		spr_overflow:		out std_logic;
 		-- Save-state: passed through to sprite scanner reset
-		ss_regs_set:		in  STD_LOGIC := '0');	
+		ss_regs_set:		in  STD_LOGIC := '0';
+		ss_line_reset:		in  std_logic := '0');
 end vdp_main;
 
 architecture Behavioral of vdp_main is
@@ -103,7 +104,7 @@ begin
 		table_address	=> bg_address,
 		pt_address		=> m2mg_address,
 		ct_address		=> m2ct_address,
-		reset				=> line_reset,
+		reset				=> line_reset or ss_line_reset,
 		disable_hscroll=> disable_hscroll,
 		scroll_x 		=> bg_scroll_x,
 		y					=> bg_y,
