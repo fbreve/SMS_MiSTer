@@ -40,6 +40,7 @@ module savestates (
     // VBlank level from video.vhd (not gated by ss_freeze)
     // Used to defer unfreeze until a clean frame boundary after load
     input             vblank,
+    input       [8:0] x,
 
     // ---- Z80 snapshot / restore ----
     input     [227:0] z80_reg,         // live snapshot from T80s
@@ -235,7 +236,7 @@ localparam ST_LOAD_VIDEO         = 6'd61;
 
 // Post-op guard time to avoid pathological immediate re-entry (rapid hammering).
 localparam [27:0] OP_COOLDOWN_MAX = 28'd80000000; // ~1.5s @ 53.7MHz
-localparam [19:0] FLUSH_MAX       = 20'd900000;    // ≈16.8ms @ 53.7MHz
+localparam [19:0] FLUSH_MAX       = 20'd15;        // 15 cycles
 
 // NVRAM size calculation helpers
 wire has_nvram_8k  = mapper_snap[48] | mapper_snap[53]; // Dahjee A / Codemasters CME
@@ -470,7 +471,7 @@ always @(posedge clk or negedge reset_n) begin
             //   - ISet=00   : no prefix active (not mid-way through CB/DD/ED/FD sequence)
             //   - cpu_ce     : only act on an actual CPU tick, not on held bus
             //                  levels between ticks.
-            if (cpu_ce && !z80_m1_n && !z80_mreq_n && z80_iset == 2'b00 && vblank) begin
+            if (cpu_ce && !z80_m1_n && !z80_mreq_n && z80_iset == 2'b00 && vblank && x < 9'd256) begin
                 base_addr <= ss_bios_mode ? bios_slot_base(cur_slot) : slot_base(cur_slot);
                 cur_bios_mode <= ss_bios_mode;
                 cur_magic <= ss_bios_mode ? MAGIC_BIOS : MAGIC;

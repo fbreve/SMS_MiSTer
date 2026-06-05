@@ -1120,6 +1120,7 @@ savestates savestates_inst (
 	.ss_game_id      (ss_game_id),
 	.ss_freeze       (ss_freeze),
 	.vblank          (VBlank),
+	.x               (x),
 	// Z80
 	.z80_reg         (ss_z80_reg),
 	.z80_dir         (ss_z80_dir),

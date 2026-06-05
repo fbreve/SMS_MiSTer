@@ -568,12 +568,8 @@ begin
 		if rising_edge(clk_sys) then
 			if ss_regs_set = '1' then
 				last_x0 <= ss_regs_in(120);
-				-- Restore hbl_counter to irq_line_count, not the mid-frame save-time value.
-				-- We always unfreeze at VBlank end (y=0), where hbl_counter must equal
-				-- irq_line_count (reloaded from it every VBlank by the normal logic).
-				-- Restoring the save-time countdown would cause the first post-restore
-				-- line IRQ to fire at the wrong scanline → garbled scroll effects.
-				hbl_counter <= ss_regs_in(69 downto 62); -- irq_line_count
+				-- Restore hbl_counter to the actual saved value from ss_regs_in(111 downto 104).
+				hbl_counter <= ss_regs_in(111 downto 104);
 				hbl_irq <= ss_regs_in(116);
 			elsif ce_vdp = '1' then
 				last_x0 <= std_logic(x(0));
