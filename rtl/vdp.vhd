@@ -216,6 +216,7 @@ begin
 		y					=> y,
 		ss_regs_set		    => ss_regs_set,
 		ss_line_reset		=> ss_regs_set,
+		ss_sprite_reset		=> ss_regs_set,
 
 		color				=> color,
 		palettemode			=> palettemode,
@@ -602,6 +603,7 @@ begin
 				collide_flag  <= ss_regs_in(117);
 				overflow_flag <= ss_regs_in(118);
 				line_overflow <= ss_regs_in(119);
+				xspr_collide_shift <= (others => '0');
 			else
 				-- using the other phase of ce_vdp permits to please VDPTEST ovr HCounter
 				-- very tight condition;

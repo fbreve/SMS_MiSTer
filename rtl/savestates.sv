@@ -235,6 +235,7 @@ localparam ST_LOAD_VIDEO         = 6'd61;
 
 // Post-op guard time to avoid pathological immediate re-entry (rapid hammering).
 localparam [27:0] OP_COOLDOWN_MAX = 28'd80000000; // ~1.5s @ 53.7MHz
+localparam [19:0] FLUSH_MAX       = 20'd900000;    // ≈16.8ms @ 53.7MHz
 
 // NVRAM size calculation helpers
 wire has_nvram_8k  = mapper_snap[48] | mapper_snap[53]; // Dahjee A / Codemasters CME
@@ -261,7 +262,7 @@ reg  [2:0] cram_idx;    // 0..5 for CRAM 64-bit words
 reg  [4:0] cram_entry;  // 0..31 for entry-by-entry restore
 reg  [2:0] cpu_idx;     // 0..3 for CPU words
 reg  [2:0] vdp_idx;     // 0..1 for VDP reg words
-reg  [16:0] flush_cnt;  // expanded to 17 bits for 131071 cycles
+reg  [19:0] flush_cnt;  // expanded to 20 bits for 900000 cycles
 reg  [7:0] unfreeze_cnt; // expanded to 8 bits for 255 cycles
 // Latching buffers for multi-word state
 reg [227:0] z80_snap;
@@ -1451,7 +1452,7 @@ always @(posedge clk or negedge reset_n) begin
                 cram2_D  <= cram2_snap[12*cram_entry +: 12];
             end
             if (cram_entry == 31) begin
-                flush_cnt <= 17'd0;
+                flush_cnt <= 20'd0;
                 state     <= ST_FLUSH_PIPELINE;
             end else
                 cram_entry <= cram_entry + 5'd1;
@@ -1460,16 +1461,16 @@ always @(posedge clk or negedge reset_n) begin
         ST_WAIT_VBLANK: begin
             if (!vblank)                  vblank_seen <= 1;
             if (vblank_seen && vblank) begin
-                flush_cnt <= 17'd0;
+                flush_cnt <= 20'd0;
                 state     <= ST_FLUSH_PIPELINE;
             end
         end
 
         ST_FLUSH_PIPELINE: begin
-            if (flush_cnt == 17'd131071) begin
+            if (flush_cnt == FLUSH_MAX) begin
                 state <= ST_PRE_UNFREEZE;
             end else begin
-                flush_cnt <= flush_cnt + 17'd1;
+                flush_cnt <= flush_cnt + 20'd1;
             end
         end
 
