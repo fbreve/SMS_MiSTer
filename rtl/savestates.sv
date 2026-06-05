@@ -55,6 +55,10 @@ module savestates (
     input             cpu_ce,
     // Raw VDP clock-enable pulse (ungated by ss_freeze)
     input             vdp_ce,
+    // Raw PIX clock-enable pulse (ungated by ss_freeze)
+    input             pix_ce,
+    // Raw SP clock-enable pulse (ungated by ss_freeze)
+    input             sp_ce,
 
     // ---- VDP registers ----
     input     [127:0] vdp_regs,
@@ -1488,7 +1492,7 @@ always @(posedge clk or negedge reset_n) begin
             if (unfreeze_cnt < 8'd255) begin
                 unfreeze_cnt <= unfreeze_cnt + 8'd1;
                 ss_freeze <= 1;
-            end else if (!cpu_ce && !vdp_ce) begin
+            end else if (!cpu_ce && !vdp_ce && !pix_ce && !sp_ce) begin
                 ss_freeze   <= 0;
                 op_cooldown <= OP_COOLDOWN_MAX;
                 state       <= ST_IDLE;

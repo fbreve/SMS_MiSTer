@@ -1130,6 +1130,8 @@ savestates savestates_inst (
 	.z80_iset        (ss_z80_iset),
 	.cpu_ce          (ce_cpu),
 	.vdp_ce          (ce_vdp),
+	.pix_ce          (ce_pix),
+	.sp_ce           (ce_sp),
 	// VDP registers
 	.vdp_regs        (ss_vdp_regs),
 	.vdp_regs_in     (ss_vdp_regs_in),
