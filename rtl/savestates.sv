@@ -236,7 +236,7 @@ localparam ST_LOAD_VIDEO         = 6'd61;
 
 // Post-op guard time to avoid pathological immediate re-entry (rapid hammering).
 localparam [27:0] OP_COOLDOWN_MAX = 28'd80000000; // ~1.5s @ 53.7MHz
-localparam [19:0] FLUSH_MAX       = 20'd15;        // 15 cycles
+localparam [19:0] FLUSH_MAX       = 20'd900000;    // ≈16.8ms @ 53.7MHz
 
 // NVRAM size calculation helpers
 wire has_nvram_8k  = mapper_snap[48] | mapper_snap[53]; // Dahjee A / Codemasters CME
