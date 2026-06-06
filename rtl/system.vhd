@@ -1048,6 +1048,8 @@ port map(
 					else
 						mapper_msx_lock <= false;
 						mapper_msx_lock0 <= false;
+						mapper_msx_check0 <= false;
+						mapper_msx_check1 <= false;
 					end if;
 				elsif bootloader_n='1' and sc3000_en='0' and mapper_wonderkid='0' and not mapper_msx_lock then
 					if MREQ_n='0' then 
@@ -1215,7 +1217,7 @@ port map(
 					-- $0000-$1FFF is nem_bank0 (fixed at reset); $2000-$3FFF is always page 1.
 					-- Suppressed while BIOS is running (bootloader_n='0') so the BIOS can
 					-- bank-switch its own pages via the standard Sega mapper ($FFFC-$FFFF).
-					if WR_n='0' and A(15 downto 2)="00000000000000" then
+					if WR_n='0' and MREQ_n='0' and A(15 downto 2)="00000000000000" then
 						case A(1 downto 0) is
 							when "00" => bank2 <= D_in;
 							when "01" => bank3 <= D_in;
