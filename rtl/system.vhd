@@ -1180,9 +1180,10 @@ port map(
 				mapper_wonderkid_prev <= mapper_wonderkid;
 				reset_n_prev <= RESET_n;
 				bootloader_n_prev <= bootloader_n;
-				if WR_n='1' and MREQ_n='0' then
-					last_read_addr <= A; -- gyurco anti-ldir patch
-				end if;
+				if ce_z80 = '1' then
+					if WR_n='1' and MREQ_n='0' then
+						last_read_addr <= A; -- gyurco anti-ldir patch
+					end if;
 
 				if systeme = '1' or sc3000_en = '1' or mapper_castle = '1' or mapper_linear = '1' or mapper_dahjee_a = '1' or mapper_sega_locked = '1' then
 					-- no System E, SC-3000, Castle (32KB RAM), linear, Dahjee Type A, or Sega-locked mappers
@@ -1297,6 +1298,7 @@ port map(
 							when others => null ;
 						end case ;
 					end if;
+				end if;
 				end if;
 				end if; -- mapper_set
 			end if;

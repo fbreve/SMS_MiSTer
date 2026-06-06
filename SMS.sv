@@ -1110,6 +1110,8 @@ savestate_ui savestate_ui_inst (
 	.statusUpdate(ss_status)
 );
 
+wire clkref_cpu = (systeme | turbo) ? ce_pix : ce_cpu;
+
 savestates savestates_inst (
 	.clk             (clk_sys),
 	.reset_n         (~reset_active),
@@ -1128,7 +1130,7 @@ savestates savestates_inst (
 	.z80_m1_n        (ss_z80_m1_n),
 	.z80_mreq_n      (ss_z80_mreq_n),
 	.z80_iset        (ss_z80_iset),
-	.cpu_ce          (ce_cpu),
+	.cpu_ce          (clkref_cpu),
 	.vdp_ce          (ce_vdp),
 	.pix_ce          (ce_pix),
 	.sp_ce           (ce_sp),
