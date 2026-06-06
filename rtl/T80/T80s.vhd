@@ -159,7 +159,12 @@ begin
 			MREQ_n <= '1';
 			DI_Reg <= "00000000";
 		elsif rising_edge(CLK) then
-			if CEN = '1' then
+			if DIRSet = '1' then
+				RD_n <= '1';
+				WR_n <= '1';
+				IORQ_n <= '1';
+				MREQ_n <= '1';
+			elsif CEN = '1' then
 				RD_n <= '1';
 				WR_n <= '1';
 				IORQ_n <= '1';

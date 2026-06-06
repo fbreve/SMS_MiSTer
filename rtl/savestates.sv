@@ -237,9 +237,10 @@ localparam ST_LOAD_IO            = 6'd58;
 localparam ST_FLUSH_PIPELINE     = 6'd59;
 localparam ST_SAVE_VIDEO         = 6'd60;
 localparam ST_LOAD_VIDEO         = 6'd61;
+localparam ST_LOAD_HDR_WT2       = 6'd62;
 
 // Post-op guard time to avoid pathological immediate re-entry (rapid hammering).
-localparam [27:0] OP_COOLDOWN_MAX = 28'd80000000; // ~1.5s @ 53.7MHz
+localparam [27:0] OP_COOLDOWN_MAX = 28'd10738600; // ~200ms @ 53.7MHz
 localparam [19:0] FLUSH_MAX       = 20'd900000;    // ≈16.8ms @ 53.7MHz
 
 // NVRAM size calculation helpers
@@ -335,6 +336,7 @@ reg [5:0]   freeze_drain_cnt;
 // VBlank edge-detection for clean unfreeze
 reg         vblank_seen;   // goes 1 once we have seen vblank=1 in ST_WAIT_VBLANK
 reg [27:0]  op_cooldown;
+reg         is_old_format;
 
 // -----------------------------------------------------------------------
 // DDRAM helper tasks (inline)
@@ -412,6 +414,7 @@ always @(posedge clk or negedge reset_n) begin
         ddram_watchdog  <= 0;
         freeze_drain_cnt <= 0;
         op_cooldown    <= 0;
+        is_old_format   <= 0;
         flush_cnt       <= 0;
         unfreeze_cnt    <= 0;
         DDRAM_WE        <= 0;
@@ -451,6 +454,7 @@ always @(posedge clk or negedge reset_n) begin
         ST_IDLE: begin
             ss_freeze   <= 0;
             vblank_seen <= 0;  // reset for next VBlank wait
+            is_old_format <= 0;
              if (op_cooldown != 0)
                  op_cooldown <= op_cooldown - 28'd1;
             else if (ss_save) begin
@@ -1035,12 +1039,21 @@ always @(posedge clk or negedge reset_n) begin
 
         ST_LOAD_HDR_RD: begin
             if (!DDRAM_BUSY) begin
-                ddram_read(base_addr + 29'd1);
+                ddram_read(base_addr + 29'd0);
                 state <= ST_LOAD_HDR_WT;
             end
         end
 
         ST_LOAD_HDR_WT: begin
+            if (DDRAM_DOUT_READY && dout_expected) begin
+                dout_expected <= 0;
+                is_old_format <= (DDRAM_DOUT[63:32] == 32'h4000);
+                ddram_read(base_addr + 29'd1);
+                state <= ST_LOAD_HDR_WT2;
+            end
+        end
+
+        ST_LOAD_HDR_WT2: begin
             if (DDRAM_DOUT_READY && dout_expected) begin
                 dout_expected <= 0;
                 if (DDRAM_DOUT[31:0] == cur_magic && DDRAM_DOUT[63:32] == cur_game_id) begin
@@ -1062,7 +1075,15 @@ always @(posedge clk or negedge reset_n) begin
                     3'd0: begin z80_snap[63:0]    <= DDRAM_DOUT; ddram_read(base_addr + 29'd3); end
                     3'd1: begin z80_snap[127:64]  <= DDRAM_DOUT; ddram_read(base_addr + 29'd4); end
                     3'd2: begin z80_snap[191:128] <= DDRAM_DOUT; ddram_read(base_addr + 29'd5); end
-                    3'd3: begin z80_snap[227:192] <= DDRAM_DOUT[35:0]; ddram_read(base_addr + 29'd6); end
+                    3'd3: begin
+                        if (is_old_format) begin
+                            z80_snap[211:192] <= DDRAM_DOUT[19:0];
+                            z80_snap[227:212] <= 16'd0;
+                        end else begin
+                            z80_snap[227:192] <= DDRAM_DOUT[35:0];
+                        end
+                        ddram_read(base_addr + 29'd6);
+                    end
                 endcase
                 if (cpu_idx == 3) begin
                     vdp_idx <= 0;
@@ -1125,8 +1146,17 @@ always @(posedge clk or negedge reset_n) begin
             if (DDRAM_DOUT_READY && dout_expected) begin
                 dout_expected    <= 0;
                 mapper_snap      <= DDRAM_DOUT;
-                ddram_read(base_addr + 29'h019);
-                state            <= ST_LOAD_IO;
+                if (is_old_format) begin
+                    vram_load_addr   <= 0;
+                    vram_byte_cnt    <= 0;
+                    vram_load_active <= 0;
+                    word_cnt         <= 0;
+                    ddram_read(base_addr + 29'h101);
+                    state <= ST_LOAD_VRAM;
+                end else begin
+                    ddram_read(base_addr + 29'h019);
+                    state            <= ST_LOAD_IO;
+                end
             end
         end
 
@@ -1434,10 +1464,12 @@ always @(posedge clk or negedge reset_n) begin
                 vdp_regs_set <= 1;
                 psg_in       <= psg_snap;
                 psg_set      <= 1;
-                io_in        <= io_snap;
-                io_set       <= 1;
-                video_state_in  <= video_snap;
-                video_state_set <= 1;
+                if (!is_old_format) begin
+                    io_in        <= io_snap;
+                    io_set       <= 1;
+                    video_state_in  <= video_snap;
+                    video_state_set <= 1;
+                end
                 // System E: restore second VDP/PSG
                 if (systeme) begin
                     vdp2_regs_in  <= vdp2_snap;
