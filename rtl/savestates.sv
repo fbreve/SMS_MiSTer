@@ -238,9 +238,10 @@ localparam ST_FLUSH_PIPELINE     = 6'd59;
 localparam ST_SAVE_VIDEO         = 6'd60;
 localparam ST_LOAD_VIDEO         = 6'd61;
 localparam ST_LOAD_HDR_WT2       = 6'd62;
+localparam ST_UNFREEZE_SETTLE = 6'd63;
 
 // Post-op guard time to avoid pathological immediate re-entry (rapid hammering).
-localparam [27:0] OP_COOLDOWN_MAX = 28'd10738600; // ~200ms @ 53.7MHz
+localparam [27:0] OP_COOLDOWN_MAX = 28'd26846500; // ~500ms @ 53.7MHz
 localparam [19:0] FLUSH_MAX       = 20'd900000;    // ≈16.8ms @ 53.7MHz
 
 // NVRAM size calculation helpers
@@ -545,18 +546,20 @@ always @(posedge clk or negedge reset_n) begin
             // to settle before loading CPU/VDP/PSG. This avoids occasional
             // resumes with stale ROM mapping or BIOS/cart decode for the first
             // restored core cycle.
-            mapper_in  <= mapper_snap;
-            mapper_set <= 1;
-            if (has_nvram) begin
-                nvram_load_addr   <= 0;
-                nvram_byte_cnt    <= 0;
-                nvram_load_active <= 0;
-                word_cnt          <= 0;
-                ddram_read(base_addr + 29'h0D01);
-                state             <= ST_LOAD_NVRAM;
-            end else begin
-                state             <= ST_LOAD_RESTORE;
-                cram_entry        <= 0;
+            if (!DDRAM_BUSY) begin
+                mapper_in  <= mapper_snap;
+                mapper_set <= 1;
+                if (has_nvram) begin
+                    nvram_load_addr   <= 0;
+                    nvram_byte_cnt    <= 0;
+                    nvram_load_active <= 0;
+                    word_cnt          <= 0;
+                    ddram_read(base_addr + 29'h0D01);
+                    state             <= ST_LOAD_NVRAM;
+                end else begin
+                    state             <= ST_LOAD_RESTORE;
+                    cram_entry        <= 0;
+                end
             end
         end
 
@@ -1027,9 +1030,10 @@ always @(posedge clk or negedge reset_n) begin
             // This avoids immediate load seeing partially drained write queues.
             if (DDRAM_BUSY)
                 freeze_drain_cnt <= 0;
-            else if (freeze_drain_cnt == 6'd31)
+            else if (freeze_drain_cnt == 6'd31) begin
+                unfreeze_cnt <= 8'd0;
                 state <= ST_UNFREEZE;
-            else
+            end else
                 freeze_drain_cnt <= freeze_drain_cnt + 6'd1;
         end
 
@@ -1047,7 +1051,9 @@ always @(posedge clk or negedge reset_n) begin
         ST_LOAD_HDR_WT: begin
             if (DDRAM_DOUT_READY && dout_expected) begin
                 dout_expected <= 0;
-                is_old_format <= (DDRAM_DOUT[63:32] == 32'h4000);
+                dout_latch    <= DDRAM_DOUT;
+            end else if (!dout_expected && !DDRAM_BUSY) begin
+                is_old_format <= (dout_latch[63:32] == 32'h4000);
                 ddram_read(base_addr + 29'd1);
                 state <= ST_LOAD_HDR_WT2;
             end
@@ -1056,13 +1062,16 @@ always @(posedge clk or negedge reset_n) begin
         ST_LOAD_HDR_WT2: begin
             if (DDRAM_DOUT_READY && dout_expected) begin
                 dout_expected <= 0;
-                if (DDRAM_DOUT[31:0] == cur_magic && DDRAM_DOUT[63:32] == cur_game_id) begin
+                dout_latch    <= DDRAM_DOUT;
+            end else if (!dout_expected && !DDRAM_BUSY) begin
+                if (dout_latch[31:0] == cur_magic && dout_latch[63:32] == cur_game_id) begin
                     // Read Z80 words
                     ddram_read(base_addr + 29'd2);
                     cpu_idx <= 0;
                     state   <= ST_LOAD_CPU0;
                 end else begin
                     // Invalid magic: abort
+                    unfreeze_cnt <= 8'd0;
                     state <= ST_UNFREEZE;
                 end
             end
@@ -1071,16 +1080,18 @@ always @(posedge clk or negedge reset_n) begin
         ST_LOAD_CPU0: begin
             if (DDRAM_DOUT_READY && dout_expected) begin
                 dout_expected <= 0;
+                dout_latch    <= DDRAM_DOUT;
+            end else if (!dout_expected && !DDRAM_BUSY) begin
                 case (cpu_idx)
-                    3'd0: begin z80_snap[63:0]    <= DDRAM_DOUT; ddram_read(base_addr + 29'd3); end
-                    3'd1: begin z80_snap[127:64]  <= DDRAM_DOUT; ddram_read(base_addr + 29'd4); end
-                    3'd2: begin z80_snap[191:128] <= DDRAM_DOUT; ddram_read(base_addr + 29'd5); end
+                    3'd0: begin z80_snap[63:0]    <= dout_latch; ddram_read(base_addr + 29'd3); end
+                    3'd1: begin z80_snap[127:64]  <= dout_latch; ddram_read(base_addr + 29'd4); end
+                    3'd2: begin z80_snap[191:128] <= dout_latch; ddram_read(base_addr + 29'd5); end
                     3'd3: begin
                         if (is_old_format) begin
-                            z80_snap[211:192] <= DDRAM_DOUT[19:0];
+                            z80_snap[211:192] <= dout_latch[19:0];
                             z80_snap[227:212] <= 16'd0;
                         end else begin
-                            z80_snap[227:192] <= DDRAM_DOUT[35:0];
+                            z80_snap[227:192] <= dout_latch[35:0];
                         end
                         ddram_read(base_addr + 29'd6);
                     end
@@ -1096,9 +1107,11 @@ always @(posedge clk or negedge reset_n) begin
         ST_LOAD_VDP0: begin
             if (DDRAM_DOUT_READY && dout_expected) begin
                 dout_expected <= 0;
+                dout_latch    <= DDRAM_DOUT;
+            end else if (!dout_expected && !DDRAM_BUSY) begin
                 case (vdp_idx[0])
-                    1'b0: begin vdp_snap[63:0]   <= DDRAM_DOUT; ddram_read(base_addr + 29'd7); end
-                    1'b1: begin vdp_snap[127:64]  <= DDRAM_DOUT; ddram_read(base_addr + 29'd8); end
+                    1'b0: begin vdp_snap[63:0]   <= dout_latch; ddram_read(base_addr + 29'd7); end
+                    1'b1: begin vdp_snap[127:64]  <= dout_latch; ddram_read(base_addr + 29'd8); end
                 endcase
                 if (vdp_idx[0]) begin
                     cram_idx <= 0;
@@ -1114,13 +1127,15 @@ always @(posedge clk or negedge reset_n) begin
             // Phase 2: write entries (use cram_entry)
             if (DDRAM_DOUT_READY && dout_expected) begin
                 dout_expected <= 0;
+                dout_latch    <= DDRAM_DOUT;
+            end else if (!dout_expected && !DDRAM_BUSY) begin
                 case (cram_idx)
-                    3'd0: begin cram_snap[63:0]    <= DDRAM_DOUT; ddram_read(base_addr + 29'd9);  end
-                    3'd1: begin cram_snap[127:64]  <= DDRAM_DOUT; ddram_read(base_addr + 29'd10); end
-                    3'd2: begin cram_snap[191:128] <= DDRAM_DOUT; ddram_read(base_addr + 29'd11); end
-                    3'd3: begin cram_snap[255:192] <= DDRAM_DOUT; ddram_read(base_addr + 29'd12); end
-                    3'd4: begin cram_snap[319:256] <= DDRAM_DOUT; ddram_read(base_addr + 29'd13); end
-                    3'd5: begin cram_snap[383:320] <= DDRAM_DOUT; ddram_read(base_addr + 29'd14); end
+                    3'd0: begin cram_snap[63:0]    <= dout_latch; ddram_read(base_addr + 29'd9);  end
+                    3'd1: begin cram_snap[127:64]  <= dout_latch; ddram_read(base_addr + 29'd10); end
+                    3'd2: begin cram_snap[191:128] <= dout_latch; ddram_read(base_addr + 29'd11); end
+                    3'd3: begin cram_snap[255:192] <= dout_latch; ddram_read(base_addr + 29'd12); end
+                    3'd4: begin cram_snap[319:256] <= dout_latch; ddram_read(base_addr + 29'd13); end
+                    3'd5: begin cram_snap[383:320] <= dout_latch; ddram_read(base_addr + 29'd14); end
                     default: ;
                 endcase
                 if (cram_idx == 5) begin
@@ -1136,7 +1151,9 @@ always @(posedge clk or negedge reset_n) begin
         ST_LOAD_PSG: begin
             if (DDRAM_DOUT_READY && dout_expected) begin
                 dout_expected <= 0;
-                psg_snap <= DDRAM_DOUT[55:0];
+                dout_latch    <= DDRAM_DOUT;
+            end else if (!dout_expected && !DDRAM_BUSY) begin
+                psg_snap <= dout_latch[55:0];
                 ddram_read(base_addr + 29'd15);
                 state    <= ST_LOAD_MAPPER;
             end
@@ -1144,8 +1161,10 @@ always @(posedge clk or negedge reset_n) begin
 
         ST_LOAD_MAPPER: begin
             if (DDRAM_DOUT_READY && dout_expected) begin
-                dout_expected    <= 0;
-                mapper_snap      <= DDRAM_DOUT;
+                dout_expected <= 0;
+                dout_latch    <= DDRAM_DOUT;
+            end else if (!dout_expected && !DDRAM_BUSY) begin
+                mapper_snap      <= dout_latch;
                 if (is_old_format) begin
                     vram_load_addr   <= 0;
                     vram_byte_cnt    <= 0;
@@ -1162,8 +1181,10 @@ always @(posedge clk or negedge reset_n) begin
 
         ST_LOAD_IO: begin
             if (DDRAM_DOUT_READY && dout_expected) begin
-                dout_expected    <= 0;
-                io_snap          <= DDRAM_DOUT[31:0];
+                dout_expected <= 0;
+                dout_latch    <= DDRAM_DOUT;
+            end else if (!dout_expected && !DDRAM_BUSY) begin
+                io_snap          <= dout_latch[31:0];
                 ddram_read(base_addr + 29'h01a);
                 state            <= ST_LOAD_VIDEO;
             end
@@ -1171,8 +1192,10 @@ always @(posedge clk or negedge reset_n) begin
 
         ST_LOAD_VIDEO: begin
             if (DDRAM_DOUT_READY && dout_expected) begin
-                dout_expected    <= 0;
-                video_snap       <= DDRAM_DOUT[21:0];
+                dout_expected <= 0;
+                dout_latch    <= DDRAM_DOUT;
+            end else if (!dout_expected && !DDRAM_BUSY) begin
+                video_snap       <= dout_latch[21:0];
                 if (systeme) begin
                     // System E: read VDP2/CRAM2/PSG2 before restoring VRAM
                     ddram_read(base_addr + 29'h10);
@@ -1195,14 +1218,16 @@ always @(posedge clk or negedge reset_n) begin
             // Read 2 × 64-bit words for VDP2 regs
             if (DDRAM_DOUT_READY && dout_expected) begin
                 dout_expected <= 0;
+                dout_latch    <= DDRAM_DOUT;
+            end else if (!dout_expected && !DDRAM_BUSY) begin
                 case (cram_idx)
                     3'd0: begin
-                        vdp2_snap[63:0] <= DDRAM_DOUT;
+                        vdp2_snap[63:0] <= dout_latch;
                         cram_idx <= 3'd1;
                         ddram_read(base_addr + 29'h11);
                     end
                     3'd1: begin
-                        vdp2_snap[127:64] <= DDRAM_DOUT;
+                        vdp2_snap[127:64] <= dout_latch;
                         cram_idx <= 3'd0;
                         ddram_read(base_addr + 29'h12);
                         state <= ST_LOAD_CRAM2;
@@ -1216,14 +1241,16 @@ always @(posedge clk or negedge reset_n) begin
             // Read 6 × 64-bit words for CRAM2
             if (DDRAM_DOUT_READY && dout_expected) begin
                 dout_expected <= 0;
+                dout_latch    <= DDRAM_DOUT;
+            end else if (!dout_expected && !DDRAM_BUSY) begin
                 case (cram_idx)
-                    3'd0: begin cram2_snap[ 63:  0] <= DDRAM_DOUT; cram_idx <= 3'd1; ddram_read(base_addr + 29'h13); end
-                    3'd1: begin cram2_snap[127: 64] <= DDRAM_DOUT; cram_idx <= 3'd2; ddram_read(base_addr + 29'h14); end
-                    3'd2: begin cram2_snap[191:128] <= DDRAM_DOUT; cram_idx <= 3'd3; ddram_read(base_addr + 29'h15); end
-                    3'd3: begin cram2_snap[255:192] <= DDRAM_DOUT; cram_idx <= 3'd4; ddram_read(base_addr + 29'h16); end
-                    3'd4: begin cram2_snap[319:256] <= DDRAM_DOUT; cram_idx <= 3'd5; ddram_read(base_addr + 29'h17); end
+                    3'd0: begin cram2_snap[ 63:  0] <= dout_latch; cram_idx <= 3'd1; ddram_read(base_addr + 29'h13); end
+                    3'd1: begin cram2_snap[127: 64] <= dout_latch; cram_idx <= 3'd2; ddram_read(base_addr + 29'h14); end
+                    3'd2: begin cram2_snap[191:128] <= dout_latch; cram_idx <= 3'd3; ddram_read(base_addr + 29'h15); end
+                    3'd3: begin cram2_snap[255:192] <= dout_latch; cram_idx <= 3'd4; ddram_read(base_addr + 29'h16); end
+                    3'd4: begin cram2_snap[319:256] <= dout_latch; cram_idx <= 3'd5; ddram_read(base_addr + 29'h17); end
                     3'd5: begin
-                        cram2_snap[383:320] <= DDRAM_DOUT;
+                        cram2_snap[383:320] <= dout_latch;
                         cram_idx <= 3'd0;
                         ddram_read(base_addr + 29'h18);
                         state <= ST_LOAD_PSG2;
@@ -1236,7 +1263,9 @@ always @(posedge clk or negedge reset_n) begin
         ST_LOAD_PSG2: begin
             if (DDRAM_DOUT_READY && dout_expected) begin
                 dout_expected <= 0;
-                psg2_snap <= DDRAM_DOUT[55:0];
+                dout_latch    <= DDRAM_DOUT;
+            end else if (!dout_expected && !DDRAM_BUSY) begin
+                psg2_snap <= dout_latch[55:0];
                 // Now restore VRAM1 to VDP1's active se_bank half
                 vram_load_addr   <= {mapper_snap[7], 14'b0};
                 vram_byte_cnt    <= 0;
@@ -1258,34 +1287,41 @@ always @(posedge clk or negedge reset_n) begin
                 end
             end else begin
                 // Write one byte per clock cycle from the latched word
-                vram_WE         <= 1;
-                vram_WA         <= vram_load_addr;
-                vram_WD         <= dout_latch[8*vram_byte_cnt +: 8];
-                vram_load_addr  <= vram_load_addr + 15'd1;
-                vram_byte_cnt   <= vram_byte_cnt + 3'd1; // 3-bit: wraps 7→0
-                if (vram_byte_cnt == 3'd7) begin
-                    // Last byte - deactivate and fetch next word
-                    vram_load_active <= 0;
-                    if (word_cnt < 12'd2047) begin
-                        word_cnt <= word_cnt + 12'd1;
-                        ddram_read(base_addr + 29'h101 + {17'd0, word_cnt + 12'd1});
-                    end else begin
-                        if (systeme) begin
-                            // System E: restore VDP1 passive bank from inline slot data.
-                            vram_load_addr   <= {~mapper_snap[7], 14'b0};
-                            vram_byte_cnt    <= 0;
-                            vram_load_active <= 0;
-                            word_cnt         <= 0;
-                            ddram_read(base_addr + 29'h1901);
-                            state <= ST_LOAD_VRAM1_PASSIVE;
+                if (vram_byte_cnt < 7) begin
+                    vram_WE         <= 1;
+                    vram_WA         <= vram_load_addr;
+                    vram_WD         <= dout_latch[8*vram_byte_cnt +: 8];
+                    vram_load_addr  <= vram_load_addr + 15'd1;
+                    vram_byte_cnt   <= vram_byte_cnt + 3'd1;
+                end else begin // vram_byte_cnt == 7
+                    if (!DDRAM_BUSY) begin
+                        vram_WE         <= 1;
+                        vram_WA         <= vram_load_addr;
+                        vram_WD         <= dout_latch[8*7 +: 8];
+                        vram_load_addr  <= vram_load_addr + 15'd1;
+                        vram_load_active <= 0;
+                        vram_byte_cnt   <= 0;
+                        if (word_cnt < 12'd2047) begin
+                            word_cnt <= word_cnt + 12'd1;
+                            ddram_read(base_addr + 29'h101 + {17'd0, word_cnt + 12'd1});
                         end else begin
-                            // VRAM done → WRAM
-                            wram_load_addr   <= 0;
-                            wram_byte_cnt    <= 0;
-                            wram_load_active <= 0;
-                            word_cnt         <= 0;
-                            ddram_read(base_addr + 29'h901);
-                            state <= ST_LOAD_WRAM;
+                            if (systeme) begin
+                                // System E: restore VDP1 passive bank from inline slot data.
+                                vram_load_addr   <= {~mapper_snap[7], 14'b0};
+                                vram_byte_cnt    <= 0;
+                                vram_load_active <= 0;
+                                word_cnt         <= 0;
+                                ddram_read(base_addr + 29'h1901);
+                                state <= ST_LOAD_VRAM1_PASSIVE;
+                            end else begin
+                                // VRAM done → WRAM
+                                wram_load_addr   <= 0;
+                                wram_byte_cnt    <= 0;
+                                wram_load_active <= 0;
+                                word_cnt         <= 0;
+                                ddram_read(base_addr + 29'h901);
+                                state <= ST_LOAD_WRAM;
+                            end
                         end
                     end
                 end
@@ -1301,29 +1337,37 @@ always @(posedge clk or negedge reset_n) begin
                     wram_load_active <= 1;
                 end
             end else begin
-                wram_WE         <= 1;
-                wram_WA         <= wram_load_addr;
-                wram_WD         <= dout_latch[8*wram_byte_cnt +: 8];
-                wram_load_addr  <= wram_load_addr + 14'd1;
-                wram_byte_cnt   <= wram_byte_cnt + 3'd1;
-                if (wram_byte_cnt == 3'd7) begin
-                    wram_load_active <= 0;
-                    if (word_cnt < (systeme ? 12'd2047 : 12'd1023)) begin
-                        word_cnt <= word_cnt + 12'd1;
-                        ddram_read(base_addr + 29'h901 + {17'd0, word_cnt + 12'd1});
-                    end else begin
-                        if (systeme) begin
-                            // System E: restore VRAM2 to VDP2's active se_bank half
-                            vram_load_addr   <= {mapper_snap[6], 14'b0};
-                            vram_byte_cnt    <= 0;
-                            vram_load_active <= 0;
-                            word_cnt         <= 0;
-                            ddram_read(base_addr + 29'h1101);
-                            state <= ST_LOAD_VRAM2;
+                if (wram_byte_cnt < 7) begin
+                    wram_WE         <= 1;
+                    wram_WA         <= wram_load_addr;
+                    wram_WD         <= dout_latch[8*wram_byte_cnt +: 8];
+                    wram_load_addr  <= wram_load_addr + 14'd1;
+                    wram_byte_cnt   <= wram_byte_cnt + 3'd1;
+                end else begin // wram_byte_cnt == 7
+                    if (!DDRAM_BUSY) begin
+                        wram_WE         <= 1;
+                        wram_WA         <= wram_load_addr;
+                        wram_WD         <= dout_latch[8*7 +: 8];
+                        wram_load_addr  <= wram_load_addr + 14'd1;
+                        wram_load_active <= 0;
+                        wram_byte_cnt   <= 0;
+                        if (word_cnt < (systeme ? 12'd2047 : 12'd1023)) begin
+                            word_cnt <= word_cnt + 12'd1;
+                            ddram_read(base_addr + 29'h901 + {17'd0, word_cnt + 12'd1});
                         end else begin
-                            // WRAM done, transition to mapper restore first
-                            state      <= ST_WAIT_RESTORE_BOUNDARY;
-                            cram_entry <= 0;
+                            if (systeme) begin
+                                // System E: restore VRAM2 to VDP2's active se_bank half
+                                vram_load_addr   <= {mapper_snap[6], 14'b0};
+                                vram_byte_cnt    <= 0;
+                                vram_load_active <= 0;
+                                word_cnt         <= 0;
+                                ddram_read(base_addr + 29'h1101);
+                                state <= ST_LOAD_VRAM2;
+                            end else begin
+                                // WRAM done, transition to mapper restore first
+                                state      <= ST_WAIT_RESTORE_BOUNDARY;
+                                cram_entry <= 0;
+                            end
                         end
                     end
                 end
@@ -1339,19 +1383,27 @@ always @(posedge clk or negedge reset_n) begin
                     nvram_load_active <= 1;
                 end
             end else begin
-                nvram_WE        <= 1;
-                nvram_WA        <= nvram_load_addr;
-                nvram_WD        <= dout_latch[8*nvram_byte_cnt +: 8];
-                nvram_load_addr <= nvram_load_addr + 15'd1;
-                nvram_byte_cnt  <= nvram_byte_cnt + 3'd1;
-                if (nvram_byte_cnt == 3'd7) begin
-                    nvram_load_active <= 0;
-                    if (word_cnt < (nvram_size_minus_1 >> 3)) begin
-                        word_cnt <= word_cnt + 12'd1;
-                        ddram_read(base_addr + 29'h0D01 + {17'd0, word_cnt + 12'd1});
-                    end else begin
-                        state      <= ST_LOAD_RESTORE;
-                        cram_entry <= 0;
+                if (nvram_byte_cnt < 7) begin
+                    nvram_WE        <= 1;
+                    nvram_WA        <= nvram_load_addr;
+                    nvram_WD        <= dout_latch[8*nvram_byte_cnt +: 8];
+                    nvram_load_addr <= nvram_load_addr + 15'd1;
+                    nvram_byte_cnt  <= nvram_byte_cnt + 3'd1;
+                end else begin // nvram_byte_cnt == 7
+                    if (!DDRAM_BUSY) begin
+                        nvram_WE        <= 1;
+                        nvram_WA        <= nvram_load_addr;
+                        nvram_WD        <= dout_latch[8*7 +: 8];
+                        nvram_load_addr <= nvram_load_addr + 15'd1;
+                        nvram_load_active <= 0;
+                        nvram_byte_cnt  <= 0;
+                        if (word_cnt < (nvram_size_minus_1 >> 3)) begin
+                            word_cnt <= word_cnt + 12'd1;
+                            ddram_read(base_addr + 29'h0D01 + {17'd0, word_cnt + 12'd1});
+                        end else begin
+                            state      <= ST_LOAD_RESTORE;
+                            cram_entry <= 0;
+                        end
                     end
                 end
             end
@@ -1368,24 +1420,32 @@ always @(posedge clk or negedge reset_n) begin
                     vram_load_active <= 1;
                 end
             end else begin
-                vram2_WE         <= 1;
-                vram2_WA         <= vram_load_addr;
-                vram2_WD         <= dout_latch[8*vram_byte_cnt +: 8];
-                vram_load_addr   <= vram_load_addr + 15'd1;
-                vram_byte_cnt    <= vram_byte_cnt + 3'd1;
-                if (vram_byte_cnt == 3'd7) begin
-                    vram_load_active <= 0;
-                    if (word_cnt < 12'd2047) begin
-                        word_cnt <= word_cnt + 12'd1;
-                        ddram_read(base_addr + 29'h1101 + {17'd0, word_cnt + 12'd1});
-                    end else begin
-                        // Restore VDP2 passive bank from inline slot area.
-                        vram_load_addr   <= {~mapper_snap[6], 14'b0};
-                        vram_byte_cnt    <= 0;
+                if (vram_byte_cnt < 7) begin
+                    vram2_WE         <= 1;
+                    vram2_WA         <= vram_load_addr;
+                    vram2_WD         <= dout_latch[8*vram_byte_cnt +: 8];
+                    vram_load_addr   <= vram_load_addr + 15'd1;
+                    vram_byte_cnt    <= vram_byte_cnt + 3'd1;
+                end else begin // vram_byte_cnt == 7
+                    if (!DDRAM_BUSY) begin
+                        vram2_WE         <= 1;
+                        vram2_WA         <= vram_load_addr;
+                        vram2_WD         <= dout_latch[8*7 +: 8];
+                        vram_load_addr   <= vram_load_addr + 15'd1;
                         vram_load_active <= 0;
-                        word_cnt         <= 0;
-                        ddram_read(base_addr + 29'h2101);
-                        state <= ST_LOAD_VRAM2_PASSIVE;
+                        vram_byte_cnt    <= 0;
+                        if (word_cnt < 12'd2047) begin
+                            word_cnt <= word_cnt + 12'd1;
+                            ddram_read(base_addr + 29'h1101 + {17'd0, word_cnt + 12'd1});
+                        end else begin
+                            // Restore VDP2 passive bank from inline slot area.
+                            vram_load_addr   <= {~mapper_snap[6], 14'b0};
+                            vram_byte_cnt    <= 0;
+                            vram_load_active <= 0;
+                            word_cnt         <= 0;
+                            ddram_read(base_addr + 29'h2101);
+                            state <= ST_LOAD_VRAM2_PASSIVE;
+                        end
                     end
                 end
             end
@@ -1401,23 +1461,31 @@ always @(posedge clk or negedge reset_n) begin
                     vram_load_active <= 1;
                 end
             end else begin
-                vram_WE         <= 1;
-                vram_WA         <= vram_load_addr;
-                vram_WD         <= dout_latch[8*vram_byte_cnt +: 8];
-                vram_load_addr  <= vram_load_addr + 15'd1;
-                vram_byte_cnt   <= vram_byte_cnt + 3'd1;
-                if (vram_byte_cnt == 3'd7) begin
-                    vram_load_active <= 0;
-                    if (word_cnt < 12'd2047) begin
-                        word_cnt <= word_cnt + 12'd1;
-                        ddram_read(base_addr + 29'h1901 + {17'd0, word_cnt + 12'd1});
-                    end else begin
-                        wram_load_addr   <= 0;
-                        wram_byte_cnt    <= 0;
-                        wram_load_active <= 0;
-                        word_cnt         <= 0;
-                        ddram_read(base_addr + 29'h901);
-                        state <= ST_LOAD_WRAM;
+                if (vram_byte_cnt < 7) begin
+                    vram_WE         <= 1;
+                    vram_WA         <= vram_load_addr;
+                    vram_WD         <= dout_latch[8*vram_byte_cnt +: 8];
+                    vram_load_addr  <= vram_load_addr + 15'd1;
+                    vram_byte_cnt   <= vram_byte_cnt + 3'd1;
+                end else begin // vram_byte_cnt == 7
+                    if (!DDRAM_BUSY) begin
+                        vram_WE         <= 1;
+                        vram_WA         <= vram_load_addr;
+                        vram_WD         <= dout_latch[8*7 +: 8];
+                        vram_load_addr  <= vram_load_addr + 15'd1;
+                        vram_load_active <= 0;
+                        vram_byte_cnt   <= 0;
+                        if (word_cnt < 12'd2047) begin
+                            word_cnt <= word_cnt + 12'd1;
+                            ddram_read(base_addr + 29'h1901 + {17'd0, word_cnt + 12'd1});
+                        end else begin
+                            wram_load_addr   <= 0;
+                            wram_byte_cnt    <= 0;
+                            wram_load_active <= 0;
+                            word_cnt         <= 0;
+                            ddram_read(base_addr + 29'h901);
+                            state <= ST_LOAD_WRAM;
+                        end
                     end
                 end
             end
@@ -1433,19 +1501,27 @@ always @(posedge clk or negedge reset_n) begin
                     vram_load_active <= 1;
                 end
             end else begin
-                vram2_WE        <= 1;
-                vram2_WA        <= vram_load_addr;
-                vram2_WD        <= dout_latch[8*vram_byte_cnt +: 8];
-                vram_load_addr  <= vram_load_addr + 15'd1;
-                vram_byte_cnt   <= vram_byte_cnt + 3'd1;
-                if (vram_byte_cnt == 3'd7) begin
-                    vram_load_active <= 0;
-                    if (word_cnt < 12'd2047) begin
-                        word_cnt <= word_cnt + 12'd1;
-                        ddram_read(base_addr + 29'h2101 + {17'd0, word_cnt + 12'd1});
-                    end else begin
-                        state      <= ST_WAIT_RESTORE_BOUNDARY;
-                        cram_entry <= 0;
+                if (vram_byte_cnt < 7) begin
+                    vram2_WE        <= 1;
+                    vram2_WA        <= vram_load_addr;
+                    vram2_WD        <= dout_latch[8*vram_byte_cnt +: 8];
+                    vram_load_addr  <= vram_load_addr + 15'd1;
+                    vram_byte_cnt   <= vram_byte_cnt + 3'd1;
+                end else begin // vram_byte_cnt == 7
+                    if (!DDRAM_BUSY) begin
+                        vram2_WE        <= 1;
+                        vram2_WA        <= vram_load_addr;
+                        vram2_WD        <= dout_latch[8*7 +: 8];
+                        vram_load_addr  <= vram_load_addr + 15'd1;
+                        vram_load_active <= 0;
+                        vram_byte_cnt   <= 0;
+                        if (word_cnt < 12'd2047) begin
+                            word_cnt <= word_cnt + 12'd1;
+                            ddram_read(base_addr + 29'h2101 + {17'd0, word_cnt + 12'd1});
+                        end else begin
+                            state      <= ST_WAIT_RESTORE_BOUNDARY;
+                            cram_entry <= 0;
+                        end
                     end
                 end
             end
@@ -1525,11 +1601,21 @@ always @(posedge clk or negedge reset_n) begin
                 unfreeze_cnt <= unfreeze_cnt + 8'd1;
                 ss_freeze <= 1;
             end else if (!cpu_ce && !vdp_ce && !pix_ce && !sp_ce) begin
-                ss_freeze   <= 0;
+                ss_freeze    <= 0;
+                unfreeze_cnt <= 8'd0;
+                state        <= ST_UNFREEZE_SETTLE;
+            end else begin
+                ss_freeze <= 1;
+            end
+        end
+
+        ST_UNFREEZE_SETTLE: begin
+            ss_freeze <= 0;
+            if (unfreeze_cnt == 8'd4) begin
                 op_cooldown <= OP_COOLDOWN_MAX;
                 state       <= ST_IDLE;
             end else begin
-                ss_freeze <= 1;
+                unfreeze_cnt <= unfreeze_cnt + 8'd1;
             end
         end
         // ---------------------------------------------------------------

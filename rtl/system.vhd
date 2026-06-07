@@ -1186,6 +1186,7 @@ port map(
 					if WR_n='1' and MREQ_n='0' then
 						last_read_addr <= A; -- gyurco anti-ldir patch
 					end if;
+				end if;
 
 				if systeme = '1' or sc3000_en = '1' or mapper_castle = '1' or mapper_linear = '1' or mapper_dahjee_a = '1' or mapper_sega_locked = '1' then
 					-- no System E, SC-3000, Castle (32KB RAM), linear, Dahjee Type A, or Sega-locked mappers
@@ -1217,7 +1218,7 @@ port map(
 					-- $0000-$1FFF is nem_bank0 (fixed at reset); $2000-$3FFF is always page 1.
 					-- Suppressed while BIOS is running (bootloader_n='0') so the BIOS can
 					-- bank-switch its own pages via the standard Sega mapper ($FFFC-$FFFF).
-					if WR_n='0' and MREQ_n='0' and A(15 downto 2)="00000000000000" then
+					if WR_n='0' and A(15 downto 2)="00000000000000" then
 						case A(1 downto 0) is
 							when "00" => bank2 <= D_in;
 							when "01" => bank3 <= D_in;
@@ -1300,7 +1301,6 @@ port map(
 							when others => null ;
 						end case ;
 					end if;
-				end if;
 				end if;
 				end if; -- mapper_set
 			end if;

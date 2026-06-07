@@ -150,13 +150,13 @@ always @(posedge clk) begin
         ss_save      <= 1;
         ss_info_req  <= 1;
         ss_info      <= 8'd6 + {slot, 1'b0};   // "Save to state N"  (1-based: 6,8,10,12)
-        cooldown_cnt <= 28'd10738600;          // 200ms cooldown
+        cooldown_cnt <= 28'd26846500;          // 500ms cooldown
     end
     if (~old_osd_load & OSD_saveload[1] & allow_ss && (cooldown_cnt == 0)) begin
         ss_load      <= 1;
         ss_info_req  <= 1;
         ss_info      <= 8'd7 + {slot, 1'b0};   // "Restore state N"  (1-based: 7,9,11,13)
-        cooldown_cnt <= 28'd10738600;          // 200ms cooldown
+        cooldown_cnt <= 28'd26846500;          // 500ms cooldown
     end
 
     // PS/2 keyboard shortcuts
@@ -164,13 +164,13 @@ always @(posedge clk) begin
         ss_save      <= 1;
         ss_info_req  <= 1;
         ss_info      <= 8'd6 + {slot, 1'b0};
-        cooldown_cnt <= 28'd10738600;          // 200ms cooldown
+        cooldown_cnt <= 28'd26846500;          // 500ms cooldown
     end
     if (kbd_load & allow_ss && (cooldown_cnt == 0)) begin
         ss_load      <= 1;
         ss_info_req  <= 1;
         ss_info      <= 8'd7 + {slot, 1'b0};
-        cooldown_cnt <= 28'd10738600;          // 200ms cooldown
+        cooldown_cnt <= 28'd26846500;          // 500ms cooldown
     end
 
     // Gamepad combos — only when the dedicated SaveState button is held
@@ -182,7 +182,7 @@ always @(posedge clk) begin
             ss_info_req          <= 1;
             ss_info              <= 8'd2 + ((slot == 2'd0) ? 2'd3 : slot - 2'd1);
             ss_combo_done        <= 1;
-            cooldown_cnt         <= 28'd10738600;  // 200ms slot cooldown
+            cooldown_cnt         <= 28'd26846500;  // 500ms slot cooldown
         end
         // Rising edge of Right (no Pause): next slot
         if (~joyRight_r & joyRight & ~joyPause && (cooldown_cnt == 0)) begin
@@ -191,7 +191,7 @@ always @(posedge clk) begin
             ss_info_req          <= 1;
             ss_info              <= 8'd2 + ((slot == 2'd3) ? 2'd0 : slot + 2'd1);
             ss_combo_done        <= 1;
-            cooldown_cnt         <= 28'd10738600;  // 200ms slot cooldown
+            cooldown_cnt         <= 28'd26846500;  // 500ms slot cooldown
         end
         // Rising edge of Down (no Pause needed): save
         if (~joyDown_r & joyDown & ~joyLeft & ~joyRight & allow_ss && (cooldown_cnt == 0)) begin
@@ -199,7 +199,7 @@ always @(posedge clk) begin
             ss_info_req   <= 1;
             ss_info       <= 8'd6 + {slot, 1'b0};
             ss_combo_done <= 1;
-            cooldown_cnt  <= 28'd10738600;      // 200ms cooldown
+            cooldown_cnt  <= 28'd26846500;      // 500ms cooldown
         end
         // Rising edge of Up (no Pause needed): load
         if (~joyUp_r & joyUp & ~joyLeft & ~joyRight & allow_ss && (cooldown_cnt == 0)) begin
@@ -207,7 +207,7 @@ always @(posedge clk) begin
             ss_info_req   <= 1;
             ss_info       <= 8'd7 + {slot, 1'b0};
             ss_combo_done <= 1;
-            cooldown_cnt  <= 28'd10738600;      // 200ms cooldown
+            cooldown_cnt  <= 28'd26846500;      // 500ms cooldown
         end
     end
 end
