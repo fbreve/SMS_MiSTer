@@ -43,6 +43,10 @@ reg  ss_freeze_r;
 always @(posedge clk_sys) begin
 	ss_freeze_r <= ss_freeze;
 end
+reg  ss_freeze_s;
+always @(negedge clk_sys) begin
+	ss_freeze_s <= ss_freeze;
+end
 wire ss_unfreeze = ss_freeze_r & ~ss_freeze;
 // System E toggle-pause: joy[8] = Pause button (position 5 in J1 layout)
 wire       joy8_sig = swap ? joy_1[8] : joy_0[8];
@@ -918,10 +922,11 @@ wire  [7:0] ss_nvram_WD;   // DMA write data
 system #(63) system
 (
 	.clk_sys(clk_sys),
-	.ce_cpu(ce_cpu & ~ss_freeze & ~se_pause_gate),
-	.ce_vdp(ce_vdp & ~ss_freeze),
-	.ce_pix(ce_pix & ~ss_freeze),
-	.ce_sp(ce_sp  & ~ss_freeze),
+	.ss_freeze(ss_freeze),
+	.ce_cpu(ce_cpu & ~ss_freeze_s & ~se_pause_gate),
+	.ce_vdp(ce_vdp & ~ss_freeze_s),
+	.ce_pix(ce_pix & ~ss_freeze_s),
+	.ce_sp(ce_sp  & ~ss_freeze_s),
 	.turbo(turbo),
 	.gg(gg),
 	.ggres(ggres),
@@ -1405,7 +1410,7 @@ wire turbo = status[40];
 video video
 (
 	.clk(clk_sys),
-	.ce_pix(ce_pix & ~ss_freeze),
+	.ce_pix(ce_pix & ~ss_freeze_s),
 	.pal(pal),
 	.ggres(ggres),
 	.border(border),

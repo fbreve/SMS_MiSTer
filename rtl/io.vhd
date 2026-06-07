@@ -76,6 +76,7 @@ entity io is
 		io_state_out: out STD_LOGIC_VECTOR(31 downto 0);
 		io_state_in:  in  STD_LOGIC_VECTOR(31 downto 0) := (others => '0');
 		io_state_set: in  STD_LOGIC := '0';
+		ss_freeze:     in  STD_LOGIC := '0';
 		RESET_n:	in  STD_LOGIC);
 end io;
 
@@ -336,7 +337,7 @@ begin
 				gg_nmi_serial <= '0';
 			end if;
 
-			if gg='1' and A(7 downto 3) = "00000" then
+			if ss_freeze = '0' and gg='1' and A(7 downto 3) = "00000" then
 				if WR_n='0' then
 					case A(2 downto 0) is
 						when "001" =>
@@ -380,24 +381,24 @@ begin
 						when others => null ;
 					end case;
 				end if;
-			elsif systeme='1' and A = x"F7" then
+			elsif ss_freeze = '0' and systeme='1' and A = x"F7" then
 				if WR_n='0' then
 					vdp1_bank <= D_in(7);
 					vdp2_bank <= D_in(6);
 					vdp_cpu_bank <= D_in(5);
 					rom_bank <= D_in(3 downto 0);
 				end if;
-			elsif systeme='1' and A = x"FA" then
+			elsif ss_freeze = '0' and systeme='1' and A = x"FA" then
 				if WR_n='0' then
 					analog_player <= D_in(3); -- paddle select ridleofp
 					analog_upper  <= D_in(2); -- upperbits ridleofp
 					analog_select <= D_in(0); -- analog select(paddle, pedal) hangonjr
 				end if;
-			elsif sc_multicart_en='1' and A(7 downto 5)="111" then
+			elsif ss_freeze = '0' and sc_multicart_en='1' and A(7 downto 5)="111" then
 				if WR_n='0' then
 					sc_multicart_latch <= D_in;
 				end if;
-			elsif sg_mode='1' and sk1100_active='1' and A(7 downto 5)="110" then
+			elsif ss_freeze = '0' and sg_mode='1' and sk1100_active='1' and A(7 downto 5)="110" then
 				if WR_n='0' then
 					case A(1 downto 0) is
 						when "10" =>
@@ -410,11 +411,11 @@ begin
 							null;
 					end case;
 				end if;
-			elsif sg_mode='1' and sk1100_active='0' and (A = x"DE" or A = x"DF") then
+			elsif ss_freeze = '0' and sg_mode='1' and sk1100_active='0' and (A = x"DE" or A = x"DF") then
 				-- Plain SG-1000 carts don't have the SC-3000/SK-1100 PPI attached.
 				-- Ignore these writes so they don't accidentally hit the SMS control port.
 				null;
-			elsif A(0)='1' then
+			elsif ss_freeze = '0' and A(0)='1' then
 --				if WR_n='0' and ((A(7 downto 4)/="0000") or (A(3 downto 0)="0000")) then
 				if WR_n='0' then
 					ctrl <= D_in;

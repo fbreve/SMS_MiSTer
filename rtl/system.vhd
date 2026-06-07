@@ -190,7 +190,8 @@ entity system is
 		io_state_set  : in  STD_LOGIC := '0';
 		-- System E hardware pause: gates Z80 clock independently of ce_pix
 		-- (ce_pix keeps running so VDP scanout and sync are unaffected)
-		se_pause      : in  STD_LOGIC := '0'
+		se_pause      : in  STD_LOGIC := '0';
+		ss_freeze     : in  STD_LOGIC := '0'
 	);
 end system;
 
@@ -651,7 +652,7 @@ begin
 			if RESET_n='0' then
 				fm_d <= (others => '0');
 				fm_a <= '0';
-			elsif fm_WR_n='0' then
+			elsif ss_freeze = '0' and fm_WR_n='0' then
 				fm_d <= D_in;
 				fm_a <= A(0);
 			end if;
@@ -769,6 +770,7 @@ port map(
 		io_state_out  => io_state_out,
 		io_state_in   => io_state_in,
 		io_state_set  => io_state_set,
+		ss_freeze     => ss_freeze,
 		RESET_n	=> RESET_n
 	);
 	
@@ -911,10 +913,10 @@ port map(
 	det_WR_n <= WR_n when IORQ_n='0' and M1_n='1' and A(7 downto 0)=x"F2" else '1';
 	IRQ_n <= vdp_IRQ_n when systeme='0' else vdp2_IRQ_n;
 					
-	ram_WR   <= not WR_n when MREQ_n='0' and A(15 downto 14)="11" and sc_cart_ram_32k='0' else '0';
-	vram_WR  <= not WR_n when MREQ_n='0' and A(15 downto 14)="10" and vdp_cpu_bank='1' and systeme='1' else '0';
-	vram2_WR  <= not WR_n when MREQ_n='0' and A(15 downto 14)="10" and vdp_cpu_bank='0' and systeme='1' else '0';
-	nvram_WR <= not WR_n when MREQ_n='0' and (((A(15 downto 14)="10" and nvram_e = '1')
+	ram_WR   <= not WR_n when ss_freeze = '0' and MREQ_n='0' and A(15 downto 14)="11" and sc_cart_ram_32k='0' else '0';
+	vram_WR  <= not WR_n when ss_freeze = '0' and MREQ_n='0' and A(15 downto 14)="10" and vdp_cpu_bank='1' and systeme='1' else '0';
+	vram2_WR  <= not WR_n when ss_freeze = '0' and MREQ_n='0' and A(15 downto 14)="10" and vdp_cpu_bank='0' and systeme='1' else '0';
+	nvram_WR <= not WR_n when ss_freeze = '0' and MREQ_n='0' and (((A(15 downto 14)="10" and nvram_e = '1')
 						or (A(15 downto 14)="11" and nvram_ex = '1') 
 						or (A(15 downto 13)="101" and nvram_cme = '1'))
 						or sc_cart_ram_low='1'
@@ -936,7 +938,7 @@ port map(
 				-- disabled (bootloader_n=1) would leave bootloader_n=0 (reset default)
 				-- so the Z80 would read BIOS ROM instead of cart ROM → instant crash.
 				bootloader_n <= mapper_in(54);
-			elsif ctl_WR_n='0' then
+			elsif ss_freeze = '0' and ctl_WR_n='0' then
 				if ext_bios_sel='1' and ext_bios_loaded='1' then
 					-- For external BIOS: honour port $3E bit 3 (active low BIOS enable)
 					-- bit3=0 -> BIOS ROM enabled -> bootloader_n=0
@@ -979,9 +981,9 @@ port map(
 			if RESET_n='0' then 
 				det_D <= "111";
 				PSG_mux <= x"FF";
-			elsif det_WR_n='0' then
+			elsif ss_freeze = '0' and det_WR_n='0' then
 				det_D <= D_in(2 downto 0);
-			elsif bal_WR_n='0' then
+			elsif ss_freeze = '0' and bal_WR_n='0' then
 				PSG_mux <= D_in;
 			end if;
 		end if;
@@ -1195,7 +1197,7 @@ port map(
 					-- $3FFE: reg0=D; bank0=D; bank2=(reg0[5:4]+reg2)
 					-- $7FFF: bank1=D (independent)
 					-- $BFFF: reg2=D; bank2=(reg0[5:4]+D)
-					if WR_n='0' and MREQ_n='0' then
+					if ss_freeze = '0' and WR_n='0' and MREQ_n='0' then
 						if A=x"3FFE" then
 							pak4_reg0 <= D_in;
 							bank0 <= D_in;
@@ -1218,7 +1220,7 @@ port map(
 					-- $0000-$1FFF is nem_bank0 (fixed at reset); $2000-$3FFF is always page 1.
 					-- Suppressed while BIOS is running (bootloader_n='0') so the BIOS can
 					-- bank-switch its own pages via the standard Sega mapper ($FFFC-$FFFF).
-					if WR_n='0' and A(15 downto 2)="00000000000000" then
+					if ss_freeze = '0' and WR_n='0' and A(15 downto 2)="00000000000000" then
 						case A(1 downto 0) is
 							when "00" => bank2 <= D_in;
 							when "01" => bank3 <= D_in;
@@ -1226,7 +1228,7 @@ port map(
 							when "11" => bank1 <= D_in;
 						end case;
 					end if ;
-				elsif mapper_manual_force = '0' and bootloader_n = '1' and WR_n='0' and MREQ_n='0' and A=x"3FFE" then
+				elsif ss_freeze = '0' and mapper_manual_force = '0' and bootloader_n = '1' and WR_n='0' and MREQ_n='0' and A=x"3FFE" then
 					-- 4-PAK All Action: first write to $3FFE when no mapper active
 					mapper_4pak <= '1';
 					pak4_reg0 <= D_in;
@@ -1239,7 +1241,7 @@ port map(
 				else
 					-- No write-triggered Zemina detection here.
 					-- Zemina mode is selected by header/CRC/OSD; once active, writes are handled in the use_zem branch above.
-					if WR_n='0' and A(15 downto 2)="11111111111111" then
+					if ss_freeze = '0' and WR_n='0' and A(15 downto 2)="11111111111111" then
 						-- A write to $FFFC-$FFFF is a Sega mapper register; disable Codemasters
 						-- detection unless it was already confirmed (mapper_codies_lock='1') or forced.
 						if mapper_codies_force = '0' then
@@ -1255,7 +1257,7 @@ port map(
 							when "11" => bank2 <= D_in ; 
 						end case;
 					end if;
-					if WR_n='0' and nvram_e='0' and mapper_lock='0' then
+					if ss_freeze = '0' and WR_n='0' and nvram_e='0' and mapper_lock='0' then
 						case A(15 downto 0) is
 				-- Codemasters
 				-- do not accept writing in adr $0000 (canary) unless we are sure that Codemasters mapper is in use
