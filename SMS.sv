@@ -44,14 +44,6 @@ always @(posedge clk_sys) begin
 	ss_freeze_r <= ss_freeze;
 end
 reg  [4:0] clkd;
-reg  ss_freeze_sync;
-always @(negedge clk_sys) begin
-	if (ss_freeze) begin
-		ss_freeze_sync <= 1;
-	end else if (clkd == 5'd29) begin
-		ss_freeze_sync <= 0;
-	end
-end
 wire ss_unfreeze = ss_freeze_r & ~ss_freeze;
 // System E toggle-pause: joy[8] = Pause button (position 5 in J1 layout)
 wire       joy8_sig = swap ? joy_1[8] : joy_0[8];
@@ -928,10 +920,10 @@ system #(63) system
 (
 	.clk_sys(clk_sys),
 	.ss_freeze(ss_freeze),
-	.ce_cpu(ce_cpu & ~ss_freeze_sync & ~se_pause_gate),
-	.ce_vdp(ce_vdp & ~ss_freeze_sync),
-	.ce_pix(ce_pix & ~ss_freeze_sync),
-	.ce_sp(ce_sp  & ~ss_freeze_sync),
+	.ce_cpu(ce_cpu & ~se_pause_gate),
+	.ce_vdp(ce_vdp),
+	.ce_pix(ce_pix),
+	.ce_sp(ce_sp),
 	.turbo(turbo),
 	.gg(gg),
 	.ggres(ggres),
@@ -1415,7 +1407,7 @@ wire turbo = status[40];
 video video
 (
 	.clk(clk_sys),
-	.ce_pix(ce_pix & ~ss_freeze_sync),
+	.ce_pix(ce_pix),
 	.pal(pal),
 	.ggres(ggres),
 	.border(border),
@@ -1441,29 +1433,36 @@ reg ce_vdp;
 reg ce_pix;
 reg ce_sp;
 always @(negedge clk_sys) begin
-	ce_sp <= clkd[0];
-	ce_vdp <= 0;//div5
-	ce_pix <= 0;//div10
-	ce_cpu <= 0;//div15
-	clkd <= clkd + 1'd1;
-	if (clkd==29) begin
-		clkd <= 0;
-		ce_vdp <= 1;
-		ce_pix <= 1;
-	end else if (clkd==24) begin
-		ce_cpu <= 1;  //-- changed cpu phase to please VDPTEST HCounter test;
-		ce_vdp <= 1;
-	end else if (clkd==19) begin
-		ce_vdp <= 1;
-		ce_pix <= 1;
-	end else if (clkd==14) begin
-		ce_vdp <= 1;
-	end else if (clkd==9) begin
-		ce_cpu <= 1;
-		ce_vdp <= 1;
-		ce_pix <= 1;
-	end else if (clkd==4) begin
-		ce_vdp <= 1;
+	if (~ss_freeze) begin
+		ce_sp <= clkd[0];
+		ce_vdp <= 0;//div5
+		ce_pix <= 0;//div10
+		ce_cpu <= 0;//div15
+		clkd <= clkd + 1'd1;
+		if (clkd==29) begin
+			clkd <= 0;
+			ce_vdp <= 1;
+			ce_pix <= 1;
+		end else if (clkd==24) begin
+			ce_cpu <= 1;  //-- changed cpu phase to please VDPTEST HCounter test;
+			ce_vdp <= 1;
+		end else if (clkd==19) begin
+			ce_vdp <= 1;
+			ce_pix <= 1;
+		end else if (clkd==14) begin
+			ce_vdp <= 1;
+		end else if (clkd==9) begin
+			ce_cpu <= 1;
+			ce_vdp <= 1;
+			ce_pix <= 1;
+		end else if (clkd==4) begin
+			ce_vdp <= 1;
+		end
+	end else begin
+		ce_sp  <= 0;
+		ce_vdp <= 0;
+		ce_pix <= 0;
+		ce_cpu <= 0;
 	end
 end
 
