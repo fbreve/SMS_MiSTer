@@ -43,9 +43,14 @@ reg  ss_freeze_r;
 always @(posedge clk_sys) begin
 	ss_freeze_r <= ss_freeze;
 end
-reg  ss_freeze_s;
+reg  [4:0] clkd;
+reg  ss_freeze_sync;
 always @(negedge clk_sys) begin
-	ss_freeze_s <= ss_freeze;
+	if (ss_freeze) begin
+		ss_freeze_sync <= 1;
+	end else if (clkd == 5'd29) begin
+		ss_freeze_sync <= 0;
+	end
 end
 wire ss_unfreeze = ss_freeze_r & ~ss_freeze;
 // System E toggle-pause: joy[8] = Pause button (position 5 in J1 layout)
@@ -923,10 +928,10 @@ system #(63) system
 (
 	.clk_sys(clk_sys),
 	.ss_freeze(ss_freeze),
-	.ce_cpu(ce_cpu & ~ss_freeze_s & ~se_pause_gate),
-	.ce_vdp(ce_vdp & ~ss_freeze_s),
-	.ce_pix(ce_pix & ~ss_freeze_s),
-	.ce_sp(ce_sp  & ~ss_freeze_s),
+	.ce_cpu(ce_cpu & ~ss_freeze_sync & ~se_pause_gate),
+	.ce_vdp(ce_vdp & ~ss_freeze_sync),
+	.ce_pix(ce_pix & ~ss_freeze_sync),
+	.ce_sp(ce_sp  & ~ss_freeze_sync),
 	.turbo(turbo),
 	.gg(gg),
 	.ggres(ggres),
@@ -1410,7 +1415,7 @@ wire turbo = status[40];
 video video
 (
 	.clk(clk_sys),
-	.ce_pix(ce_pix & ~ss_freeze_s),
+	.ce_pix(ce_pix & ~ss_freeze_sync),
 	.pal(pal),
 	.ggres(ggres),
 	.border(border),
@@ -1436,8 +1441,6 @@ reg ce_vdp;
 reg ce_pix;
 reg ce_sp;
 always @(negedge clk_sys) begin
-	reg [4:0] clkd;
-
 	ce_sp <= clkd[0];
 	ce_vdp <= 0;//div5
 	ce_pix <= 0;//div10
