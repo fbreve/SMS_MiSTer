@@ -814,7 +814,7 @@ wire [63:0] ss_ddram_din;
 wire [7:0]  ss_ddram_be;
 wire        ss_ddram_we;
 wire        ss_ddram_rd;
-wire [227:0] ss_z80_reg, ss_z80_dir;
+wire [228:0] ss_z80_reg, ss_z80_dir;
 wire         ss_z80_set;
 wire         ss_z80_m1_n;
 wire         ss_z80_mreq_n;   // low = normal opcode fetch, high = interrupt ack

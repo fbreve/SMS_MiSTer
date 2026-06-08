@@ -138,8 +138,8 @@ entity system is
 		BIOSWEN: IN  STD_LOGIC;
 
 		-- Save-state interface
-		z80_reg_out  : out STD_LOGIC_VECTOR(227 downto 0);
-		z80_dir      : in  STD_LOGIC_VECTOR(227 downto 0) := (others => '0');
+		z80_reg_out  : out STD_LOGIC_VECTOR(228 downto 0);
+		z80_dir      : in  STD_LOGIC_VECTOR(228 downto 0) := (others => '0');
 		z80_set      : in  STD_LOGIC := '0';
 		vdp_regs_out : out STD_LOGIC_VECTOR(127 downto 0);
 		vdp_regs_in  : in  STD_LOGIC_VECTOR(127 downto 0) := (others => '0');

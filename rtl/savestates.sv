@@ -43,8 +43,8 @@ module savestates (
     input       [8:0] x,
 
     // ---- Z80 snapshot / restore ----
-    input     [227:0] z80_reg,         // live snapshot from T80s
-    output reg [227:0] z80_dir,        // restore data
+    input     [228:0] z80_reg,         // live snapshot from T80s
+    output reg [228:0] z80_dir,        // restore data
     output reg        z80_set,         // one-cycle restore strobe
     input             z80_m1_n,        // Z80 M1 cycle (low = opcode fetch in progress)
     // '0' = memory request = normal opcode fetch; '1' = interrupt acknowledge (skip!)
@@ -272,7 +272,7 @@ reg  [2:0] vdp_idx;     // 0..1 for VDP reg words
 reg  [19:0] flush_cnt;  // expanded to 20 bits for 900000 cycles
 reg  [7:0] unfreeze_cnt; // expanded to 8 bits for 255 cycles
 // Latching buffers for multi-word state
-reg [227:0] z80_snap;
+reg [228:0] z80_snap;
 reg [127:0] vdp_snap;
 reg [383:0] cram_snap;
 reg  [55:0] psg_snap;
@@ -576,14 +576,13 @@ always @(posedge clk or negedge reset_n) begin
         end
 
         ST_SAVE_CPU0: begin
-            // z80_snap[211:0] = 212 bits → 4 × 64-bit words (w0..w2 = 192 bits + w3 spare 20 bits)
-            // z80_snap[227:0] = 228 bits → 4 × 64-bit words
+            // z80_snap[228:0] = 229 bits → 4 × 64-bit words
             if (!DDRAM_BUSY) begin
                 case (cpu_idx)
                     3'd0: ddram_write(base_addr + 29'd2, z80_snap[63:0],    8'hFF);
                     3'd1: ddram_write(base_addr + 29'd3, z80_snap[127:64],  8'hFF);
                     3'd2: ddram_write(base_addr + 29'd4, z80_snap[191:128], 8'hFF);
-                    3'd3: ddram_write(base_addr + 29'd5, {28'd0, z80_snap[227:192]}, 8'hFF);
+                    3'd3: ddram_write(base_addr + 29'd5, {27'd0, z80_snap[228:192]}, 8'hFF);
                 endcase
                 if (cpu_idx == 3) begin
                     state   <= ST_SAVE_VDP0;
@@ -1090,8 +1089,9 @@ always @(posedge clk or negedge reset_n) begin
                         if (is_old_format) begin
                             z80_snap[211:192] <= dout_latch[19:0];
                             z80_snap[227:212] <= 16'd0;
+                            z80_snap[228]     <= 1'b0;
                         end else begin
-                            z80_snap[227:192] <= dout_latch[35:0];
+                            z80_snap[228:192] <= dout_latch[36:0];
                         end
                         ddram_read(base_addr + 29'd6);
                     end

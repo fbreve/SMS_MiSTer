@@ -97,9 +97,9 @@ entity T80s is
 		DO				: out std_logic_vector(7 downto 0);
 		-- Save state: snapshot of all Z80 registers
 		-- WZ,IFF2,IFF1,IM,IY,HL',DE',BC',IX,HL,DE,BC,PC,SP,R,I,F',A',F,A
-		REG        : out std_logic_vector(227 downto 0);
+		REG        : out std_logic_vector(228 downto 0);
 		DIRSet     : in  std_logic := '0';
-		DIR        : in  std_logic_vector(227 downto 0) := (others => '0');
+		DIR        : in  std_logic_vector(228 downto 0) := (others => '0');
 		-- Prefix/instruction-set state forwarded from T80
 		ISet_out   : out std_logic_vector(1 downto 0)
 	);
