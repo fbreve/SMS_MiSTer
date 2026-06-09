@@ -257,6 +257,7 @@ architecture rtl of T80 is
 	signal Halt                 : std_logic;
 	signal XYbit_undoc          : std_logic;
 	signal DOR                  : std_logic_vector(127 downto 0);
+	signal RegDIR               : std_logic_vector(127 downto 0);
 
 begin
 
@@ -265,6 +266,16 @@ begin
 	REG <= Alternate & WZ & IntE_FF2 & IntE_FF1 & IStatus & DOR & std_logic_vector(PC) & std_logic_vector(SP) & std_logic_vector(R) & I & Fp & Ap & F & ACC when Alternate = '0'
 			 else Alternate & WZ & IntE_FF2 & IntE_FF1 & IStatus & DOR(127 downto 112) & DOR(47 downto 0) & DOR(63 downto 48) & DOR(111 downto 64) &
 						std_logic_vector(PC) & std_logic_vector(SP) & std_logic_vector(R) & I & Fp & Ap & F & ACC;
+
+	RegDIR <= DIR(207 downto 80) when DIR(228) = '0' else
+	          DIR(207 downto 192) & -- IY
+	          DIR(127 downto 112) & -- HL
+	          DIR(111 downto 96)  & -- DE
+	          DIR(95 downto 80)   & -- BC
+	          DIR(143 downto 128) & -- IX
+	          DIR(191 downto 176) & -- HL'
+	          DIR(175 downto 160) & -- DE'
+	          DIR(159 downto 144);  -- BC'
 
 	mcode : work.T80_MCode
 		generic map(
@@ -957,7 +968,7 @@ begin
 			DOCL => RegBusC(7 downto 0),
 			DOR  => DOR,
 			DIRSet => DIRSet,
-			DIR  => DIR(207 downto 80));
+			DIR  => RegDIR);
 
 ---------------------------------------------------------------------------
 --

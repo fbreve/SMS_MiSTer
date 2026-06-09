@@ -1127,7 +1127,7 @@ port map(
 					mapper_codies_lock <= mapper_in(60);
 					-- Prevent edge detector registers from triggering false transitions
 					-- in the next clock cycle after state restoration.
-					bootloader_n_prev     <= mapper_in(54); -- mapper_in(54) is bootloader_n
+					bootloader_n_prev     <= bootloader_n;
 					reset_n_prev          <= RESET_n;
 					mapper_wonderkid_prev <= mapper_wonderkid;
 				else
