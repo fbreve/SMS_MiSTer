@@ -1053,7 +1053,7 @@ port map(
 						mapper_msx_check0 <= false;
 						mapper_msx_check1 <= false;
 					end if;
-				elsif bootloader_n='1' and sc3000_en='0' and mapper_wonderkid='0' and not mapper_msx_lock then
+				elsif ss_freeze = '0' and bootloader_n='1' and sc3000_en='0' and mapper_wonderkid='0' and not mapper_msx_lock then
 					if MREQ_n='0' then 
 					-- in this state, A is stable but not D_out
 						if A=x"0000" then
@@ -1513,11 +1513,11 @@ port map(
 					wonderkid_write_count <= 0;
 					sega_mapper_write_seen <= '0';
 				-- run a limited detection window while bootloader is active
-				elsif mapper_detect_ticks /= to_unsigned(65535, mapper_detect_ticks'length) then
+				elsif ss_freeze = '0' and mapper_detect_ticks /= to_unsigned(65535, mapper_detect_ticks'length) then
 					mapper_detect_ticks <= mapper_detect_ticks + 1;
 				end if;
 
-				if bootloader_n = '1' and mapper_manual_force = '0' and mapper_detect_ticks < to_unsigned(65535, mapper_detect_ticks'length) then
+				if ss_freeze = '0' and bootloader_n = '1' and mapper_manual_force = '0' and mapper_detect_ticks < to_unsigned(65535, mapper_detect_ticks'length) then
 					if WR_n = '0' and MREQ_n = '0' then
 						-- Wonder Kid [Proto]: confirm after two $8000 writes during the detection window.
 						if A = x"8000" and mapper_4pak = '0' and mapper_codies = '0' and detect_castle = '0' and detect_dahjee_a = '0' and sega_mapper_write_seen = '0' then
@@ -1561,7 +1561,7 @@ port map(
 				-- Dahjee Type A: watch for writes to $2000-$3FFF at any point during boot.
 				-- $2000-$3FFF is ROM space; standard Sega games never write here.
 				-- $3FFE is the 4-PAK reg0 address and is explicitly excluded.
-				if bootloader_n = '1' and mapper_manual_force = '0' and WR_n = '0' and MREQ_n = '0' then
+				if ss_freeze = '0' and bootloader_n = '1' and mapper_manual_force = '0' and WR_n = '0' and MREQ_n = '0' then
 					if A(15 downto 13) = "001" and A /= x"3FFE" then
 						detect_dahjee_a <= '1';
 					end if;
