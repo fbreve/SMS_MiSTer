@@ -46,8 +46,8 @@ begin
 				-- register is 0 (the scanner stores VDP_X-1). Treat it as the
 				-- off-screen predecessor of X=0 instead of allowing it to match
 				-- the right edge through the 8-bit coordinate wrap.
-				if (spr_x=x and ((load and (m4 or spr_d3(7)='0')) or 
-									 (x224 and spr_d3(7)='1')))
+				if ((spr_x=x and ((load and (m4 or spr_d3(7)='0')) or 
+									 (x224 and spr_d3(7)='1'))) and spr_x/=x"FF")
 					or (spr_x=x"FF" and x=x"00" and load)
 					or (spr_x=x+8 and x248 and spr_x/=x"FF") then
 					shift0 <= spr_d0;
