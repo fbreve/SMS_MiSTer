@@ -22,6 +22,7 @@ entity evolution_mapper is
         cpu_a      : in  std_logic_vector(15 downto 0);
         mreq_n     : in  std_logic;
         iorq_n     : in  std_logic;
+        rd_n       : in  std_logic;
         wr_n       : in  std_logic;
         d_in       : in  std_logic_vector(7 downto 0);
         m1_n       : in  std_logic;
@@ -39,6 +40,8 @@ architecture rtl of evolution_mapper is
     signal switch_pending  : std_logic := '0';
     signal switch_armed    : std_logic := '0';
     signal old_m1_n        : std_logic := '1';
+    signal old_mreq_n      : std_logic := '1';
+    signal operand_reads   : unsigned(1 downto 0) := (others => '0');
 begin
 
     process(clk)
@@ -52,22 +55,35 @@ begin
                 switch_pending  <= '0';
                 switch_armed    <= '0';
                 old_m1_n        <= '1';
+                old_mreq_n      <= '1';
+                operand_reads   <= (others => '0');
             elsif enable = '1' then
                 old_m1_n <= m1_n;
+                old_mreq_n <= mreq_n;
 
-                -- Delayed mode switch state machine:
-                -- Detect falling edge of M1_n (start of opcode fetch)
+                -- A patched game writes $3FFE and immediately executes JP nn.
+                -- Keep the opcode and both address bytes in the originating
+                -- view, then change view as the second operand read finishes.
+                -- This makes the new view active before the target M1 request.
                 if old_m1_n = '1' and m1_n = '0' then
-                    if switch_armed = '1' then
+                    if switch_pending = '1' then
+                        switch_pending <= '0';
+                        switch_armed   <= '1';
+                        operand_reads  <= (others => '0');
+                    end if;
+                elsif switch_armed = '1' then
+                    if old_mreq_n = '1' and mreq_n = '0' and
+                       m1_n = '1' and rd_n = '0' then
+                        if operand_reads /= 3 then
+                            operand_reads <= operand_reads + 1;
+                        end if;
+                    elsif old_mreq_n = '0' and mreq_n = '1' and operand_reads = 2 then
                         -- Do not infer a bit-field from the two commands seen in
                         -- the dumped software. Unknown writes leave the view alone.
                         if reg3ffe_pending = x"85" or reg3ffe_pending = x"87" then
                             reg3ffe_r <= reg3ffe_pending;
                         end if;
                         switch_armed <= '0';
-                    elsif switch_pending = '1' then
-                        switch_pending <= '0';
-                        switch_armed   <= '1';
                     end if;
                 end if;
 
@@ -83,6 +99,7 @@ begin
                     reg3ffe_pending <= d_in;
                     switch_pending  <= '1';
                     switch_armed    <= '0';
+                    operand_reads   <= (others => '0');
                 end if;
             end if;
         end if;

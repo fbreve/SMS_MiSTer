@@ -521,6 +521,7 @@ begin
 		cpu_a      => A,
 		mreq_n     => MREQ_n,
 		iorq_n     => IORQ_n,
+		rd_n       => RD_n,
 		wr_n       => WR_n,
 		d_in       => D_in,
 		m1_n       => M1_n,
