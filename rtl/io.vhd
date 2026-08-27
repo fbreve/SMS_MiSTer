@@ -567,6 +567,10 @@ begin
 					end case;
 				elsif sg_mode='1' and sk1100_active='0' and (A = x"DE" or A = x"DF") then
 					D_out <= x"FF";
+				elsif mapper_evolution_force='1' and A=x"CD" then
+					-- Master System Evolution uses port $CD as an internal
+					-- control/status input. During normal execution it reads as zero.
+					D_out <= x"00";
 				elsif A(0)='0' then
 					D_out(7) <= J2_down;
 					D_out(6) <= J2_up;
