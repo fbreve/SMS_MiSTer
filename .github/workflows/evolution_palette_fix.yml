@@ -1,0 +1,34 @@
+name: Evolution palette fix
+on:
+  push:
+    branches: [evolution-mapper]
+
+jobs:
+  patch:
+    if: github.actor == 'fbreve'
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: evolution-mapper
+          fetch-depth: 0
+      - name: Apply surgical palette change
+        run: |
+          python3 - <<'PY'
+          from pathlib import Path
+          p = Path('rtl/system.vhd')
+          s = p.read_text()
+          old1 = '\t\tgg\t\t\t=> gg,'
+          new1 = '\t\tgg\t\t\t=> gg or (mapper_evolution_force and not evolution_3ffe(1)),'
+          if s.count(old1) != 2:
+              raise SystemExit(f'expected exactly 2 VDP gg mappings, found {s.count(old1)}')
+          s = s.replace(old1, new1)
+          p.write_text(s)
+          PY
+          git config user.name 'Evolution bot'
+          git config user.email 'evolution-bot@users.noreply.github.com'
+          git add rtl/system.vhd
+          git commit -m '[evolution-bot] Use GG palette format for Evolution menu'
+          git push origin evolution-mapper
