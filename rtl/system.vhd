@@ -585,7 +585,7 @@ begin
 		ce_sp		=> ce_sp,
 		sp64		=> sp64,
 		HL			=> HL,
-		gg			=> gg,
+		gg			=> gg or (mapper_evolution_force and not evolution_3ffe(1)),
 		ggres			=> ggres,
 		-- Bsg			=> sg,		-- sg1000
 		se_bank	=> vdp_se_bank,
@@ -638,7 +638,7 @@ begin
 		ce_sp		=> ce_sp,
 		sp64		=> sp64,
 		HL			=> HL,
-		gg			=> gg,
+		gg			=> gg or (mapper_evolution_force and not evolution_3ffe(1)),
 		ggres			=> ggres,
 		-- Bsg			=> sg,		-- sg1000
 		se_bank	=> vdp2_se_bank,
