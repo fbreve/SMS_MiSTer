@@ -1155,11 +1155,6 @@ port map(
 					mapper_eeprom,eeprom_enabled,eeprom_D_out,eeprom_bus_active,MREQ_n)
 	begin
 		if IORQ_n='0' then
-			if mapper_evolution_force='1' and A(7 downto 0)=x"CD" then
-				-- Evolution uses port $CD as an internal control/status input.
-				-- During normal execution it reads as zero.
-				D_out <= x"00";
-			elsif A(7 downto 0)=x"F2" and fm_ena = '1' and systeme='0' then
 			if A(7 downto 0)=x"F2" and fm_ena = '1' and systeme='0' then
 				D_out <= "11111"&det_D;
 			elsif io_upper_port='1' or io_gg_data_port='1' then
