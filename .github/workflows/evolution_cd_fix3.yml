@@ -1,0 +1,63 @@
+name: Evolution CD fix 3
+
+on:
+  push:
+    branches: [evolution-mapper]
+
+permissions:
+  contents: write
+
+jobs:
+  patch:
+    if: ${{ !contains(github.event.head_commit.message, '[evolution-bot]') }}
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: evolution-mapper
+          fetch-depth: 0
+
+      - name: Patch Evolution port $CD read
+        shell: bash
+        run: |
+          set -euo pipefail
+          python3 - <<'PY'
+          from pathlib import Path
+
+          p = Path('rtl/system.vhd')
+          s = p.read_text()
+
+          old = """\t\tif IORQ_n='0' then
+\t\t\tif A(7 downto 0)=x\"F2\" and fm_ena = '1' and systeme='0' then
+\t\t\t\tD_out <= \"11111\"&det_D;
+"""
+          new = """\t\tif IORQ_n='0' then
+\t\t\tif mapper_evolution_force='1' and A(7 downto 0)=x\"CD\" then
+\t\t\t\t-- Evolution uses port $CD as an internal control/status input.
+\t\t\t\t-- During normal execution it must read as zero.
+\t\t\t\tD_out <= x\"00\";
+\t\t\telsif A(7 downto 0)=x\"F2\" and fm_ena = '1' and systeme='0' then
+\t\t\t\tD_out <= \"11111\"&det_D;
+"""
+          if s.count(old) != 1:
+              raise SystemExit(f'expected D_out read anchor exactly once, found {s.count(old)}')
+          s = s.replace(old, new, 1)
+          p.write_text(s)
+          PY
+
+          git diff --check
+          git config user.name 'Evolution bot'
+          git config user.email 'evolution-bot@users.noreply.github.com'
+          git add rtl/system.vhd
+          git diff --cached --check
+          git diff --cached -- rtl/system.vhd
+          git commit -m '[evolution-bot] Handle Evolution port CD in system read mux'
+
+          rm -f .github/workflows/evolution_cd_fix3.yml \
+                .github/workflows/evolution_portcd_fix.yml \
+                .github/workflows/evolution_portcd_fix2.yml
+          git add -A .github/workflows
+          if ! git diff --cached --quiet; then
+            git commit -m '[evolution-bot] Remove temporary Evolution CD workflows'
+          fi
+          git push origin evolution-mapper
