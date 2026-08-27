@@ -1765,7 +1765,7 @@ port map(
 			case A(15 downto 14) is
 			when "00" =>
 				-- first kilobyte is always from bank 0
-				if A(13 downto 10)="0000" and mapper_codies='0' then
+				if A(13 downto 10)="0000" and mapper_codies='0' and not (mapper_evolution_force='1' and evolution_3ffe(1)='1') then
 					rom_a_i(21 downto 14) <= (others=>'0');
 				else
 					rom_a_i(21 downto 14) <= bank0;
