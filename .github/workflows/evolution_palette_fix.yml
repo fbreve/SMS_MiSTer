@@ -18,13 +18,20 @@ jobs:
         run: |
           python3 - <<'PY'
           from pathlib import Path
+          import re
           p = Path('rtl/system.vhd')
           s = p.read_text()
-          old1 = '\t\tgg\t\t\t=> gg,'
-          new1 = '\t\tgg\t\t\t=> gg or (mapper_evolution_force and not evolution_3ffe(1)),'
-          if s.count(old1) != 2:
-              raise SystemExit(f'expected exactly 2 VDP gg mappings, found {s.count(old1)}')
-          s = s.replace(old1, new1)
+          new = '\t\tgg\t\t\t=> gg or (mapper_evolution_force and not evolution_3ffe(1)),'
+          for name in ('vdp_inst', 'vdp2_inst'):
+              m = re.search(r'\n\t' + name + r': entity work\.vdp.*?\n\t\);', s, re.S)
+              if not m:
+                  raise SystemExit(f'could not locate {name}')
+              block = m.group(0)
+              old = '\t\tgg\t\t\t=> gg,'
+              if block.count(old) != 1:
+                  raise SystemExit(f'expected one gg mapping in {name}, found {block.count(old)}')
+              block = block.replace(old, new, 1)
+              s = s[:m.start()] + block + s[m.end():]
           p.write_text(s)
           PY
           git config user.name 'Evolution bot'
