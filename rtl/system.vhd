@@ -39,7 +39,7 @@ entity system is
 		RESET_n:		in	 STD_LOGIC;
 
 		rom_rd:  	out STD_LOGIC;
-		rom_a:		out STD_LOGIC_VECTOR(21 downto 0);
+		rom_a:		out STD_LOGIC_VECTOR(23 downto 0);
 		rom_do:		in	 STD_LOGIC_VECTOR(7 downto 0);
 
 		j1_up:		in	 STD_LOGIC;
@@ -109,6 +109,7 @@ entity system is
 		mapper_dahjee_a_force : in STD_LOGIC;
 		mapper_linear_force : in STD_LOGIC;
 		mapper_zemina_force : in STD_LOGIC;   -- Force Zemina mapper (OSD override)
+		mapper_evolution_force : in STD_LOGIC;
 		mapper_eeprom_out   : out STD_LOGIC;  -- Active high when EEPROM game detected
 		vdp_enables:	in STD_LOGIC_VECTOR(1 downto 0);
 		psg_enables:	in STD_LOGIC_VECTOR(1 downto 0);
@@ -253,6 +254,11 @@ architecture Behavioral of system is
 	signal ext_gg_bios_addr:  std_logic_vector(13 downto 0);
 	signal ext_gg_bios_wren:  std_logic;
 	signal rom_a_i:         std_logic_vector(21 downto 0);
+
+	-- Master System Evolution / Noza mapper state.
+	signal evolution_bank61 : std_logic_vector(7 downto 0);
+	signal evolution_bank62 : std_logic_vector(7 downto 0);
+	signal evolution_3ffe   : std_logic_vector(7 downto 0);
 
 	signal bootloader_n:	std_logic := '0';
 	signal active_bios:     std_logic;
@@ -503,6 +509,24 @@ architecture Behavioral of system is
 	END COMPONENT;
 
 begin
+
+	-- Master System Evolution mapper register interface.
+	-- $61/$62 select the 24-bit flash base; $3FFE bit 1 selects the
+	-- selected-game view ($87) versus the menu view ($85).
+	evolution_mapper_inst : entity work.evolution_mapper
+	port map (
+		clk        => clk_sys,
+		reset_n    => RESET_n,
+		enable     => mapper_evolution_force,
+		cpu_a      => A,
+		mreq_n     => MREQ_n,
+		iorq_n     => IORQ_n,
+		wr_n       => WR_n,
+		d_in       => D_in,
+		bank61     => evolution_bank61,
+		bank62     => evolution_bank62,
+		reg3ffe    => evolution_3ffe
+	);
 
 	-- Game Genie
 	GAMEGENIE : component CODES
@@ -897,8 +921,14 @@ port map(
 		q			=> boot_rom_D_out
 	);
 
-	-- Drive the output port from the internal signal
-	rom_a <= rom_a_i;
+	-- Drive the output port from the internal signal. Evolution adds its
+	-- latched 24-bit flash base to the normal SMS mapper address when $3FFE
+	-- bit 1 is set ($87). With bit 1 clear ($85), the menu remains at base 0.
+	rom_a <= std_logic_vector(
+		unsigned(evolution_bank62 & evolution_bank61 & x"00") +
+		resize(unsigned(rom_a_i), 24))
+		when mapper_evolution_force = '1' and evolution_3ffe(1) = '1' else
+		std_logic_vector(resize(unsigned(rom_a_i), 24));
 
 	-- External BIOS RAM: up to 256KB, written only during BIOS file download (BIOSWEN)
 	-- Read address uses rom_a_i (mapper-translated) so banking works correctly.
@@ -1527,7 +1557,7 @@ port map(
 	end process;
 
 	mapper_manual_force <= mapper_lock or mapper_codies_force or mapper_dahjee_a_force or
-	                       mapper_linear_force or mapper_zemina_force;
+	                       mapper_linear_force or mapper_zemina_force or mapper_evolution_force;
 
 	-- Janggun mapper (Janggun-ui Adeul): CRC32-based auto-detection.
 	-- CRC32 0x192949D5

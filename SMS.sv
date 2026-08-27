@@ -208,7 +208,7 @@ parameter CONF_STR = {
 	"H8F3,BINSMS,Load SMS BIOS;",
 	"H8oH,GG BIOS,Disable,Ext. File;",
 	"H8F4,BINGG,Load GG BIOS;",
-	"H8O[48:45],Mapper,Auto,Sega,Codemasters,Dahjee A,Linear,Zemina/MSX;",
+	"H8O[48:45],Mapper,Auto,Sega,Codemasters,Dahjee A,Linear,Zemina/MSX,Evolution;",
 	"H8o8,Z80 Speed,Normal,Turbo;",
 	"H8-;",
 	"H7o12,VDPs,Both,2,1,None;",
@@ -505,7 +505,7 @@ hps_io #(.CONF_STR(CONF_STR), .WIDE(0)) hps_io
 	.ps2_mouse(ps2_mouse)
 );
 
-wire [21:0] ram_addr;
+wire [23:0] ram_addr;
 wire  [7:0] ram_dout;
 wire        ram_rd;
 
@@ -706,7 +706,7 @@ reg        load_sc     = 0;
 reg        load_sg     = 0;
 reg        load_sc_multicart = 0;
 reg        load_sc_megacart = 0;
-reg [21:0] cart_mask, cart_mask512;
+reg [23:0] cart_mask, cart_mask512;
 reg        cart_sz512;
 wire [7:0] ioctl_ext_b0 = ioctl_file_ext[7:0];
 wire [7:0] ioctl_ext_b1 = ioctl_file_ext[15:8];
@@ -768,8 +768,8 @@ always @(posedge clk_sys) begin
 		sc_multicart_auto <= 0;
 		sc_megacart_auto <= 0;
 	end else if (ioctl_wr & cart_download) begin
-		cart_mask <= cart_mask | ioctl_addr[21:0];
-		cart_mask512 <= cart_mask512 | (ioctl_addr[21:0] - 10'd512);
+		cart_mask <= cart_mask | ioctl_addr[23:0];
+		cart_mask512 <= cart_mask512 | (ioctl_addr[23:0] - 10'd512);
 		if (!ioctl_addr)
 			cart_mask <= 0;
 		if (ioctl_addr == 512)
@@ -921,6 +921,7 @@ wire mapper_force_codies    = (mapper_sel == 4'd2);
 wire mapper_force_dahjee_a  = (mapper_sel == 4'd3);
 wire mapper_force_linear    = (mapper_sel == 4'd4);
 wire mapper_force_zemina    = (mapper_sel == 4'd5);  // covers MSX, Nemesis II+ and Zemina (all identical)
+wire mapper_force_evolution  = (mapper_sel == 4'd6);
 wire mapper_eeprom;
 wire eeprom_active          = mapper_eeprom;
 
@@ -1039,6 +1040,7 @@ system #(63) system
 	.mapper_dahjee_a_force(mapper_force_dahjee_a),
 	.mapper_linear_force(mapper_force_linear),
 	.mapper_zemina_force(mapper_force_zemina),
+	.mapper_evolution_force(mapper_force_evolution),
 	.mapper_eeprom_out(mapper_eeprom),
 	.eeprom_ss_out(eeprom_ss_out),
 	.eeprom_ss_in (eeprom_ss_in),
