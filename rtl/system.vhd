@@ -1314,6 +1314,11 @@ port map(
 					reset_n_prev          <= RESET_n;
 					mapper_wonderkid_prev <= mapper_wonderkid;
 				else
+				if mapper_evolution_force = '1' and ss_freeze = '0' and WR_n = '0' and MREQ_n = '0' and A = x"3FFE" and D_in(1) = '1' then
+					bank0 <= x"00";
+					bank1 <= x"01";
+					bank2 <= x"02";
+				end if;
 				if bootloader_n = '0' and mapper_lock = '0' then
 					lock_mapper_B <= '0';
 					mapper_codies <= '0';
