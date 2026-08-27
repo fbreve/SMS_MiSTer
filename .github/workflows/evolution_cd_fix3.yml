@@ -28,25 +28,23 @@ jobs:
           p = Path('rtl/system.vhd')
           s = p.read_text()
 
-          pattern = r"(\tprocess \(IORQ_n,A,vdp_D_out,vdp2_D_out,io_D_out,irom_D_out,ram_D_out,nvram_D_out,.*?\n\tbegin\n\t\tif IORQ_n='0' then\n)"
+          pattern = r"(\tprocess \(IORQ_n,A,vdp_D_out,vdp2_D_out,io_D_out,irom_D_out,ram_D_out,nvram_D_out,.*?\n\tbegin\n)(\t\tif IORQ_n='0' then\n)"
           m = re.search(pattern, s, re.S)
           if not m:
               raise SystemExit('could not locate CPU D_out mux')
 
-          block = m.group(1)
-          if "mapper_evolution_force='1' and A(7 downto 0)=x\"CD\"" in block:
+          prefix = m.group(1)
+          if "mapper_evolution_force='1' and A(7 downto 0)=x\"CD\"" in s[m.start():m.end()+2000]:
               raise SystemExit('Evolution $CD fix already present')
 
-          insert = ("\t\t\tif mapper_evolution_force='1' and A(7 downto 0)=x\"CD\" then\n"
+          target = m.group(2)
+          insert = ("\t\tif IORQ_n='0' then\n"
+                    "\t\t\tif mapper_evolution_force='1' and A(7 downto 0)=x\"CD\" then\n"
                     "\t\t\t\t-- Evolution uses port $CD as an internal control/status input.\n"
                     "\t\t\t\t-- During normal execution it reads as zero.\n"
                     "\t\t\t\tD_out <= x\"00\";\n"
                     "\t\t\telsif A(7 downto 0)=x\"F2\" and fm_ena = '1' and systeme='0' then\n")
-          target = "\t\t\tif A(7 downto 0)=x\"F2\" and fm_ena = '1' and systeme='0' then\n"
-          if block.count(target) != 1:
-              raise SystemExit(f'F2 anchor count inside mux != 1: {block.count(target)}')
-          replacement = block.replace(target, insert, 1)
-          s = s[:m.start(1)] + replacement + s[m.end(1):]
+          s = s[:m.start(2)] + insert + s[m.end(2):]
           p.write_text(s)
           PY
 
@@ -55,6 +53,7 @@ jobs:
           git config user.email 'evolution-bot@users.noreply.github.com'
           git add rtl/system.vhd
           git diff --cached --check
+          git diff --cached -- rtl/system.vhd
           git commit -m '[evolution-bot] Handle Evolution port CD in system read mux'
 
           rm -f .github/workflows/evolution_cd_fix3.yml \
