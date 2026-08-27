@@ -7,9 +7,9 @@ use IEEE.NUMERIC_STD.ALL;
 -- On Master System Evolution / Noza hardware:
 --   * Port $61 latches flash address bits A[15:8]
 --   * Port $62 latches flash address bits A[23:16]
---   * Register $3FFE controls mapper mode:
---       - Bit 1 = '0': Menu / BIOS space (flash base 0)
---       - Bit 1 = '1': Game space (flash base = Port $62 & Port $61 & 0x00)
+--   * The observed $3FFE commands select the visible ROM space:
+--       - $85: Menu / service space
+--       - $87: Selected-game space
 --   * Mode switches on $3FFE are armed on write and take effect on the M1
 --     opcode fetch following the subsequent 3-byte jump instruction (JP nn),
 --     ensuring the jump itself is fetched from the originating space and
@@ -59,7 +59,11 @@ begin
                 -- Detect falling edge of M1_n (start of opcode fetch)
                 if old_m1_n = '1' and m1_n = '0' then
                     if switch_armed = '1' then
-                        reg3ffe_r    <= reg3ffe_pending;
+                        -- Do not infer a bit-field from the two commands seen in
+                        -- the dumped software. Unknown writes leave the view alone.
+                        if reg3ffe_pending = x"85" or reg3ffe_pending = x"87" then
+                            reg3ffe_r <= reg3ffe_pending;
+                        end if;
                         switch_armed <= '0';
                     elsif switch_pending = '1' then
                         switch_pending <= '0';

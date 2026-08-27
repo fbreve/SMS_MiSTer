@@ -511,8 +511,8 @@ architecture Behavioral of system is
 begin
 
 	-- Master System Evolution mapper register interface.
-	-- $61/$62 select the 24-bit flash base; $3FFE bit 1 selects the
-	-- selected-game view ($87) versus the menu view ($85).
+	-- $61/$62 select the game flash base; the observed $3FFE commands
+	-- select the selected-game view ($87) or menu view ($85).
 	evolution_mapper_inst : entity work.evolution_mapper
 	port map (
 		clk        => clk_sys,
@@ -854,6 +854,8 @@ port map(
 		io_state_in   => io_state_in,
 		io_state_set  => io_state_set,
 		mapper_evolution_force => mapper_evolution_force,
+		evolution_bank61 => evolution_bank61,
+		evolution_bank62 => evolution_bank62,
 		ss_freeze     => ss_freeze,
 		RESET_n	=> RESET_n
 	);
@@ -924,12 +926,12 @@ port map(
 	);
 
 	-- Drive the output port from the internal signal. Evolution adds its
-	-- latched 24-bit flash base to the normal SMS mapper address when $3FFE
-	-- bit 1 is set ($87). With bit 1 clear ($85), the menu remains at base 0.
+	-- latched 24-bit flash base to the normal SMS mapper address in the
+	-- observed $87 game view. In the $85 menu view, the menu remains at base 0.
 	rom_a <= std_logic_vector(
 		unsigned(evolution_bank62 & evolution_bank61 & x"00") +
 		resize(unsigned(rom_a_i), 24))
-		when mapper_evolution_force = '1' and evolution_3ffe(1) = '1' else
+		when mapper_evolution_force = '1' and evolution_3ffe = x"87" else
 		std_logic_vector(resize(unsigned(rom_a_i), 24));
 
 	-- External BIOS RAM: up to 256KB, written only during BIOS file download (BIOSWEN)
@@ -1316,11 +1318,6 @@ port map(
 					reset_n_prev          <= RESET_n;
 					mapper_wonderkid_prev <= mapper_wonderkid;
 				else
-				if mapper_evolution_force = '1' and ss_freeze = '0' and WR_n = '0' and MREQ_n = '0' and A = x"3FFE" and D_in(1) = '1' then
-					bank0 <= x"00";
-					bank1 <= x"01";
-					bank2 <= x"02";
-				end if;
 				if bootloader_n = '0' and mapper_lock = '0' then
 					lock_mapper_B <= '0';
 					mapper_codies <= '0';

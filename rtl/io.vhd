@@ -77,6 +77,8 @@ entity io is
 		io_state_in:  in  STD_LOGIC_VECTOR(31 downto 0) := (others => '0');
 		io_state_set: in  STD_LOGIC := '0';
 		mapper_evolution_force: in STD_LOGIC := '0';
+		evolution_bank61: in STD_LOGIC_VECTOR(7 downto 0) := (others => '0');
+		evolution_bank62: in STD_LOGIC_VECTOR(7 downto 0) := (others => '0');
 		ss_freeze:     in  STD_LOGIC := '0';
 		RESET_n:	in  STD_LOGIC);
 end io;
@@ -568,6 +570,11 @@ begin
 					end case;
 				elsif sg_mode='1' and sk1100_active='0' and (A = x"DE" or A = x"DF") then
 					D_out <= x"FF";
+				elsif mapper_evolution_force='1' and A=x"61" then
+					-- The launcher treats the Evolution page registers as readable.
+					D_out <= evolution_bank61;
+				elsif mapper_evolution_force='1' and A=x"62" then
+					D_out <= evolution_bank62;
 				elsif mapper_evolution_force='1' and A=x"CD" then
 					-- Master System Evolution uses port $CD as an internal
 					-- control/status input. During normal execution it reads as zero.
