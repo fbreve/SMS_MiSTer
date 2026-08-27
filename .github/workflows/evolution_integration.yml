@@ -1,0 +1,83 @@
+name: Evolution integration
+
+on:
+  push:
+    branches: [evolution-mapper]
+
+permissions:
+  contents: write
+
+jobs:
+  patch:
+    if: ${{ !contains(github.event.head_commit.message, '[evolution-bot]') }}
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+          ref: evolution-mapper
+
+      - name: Apply surgical Evolution integration
+        shell: bash
+        run: |
+          set -euo pipefail
+          python3 <<'PY'
+          from pathlib import Path
+
+          # ---------- SMS.sv ----------
+          p = Path('SMS.sv')
+          s = p.read_text()
+          reps = [
+              ('"H8O[48:45],Mapper,Auto,Sega,Codemasters,Dahjee A,Linear,Zemina/MSX;"',
+               '"H8O[48:45],Mapper,Auto,Sega,Codemasters,Dahjee A,Linear,Zemina/MSX,Evolution;"'),
+              ('wire mapper_force_zemina    = (mapper_sel == 4\'d5);  // covers MSX, Nemesis II+ and Zemina (all identical)\nwire mapper_eeprom;',
+               'wire mapper_force_zemina    = (mapper_sel == 4\'d5);  // covers MSX, Nemesis II+ and Zemina (all identical)\nwire mapper_force_evolution  = (mapper_sel == 4\'d6);\nwire mapper_eeprom;'),
+              ('wire [21:0] ram_addr;', 'wire [23:0] ram_addr;'),
+              ('reg [21:0] cart_mask, cart_mask512;', 'reg [23:0] cart_mask, cart_mask512;'),
+              ('cart_mask <= cart_mask | ioctl_addr[21:0];', 'cart_mask <= cart_mask | ioctl_addr[23:0];'),
+              ('cart_mask512 <= cart_mask512 | (ioctl_addr[21:0] - 10\'d512);', 'cart_mask512 <= cart_mask512 | (ioctl_addr[23:0] - 10\'d512);'),
+              ('.mapper_zemina_force(mapper_force_zemina),\n\t.mapper_eeprom_out(mapper_eeprom),',
+               '.mapper_zemina_force(mapper_force_zemina),\n\t.mapper_evolution_force(mapper_force_evolution),\n\t.mapper_eeprom_out(mapper_eeprom),'),
+          ]
+          for old, new in reps:
+              if s.count(old) != 1:
+                  raise SystemExit(f'SMS.sv anchor count != 1: {old!r} -> {s.count(old)}')
+              s = s.replace(old, new)
+          p.write_text(s)
+
+          # ---------- rtl/system.vhd ----------
+          p = Path('rtl/system.vhd')
+          s = p.read_text()
+          reps = [
+              ('\t\tmapper_zemina_force : in STD_LOGIC;   -- Force Zemina mapper (OSD override)\n\t\tmapper_eeprom_out   : out STD_LOGIC;',
+               '\t\tmapper_zemina_force : in STD_LOGIC;   -- Force Zemina mapper (OSD override)\n\t\tmapper_evolution_force : in STD_LOGIC;\n\t\tmapper_eeprom_out   : out STD_LOGIC;'),
+              ('\t\trom_a:\t\tout STD_LOGIC_VECTOR(21 downto 0);',
+               '\t\trom_a:\t\tout STD_LOGIC_VECTOR(23 downto 0);'),
+              ('\tsignal rom_a_i:         std_logic_vector(21 downto 0);\n',
+               '\tsignal rom_a_i:         std_logic_vector(21 downto 0);\n\n\t-- Master System Evolution / Noza mapper state.\n\tsignal evolution_bank61 : std_logic_vector(7 downto 0);\n\tsignal evolution_bank62 : std_logic_vector(7 downto 0);\n\tsignal evolution_3ffe   : std_logic_vector(7 downto 0);\n'),
+              ('begin\n\n\t-- Game Genie',
+               'begin\n\n\t-- Master System Evolution mapper register interface.\n\t-- $61/$62 select the 24-bit flash base; $3FFE bit 1 selects the\n\t-- selected-game view ($87) versus the menu view ($85).\n\tevolution_mapper_inst : entity work.evolution_mapper\n\tport map (\n\t\tclk        => clk_sys,\n\t\treset_n    => RESET_n,\n\t\tenable     => mapper_evolution_force,\n\t\tcpu_a      => A,\n\t\tmreq_n     => MREQ_n,\n\t\tiorq_n     => IORQ_n,\n\t\twr_n       => WR_n,\n\t\td_in       => D_in,\n\t\tbank61     => evolution_bank61,\n\t\tbank62     => evolution_bank62,\n\t\treg3ffe    => evolution_3ffe\n\t);\n\n\t-- Game Genie'),
+              ('\tmapper_manual_force <= mapper_lock or mapper_codies_force or mapper_dahjee_a_force or\n\t                       mapper_linear_force or mapper_zemina_force;',
+               '\tmapper_manual_force <= mapper_lock or mapper_codies_force or mapper_dahjee_a_force or\n\t                       mapper_linear_force or mapper_zemina_force or mapper_evolution_force;'),
+              ('\t-- Drive the output port from the internal signal\n\trom_a <= rom_a_i;',
+               '\t-- Drive the output port from the internal signal. Evolution adds its\n\t-- latched 24-bit flash base to the normal SMS mapper address when $3FFE\n\t-- bit 1 is set ($87). With bit 1 clear ($85), the menu remains at base 0.\n\trom_a <= std_logic_vector(\n\t\tunsigned(evolution_bank62 & evolution_bank61 & x"00") +\n\t\tresize(unsigned(rom_a_i), 24))\n\t\twhen mapper_evolution_force = \'1\' and evolution_3ffe(1) = \'1\' else\n\t\tstd_logic_vector(resize(unsigned(rom_a_i), 24));'),
+          ]
+          for old, new in reps:
+              if s.count(old) != 1:
+                  raise SystemExit(f'system.vhd anchor count != 1: {old!r} -> {s.count(old)}')
+              s = s.replace(old, new)
+          p.write_text(s)
+          PY
+
+          git diff --check
+          git config user.name "Evolution bot"
+          git config user.email "evolution-bot@users.noreply.github.com"
+          git add SMS.sv rtl/system.vhd
+          git diff --cached --check
+          git status --short
+          git diff --cached -- SMS.sv rtl/system.vhd
+          git commit -m "[evolution-bot] Integrate Evolution flash-base mapper"
+          rm .github/workflows/evolution_integration.yml
+          git add .github/workflows/evolution_integration.yml
+          git commit -m "[evolution-bot] Remove temporary integration workflow"
+          git push origin evolution-mapper
