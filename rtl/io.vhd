@@ -76,6 +76,7 @@ entity io is
 		io_state_out: out STD_LOGIC_VECTOR(31 downto 0);
 		io_state_in:  in  STD_LOGIC_VECTOR(31 downto 0) := (others => '0');
 		io_state_set: in  STD_LOGIC := '0';
+		mapper_evolution_force: in STD_LOGIC := '0';
 		ss_freeze:     in  STD_LOGIC := '0';
 		RESET_n:	in  STD_LOGIC);
 end io;

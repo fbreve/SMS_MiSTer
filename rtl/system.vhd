@@ -523,6 +523,7 @@ begin
 		iorq_n     => IORQ_n,
 		wr_n       => WR_n,
 		d_in       => D_in,
+		m1_n       => M1_n,
 		bank61     => evolution_bank61,
 		bank62     => evolution_bank62,
 		reg3ffe    => evolution_3ffe
@@ -852,6 +853,7 @@ port map(
 		io_state_out  => io_state_out,
 		io_state_in   => io_state_in,
 		io_state_set  => io_state_set,
+		mapper_evolution_force => mapper_evolution_force,
 		ss_freeze     => ss_freeze,
 		RESET_n	=> RESET_n
 	);
@@ -1770,7 +1772,7 @@ port map(
 			case A(15 downto 14) is
 			when "00" =>
 				-- first kilobyte is always from bank 0
-				if A(13 downto 10)="0000" and mapper_codies='0' and not (mapper_evolution_force='1' and evolution_3ffe(1)='1') then
+				if A(13 downto 10)="0000" and mapper_codies='0' then
 					rom_a_i(21 downto 14) <= (others=>'0');
 				else
 					rom_a_i(21 downto 14) <= bank0;
