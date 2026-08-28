@@ -521,7 +521,6 @@ begin
 		cpu_a      => A,
 		mreq_n     => MREQ_n,
 		iorq_n     => IORQ_n,
-		rd_n       => RD_n,
 		wr_n       => WR_n,
 		d_in       => D_in,
 		m1_n       => M1_n,
@@ -930,7 +929,7 @@ port map(
 	-- latched 24-bit flash base to the normal SMS mapper address in the
 	-- observed $87 game view. In the $85 menu view, the menu remains at base 0.
 	rom_a <= std_logic_vector(
-		unsigned(evolution_bank62 & evolution_bank61 & x"00") +
+		unsigned("000" & evolution_bank62(4 downto 0) & evolution_bank61 & x"00") +
 		resize(unsigned(rom_a_i), 24))
 		when mapper_evolution_force = '1' and evolution_3ffe = x"87" else
 		std_logic_vector(resize(unsigned(rom_a_i), 24));
@@ -1663,7 +1662,14 @@ port map(
 	-- [31:24]bank3 [23:16]bank2 [15:8]bank1 [7:0]bank0
 	-- Note: when systeme='1', bits [7:0] mirror IO port 0xF7:
 	--   [7]=vdp_se_bank [6]=vdp2_se_bank [5]=vdp_cpu_bank [3:0]=rom_bank
+	-- Evolution uses otherwise mapper-specific snapshot fields to retain the
+	-- outer flash latches. Besides making Evolution states self-describing,
+	-- this exposes the exact launcher-selected page for mapper diagnostics:
+	-- [63:56]=$3FFE, [55:48]=$62, [47:40]=$61, [39:32]=reserved,
+	-- [31:24]=bank3, [23:16]=bank2, [15:8]=bank1, [7:0]=bank0.
 	mapper_out(63 downto 8) <=
+	              evolution_3ffe & evolution_bank62 & evolution_bank61 & x"00" &
+	              bank3 & bank2 & bank1 when mapper_evolution_force = '1' else
 	              detect_linear & detect_wonderkid & detect_castle & mapper_codies_lock &
 	              lock_mapper_B & mapper_codies & mapper_4pak & mapper_msx &
 	              detect_zemina_static & bootloader_n & nvram_cme & nvram_p & nvram_ex & nvram_e &
@@ -1678,7 +1684,8 @@ port map(
 	              detect_sega_locked & detect_dahjee_a &
 	              nem_bank0 & pak4_reg2 & bank3 & bank2 & bank1;
 
-	mapper_out(7 downto 0) <= vdp_se_bank & vdp2_se_bank & vdp_cpu_bank & '0' & rom_bank when systeme='1' else
+	mapper_out(7 downto 0) <= bank0 when mapper_evolution_force = '1' else
+	                          vdp_se_bank & vdp2_se_bank & vdp_cpu_bank & '0' & rom_bank when systeme='1' else
 	                          jang_rev1 & "0" & jang_bank1 when mapper_janggun = '1' else
 	                          bank0;
 
