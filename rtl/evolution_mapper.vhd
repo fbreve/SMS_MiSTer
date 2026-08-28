@@ -29,7 +29,8 @@ entity evolution_mapper is
         m1_n       : in  std_logic;
         bank61     : out std_logic_vector(7 downto 0);
         bank62     : out std_logic_vector(7 downto 0);
-        reg3ffe    : out std_logic_vector(7 downto 0)
+        reg3ffe    : out std_logic_vector(7 downto 0);
+        game_launch : out std_logic
     );
 end entity;
 
@@ -41,11 +42,14 @@ architecture rtl of evolution_mapper is
     signal switch_pending  : std_logic := '0';
     signal switch_armed    : std_logic := '0';
     signal old_m1_n        : std_logic := '1';
+    signal game_started    : std_logic := '0';
+    signal game_launch_r   : std_logic := '0';
 begin
 
     process(clk)
     begin
         if rising_edge(clk) then
+            game_launch_r <= '0';
             if reset_n = '0' then
                 bank61_r        <= (others => '0');
                 bank62_r        <= (others => '0');
@@ -54,6 +58,7 @@ begin
                 switch_pending  <= '0';
                 switch_armed    <= '0';
                 old_m1_n        <= '1';
+                game_started    <= '0';
             elsif enable = '1' then
                 old_m1_n <= m1_n;
 
@@ -65,6 +70,15 @@ begin
                         -- the dumped software. Unknown writes leave the view alone.
                         if reg3ffe_pending = x"85" or reg3ffe_pending = x"87" then
                             reg3ffe_r <= reg3ffe_pending;
+                            -- The menu uses $FFFA-$FFFF as workspace, overlapping
+                            -- the normal Sega mapper registers.  Re-initialize those
+                            -- registers once, when the first selected game starts.
+                            -- Later $85/$87 pairs are the patched games' VBlank
+                            -- return-to-menu hook and must preserve mapper state.
+                            if reg3ffe_pending = x"87" and game_started = '0' then
+                                game_started  <= '1';
+                                game_launch_r <= '1';
+                            end if;
                         end if;
                         switch_armed <= '0';
                     elsif switch_pending = '1' then
@@ -93,5 +107,6 @@ begin
     bank61  <= bank61_r;
     bank62  <= bank62_r;
     reg3ffe <= reg3ffe_r;
+    game_launch <= game_launch_r;
 
 end architecture;

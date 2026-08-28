@@ -259,6 +259,7 @@ architecture Behavioral of system is
 	signal evolution_bank61 : std_logic_vector(7 downto 0);
 	signal evolution_bank62 : std_logic_vector(7 downto 0);
 	signal evolution_3ffe   : std_logic_vector(7 downto 0);
+	signal evolution_game_launch : std_logic;
 
 	signal bootloader_n:	std_logic := '0';
 	signal active_bios:     std_logic;
@@ -526,7 +527,8 @@ begin
 		m1_n       => M1_n,
 		bank61     => evolution_bank61,
 		bank62     => evolution_bank62,
-		reg3ffe    => evolution_3ffe
+		reg3ffe    => evolution_3ffe,
+		game_launch => evolution_game_launch
 	);
 
 	-- Game Genie
@@ -1278,6 +1280,15 @@ port map(
 		else
 			if rising_edge(clk_sys) then
 				eeprom_soft_reset <= '0';
+				-- The Evolution launcher stores data in the top bytes of RAM,
+				-- which alias the standard SMS mapper registers in this core.
+				-- Start each selected game with the normal Sega power-on banks.
+				if evolution_game_launch = '1' then
+					bank0 <= x"00";
+					bank1 <= x"01";
+					bank2 <= x"02";
+					bank3 <= x"03";
+				end if;
 				if mapper_set = '1' then
 					if mapper_janggun = '1' then
 						jang_bank1 <= mapper_in(5 downto 0);
