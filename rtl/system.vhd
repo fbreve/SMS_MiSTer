@@ -259,6 +259,8 @@ architecture Behavioral of system is
 	signal evolution_bank61 : std_logic_vector(7 downto 0);
 	signal evolution_bank62 : std_logic_vector(7 downto 0);
 	signal evolution_game_bank61, evolution_game_bank62 : std_logic_vector(7 downto 0);
+	signal evolution_game_select : std_logic_vector(15 downto 0);
+	signal evolution_game_page   : std_logic_vector(15 downto 0);
 	signal evolution_3ffe   : std_logic_vector(7 downto 0);
 	signal evolution_8c     : std_logic_vector(7 downto 0);
 	signal evolution_cd     : std_logic_vector(7 downto 0);
@@ -948,19 +950,39 @@ port map(
 		q			=> boot_rom_D_out
 	);
 
-	-- Drive the output port from the internal signal.  The Noza-to-flash upper
-	-- address lines are XOR-scrambled.  Twelve observed launcher selections fix
-	-- the transform below, including the menu timeout's 2180 -> 018000 hidden
-	-- Color and Switch Test selection.
-	-- The lower five bits of $62 and all of $61 pass through unchanged.
+	-- The launcher values do not form a globally linear address transform.
+	-- Translate every selection confirmed by the physical dump/savestates.
+	-- Unknown values retain the best provisional line transform as a fallback.
+	evolution_game_select <= evolution_game_bank62 & evolution_game_bank61;
+	with evolution_game_select select evolution_game_page <=
+		x"0180" when x"2180", -- menu timeout: Color and Switch Test
+		x"01C0" when x"21C0", -- Sonic
+		x"1040" when x"3040", -- Bonanza Bros.
+		x"1C40" when x"5C40", -- Action Fighter
+		x"2000" when x"4000", -- Aerial Assault
+		x"2800" when x"4800", -- Alex Kidd in Shinobi World
+		x"2C00" when x"4C00", -- Alex Kidd High Tech World
+		x"3200" when x"5200", -- Aztec Adventure
+		x"3400" when x"5400", -- Baku Baku Animal
+		x"3800" when x"5800", -- Battle Out Run
+		x"4200" when x"4200", -- Bubble Bobble
+		x"B980" when x"9980", -- Bank Panic
+		x"D440" when x"9440", -- Aquaduto
+		x"D540" when x"9540", -- Bombeiros
+		x"DCC0" when x"BCC0", -- Bolas e Cores
+		x"DE00" when x"BE00", -- Acerte o Alvo
+		x"E100" when x"A100", -- Arqueiro
+		x"E540" when x"A540", -- Cava Cava
+		(evolution_game_bank62(7) &
+		 not (evolution_game_bank61(7) xor evolution_game_bank62(6)) &
+		 (evolution_game_bank61(6) xor evolution_game_bank61(7) xor
+		  evolution_game_bank62(0) xor evolution_game_bank62(5) xor
+		  evolution_game_bank62(6) xor evolution_game_bank62(7)) &
+		 evolution_game_bank62(4 downto 0) & evolution_game_bank61) when others;
+
+	-- Drive the captured game base plus the cartridge-relative Sega address.
 	rom_a <= std_logic_vector(
-		unsigned(
-			evolution_bank62(7) &
-			not (evolution_bank61(7) xor evolution_bank62(6)) &
-			(evolution_bank61(6) xor evolution_bank61(7) xor
-			 evolution_bank62(0) xor evolution_bank62(5) xor
-			 evolution_bank62(6) xor evolution_bank62(7)) &
-			evolution_bank62(4 downto 0) & evolution_bank61 & x"00") +
+		unsigned(evolution_game_page & x"00") +
 		-- Individual cartridges in the image decode at most six Sega bank
 		-- bits (1 MB).  Bits 7:6 written by games are not physical ROM lines.
 		resize(unsigned(rom_a_i(19 downto 0)), 24))
