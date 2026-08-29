@@ -950,13 +950,14 @@ port map(
 		q			=> boot_rom_D_out
 	);
 
-	-- The launcher values do not form a globally linear address transform.
-	-- Translate every selection confirmed by the physical dump/savestates.
-	-- Unknown values retain the best provisional line transform as a fallback.
+	-- Temporary diagnostic aliases confirmed by the physical dump/savestates.
+	-- These are not intended to become a permanent per-game database: once
+	-- all outer Flash address/control lines are understood, replace this table
+	-- with the equivalent mapper equation.
 	evolution_game_select <= evolution_game_bank62 & evolution_game_bank61;
 	with evolution_game_select select evolution_game_page <=
-		x"0180" when x"2180", -- menu timeout: Color and Switch Test
-		x"01C0" when x"21C0", -- Sonic
+		x"0180" when x"2180", -- timeout demo cycle: Color and Switch Test
+		x"01C0" when x"21C0", -- timeout demo cycle: Sonic
 		x"1040" when x"3040", -- Bonanza Bros.
 		x"1C40" when x"5C40", -- Action Fighter
 		x"2000" when x"4000", -- Aerial Assault
