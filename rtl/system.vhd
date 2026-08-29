@@ -258,6 +258,7 @@ architecture Behavioral of system is
 	-- Master System Evolution / Noza mapper state.
 	signal evolution_bank61 : std_logic_vector(7 downto 0);
 	signal evolution_bank62 : std_logic_vector(7 downto 0);
+	signal evolution_game_bank61, evolution_game_bank62 : std_logic_vector(7 downto 0);
 	signal evolution_3ffe   : std_logic_vector(7 downto 0);
 	signal evolution_8c     : std_logic_vector(7 downto 0);
 	signal evolution_cd     : std_logic_vector(7 downto 0);
@@ -531,6 +532,8 @@ begin
 		m1_n       => M1_n,
 		bank61     => evolution_bank61,
 		bank62     => evolution_bank62,
+		game_bank61 => evolution_game_bank61,
+		game_bank62 => evolution_game_bank62,
 		reg3ffe    => evolution_3ffe,
 		reg8c      => evolution_8c,
 		regcd      => evolution_cd,
@@ -1705,11 +1708,12 @@ port map(
 	-- outer flash latches. Besides making Evolution states self-describing,
 	-- this exposes the exact launcher-selected page for mapper diagnostics:
 	-- Evolution diagnostic layout:
-	-- [63:56]=$3FFE, [55:48]=$62, [47:40]=$61, [39:32]=$8D,
-	-- [31:24]=$63, [23:16]=$8F, [15:8]=$8E, [7:0]=bank0.
+	-- [63:56]=$3FFE, [55:48]=captured game $62, [47:40]=captured game $61,
+	-- [39:32]=live $62, [31:24]=live $61, [23:16]=$8C, [15:8]=$CD,
+	-- [7:0]=bank0.
 	mapper_out(63 downto 8) <=
-	              evolution_3ffe & evolution_bank62 & evolution_bank61 & evolution_8d &
-	              evolution_63 & evolution_8f & evolution_8e when mapper_evolution_force = '1' else
+	              evolution_3ffe & evolution_game_bank62 & evolution_game_bank61 & evolution_bank62 &
+	              evolution_bank61 & evolution_8c & evolution_cd when mapper_evolution_force = '1' else
 	              detect_linear & detect_wonderkid & detect_castle & mapper_codies_lock &
 	              lock_mapper_B & mapper_codies & mapper_4pak & mapper_msx &
 	              detect_zemina_static & bootloader_n & nvram_cme & nvram_p & nvram_ex & nvram_e &
