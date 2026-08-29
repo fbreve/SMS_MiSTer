@@ -950,30 +950,11 @@ port map(
 		q			=> boot_rom_D_out
 	);
 
-	-- Temporary diagnostic aliases confirmed by the physical dump/savestates.
-	-- These are not intended to become a permanent per-game database: once
-	-- all outer Flash address/control lines are understood, replace this table
-	-- with the equivalent mapper equation.
+	-- Ports $61/$62 directly select ordinary ROM pages in the lower 8 MB.
+	-- Only upper-half pages retain temporary aliases until the remaining Noza
+	-- high-address/control-line equation is fully identified.
 	evolution_game_select <= evolution_game_bank62 & evolution_game_bank61;
 	with evolution_game_select select evolution_game_page <=
-		x"0180" when x"2180", -- timeout demo cycle: Color and Switch Test
-		x"01C0" when x"21C0", -- timeout demo cycle: Sonic
-		x"1040" when x"3040", -- Bonanza Bros.
-		x"1C40" when x"5C40", -- Action Fighter
-		x"2000" when x"4000", -- Aerial Assault
-		x"2800" when x"2800", -- Alex Kidd in Shinobi World
-		x"2C00" when x"2C00", -- Alex Kidd High Tech World
-		x"3200" when x"3200", -- Aztec Adventure
-		x"3400" when x"5400", -- Baku Baku Animal
-		x"3800" when x"5800", -- Battle Out Run
-		x"4200" when x"4200", -- Bubble Bobble
-		x"4600" when x"4600", -- Taito Chase H.Q.
-		x"4800" when x"4800", -- Cyber Shinobi
-		x"4C00" when x"4C00", -- Dragon Crystal
-		x"4E00" when x"4E00", -- Double Target
-		x"5000" when x"5000", -- Enduro Racer
-		x"5200" when x"5200", -- ESWAT
-		x"0DC0" when x"4DC0", -- Columns
 		x"CF80" when x"8F80", -- Dr. Limpeza
 		x"B980" when x"9980", -- Bank Panic
 		x"D440" when x"9440", -- Aquaduto
@@ -982,12 +963,7 @@ port map(
 		x"DE00" when x"BE00", -- Acerte o Alvo
 		x"E100" when x"A100", -- Arqueiro
 		x"E540" when x"A540", -- Cava Cava
-		(evolution_game_bank62(7) &
-		 not (evolution_game_bank61(7) xor evolution_game_bank62(6)) &
-		 (evolution_game_bank61(6) xor evolution_game_bank61(7) xor
-		  evolution_game_bank62(0) xor evolution_game_bank62(5) xor
-		  evolution_game_bank62(6) xor evolution_game_bank62(7)) &
-		 evolution_game_bank62(4 downto 0) & evolution_game_bank61) when others;
+		evolution_game_select when others;
 
 	-- Drive the captured game base plus the cartridge-relative Sega address.
 	rom_a <= std_logic_vector(
