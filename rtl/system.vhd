@@ -960,12 +960,16 @@ port map(
 		x"1040" when x"3040", -- Bonanza Bros.
 		x"1C40" when x"5C40", -- Action Fighter
 		x"2000" when x"4000", -- Aerial Assault
-		x"2800" when x"4800", -- Alex Kidd in Shinobi World
+		x"2800" when x"2800", -- Alex Kidd in Shinobi World
 		x"2C00" when x"4C00", -- Alex Kidd High Tech World
 		x"3200" when x"5200", -- Aztec Adventure
 		x"3400" when x"5400", -- Baku Baku Animal
 		x"3800" when x"5800", -- Battle Out Run
 		x"4200" when x"4200", -- Bubble Bobble
+		x"4600" when x"4600", -- Taito Chase H.Q.
+		x"4800" when x"4800", -- Cyber Shinobi
+		x"4E00" when x"4E00", -- Double Target
+		x"0DC0" when x"4DC0", -- Columns
 		x"B980" when x"9980", -- Bank Panic
 		x"D440" when x"9440", -- Aquaduto
 		x"D540" when x"9540", -- Bombeiros

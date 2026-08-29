@@ -98,11 +98,13 @@ begin
                         if reg3ffe_pending = x"85" or reg3ffe_pending = x"87" then
                             reg3ffe_r <= reg3ffe_pending;
                             -- The menu uses $FFFA-$FFFF as workspace, overlapping
-                            -- the normal Sega mapper registers.  Re-initialize those
-                            -- registers once, when the first selected game starts.
-                            -- Later $85/$87 pairs are the patched games' VBlank
-                            -- return-to-menu hook and must preserve mapper state.
-                            if reg3ffe_pending = x"87" and game_started = '0' then
+                            -- the normal Sega mapper registers. Re-initialize them
+                            -- when a different selected-game base is launched.
+                            -- Patched games also issue $85/$87 pairs from their
+                            -- VBlank hook; the unchanged base keeps those harmless.
+                            if reg3ffe_pending = x"87" and
+                               (game_started = '0' or bank61_r /= game_bank61_r or
+                                bank62_r /= game_bank62_r) then
                                 game_started  <= '1';
                                 game_launch_r <= '1';
                             end if;
