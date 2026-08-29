@@ -866,7 +866,7 @@ port map(
 	);
 	
 	ce_z80 <= '0' when se_pause='1' else
-	          ce_pix when (systeme = '1' or turbo='1') else ce_cpu;
+	          ce_pix when (systeme = '1' or (turbo='1' and mapper_evolution_force='0')) else ce_cpu;
 	io_cycle <= '1' when IORQ_n='0' and M1_n='1' else '0';
 	z80_m1_n   <= M1_n;
 	z80_mreq_n <= MREQ_n;
@@ -931,18 +931,16 @@ port map(
 	);
 
 	-- Drive the output port from the internal signal.  The Noza-to-flash upper
-	-- address lines are XOR-scrambled.  This transform is fixed by five observed
-	-- launcher selections and their known physical dump offsets:
-	--   21C0 -> 01C000 (Sonic), BE00 -> DE0000 (Acerte o Alvo),
-	--   5C40 -> 1C4000 (Action Fighter), 4000 -> 200000 (Aerial Assault),
-	--   4C00 -> 2C0000 (Alex Kidd High Tech World).
+	-- address lines are XOR-scrambled.  Eight observed launcher selections fix
+	-- the transform below, including the menu timeout's 2180 -> 018000 hidden
+	-- Color and Switch Test selection.
 	-- The lower five bits of $62 and all of $61 pass through unchanged.
 	rom_a <= std_logic_vector(
 		unsigned(
 			evolution_bank62(7) &
-			(evolution_bank62(5) xor evolution_bank61(7)) &
-			(evolution_bank62(6) xor evolution_bank61(6) xor
-			 evolution_bank61(7)) &
+			evolution_bank62(7) &
+			(evolution_bank62(4) xor evolution_bank62(6) xor
+			 evolution_bank62(7)) &
 			evolution_bank62(4 downto 0) & evolution_bank61 & x"00") +
 		-- Individual cartridges in the image decode at most six Sega bank
 		-- bits (1 MB).  Bits 7:6 written by games are not physical ROM lines.
