@@ -397,9 +397,17 @@ end
 // three pulls the console's RESET input low.  MiSTer's SMS controller map
 // exposes no separate X/Y/Z inputs, so Fire1+Fire2+Pause is the usable
 // three-button equivalent.
-wire evolution_xyz_reset = mapper_force_evolution &
+wire evolution_xyz_combo = mapper_force_evolution &
 	((joy_0[4] & joy_0[5] & joy_0[6]) |
 	 (joy_1[4] & joy_1[5] & joy_1[6]));
+reg [22:0] evolution_xyz_count = 0;
+always @(posedge clk_sys) begin
+	if (!evolution_xyz_combo)
+		evolution_xyz_count <= 0;
+	else if (evolution_xyz_count < 23'd5_000_000)
+		evolution_xyz_count <= evolution_xyz_count + 1'd1;
+end
+wire evolution_xyz_reset = evolution_xyz_count >= 23'd5_000_000;
 
 wire raw_reset = RESET | status[0] | buttons[1] | cart_download | bios_download | gg_bios_download | bios_config_reset | bk_loading | eject_rom | evolution_xyz_reset;
 

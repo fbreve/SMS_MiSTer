@@ -80,6 +80,7 @@ entity io is
 		evolution_bank61: in STD_LOGIC_VECTOR(7 downto 0) := (others => '0');
 		evolution_bank62: in STD_LOGIC_VECTOR(7 downto 0) := (others => '0');
 		evolution_reg8c: in STD_LOGIC_VECTOR(7 downto 0) := (others => '0');
+		evolution_regcd: in STD_LOGIC_VECTOR(7 downto 0) := (others => '0');
 		ss_freeze:     in  STD_LOGIC := '0';
 		RESET_n:	in  STD_LOGIC);
 end io;
@@ -579,9 +580,9 @@ begin
 				elsif mapper_evolution_force='1' and A=x"8C" then
 					D_out <= evolution_reg8c;
 				elsif mapper_evolution_force='1' and A=x"CD" then
-					-- Master System Evolution uses port $CD as an internal
-					-- control/status input. During normal execution it reads as zero.
-					D_out <= x"00";
+					-- Writable Noza state/counter register used by the menu music
+					-- sequencer and the patched return-to-menu handler.
+					D_out <= evolution_regcd;
 				elsif A(0)='0' then
 					D_out(7) <= J2_down;
 					D_out(6) <= J2_up;

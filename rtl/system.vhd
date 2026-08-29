@@ -260,6 +260,7 @@ architecture Behavioral of system is
 	signal evolution_bank62 : std_logic_vector(7 downto 0);
 	signal evolution_3ffe   : std_logic_vector(7 downto 0);
 	signal evolution_8c     : std_logic_vector(7 downto 0);
+	signal evolution_cd     : std_logic_vector(7 downto 0);
 	signal evolution_game_launch : std_logic;
 
 	signal bootloader_n:	std_logic := '0';
@@ -530,6 +531,7 @@ begin
 		bank62     => evolution_bank62,
 		reg3ffe    => evolution_3ffe,
 		reg8c      => evolution_8c,
+		regcd      => evolution_cd,
 		game_launch => evolution_game_launch
 	);
 
@@ -861,12 +863,13 @@ port map(
 		evolution_bank61 => evolution_bank61,
 		evolution_bank62 => evolution_bank62,
 		evolution_reg8c => evolution_8c,
+		evolution_regcd => evolution_cd,
 		ss_freeze     => ss_freeze,
 		RESET_n	=> RESET_n
 	);
 	
 	ce_z80 <= '0' when se_pause='1' else
-	          ce_pix when (systeme = '1' or (turbo='1' and mapper_evolution_force='0')) else ce_cpu;
+	          ce_pix when (systeme = '1' or turbo='1') else ce_cpu;
 	io_cycle <= '1' when IORQ_n='0' and M1_n='1' else '0';
 	z80_m1_n   <= M1_n;
 	z80_mreq_n <= MREQ_n;
@@ -931,16 +934,17 @@ port map(
 	);
 
 	-- Drive the output port from the internal signal.  The Noza-to-flash upper
-	-- address lines are XOR-scrambled.  Eight observed launcher selections fix
+	-- address lines are XOR-scrambled.  Twelve observed launcher selections fix
 	-- the transform below, including the menu timeout's 2180 -> 018000 hidden
 	-- Color and Switch Test selection.
 	-- The lower five bits of $62 and all of $61 pass through unchanged.
 	rom_a <= std_logic_vector(
 		unsigned(
 			evolution_bank62(7) &
-			evolution_bank62(7) &
-			(evolution_bank62(4) xor evolution_bank62(6) xor
-			 evolution_bank62(7)) &
+			not (evolution_bank61(7) xor evolution_bank62(6)) &
+			(evolution_bank61(6) xor evolution_bank61(7) xor
+			 evolution_bank62(0) xor evolution_bank62(5) xor
+			 evolution_bank62(6) xor evolution_bank62(7)) &
 			evolution_bank62(4 downto 0) & evolution_bank61 & x"00") +
 		-- Individual cartridges in the image decode at most six Sega bank
 		-- bits (1 MB).  Bits 7:6 written by games are not physical ROM lines.
