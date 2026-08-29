@@ -30,6 +30,7 @@ entity evolution_mapper is
         bank61     : out std_logic_vector(7 downto 0);
         bank62     : out std_logic_vector(7 downto 0);
         reg3ffe    : out std_logic_vector(7 downto 0);
+        reg8c      : out std_logic_vector(7 downto 0);
         game_launch : out std_logic
     );
 end entity;
@@ -38,6 +39,7 @@ architecture rtl of evolution_mapper is
     signal bank61_r        : std_logic_vector(7 downto 0) := (others => '0');
     signal bank62_r        : std_logic_vector(7 downto 0) := (others => '0');
     signal reg3ffe_r       : std_logic_vector(7 downto 0) := (others => '0');
+    signal reg8c_r         : std_logic_vector(7 downto 0) := (others => '0');
     signal reg3ffe_pending : std_logic_vector(7 downto 0) := (others => '0');
     signal switch_pending  : std_logic := '0';
     signal switch_armed    : std_logic := '0';
@@ -54,6 +56,7 @@ begin
                 bank61_r        <= (others => '0');
                 bank62_r        <= (others => '0');
                 reg3ffe_r       <= (others => '0');
+                reg8c_r         <= (others => '0');
                 reg3ffe_pending <= (others => '0');
                 switch_pending  <= '0';
                 switch_armed    <= '0';
@@ -92,6 +95,7 @@ begin
                     case cpu_a(7 downto 0) is
                         when x"61" => bank61_r <= d_in;
                         when x"62" => bank62_r <= d_in;
+                        when x"8C" => reg8c_r  <= d_in;
                         when others => null;
                     end case;
                 -- $3FFE memory write
@@ -107,6 +111,7 @@ begin
     bank61  <= bank61_r;
     bank62  <= bank62_r;
     reg3ffe <= reg3ffe_r;
+    reg8c <= reg8c_r;
     game_launch <= game_launch_r;
 
 end architecture;

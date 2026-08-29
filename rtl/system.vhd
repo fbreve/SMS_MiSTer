@@ -259,6 +259,7 @@ architecture Behavioral of system is
 	signal evolution_bank61 : std_logic_vector(7 downto 0);
 	signal evolution_bank62 : std_logic_vector(7 downto 0);
 	signal evolution_3ffe   : std_logic_vector(7 downto 0);
+	signal evolution_8c     : std_logic_vector(7 downto 0);
 	signal evolution_game_launch : std_logic;
 
 	signal bootloader_n:	std_logic := '0';
@@ -528,6 +529,7 @@ begin
 		bank61     => evolution_bank61,
 		bank62     => evolution_bank62,
 		reg3ffe    => evolution_3ffe,
+		reg8c      => evolution_8c,
 		game_launch => evolution_game_launch
 	);
 
@@ -748,11 +750,11 @@ begin
 -- AMR - Clamped volume boosting - if the top two bits match, truncate the topmost bit.
 -- If the top two bits don't match, duplicate the second bit across the output.
 
-FM_gated <= (others=>'0') when fm_ena='0' or det_D(0)='0' else  -- All zero if FM is disabled
+FM_gated <= (others=>'0') when fm_ena='0' or mapper_evolution_force='1' or det_D(0)='0' else  -- All zero if FM is disabled
 				FM_out(FM_out'high-1 downto 0) when FM_sign=FM_adj else -- Pass through
 				(FM_gated'high=>FM_sign,others=>FM_adj); -- Clamp
 
-PSG_disable <= '1' when (systeme='0' and gg='0' and fm_ena='1' and (not det_D(1)=det_D(0))) else '0';
+PSG_disable <= '1' when (systeme='0' and gg='0' and fm_ena='1' and mapper_evolution_force='0' and (not det_D(1)=det_D(0))) else '0';
 				 
 mix_inL <= (others=>'0') when psg_enables(0)='1' or PSG_disable='1' else (PSG_outL(10) & PSG_outL & '0');
 mix_inR <= (others=>'0') when psg_enables(0)='1' or PSG_disable='1' else (PSG_outR(10) & PSG_outR & '0');
@@ -858,6 +860,7 @@ port map(
 		mapper_evolution_force => mapper_evolution_force,
 		evolution_bank61 => evolution_bank61,
 		evolution_bank62 => evolution_bank62,
+		evolution_reg8c => evolution_8c,
 		ss_freeze     => ss_freeze,
 		RESET_n	=> RESET_n
 	);
@@ -927,12 +930,23 @@ port map(
 		q			=> boot_rom_D_out
 	);
 
-	-- Drive the output port from the internal signal. Evolution adds its
-	-- latched 24-bit flash base to the normal SMS mapper address in the
-	-- observed $87 game view. In the $85 menu view, the menu remains at base 0.
+	-- Drive the output port from the internal signal.  The Noza-to-flash upper
+	-- address lines are XOR-scrambled.  This transform is fixed by five observed
+	-- launcher selections and their known physical dump offsets:
+	--   21C0 -> 01C000 (Sonic), BE00 -> DE0000 (Acerte o Alvo),
+	--   5C40 -> 1C4000 (Action Fighter), 4000 -> 200000 (Aerial Assault),
+	--   4C00 -> 2C0000 (Alex Kidd High Tech World).
+	-- The lower five bits of $62 and all of $61 pass through unchanged.
 	rom_a <= std_logic_vector(
-		unsigned("000" & evolution_bank62(4 downto 0) & evolution_bank61 & x"00") +
-		resize(unsigned(rom_a_i), 24))
+		unsigned(
+			evolution_bank62(7) &
+			(evolution_bank62(5) xor evolution_bank61(7)) &
+			(evolution_bank62(6) xor evolution_bank61(6) xor
+			 evolution_bank61(7)) &
+			evolution_bank62(4 downto 0) & evolution_bank61 & x"00") +
+		-- Individual cartridges in the image decode at most six Sega bank
+		-- bits (1 MB).  Bits 7:6 written by games are not physical ROM lines.
+		resize(unsigned(rom_a_i(19 downto 0)), 24))
 		when mapper_evolution_force = '1' and evolution_3ffe = x"87" else
 		std_logic_vector(resize(unsigned(rom_a_i), 24));
 
@@ -1057,8 +1071,8 @@ port map(
 			io_gg_port='1'
 		)
 	else '1';
-	fm_WR_n  <= WR_n when IORQ_n='0' and M1_n='1' and A(7 downto 1)="1111000" else '1';
-	det_WR_n <= WR_n when IORQ_n='0' and M1_n='1' and A(7 downto 0)=x"F2" else '1';
+	fm_WR_n  <= WR_n when IORQ_n='0' and M1_n='1' and A(7 downto 1)="1111000" and mapper_evolution_force='0' else '1';
+	det_WR_n <= WR_n when IORQ_n='0' and M1_n='1' and A(7 downto 0)=x"F2" and mapper_evolution_force='0' else '1';
 	IRQ_n <= vdp_IRQ_n when systeme='0' else vdp2_IRQ_n;
 					
 	ram_WR   <= not WR_n when ss_freeze = '0' and MREQ_n='0' and A(15 downto 14)="11" and sc_cart_ram_32k='0' else '0';
@@ -1161,7 +1175,7 @@ port map(
 					mapper_eeprom,eeprom_enabled,eeprom_D_out,eeprom_bus_active,MREQ_n)
 	begin
 		if IORQ_n='0' then
-			if A(7 downto 0)=x"F2" and fm_ena = '1' and systeme='0' then
+			if A(7 downto 0)=x"F2" and fm_ena = '1' and systeme='0' and mapper_evolution_force='0' then
 				D_out <= "11111"&det_D;
 			elsif io_upper_port='1' or io_gg_data_port='1' then
 				D_out(6 downto 0) <= io_D_out(6 downto 0);
@@ -1676,10 +1690,10 @@ port map(
 	-- Evolution uses otherwise mapper-specific snapshot fields to retain the
 	-- outer flash latches. Besides making Evolution states self-describing,
 	-- this exposes the exact launcher-selected page for mapper diagnostics:
-	-- [63:56]=$3FFE, [55:48]=$62, [47:40]=$61, [39:32]=reserved,
+	-- [63:56]=$3FFE, [55:48]=$62, [47:40]=$61, [39:32]=$8C,
 	-- [31:24]=bank3, [23:16]=bank2, [15:8]=bank1, [7:0]=bank0.
 	mapper_out(63 downto 8) <=
-	              evolution_3ffe & evolution_bank62 & evolution_bank61 & x"00" &
+	              evolution_3ffe & evolution_bank62 & evolution_bank61 & evolution_8c &
 	              bank3 & bank2 & bank1 when mapper_evolution_force = '1' else
 	              detect_linear & detect_wonderkid & detect_castle & mapper_codies_lock &
 	              lock_mapper_B & mapper_codies & mapper_4pak & mapper_msx &

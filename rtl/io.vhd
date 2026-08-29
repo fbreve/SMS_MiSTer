@@ -79,6 +79,7 @@ entity io is
 		mapper_evolution_force: in STD_LOGIC := '0';
 		evolution_bank61: in STD_LOGIC_VECTOR(7 downto 0) := (others => '0');
 		evolution_bank62: in STD_LOGIC_VECTOR(7 downto 0) := (others => '0');
+		evolution_reg8c: in STD_LOGIC_VECTOR(7 downto 0) := (others => '0');
 		ss_freeze:     in  STD_LOGIC := '0';
 		RESET_n:	in  STD_LOGIC);
 end io;
@@ -575,6 +576,8 @@ begin
 					D_out <= evolution_bank61;
 				elsif mapper_evolution_force='1' and A=x"62" then
 					D_out <= evolution_bank62;
+				elsif mapper_evolution_force='1' and A=x"8C" then
+					D_out <= evolution_reg8c;
 				elsif mapper_evolution_force='1' and A=x"CD" then
 					-- Master System Evolution uses port $CD as an internal
 					-- control/status input. During normal execution it reads as zero.
