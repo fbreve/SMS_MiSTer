@@ -81,6 +81,11 @@ entity io is
 		evolution_bank62: in STD_LOGIC_VECTOR(7 downto 0) := (others => '0');
 		evolution_reg8c: in STD_LOGIC_VECTOR(7 downto 0) := (others => '0');
 		evolution_regcd: in STD_LOGIC_VECTOR(7 downto 0) := (others => '0');
+		evolution_reg63: in STD_LOGIC_VECTOR(7 downto 0) := (others => '0');
+		evolution_reg88: in STD_LOGIC_VECTOR(7 downto 0) := (others => '0');
+		evolution_reg8d: in STD_LOGIC_VECTOR(7 downto 0) := (others => '0');
+		evolution_reg8e: in STD_LOGIC_VECTOR(7 downto 0) := (others => '0');
+		evolution_reg8f: in STD_LOGIC_VECTOR(7 downto 0) := (others => '0');
 		ss_freeze:     in  STD_LOGIC := '0';
 		RESET_n:	in  STD_LOGIC);
 end io;
@@ -579,6 +584,16 @@ begin
 					D_out <= evolution_bank62;
 				elsif mapper_evolution_force='1' and A=x"8C" then
 					D_out <= evolution_reg8c;
+				elsif mapper_evolution_force='1' and A=x"63" then
+					D_out <= evolution_reg63;
+				elsif mapper_evolution_force='1' and A=x"88" then
+					D_out <= evolution_reg88;
+				elsif mapper_evolution_force='1' and A=x"8D" then
+					D_out <= evolution_reg8d;
+				elsif mapper_evolution_force='1' and A=x"8E" then
+					D_out <= evolution_reg8e;
+				elsif mapper_evolution_force='1' and A=x"8F" then
+					D_out <= evolution_reg8f;
 				elsif mapper_evolution_force='1' and A=x"CD" then
 					-- Writable Noza state/counter register used by the menu music
 					-- sequencer and the patched return-to-menu handler.

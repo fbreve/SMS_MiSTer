@@ -32,6 +32,11 @@ entity evolution_mapper is
         reg3ffe    : out std_logic_vector(7 downto 0);
         reg8c      : out std_logic_vector(7 downto 0);
         regcd      : out std_logic_vector(7 downto 0);
+        reg63      : out std_logic_vector(7 downto 0);
+        reg88      : out std_logic_vector(7 downto 0);
+        reg8d      : out std_logic_vector(7 downto 0);
+        reg8e      : out std_logic_vector(7 downto 0);
+        reg8f      : out std_logic_vector(7 downto 0);
         game_launch : out std_logic
     );
 end entity;
@@ -42,6 +47,11 @@ architecture rtl of evolution_mapper is
     signal reg3ffe_r       : std_logic_vector(7 downto 0) := (others => '0');
     signal reg8c_r         : std_logic_vector(7 downto 0) := (others => '0');
     signal regcd_r         : std_logic_vector(7 downto 0) := (others => '0');
+    signal reg63_r         : std_logic_vector(7 downto 0) := (others => '0');
+    signal reg88_r         : std_logic_vector(7 downto 0) := (others => '0');
+    signal reg8d_r         : std_logic_vector(7 downto 0) := (others => '0');
+    signal reg8e_r         : std_logic_vector(7 downto 0) := (others => '0');
+    signal reg8f_r         : std_logic_vector(7 downto 0) := (others => '0');
     signal reg3ffe_pending : std_logic_vector(7 downto 0) := (others => '0');
     signal switch_pending  : std_logic := '0';
     signal switch_armed    : std_logic := '0';
@@ -60,6 +70,11 @@ begin
                 reg3ffe_r       <= (others => '0');
                 reg8c_r         <= (others => '0');
                 regcd_r         <= (others => '0');
+                reg63_r         <= (others => '0');
+                reg88_r         <= (others => '0');
+                reg8d_r         <= (others => '0');
+                reg8e_r         <= (others => '0');
+                reg8f_r         <= (others => '0');
                 reg3ffe_pending <= (others => '0');
                 switch_pending  <= '0';
                 switch_armed    <= '0';
@@ -100,6 +115,11 @@ begin
                         when x"62" => bank62_r <= d_in;
                         when x"8C" => reg8c_r  <= d_in;
                         when x"CD" => regcd_r  <= d_in;
+                        when x"63" => reg63_r  <= d_in;
+                        when x"88" => reg88_r  <= d_in;
+                        when x"8D" => reg8d_r  <= d_in;
+                        when x"8E" => reg8e_r  <= d_in;
+                        when x"8F" => reg8f_r  <= d_in;
                         when others => null;
                     end case;
                 -- $3FFE memory write
@@ -117,6 +137,11 @@ begin
     reg3ffe <= reg3ffe_r;
     reg8c <= reg8c_r;
     regcd <= regcd_r;
+    reg63 <= reg63_r;
+    reg88 <= reg88_r;
+    reg8d <= reg8d_r;
+    reg8e <= reg8e_r;
+    reg8f <= reg8f_r;
     game_launch <= game_launch_r;
 
 end architecture;

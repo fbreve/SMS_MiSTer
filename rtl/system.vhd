@@ -261,6 +261,8 @@ architecture Behavioral of system is
 	signal evolution_3ffe   : std_logic_vector(7 downto 0);
 	signal evolution_8c     : std_logic_vector(7 downto 0);
 	signal evolution_cd     : std_logic_vector(7 downto 0);
+	signal evolution_63, evolution_88 : std_logic_vector(7 downto 0);
+	signal evolution_8d, evolution_8e, evolution_8f : std_logic_vector(7 downto 0);
 	signal evolution_game_launch : std_logic;
 
 	signal bootloader_n:	std_logic := '0';
@@ -532,6 +534,11 @@ begin
 		reg3ffe    => evolution_3ffe,
 		reg8c      => evolution_8c,
 		regcd      => evolution_cd,
+		reg63      => evolution_63,
+		reg88      => evolution_88,
+		reg8d      => evolution_8d,
+		reg8e      => evolution_8e,
+		reg8f      => evolution_8f,
 		game_launch => evolution_game_launch
 	);
 
@@ -864,6 +871,11 @@ port map(
 		evolution_bank62 => evolution_bank62,
 		evolution_reg8c => evolution_8c,
 		evolution_regcd => evolution_cd,
+		evolution_reg63 => evolution_63,
+		evolution_reg88 => evolution_88,
+		evolution_reg8d => evolution_8d,
+		evolution_reg8e => evolution_8e,
+		evolution_reg8f => evolution_8f,
 		ss_freeze     => ss_freeze,
 		RESET_n	=> RESET_n
 	);
@@ -1692,11 +1704,12 @@ port map(
 	-- Evolution uses otherwise mapper-specific snapshot fields to retain the
 	-- outer flash latches. Besides making Evolution states self-describing,
 	-- this exposes the exact launcher-selected page for mapper diagnostics:
-	-- [63:56]=$3FFE, [55:48]=$62, [47:40]=$61, [39:32]=$8C,
-	-- [31:24]=bank3, [23:16]=bank2, [15:8]=bank1, [7:0]=bank0.
+	-- Evolution diagnostic layout:
+	-- [63:56]=$3FFE, [55:48]=$62, [47:40]=$61, [39:32]=$8D,
+	-- [31:24]=$63, [23:16]=$8F, [15:8]=$8E, [7:0]=bank0.
 	mapper_out(63 downto 8) <=
-	              evolution_3ffe & evolution_bank62 & evolution_bank61 & evolution_8c &
-	              bank3 & bank2 & bank1 when mapper_evolution_force = '1' else
+	              evolution_3ffe & evolution_bank62 & evolution_bank61 & evolution_8d &
+	              evolution_63 & evolution_8f & evolution_8e when mapper_evolution_force = '1' else
 	              detect_linear & detect_wonderkid & detect_castle & mapper_codies_lock &
 	              lock_mapper_B & mapper_codies & mapper_4pak & mapper_msx &
 	              detect_zemina_static & bootloader_n & nvram_cme & nvram_p & nvram_ex & nvram_e &
