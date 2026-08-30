@@ -62,7 +62,6 @@ architecture rtl of evolution_mapper is
     signal old_m1_n        : std_logic := '1';
     signal game_started    : std_logic := '0';
     signal game_launch_r   : std_logic := '0';
-    signal menu_dwell      : unsigned(19 downto 0) := (others => '0');
 begin
 
     process(clk)
@@ -87,20 +86,8 @@ begin
                 switch_armed    <= '0';
                 old_m1_n        <= '1';
                 game_started    <= '0';
-                menu_dwell      <= (others => '0');
             elsif enable = '1' then
                 old_m1_n <= m1_n;
-
-                -- Patched games briefly expose the menu ROM from their interrupt
-                -- hook.  A real menu visit lasts much longer.  Remember that
-                -- distinction so the hook cannot overwrite the selected base.
-                if reg3ffe_r = x"85" then
-                    if menu_dwell /= (menu_dwell'range => '1') then
-                        menu_dwell <= menu_dwell + 1;
-                    end if;
-                else
-                    menu_dwell <= (others => '0');
-                end if;
 
                 -- Delayed mode switch state machine:
                 -- Detect falling edge of M1_n (start of opcode fetch)
@@ -116,9 +103,12 @@ begin
                             -- Patched games also issue $85/$87 pairs from their
                             -- VBlank hook; the unchanged base keeps those harmless.
                             if reg3ffe_pending = x"87" and
-                               (game_started = '0' or menu_dwell(19) = '1') then
+                               (game_started = '0' or bank61_r /= game_bank61_r or
+                                bank62_r /= game_bank62_r) then
                                 game_started  <= '1';
                                 game_launch_r <= '1';
+                            end if;
+                            if reg3ffe_pending = x"87" then
                                 game_bank61_r <= bank61_r;
                                 game_bank62_r <= bank62_r;
                             end if;
