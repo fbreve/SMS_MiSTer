@@ -259,7 +259,9 @@ architecture Behavioral of system is
 	signal evolution_bank61 : std_logic_vector(7 downto 0);
 	signal evolution_bank62 : std_logic_vector(7 downto 0);
 	signal evolution_game_bank61, evolution_game_bank62 : std_logic_vector(7 downto 0);
+	signal evolution_prev_game_bank61, evolution_prev_game_bank62 : std_logic_vector(7 downto 0);
 	signal evolution_game_select : std_logic_vector(15 downto 0);
+	signal evolution_effective_game_select : std_logic_vector(15 downto 0);
 	signal evolution_game_page   : std_logic_vector(15 downto 0);
 	signal evolution_3ffe   : std_logic_vector(7 downto 0);
 	signal evolution_8c     : std_logic_vector(7 downto 0);
@@ -536,6 +538,8 @@ begin
 		bank62     => evolution_bank62,
 		game_bank61 => evolution_game_bank61,
 		game_bank62 => evolution_game_bank62,
+		prev_game_bank61 => evolution_prev_game_bank61,
+		prev_game_bank62 => evolution_prev_game_bank62,
 		reg3ffe    => evolution_3ffe,
 		reg8c      => evolution_8c,
 		regcd      => evolution_cd,
@@ -955,13 +959,23 @@ port map(
 	-- all outer Flash address/control lines are understood, replace this table
 	-- with the equivalent mapper equation.
 	evolution_game_select <= evolution_game_bank62 & evolution_game_bank61;
-	with evolution_game_select select evolution_game_page <=
+	-- Some patched interrupt handlers restore a selector with A21 asserted.
+	-- Preserve the immediately preceding distinct launch page for the two
+	-- confirmed collisions; standalone launches of the upper pages are intact.
+	evolution_effective_game_select <=
+		x"2C00" when evolution_game_select = x"4C00" and
+		                 (evolution_prev_game_bank62 & evolution_prev_game_bank61) = x"2C00" else
+		x"2800" when evolution_game_select = x"4800" and
+		                 (evolution_prev_game_bank62 & evolution_prev_game_bank61) = x"2800" else
+		evolution_game_select;
+	with evolution_effective_game_select select evolution_game_page <=
 		x"0180" when x"2180", -- timeout demo cycle: Color and Switch Test
 		x"01C0" when x"21C0", -- timeout demo cycle: Sonic
 		x"1040" when x"3040", -- Bonanza Bros.
 		x"1640" when x"5640", -- Alex Kidd in Miracle World
 		x"1C40" when x"5C40", -- Action Fighter
 		x"2000" when x"4000", -- Aerial Assault
+		x"2400" when x"2400", -- Alex Kidd: The Lost Stars
 		x"2800" when x"2800", -- Alex Kidd in Shinobi World
 		x"2C00" when x"2C00", -- Alex Kidd High Tech World
 		x"3200" when x"3200", -- Aztec Adventure
@@ -1741,10 +1755,11 @@ port map(
 	-- this exposes the exact launcher-selected page for mapper diagnostics:
 	-- Evolution diagnostic layout:
 	-- [63:56]=$3FFE, [55:48]=captured game $62, [47:40]=captured game $61,
-	-- [39:32]=$63, [31:24]=$88, [23:16]=$8D, [15:8]=$8E, [7:0]=$8F.
+	-- [39:32]=previous distinct game $62, [31:24]=previous distinct game $61,
+	-- [23:16]=$88, [15:8]=$8C, [7:0]=$CD.
 	mapper_out(63 downto 8) <=
-	              evolution_3ffe & evolution_game_bank62 & evolution_game_bank61 & evolution_63 &
-	              evolution_88 & evolution_8d & evolution_8e when mapper_evolution_force = '1' else
+	              evolution_3ffe & evolution_game_bank62 & evolution_game_bank61 & evolution_prev_game_bank62 &
+	              evolution_prev_game_bank61 & evolution_88 & evolution_8c when mapper_evolution_force = '1' else
 	              detect_linear & detect_wonderkid & detect_castle & mapper_codies_lock &
 	              lock_mapper_B & mapper_codies & mapper_4pak & mapper_msx &
 	              detect_zemina_static & bootloader_n & nvram_cme & nvram_p & nvram_ex & nvram_e &
@@ -1759,7 +1774,7 @@ port map(
 	              detect_sega_locked & detect_dahjee_a &
 	              nem_bank0 & pak4_reg2 & bank3 & bank2 & bank1;
 
-	mapper_out(7 downto 0) <= evolution_8f when mapper_evolution_force = '1' else
+	mapper_out(7 downto 0) <= evolution_cd when mapper_evolution_force = '1' else
 	                          vdp_se_bank & vdp2_se_bank & vdp_cpu_bank & '0' & rom_bank when systeme='1' else
 	                          jang_rev1 & "0" & jang_bank1 when mapper_janggun = '1' else
 	                          bank0;

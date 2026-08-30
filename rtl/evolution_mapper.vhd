@@ -31,6 +31,8 @@ entity evolution_mapper is
         bank62     : out std_logic_vector(7 downto 0);
         game_bank61 : out std_logic_vector(7 downto 0);
         game_bank62 : out std_logic_vector(7 downto 0);
+        prev_game_bank61 : out std_logic_vector(7 downto 0);
+        prev_game_bank62 : out std_logic_vector(7 downto 0);
         reg3ffe    : out std_logic_vector(7 downto 0);
         reg8c      : out std_logic_vector(7 downto 0);
         regcd      : out std_logic_vector(7 downto 0);
@@ -48,6 +50,8 @@ architecture rtl of evolution_mapper is
     signal bank62_r        : std_logic_vector(7 downto 0) := (others => '0');
     signal game_bank61_r   : std_logic_vector(7 downto 0) := (others => '0');
     signal game_bank62_r   : std_logic_vector(7 downto 0) := (others => '0');
+    signal prev_game_bank61_r : std_logic_vector(7 downto 0) := (others => '0');
+    signal prev_game_bank62_r : std_logic_vector(7 downto 0) := (others => '0');
     signal reg3ffe_r       : std_logic_vector(7 downto 0) := (others => '0');
     signal reg8c_r         : std_logic_vector(7 downto 0) := (others => '0');
     signal regcd_r         : std_logic_vector(7 downto 0) := (others => '0');
@@ -73,6 +77,8 @@ begin
                 bank62_r        <= (others => '0');
                 game_bank61_r   <= (others => '0');
                 game_bank62_r   <= (others => '0');
+                prev_game_bank61_r <= (others => '0');
+                prev_game_bank62_r <= (others => '0');
                 reg3ffe_r       <= (others => '0');
                 reg8c_r         <= (others => '0');
                 regcd_r         <= (others => '0');
@@ -109,6 +115,10 @@ begin
                                 game_launch_r <= '1';
                             end if;
                             if reg3ffe_pending = x"87" then
+                                if bank61_r /= game_bank61_r or bank62_r /= game_bank62_r then
+                                    prev_game_bank61_r <= game_bank61_r;
+                                    prev_game_bank62_r <= game_bank62_r;
+                                end if;
                                 game_bank61_r <= bank61_r;
                                 game_bank62_r <= bank62_r;
                             end if;
@@ -148,6 +158,8 @@ begin
     bank62  <= bank62_r;
     game_bank61 <= game_bank61_r;
     game_bank62 <= game_bank62_r;
+    prev_game_bank61 <= prev_game_bank61_r;
+    prev_game_bank62 <= prev_game_bank62_r;
     reg3ffe <= reg3ffe_r;
     reg8c <= reg8c_r;
     regcd <= regcd_r;
