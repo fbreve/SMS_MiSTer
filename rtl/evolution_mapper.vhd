@@ -52,6 +52,10 @@ architecture rtl of evolution_mapper is
     signal game_bank62_r   : std_logic_vector(7 downto 0) := (others => '0');
     signal prev_game_bank61_r : std_logic_vector(7 downto 0) := (others => '0');
     signal prev_game_bank62_r : std_logic_vector(7 downto 0) := (others => '0');
+    signal candidate_bank61_r : std_logic_vector(7 downto 0) := (others => '0');
+    signal candidate_bank62_r : std_logic_vector(7 downto 0) := (others => '0');
+    signal prior_candidate_bank61_r : std_logic_vector(7 downto 0) := (others => '0');
+    signal prior_candidate_bank62_r : std_logic_vector(7 downto 0) := (others => '0');
     signal reg3ffe_r       : std_logic_vector(7 downto 0) := (others => '0');
     signal reg8c_r         : std_logic_vector(7 downto 0) := (others => '0');
     signal regcd_r         : std_logic_vector(7 downto 0) := (others => '0');
@@ -79,6 +83,10 @@ begin
                 game_bank62_r   <= (others => '0');
                 prev_game_bank61_r <= (others => '0');
                 prev_game_bank62_r <= (others => '0');
+                candidate_bank61_r <= (others => '0');
+                candidate_bank62_r <= (others => '0');
+                prior_candidate_bank61_r <= (others => '0');
+                prior_candidate_bank62_r <= (others => '0');
                 reg3ffe_r       <= (others => '0');
                 reg8c_r         <= (others => '0');
                 regcd_r         <= (others => '0');
@@ -108,17 +116,13 @@ begin
                             -- when a different selected-game base is launched.
                             -- Patched games also issue $85/$87 pairs from their
                             -- VBlank hook; the unchanged base keeps those harmless.
-                            if reg3ffe_pending = x"87" and
-                               (game_started = '0' or bank61_r /= game_bank61_r or
-                                bank62_r /= game_bank62_r) then
+                            if reg3ffe_pending = x"87" and game_started = '0' then
                                 game_started  <= '1';
                                 game_launch_r <= '1';
                             end if;
                             if reg3ffe_pending = x"87" then
-                                if bank61_r /= game_bank61_r or bank62_r /= game_bank62_r then
-                                    prev_game_bank61_r <= game_bank61_r;
-                                    prev_game_bank62_r <= game_bank62_r;
-                                end if;
+                                prev_game_bank61_r <= prior_candidate_bank61_r;
+                                prev_game_bank62_r <= prior_candidate_bank62_r;
                                 game_bank61_r <= bank61_r;
                                 game_bank62_r <= bank62_r;
                             end if;
@@ -134,7 +138,14 @@ begin
                 if wr_n = '0' and iorq_n = '0' then
                     case cpu_a(7 downto 0) is
                         when x"61" => bank61_r <= d_in;
-                        when x"62" => bank62_r <= d_in;
+                        when x"62" =>
+                            bank62_r <= d_in;
+                            if bank61_r /= candidate_bank61_r or d_in /= candidate_bank62_r then
+                                prior_candidate_bank61_r <= candidate_bank61_r;
+                                prior_candidate_bank62_r <= candidate_bank62_r;
+                                candidate_bank61_r <= bank61_r;
+                                candidate_bank62_r <= d_in;
+                            end if;
                         when x"8C" => reg8c_r  <= d_in;
                         when x"CD" => regcd_r  <= d_in;
                         when x"63" => reg63_r  <= d_in;

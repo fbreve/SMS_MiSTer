@@ -984,6 +984,7 @@ port map(
 		x"4200" when x"4200", -- Bubble Bobble
 		x"4600" when x"4600", -- Taito Chase H.Q.
 		x"4800" when x"4800", -- Cyber Shinobi
+		x"4800" when x"6800", -- Cyber Shinobi launch selector
 		x"4C00" when x"4C00", -- Dragon Crystal
 		x"4E00" when x"4E00", -- Double Target
 		x"5000" when x"5000", -- Enduro Racer
@@ -996,6 +997,7 @@ port map(
 		x"DCC0" when x"BCC0", -- Bolas e Cores
 		x"DE00" when x"BE00", -- Acerte o Alvo
 		x"E100" when x"A100", -- Arqueiro
+		x"E000" when x"A000", -- Domine o Territorio
 		x"E540" when x"A540", -- Cava Cava
 		(evolution_game_bank62(7) &
 		 not (evolution_game_bank61(7) xor evolution_game_bank62(6)) &
