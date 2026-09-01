@@ -42,6 +42,7 @@ entity evolution_mapper is
         reg8e      : out std_logic_vector(7 downto 0);
         reg8f      : out std_logic_vector(7 downto 0);
         launch_trace : out std_logic_vector(63 downto 0);
+        launch_fetch_addr : out std_logic_vector(15 downto 0);
         game_launch : out std_logic
     );
 end entity;
@@ -75,6 +76,7 @@ architecture rtl of evolution_mapper is
     signal trace_frozen_r  : std_logic := '0';
     signal trace_last_event_r : std_logic_vector(11 downto 0) := (others => '0');
     signal trace_io_code   : std_logic_vector(3 downto 0);
+    signal launch_fetch_addr_r : std_logic_vector(15 downto 0) := (others => '0');
 begin
 
     with cpu_a(7 downto 0) select trace_io_code <=
@@ -114,6 +116,7 @@ begin
                 launch_trace_r  <= (others => '0');
                 trace_frozen_r  <= '0';
                 trace_last_event_r <= (others => '0');
+                launch_fetch_addr_r <= (others => '0');
             elsif enable = '1' then
                 old_m1_n <= m1_n;
 
@@ -123,18 +126,21 @@ begin
                     if switch_armed = '1' then
                         -- Do not infer a bit-field from the two commands seen in
                         -- the dumped software. Unknown writes leave the view alone.
-                        if reg3ffe_pending = x"85" or reg3ffe_pending = x"87" then
+                        if reg3ffe_pending = x"85" or reg3ffe_pending = x"87" or
+                           reg3ffe_pending = x"97" then
                             reg3ffe_r <= reg3ffe_pending;
                             -- The menu uses $FFFA-$FFFF as workspace, overlapping
                             -- the normal Sega mapper registers. Re-initialize them
                             -- when a different selected-game base is launched.
                             -- Patched games also issue $85/$87 pairs from their
                             -- VBlank hook; the unchanged base keeps those harmless.
-                            if reg3ffe_pending = x"87" and game_started = '0' then
+                            if (reg3ffe_pending = x"87" or reg3ffe_pending = x"97") and
+                               game_started = '0' then
                                 game_started  <= '1';
                                 game_launch_r <= '1';
+                                launch_fetch_addr_r <= cpu_a;
                             end if;
-                            if reg3ffe_pending = x"87" then
+                            if reg3ffe_pending = x"87" or reg3ffe_pending = x"97" then
                                 prev_game_bank61_r <= prior_candidate_bank61_r;
                                 prev_game_bank62_r <= prior_candidate_bank62_r;
                                 game_bank61_r <= bank61_r;
@@ -184,7 +190,7 @@ begin
                             launch_trace_r <= launch_trace_r(51 downto 0) & x"3" & d_in;
                             trace_last_event_r <= x"3" & d_in;
                         end if;
-                        if d_in = x"87" then
+                        if d_in = x"87" or d_in = x"97" then
                             trace_frozen_r <= '1';
                         end if;
                     end if;
@@ -208,6 +214,7 @@ begin
     reg8e <= reg8e_r;
     reg8f <= reg8f_r;
     launch_trace <= launch_trace_r;
+    launch_fetch_addr <= launch_fetch_addr_r;
     game_launch <= game_launch_r;
 
 end architecture;

@@ -270,6 +270,7 @@ architecture Behavioral of system is
 	signal evolution_8d, evolution_8e, evolution_8f : std_logic_vector(7 downto 0);
 	signal evolution_game_launch : std_logic;
 	signal evolution_launch_trace : std_logic_vector(63 downto 0);
+	signal evolution_launch_fetch_addr : std_logic_vector(15 downto 0);
 
 	signal bootloader_n:	std_logic := '0';
 	signal active_bios:     std_logic;
@@ -550,6 +551,7 @@ begin
 		reg8e      => evolution_8e,
 		reg8f      => evolution_8f,
 		launch_trace => evolution_launch_trace,
+		launch_fetch_addr => evolution_launch_fetch_addr,
 		game_launch => evolution_game_launch
 	);
 
@@ -1014,7 +1016,8 @@ port map(
 		-- Individual cartridges in the image decode at most six Sega bank
 		-- bits (1 MB).  Bits 7:6 written by games are not physical ROM lines.
 		resize(unsigned(rom_a_i(19 downto 0)), 24))
-		when mapper_evolution_force = '1' and evolution_3ffe = x"87" else
+		when mapper_evolution_force = '1' and
+		     (evolution_3ffe = x"87" or evolution_3ffe = x"97") else
 		std_logic_vector(resize(unsigned(rom_a_i), 24));
 
 	-- External BIOS RAM: up to 256KB, written only during BIOS file download (BIOSWEN)
@@ -1757,12 +1760,14 @@ port map(
 	-- Evolution uses otherwise mapper-specific snapshot fields to retain the
 	-- outer flash latches. Besides making Evolution states self-describing,
 	-- this exposes the exact launcher-selected page for mapper diagnostics:
-	-- Evolution diagnostic layout: five frozen 12-bit launch events, oldest
-	-- to newest, right-aligned in 64 bits. Each event is {code[3:0], data[7:0]}:
+	-- Evolution diagnostic layout: [63:48] first game-view opcode fetch address,
+	-- [47:0] last four frozen 12-bit launch events, oldest to newest.
+	-- Each event is {code[3:0], data[7:0]}:
 	-- 1=$61, 2=$62, 3=$3FFE, 4=$8C, 5=$88, 6=$63, 7=$8D,
 	-- 8=$8E, 9=$8F, A=$CD. The trace freezes on the first $3FFE=$87.
 	mapper_out(63 downto 8) <=
-	              evolution_launch_trace(63 downto 8) when mapper_evolution_force = '1' else
+	              evolution_launch_fetch_addr & evolution_launch_trace(47 downto 8)
+	              when mapper_evolution_force = '1' else
 	              detect_linear & detect_wonderkid & detect_castle & mapper_codies_lock &
 	              lock_mapper_B & mapper_codies & mapper_4pak & mapper_msx &
 	              detect_zemina_static & bootloader_n & nvram_cme & nvram_p & nvram_ex & nvram_e &
