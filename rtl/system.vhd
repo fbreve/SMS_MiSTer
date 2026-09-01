@@ -269,6 +269,7 @@ architecture Behavioral of system is
 	signal evolution_63, evolution_88 : std_logic_vector(7 downto 0);
 	signal evolution_8d, evolution_8e, evolution_8f : std_logic_vector(7 downto 0);
 	signal evolution_game_launch : std_logic;
+	signal evolution_launch_trace : std_logic_vector(63 downto 0);
 
 	signal bootloader_n:	std_logic := '0';
 	signal active_bios:     std_logic;
@@ -548,6 +549,7 @@ begin
 		reg8d      => evolution_8d,
 		reg8e      => evolution_8e,
 		reg8f      => evolution_8f,
+		launch_trace => evolution_launch_trace,
 		game_launch => evolution_game_launch
 	);
 
@@ -1755,13 +1757,12 @@ port map(
 	-- Evolution uses otherwise mapper-specific snapshot fields to retain the
 	-- outer flash latches. Besides making Evolution states self-describing,
 	-- this exposes the exact launcher-selected page for mapper diagnostics:
-	-- Evolution diagnostic layout:
-	-- [63:56]=$3FFE, [55:48]=captured game $62, [47:40]=captured game $61,
-	-- [39:32]=previous distinct game $62, [31:24]=previous distinct game $61,
-	-- [23:16]=$88, [15:8]=$8C, [7:0]=$CD.
+	-- Evolution diagnostic layout: five frozen 12-bit launch events, oldest
+	-- to newest, right-aligned in 64 bits. Each event is {code[3:0], data[7:0]}:
+	-- 1=$61, 2=$62, 3=$3FFE, 4=$8C, 5=$88, 6=$63, 7=$8D,
+	-- 8=$8E, 9=$8F, A=$CD. The trace freezes on the first $3FFE=$87.
 	mapper_out(63 downto 8) <=
-	              evolution_3ffe & evolution_game_bank62 & evolution_game_bank61 & evolution_prev_game_bank62 &
-	              evolution_prev_game_bank61 & evolution_88 & evolution_8c when mapper_evolution_force = '1' else
+	              evolution_launch_trace(63 downto 8) when mapper_evolution_force = '1' else
 	              detect_linear & detect_wonderkid & detect_castle & mapper_codies_lock &
 	              lock_mapper_B & mapper_codies & mapper_4pak & mapper_msx &
 	              detect_zemina_static & bootloader_n & nvram_cme & nvram_p & nvram_ex & nvram_e &
@@ -1776,7 +1777,7 @@ port map(
 	              detect_sega_locked & detect_dahjee_a &
 	              nem_bank0 & pak4_reg2 & bank3 & bank2 & bank1;
 
-	mapper_out(7 downto 0) <= evolution_cd when mapper_evolution_force = '1' else
+	mapper_out(7 downto 0) <= evolution_launch_trace(7 downto 0) when mapper_evolution_force = '1' else
 	                          vdp_se_bank & vdp2_se_bank & vdp_cpu_bank & '0' & rom_bank when systeme='1' else
 	                          jang_rev1 & "0" & jang_bank1 when mapper_janggun = '1' else
 	                          bank0;

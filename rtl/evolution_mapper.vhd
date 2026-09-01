@@ -41,6 +41,7 @@ entity evolution_mapper is
         reg8d      : out std_logic_vector(7 downto 0);
         reg8e      : out std_logic_vector(7 downto 0);
         reg8f      : out std_logic_vector(7 downto 0);
+        launch_trace : out std_logic_vector(63 downto 0);
         game_launch : out std_logic
     );
 end entity;
@@ -70,6 +71,8 @@ architecture rtl of evolution_mapper is
     signal old_m1_n        : std_logic := '1';
     signal game_started    : std_logic := '0';
     signal game_launch_r   : std_logic := '0';
+    signal launch_trace_r  : std_logic_vector(63 downto 0) := (others => '0');
+    signal trace_frozen_r  : std_logic := '0';
 begin
 
     process(clk)
@@ -100,6 +103,8 @@ begin
                 switch_armed    <= '0';
                 old_m1_n        <= '1';
                 game_started    <= '0';
+                launch_trace_r  <= (others => '0');
+                trace_frozen_r  <= '0';
             elsif enable = '1' then
                 old_m1_n <= m1_n;
 
@@ -136,6 +141,20 @@ begin
 
                 -- Port $61 / $62 I/O writes
                 if wr_n = '0' and iorq_n = '0' then
+                    if trace_frozen_r = '0' then
+                        case cpu_a(7 downto 0) is
+                            when x"61" => launch_trace_r <= launch_trace_r(51 downto 0) & x"1" & d_in;
+                            when x"62" => launch_trace_r <= launch_trace_r(51 downto 0) & x"2" & d_in;
+                            when x"8C" => launch_trace_r <= launch_trace_r(51 downto 0) & x"4" & d_in;
+                            when x"88" => launch_trace_r <= launch_trace_r(51 downto 0) & x"5" & d_in;
+                            when x"63" => launch_trace_r <= launch_trace_r(51 downto 0) & x"6" & d_in;
+                            when x"8D" => launch_trace_r <= launch_trace_r(51 downto 0) & x"7" & d_in;
+                            when x"8E" => launch_trace_r <= launch_trace_r(51 downto 0) & x"8" & d_in;
+                            when x"8F" => launch_trace_r <= launch_trace_r(51 downto 0) & x"9" & d_in;
+                            when x"CD" => launch_trace_r <= launch_trace_r(51 downto 0) & x"A" & d_in;
+                            when others => null;
+                        end case;
+                    end if;
                     case cpu_a(7 downto 0) is
                         when x"61" => bank61_r <= d_in;
                         when x"62" =>
@@ -160,6 +179,12 @@ begin
                     reg3ffe_pending <= d_in;
                     switch_pending  <= '1';
                     switch_armed    <= '0';
+                    if trace_frozen_r = '0' then
+                        launch_trace_r <= launch_trace_r(51 downto 0) & x"3" & d_in;
+                        if d_in = x"87" then
+                            trace_frozen_r <= '1';
+                        end if;
+                    end if;
                 end if;
             end if;
         end if;
@@ -179,6 +204,7 @@ begin
     reg8d <= reg8d_r;
     reg8e <= reg8e_r;
     reg8f <= reg8f_r;
+    launch_trace <= launch_trace_r;
     game_launch <= game_launch_r;
 
 end architecture;
