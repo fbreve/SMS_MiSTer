@@ -73,7 +73,15 @@ architecture rtl of evolution_mapper is
     signal game_launch_r   : std_logic := '0';
     signal launch_trace_r  : std_logic_vector(63 downto 0) := (others => '0');
     signal trace_frozen_r  : std_logic := '0';
+    signal trace_last_event_r : std_logic_vector(11 downto 0) := (others => '0');
+    signal trace_io_code   : std_logic_vector(3 downto 0);
 begin
+
+    with cpu_a(7 downto 0) select trace_io_code <=
+        x"1" when x"61", x"2" when x"62", x"4" when x"8C",
+        x"5" when x"88", x"6" when x"63", x"7" when x"8D",
+        x"8" when x"8E", x"9" when x"8F", x"A" when x"CD",
+        x"0" when others;
 
     process(clk)
     begin
@@ -105,6 +113,7 @@ begin
                 game_started    <= '0';
                 launch_trace_r  <= (others => '0');
                 trace_frozen_r  <= '0';
+                trace_last_event_r <= (others => '0');
             elsif enable = '1' then
                 old_m1_n <= m1_n;
 
@@ -141,19 +150,10 @@ begin
 
                 -- Port $61 / $62 I/O writes
                 if wr_n = '0' and iorq_n = '0' then
-                    if trace_frozen_r = '0' then
-                        case cpu_a(7 downto 0) is
-                            when x"61" => launch_trace_r <= launch_trace_r(51 downto 0) & x"1" & d_in;
-                            when x"62" => launch_trace_r <= launch_trace_r(51 downto 0) & x"2" & d_in;
-                            when x"8C" => launch_trace_r <= launch_trace_r(51 downto 0) & x"4" & d_in;
-                            when x"88" => launch_trace_r <= launch_trace_r(51 downto 0) & x"5" & d_in;
-                            when x"63" => launch_trace_r <= launch_trace_r(51 downto 0) & x"6" & d_in;
-                            when x"8D" => launch_trace_r <= launch_trace_r(51 downto 0) & x"7" & d_in;
-                            when x"8E" => launch_trace_r <= launch_trace_r(51 downto 0) & x"8" & d_in;
-                            when x"8F" => launch_trace_r <= launch_trace_r(51 downto 0) & x"9" & d_in;
-                            when x"CD" => launch_trace_r <= launch_trace_r(51 downto 0) & x"A" & d_in;
-                            when others => null;
-                        end case;
+                    if trace_frozen_r = '0' and trace_io_code /= x"0" and
+                       (trace_io_code & d_in) /= trace_last_event_r then
+                        launch_trace_r <= launch_trace_r(51 downto 0) & trace_io_code & d_in;
+                        trace_last_event_r <= trace_io_code & d_in;
                     end if;
                     case cpu_a(7 downto 0) is
                         when x"61" => bank61_r <= d_in;
@@ -180,7 +180,10 @@ begin
                     switch_pending  <= '1';
                     switch_armed    <= '0';
                     if trace_frozen_r = '0' then
-                        launch_trace_r <= launch_trace_r(51 downto 0) & x"3" & d_in;
+                        if (x"3" & d_in) /= trace_last_event_r then
+                            launch_trace_r <= launch_trace_r(51 downto 0) & x"3" & d_in;
+                            trace_last_event_r <= x"3" & d_in;
+                        end if;
                         if d_in = x"87" then
                             trace_frozen_r <= '1';
                         end if;
