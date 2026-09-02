@@ -462,27 +462,7 @@ begin
 	begin
 		if rising_edge(clk) then
 			if RD_n='0' then
-				-- Evolution/Noza registers overlap ordinary GG, VDP and
-				-- controller-port decode, so they must take priority.
-				if mapper_evolution_force='1' and A=x"61" then
-					D_out <= evolution_bank61;
-				elsif mapper_evolution_force='1' and A=x"62" then
-					D_out <= evolution_bank62;
-				elsif mapper_evolution_force='1' and A=x"8C" then
-					D_out <= evolution_reg8c;
-				elsif mapper_evolution_force='1' and A=x"63" then
-					D_out <= evolution_reg63;
-				elsif mapper_evolution_force='1' and A=x"88" then
-					D_out <= evolution_reg88;
-				elsif mapper_evolution_force='1' and A=x"8D" then
-					D_out <= evolution_reg8d;
-				elsif mapper_evolution_force='1' and A=x"8E" then
-					D_out <= evolution_reg8e;
-				elsif mapper_evolution_force='1' and A=x"8F" then
-					D_out <= evolution_reg8f;
-				elsif mapper_evolution_force='1' and A=x"CD" then
-					D_out <= evolution_regcd;
-				elsif A(7)='0' then -- implies gg='1'
+				if A(7)='0' then -- implies gg='1'
 					case A(2 downto 0) is
 						when "000" =>
 							D_out(7) <= Pause;
@@ -597,6 +577,27 @@ begin
 					end case;
 				elsif sg_mode='1' and sk1100_active='0' and (A = x"DE" or A = x"DF") then
 					D_out <= x"FF";
+				elsif mapper_evolution_force='1' and A=x"61" then
+					-- The launcher treats the Evolution page registers as readable.
+					D_out <= evolution_bank61;
+				elsif mapper_evolution_force='1' and A=x"62" then
+					D_out <= evolution_bank62;
+				elsif mapper_evolution_force='1' and A=x"8C" then
+					D_out <= evolution_reg8c;
+				elsif mapper_evolution_force='1' and A=x"63" then
+					D_out <= evolution_reg63;
+				elsif mapper_evolution_force='1' and A=x"88" then
+					D_out <= evolution_reg88;
+				elsif mapper_evolution_force='1' and A=x"8D" then
+					D_out <= evolution_reg8d;
+				elsif mapper_evolution_force='1' and A=x"8E" then
+					D_out <= evolution_reg8e;
+				elsif mapper_evolution_force='1' and A=x"8F" then
+					D_out <= evolution_reg8f;
+				elsif mapper_evolution_force='1' and A=x"CD" then
+					-- Writable Noza state/counter register used by the menu music
+					-- sequencer and the patched return-to-menu handler.
+					D_out <= evolution_regcd;
 				elsif A(0)='0' then
 					D_out(7) <= J2_down;
 					D_out(6) <= J2_up;
