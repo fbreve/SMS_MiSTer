@@ -533,6 +533,7 @@ begin
 		cpu_a      => A,
 		mreq_n     => MREQ_n,
 		iorq_n     => IORQ_n,
+		rd_n       => RD_n,
 		wr_n       => WR_n,
 		d_in       => D_in,
 		m1_n       => M1_n,
@@ -1004,6 +1005,8 @@ port map(
 		x"E100" when x"A100", -- Arqueiro
 		x"E000" when x"A000", -- Domine o Territorio
 		x"E540" when x"A540", -- Cava Cava
+		x"A000" when x"8000", -- Satellite 7
+		x"A880" when x"8800", -- Scramble Spirits
 		(evolution_game_bank62(7) &
 		 not (evolution_game_bank61(7) xor evolution_game_bank62(6)) &
 		 (evolution_game_bank61(6) xor evolution_game_bank61(7) xor

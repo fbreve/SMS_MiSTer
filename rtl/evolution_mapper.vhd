@@ -24,6 +24,7 @@ entity evolution_mapper is
         cpu_a      : in  std_logic_vector(15 downto 0);
         mreq_n     : in  std_logic;
         iorq_n     : in  std_logic;
+        rd_n       : in  std_logic;
         wr_n       : in  std_logic;
         d_in       : in  std_logic_vector(7 downto 0);
         m1_n       : in  std_logic;
@@ -162,8 +163,10 @@ begin
                     end if;
                 end if;
 
+				-- RD_n excludes the refresh cycle that immediately follows the
+				-- opcode fetch; that cycle also asserts MREQ_n but does not read DE.
 				if record_read_pending_r = '1' and mreq_n = '0' and
-				   m1_n = '1' and wr_n = '1' then
+				   m1_n = '1' and rd_n = '0' then
 					launch_fetch_addr_r <= cpu_a;
 					record_read_pending_r <= '0';
 				end if;
