@@ -1761,13 +1761,15 @@ port map(
 	-- Evolution uses otherwise mapper-specific snapshot fields to retain the
 	-- outer flash latches. Besides making Evolution states self-describing,
 	-- this exposes the exact launcher-selected page for mapper diagnostics:
-	-- Evolution diagnostic layout: five frozen 12-bit page/control events,
-	-- oldest to newest, right-aligned. Routine $8C/$88 writes are excluded.
+	-- Evolution diagnostic layout: [63:48] selected menu record + 2 address,
+	-- [47:0] last four frozen 12-bit launch events, oldest to newest.
+	-- Routine $8C/$88 writes are excluded.
 	-- Each event is {code[3:0], data[7:0]}:
 	-- 1=$61, 2=$62, 3=$3FFE, 4=$8C, 5=$88, 6=$63, 7=$8D,
 	-- 8=$8E, 9=$8F, A=$CD. The trace freezes on the first $3FFE=$87.
 	mapper_out(63 downto 8) <=
-	              evolution_launch_trace(63 downto 8) when mapper_evolution_force = '1' else
+	              evolution_launch_fetch_addr & evolution_launch_trace(47 downto 8)
+	              when mapper_evolution_force = '1' else
 	              detect_linear & detect_wonderkid & detect_castle & mapper_codies_lock &
 	              lock_mapper_B & mapper_codies & mapper_4pak & mapper_msx &
 	              detect_zemina_static & bootloader_n & nvram_cme & nvram_p & nvram_ex & nvram_e &

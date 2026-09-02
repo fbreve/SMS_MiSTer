@@ -77,6 +77,7 @@ architecture rtl of evolution_mapper is
     signal trace_last_event_r : std_logic_vector(11 downto 0) := (others => '0');
     signal trace_io_code   : std_logic_vector(3 downto 0);
     signal launch_fetch_addr_r : std_logic_vector(15 downto 0) := (others => '0');
+    signal record_read_pending_r : std_logic := '0';
 begin
 
     with cpu_a(7 downto 0) select trace_io_code <=
@@ -117,12 +118,20 @@ begin
                 trace_frozen_r  <= '0';
                 trace_last_event_r <= (others => '0');
                 launch_fetch_addr_r <= (others => '0');
+                record_read_pending_r <= '0';
             elsif enable = '1' then
                 old_m1_n <= m1_n;
 
                 -- Delayed mode switch state machine:
                 -- Detect falling edge of M1_n (start of opcode fetch)
                 if old_m1_n = '1' and m1_n = '0' then
+                    -- The menu launch routine fetches LD A,(DE) at $1380;
+                    -- its following data cycle reads selected_record + 2.
+                    -- Capture that address so colliding $61/$62 launch values
+                    -- can be traced back to distinct menu records.
+                    if cpu_a = x"1380" then
+                        record_read_pending_r <= '1';
+                    end if;
                     if switch_armed = '1' then
                         -- Do not infer a bit-field from the two commands seen in
                         -- the dumped software. Unknown writes leave the view alone.
@@ -138,7 +147,6 @@ begin
                                game_started = '0' then
                                 game_started  <= '1';
                                 game_launch_r <= '1';
-                                launch_fetch_addr_r <= cpu_a;
                             end if;
                             if reg3ffe_pending = x"87" or reg3ffe_pending = x"97" then
                                 prev_game_bank61_r <= prior_candidate_bank61_r;
@@ -153,6 +161,12 @@ begin
                         switch_armed   <= '1';
                     end if;
                 end if;
+
+				if record_read_pending_r = '1' and mreq_n = '0' and
+				   m1_n = '1' and wr_n = '1' then
+					launch_fetch_addr_r <= cpu_a;
+					record_read_pending_r <= '0';
+				end if;
 
                 -- Port $61 / $62 I/O writes
                 if wr_n = '0' and iorq_n = '0' then
