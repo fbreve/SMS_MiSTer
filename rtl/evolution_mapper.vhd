@@ -80,8 +80,8 @@ architecture rtl of evolution_mapper is
 begin
 
     with cpu_a(7 downto 0) select trace_io_code <=
-        x"1" when x"61", x"2" when x"62", x"4" when x"8C",
-        x"5" when x"88", x"6" when x"63", x"7" when x"8D",
+        x"1" when x"61", x"2" when x"62",
+        x"6" when x"63", x"7" when x"8D",
         x"8" when x"8E", x"9" when x"8F", x"A" when x"CD",
         x"0" when others;
 
