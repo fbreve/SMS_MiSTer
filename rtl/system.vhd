@@ -326,6 +326,7 @@ architecture Behavioral of system is
 	signal TH_Bin:				std_logic;
 	signal sc_multicart_page:	std_logic_vector(6 downto 0);
 	signal io_cycle:			std_logic;
+	signal evolution_io_port:	std_logic;
 	signal io_upper_port:		std_logic;
 	signal io_sms_port:			std_logic;
 	signal io_gg_port:			std_logic;
@@ -896,6 +897,16 @@ port map(
 	ce_z80 <= '0' when se_pause='1' else
 	          ce_pix when (systeme = '1' or turbo='1') else ce_cpu;
 	io_cycle <= '1' when IORQ_n='0' and M1_n='1' else '0';
+	-- Noza registers overlap the standard PSG/VDP I/O ranges. Decode them
+	-- first so page/control traffic cannot write sound or VRAM accidentally.
+	evolution_io_port <= '1' when mapper_evolution_force='1' and
+		(A(7 downto 0)=x"61" or A(7 downto 0)=x"62" or A(7 downto 0)=x"63" or
+		 A(7 downto 0)=x"88" or A(7 downto 0)=x"89" or
+		 A(7 downto 0)=x"8C" or A(7 downto 0)=x"8D" or
+		 A(7 downto 0)=x"8E" or A(7 downto 0)=x"8F" or
+		 A(7 downto 0)=x"A0" or A(7 downto 0)=x"C8" or
+		 A(7 downto 0)=x"CA" or A(7 downto 0)=x"CB" or
+		 A(7 downto 0)=x"CD" or A(7 downto 0)=x"CE") else '0';
 	z80_m1_n   <= M1_n;
 	z80_mreq_n <= MREQ_n;
 	z80_iset   <= z80_iset_int;
@@ -958,58 +969,12 @@ port map(
 		q			=> boot_rom_D_out
 	);
 
-	-- Temporary diagnostic aliases confirmed by the physical dump/savestates.
-	-- These are not intended to become a permanent per-game database: once
-	-- all outer Flash address/control lines are understood, replace this table
-	-- with the equivalent mapper equation.
+	-- The menu computes the selected game's byte address directly: $61 holds
+	-- A[15:8] and $62 holds A[23:16]. Earlier aliases compensated for $62
+	-- reads accidentally coming from the VDP and must not be applied here.
 	evolution_game_select <= evolution_game_bank62 & evolution_game_bank61;
-	-- Some patched interrupt handlers restore a selector with A21 asserted.
-	-- Preserve the immediately preceding distinct launch page for the two
-	-- confirmed collisions; standalone launches of the upper pages are intact.
-	evolution_effective_game_select <=
-		x"2800" when evolution_game_select = x"4800" and evolution_3ffe = x"97" else
-		x"2C00" when evolution_game_select = x"4C00" and
-		                 (evolution_prev_game_bank62 & evolution_prev_game_bank61) = x"2C00" else
-		x"2800" when evolution_game_select = x"4800" and
-		                 (evolution_prev_game_bank62 & evolution_prev_game_bank61) = x"2800" else
-		evolution_game_select;
-	with evolution_effective_game_select select evolution_game_page <=
-		x"0180" when x"2180", -- timeout demo cycle: Color and Switch Test
-		x"01C0" when x"21C0", -- timeout demo cycle: Sonic
-		x"1040" when x"3040", -- Bonanza Bros.
-		x"1640" when x"5640", -- Alex Kidd in Miracle World
-		x"1C40" when x"5C40", -- Action Fighter
-		x"2000" when x"4000", -- Aerial Assault
-		x"2400" when x"2400", -- Alex Kidd: The Lost Stars
-		x"2800" when x"2800", -- Alex Kidd in Shinobi World
-		x"2C00" when x"2C00", -- Alex Kidd High Tech World
-		x"3200" when x"3200", -- Aztec Adventure
-		x"3400" when x"5400", -- Baku Baku Animal
-		x"3800" when x"5800", -- Battle Out Run
-		x"4200" when x"4200", -- Bubble Bobble
-		x"4600" when x"4600", -- Taito Chase H.Q.
-		x"4800" when x"4800", -- Cyber Shinobi
-		x"4800" when x"6800", -- Cyber Shinobi launch selector
-		x"4C00" when x"4C00", -- Dragon Crystal
-		x"4E00" when x"4E00", -- Double Target
-		x"5000" when x"5000", -- Enduro Racer
-		x"5200" when x"5200", -- ESWAT
-		x"0DC0" when x"4DC0", -- Columns
-		x"CF80" when x"8F80", -- Dr. Limpeza
-		x"B980" when x"9980", -- Bank Panic
-		x"D440" when x"9440", -- Aquaduto
-		x"D540" when x"9540", -- Bombeiros
-		x"DCC0" when x"BCC0", -- Bolas e Cores
-		x"DE00" when x"BE00", -- Acerte o Alvo
-		x"E100" when x"A100", -- Arqueiro
-		x"E000" when x"A000", -- Domine o Territorio
-		x"E540" when x"A540", -- Cava Cava
-		(evolution_game_bank62(7) &
-		 not (evolution_game_bank61(7) xor evolution_game_bank62(6)) &
-		 (evolution_game_bank61(6) xor evolution_game_bank61(7) xor
-		  evolution_game_bank62(0) xor evolution_game_bank62(5) xor
-		  evolution_game_bank62(6) xor evolution_game_bank62(7)) &
-		 evolution_game_bank62(4 downto 0) & evolution_game_bank61) when others;
+	evolution_effective_game_select <= evolution_game_select;
+	evolution_game_page <= evolution_effective_game_select;
 
 	-- Drive the captured game base plus the cartridge-relative Sega address.
 	rom_a <= std_logic_vector(
@@ -1119,11 +1084,11 @@ port map(
 
 	-- glue logic
 	bal_WR_n <= WR_n when IORQ_n='0' and M1_n='1' and A(7 downto 0)="00000110" and gg='1' else '1';
-	vdp_WR_n <= WR_n when IORQ_n='0' and M1_n='1' and A(7 downto 6)="10" and (A(2)='0' or systeme='0') else '1';
+	vdp_WR_n <= WR_n when IORQ_n='0' and M1_n='1' and evolution_io_port='0' and A(7 downto 6)="10" and (A(2)='0' or systeme='0') else '1';
 	vdp2_WR_n <= WR_n when IORQ_n='0' and M1_n='1' and A(7 downto 6)="10" and (A(2)='1' and systeme='1')  else '1';
-	vdp_RD_n <= RD_n when IORQ_n='0' and M1_n='1' and (A(7 downto 6)="01" or A(7 downto 6)="10") and (A(2)='0' or systeme='0') else '1';
+	vdp_RD_n <= RD_n when IORQ_n='0' and M1_n='1' and evolution_io_port='0' and (A(7 downto 6)="01" or A(7 downto 6)="10") and (A(2)='0' or systeme='0') else '1';
 	vdp2_RD_n <= RD_n when IORQ_n='0' and M1_n='1' and (A(7 downto 6)="01" or A(7 downto 6)="10") and (A(2)='1' and systeme='1') else '1';
-	psg_WR_n <= WR_n when IORQ_n='0' and M1_n='1' and A(7 downto 6)="01" and (A(2)='0' or systeme='0') else '1';
+	psg_WR_n <= WR_n when IORQ_n='0' and M1_n='1' and evolution_io_port='0' and A(7 downto 6)="01" and (A(2)='0' or systeme='0') else '1';
 	psg2_WR_n <= WR_n when IORQ_n='0' and M1_n='1' and A(7 downto 6)="01" and (A(2)='1' and systeme='1') else '1';
 	ctl_WR_n <=	WR_n when IORQ_n='0' and M1_n='1' and A(7 downto 6)="00" and A(0)='0' else '1';
 	io_WR_n  <=	WR_n when io_cycle='1' and
@@ -1139,7 +1104,8 @@ port map(
 		(
 			(io_upper_port='1' and io_sc_mode='0') or
 			io_sc_ppi_port='1' or
-			io_gg_port='1'
+			io_gg_port='1' or
+			evolution_io_port='1'
 		)
 	else '1';
 	fm_WR_n  <= WR_n when IORQ_n='0' and M1_n='1' and A(7 downto 1)="1111000" and mapper_evolution_force='0' else '1';
@@ -1243,11 +1209,13 @@ port map(
 		process (IORQ_n,A,vdp_D_out,vdp2_D_out,io_D_out,irom_D_out,ram_D_out,nvram_D_out,
 					nvram_ex,nvram_e,nvram_cme,gg,det_D,fm_ena,bootloader_n,systeme,io_upper_port,io_gg_data_port,
 					sc_cart_ram_rd,sc_multicart_open,mapper_dahjee_a,
-					mapper_eeprom,eeprom_enabled,eeprom_D_out,eeprom_bus_active,MREQ_n)
+					mapper_eeprom,eeprom_enabled,eeprom_D_out,eeprom_bus_active,MREQ_n,evolution_io_port)
 	begin
 		if IORQ_n='0' then
 			if A(7 downto 0)=x"F2" and fm_ena = '1' and systeme='0' and mapper_evolution_force='0' then
 				D_out <= "11111"&det_D;
+			elsif evolution_io_port='1' then
+				D_out <= io_D_out;
 			elsif io_upper_port='1' or io_gg_data_port='1' then
 				D_out(6 downto 0) <= io_D_out(6 downto 0);
 				-- during bootload, we trick the io ports so bit 7 indicates gg or sms game
