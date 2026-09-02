@@ -79,6 +79,7 @@ architecture rtl of evolution_mapper is
     signal trace_io_code   : std_logic_vector(3 downto 0);
     signal launch_fetch_addr_r : std_logic_vector(15 downto 0) := (others => '0');
     signal record_read_pending_r : std_logic := '0';
+    signal menu_launch_armed_r : std_logic := '0';
 begin
 
     with cpu_a(7 downto 0) select trace_io_code <=
@@ -120,6 +121,7 @@ begin
                 trace_last_event_r <= (others => '0');
                 launch_fetch_addr_r <= (others => '0');
                 record_read_pending_r <= '0';
+                menu_launch_armed_r <= '0';
             elsif enable = '1' then
                 old_m1_n <= m1_n;
 
@@ -145,9 +147,10 @@ begin
                             -- Patched games also issue $85/$87 pairs from their
                             -- VBlank hook; the unchanged base keeps those harmless.
                             if (reg3ffe_pending = x"87" or reg3ffe_pending = x"97") and
-                               game_started = '0' then
+                               (game_started = '0' or menu_launch_armed_r = '1') then
                                 game_started  <= '1';
                                 game_launch_r <= '1';
+                                menu_launch_armed_r <= '0';
                             end if;
                             if reg3ffe_pending = x"87" or reg3ffe_pending = x"97" then
                                 prev_game_bank61_r <= prior_candidate_bank61_r;
@@ -169,6 +172,7 @@ begin
 				   m1_n = '1' and rd_n = '0' then
 					launch_fetch_addr_r <= cpu_a;
 					record_read_pending_r <= '0';
+					menu_launch_armed_r <= '1';
 				end if;
 
                 -- Port $61 / $62 I/O writes
