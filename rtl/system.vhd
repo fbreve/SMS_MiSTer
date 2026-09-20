@@ -1105,8 +1105,11 @@ port map(
 	                              evolution_63 = x"18" else '0';
 	-- Menu/service space also uses the clone VDP's 12-bit CRAM, but retains
 	-- Evolution/SMS controller I/O. Keep the two hardware modes independent.
+	-- The Evolution mapper is detected from the cartridge CRC before an SMS
+	-- BIOS hands execution to the cartridge. Do not apply the clone CRAM mode
+	-- to that BIOS while $3FFE still contains its reset value ($00).
 	effective_vdp_gg <= gg or evolution_gg_mode or
-	                    (mapper_evolution and not evolution_3ffe(1));
+	                    (mapper_evolution and bootloader_n and not evolution_3ffe(1));
 	effective_gg <= gg or evolution_gg_mode;
 	evolution_gg_active <= evolution_gg_mode;
 	-- Some patched interrupt handlers restore a selector with A21 asserted.
