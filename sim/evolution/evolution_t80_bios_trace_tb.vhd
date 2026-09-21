@@ -75,6 +75,7 @@ architecture tb of evolution_t80_bios_trace_tb is
   signal evolution_launch_count : natural := 0;
   signal post_launch_3e_count : natural := 0;
   signal first_post_launch_3e_seen : std_logic := '0';
+  signal first_game_fetch_seen : std_logic := '0';
   signal last_boot : std_logic := '0';
   signal direct_shinobi : std_logic := '0';
   signal forced_launch_addr : std_logic_vector(15 downto 0) := (others=>'0');
@@ -194,6 +195,7 @@ begin
         evolution_launch_count <= 0;
         post_launch_3e_count <= 0;
         first_post_launch_3e_seen <= '0';
+        first_game_fetch_seen <= '0';
       else
         cycles <= cycles+1;
 
@@ -243,6 +245,26 @@ begin
         if bootloader_n='0' and last_boot='0' and iorq_n='0' and wr_n='0' and
            a(7 downto 0)=x"3E" and dout(3)='1' then
           bank0<=x"00"; bank1<=x"01"; bank2<=x"02";
+        end if;
+
+        -- Snapshot the first opcode fetch from Shinobi itself. This is
+        -- earlier than its first OUT $3E and tells us whether the two paths
+        -- already enter the game with different inherited machine state.
+        if first_game_fetch_seen='0' and cart_memory_selected='1' and
+           m1_n='0' and mreq_n='0' and rd_n='0' and
+           ((direct_shinobi='1' and a=x"0000") or
+            (direct_shinobi='0' and forced_launch_addr=x"1FF8" and
+             (evo_3ffe=x"87" or evo_3ffe=x"97" or evo_3ffe=x"C7"))) then
+          first_game_fetch_seen <= '1';
+          report "SHINOBI ENTRY SNAPSHOT mode="&START_MODE&
+                 " cpu_a="&hx(a)&" op="&hx(di)&
+                 " boot="&std_logic'image(bootloader_n)&
+                 " cartsel="&std_logic'image(cart_memory_selected)&
+                 " media="&hx(media_control)&
+                 " banks="&hx(bank0)&"/"&hx(bank1)&"/"&hx(bank2)&
+                 " evo_mode="&hx(evo_3ffe)&
+                 " evo61="&hx(evo_bank61)&" evo62="&hx(evo_bank62)&
+                 " record="&hx(forced_launch_addr) severity warning;
         end if;
 
         if evo_launch='1' then
