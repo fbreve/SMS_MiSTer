@@ -70,6 +70,9 @@ architecture tb of evolution_t80_bios_trace_tb is
   signal evo_launch : std_logic;
   signal evo_ss : std_logic_vector(159 downto 0);
   signal cycles : natural := 0;
+  signal cart_handoff_seen : std_logic := '0';
+  signal evolution_launch_count : natural := 0;
+  signal post_launch_3e_count : natural := 0;
   signal last_boot : std_logic := '0';
 
   function hx(v:std_logic_vector) return string is
@@ -153,6 +156,9 @@ begin
         media_control <= "111";
         last_boot <= '0';
         cycles <= 0;
+        cart_handoff_seen <= '0';
+        evolution_launch_count <= 0;
+        post_launch_3e_count <= 0;
       else
         cycles <= cycles+1;
 
@@ -161,7 +167,14 @@ begin
           bootloader_n <= dout(3);
           media_control <= dout(7 downto 5);
           report "OUT 3E="&hx(dout)&" PC="&hx(regs(45 downto 30))&
-                 " boot->"&std_logic'image(dout(3))&" media="&hx(dout(7 downto 5));
+                 " boot->"&std_logic'image(dout(3))&" media="&hx(dout(7 downto 5))&
+                 " launches="&integer'image(evolution_launch_count);
+          if cart_handoff_seen='1' and evolution_launch_count>0 then
+            post_launch_3e_count <= post_launch_3e_count+1;
+            report "POST-LAUNCH $3E write #"&integer'image(post_launch_3e_count+1)&
+                   " value="&hx(dout)&" PC="&hx(regs(45 downto 30)) severity warning;
+          end if;
+          if dout(3)='1' then cart_handoff_seen <= '1'; end if;
         end if;
 
         -- Standard Sega mapper writes. The real core resets these banks to
@@ -178,7 +191,9 @@ begin
         end if;
 
         if evo_launch='1' then
-          report "EVO LAUNCH record="&hx(evo_launch_addr)&
+          evolution_launch_count <= evolution_launch_count+1;
+          report "EVO LAUNCH #"&integer'image(evolution_launch_count+1)&
+                 " record="&hx(evo_launch_addr)&
                  " sel="&hx(evo_game62&evo_game61)&" mode="&hx(evo_3ffe);
         end if;
         if mreq_n='0' and wr_n='0' and a=x"3FFE" then
