@@ -242,9 +242,12 @@ begin
           elsif a=x"FFFF" then bank2<=dout;
           end if;
         end if;
-        if bootloader_n='0' and last_boot='0' and iorq_n='0' and wr_n='0' and
-           a(7 downto 0)=x"3E" and dout(3)='1' then
+        -- mapper_ctrl.vhd resets Sega startup banks on the clock after
+        -- bootloader_n makes a 0->1 transition. Model that edge, rather than
+        -- keying the reset directly from the OUT $3E bus cycle.
+        if bootloader_n='1' and last_boot='0' then
           bank0<=x"00"; bank1<=x"01"; bank2<=x"02";
+          report "BIOS HANDOFF BANK RESET banks=00/01/02";
         end if;
 
         -- Snapshot the first opcode fetch from Shinobi itself. This is
