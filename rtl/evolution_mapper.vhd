@@ -169,10 +169,36 @@ begin
                 -- running, so without this guard BIOS I/O/memory activity can
                 -- pre-load Evolution registers before cartridge handoff.
                 if bios_active = '1' then
+                    -- A conventional external BIOS must not leave any
+                    -- Evolution-specific selection behind. Clear the complete
+                    -- transient/menu-facing mapper state while preserving the
+                    -- diagnostic trace storage and save-state interface.
+                    bank61_r <= (others => '0');
+                    bank62_r <= (others => '0');
+                    game_bank61_r <= (others => '0');
+                    game_bank62_r <= (others => '0');
+                    prev_game_bank61_r <= (others => '0');
+                    prev_game_bank62_r <= (others => '0');
+                    candidate_bank61_r <= (others => '0');
+                    candidate_bank62_r <= (others => '0');
+                    prior_candidate_bank61_r <= (others => '0');
+                    prior_candidate_bank62_r <= (others => '0');
+                    reg3ffe_r <= (others => '0');
+                    reg3ffe_pending <= (others => '0');
+                    reg8c_r <= (others => '0');
+                    regcd_r <= (others => '0');
+                    reg63_r <= (others => '0');
+                    reg88_r <= (others => '0');
+                    reg8d_r <= (others => '0');
+                    reg8e_r <= (others => '0');
+                    reg8f_r <= (others => '0');
                     switch_pending <= '0';
                     switch_armed <= '0';
+                    game_started <= '0';
                     record_read_pending_r <= '0';
                     menu_launch_armed_r <= '0';
+                    trace_frozen_r <= '0';
+                    trace_last_event_r <= (others => '0');
                 else
 
                 -- Delayed mode switch state machine:
