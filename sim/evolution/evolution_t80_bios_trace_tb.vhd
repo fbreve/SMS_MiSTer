@@ -63,6 +63,12 @@ architecture tb of evolution_t80_bios_trace_tb is
   signal bank0 : std_logic_vector(7 downto 0) := x"00";
   signal bank1 : std_logic_vector(7 downto 0) := x"01";
   signal bank2 : std_logic_vector(7 downto 0) := x"02";
+  signal evo_bank61,evo_bank62,evo_game61,evo_game62,evo_prev61,evo_prev62 : std_logic_vector(7 downto 0);
+  signal evo_3ffe,evo_8c,evo_cd,evo_63,evo_88,evo_8d,evo_8e,evo_8f : std_logic_vector(7 downto 0);
+  signal evo_trace : std_logic_vector(63 downto 0);
+  signal evo_launch_addr : std_logic_vector(15 downto 0);
+  signal evo_launch : std_logic;
+  signal evo_ss : std_logic_vector(159 downto 0);
   signal cycles : natural := 0;
   signal last_boot : std_logic := '0';
 
@@ -82,6 +88,17 @@ begin
       BUSRQ_n=>'1',M1_n=>m1_n,MREQ_n=>mreq_n,IORQ_n=>iorq_n,RD_n=>rd_n,WR_n=>wr_n,
       RFSH_n=>rfsh_n,HALT_n=>halt_n,BUSAK_n=>busak_n,A=>a,DI=>di,DO=>dout,
       REG=>regs,ISet_out=>iset);
+
+  evo: entity work.evolution_mapper
+    port map(clk=>clk, reset_n=>reset_n, enable=>'1', bios_active=>not bootloader_n,
+      cpu_a=>a, mreq_n=>mreq_n, iorq_n=>iorq_n, rd_n=>rd_n, wr_n=>wr_n,
+      d_in=>dout, m1_n=>m1_n, bank61=>evo_bank61, bank62=>evo_bank62,
+      game_bank61=>evo_game61, game_bank62=>evo_game62,
+      prev_game_bank61=>evo_prev61, prev_game_bank62=>evo_prev62,
+      reg3ffe=>evo_3ffe, reg8c=>evo_8c, regcd=>evo_cd, reg63=>evo_63,
+      reg88=>evo_88, reg8d=>evo_8d, reg8e=>evo_8e, reg8f=>evo_8f,
+      launch_trace=>evo_trace, launch_fetch_addr=>evo_launch_addr,
+      game_launch=>evo_launch, ss_out=>evo_ss);
 
   -- Exact external-SMS-BIOS cartridge visibility equations from system.vhd
   -- for this harness configuration: SMS, external BIOS present, dbr=1.
@@ -112,6 +129,15 @@ begin
           when "01" => ai := to_integer(unsigned(bank1 & a(13 downto 0)));
           when others => ai := to_integer(unsigned(bank2 & a(13 downto 0)));
         end case;
+        -- Selected-game bases observed in the deterministic attract sequence.
+        -- Menu/service view remains linear. Once $3FFE enters game view, use
+        -- the captured launch record as the authoritative base, matching
+        -- evolution_record_page() in system.vhd for Sonic and Shinobi.
+        if evo_3ffe=x"87" or evo_3ffe=x"97" or evo_3ffe=x"C7" then
+          if evo_launch_addr=x"1FE8" then ai := 16#01C000# + (ai mod 16#100000#);
+          elsif evo_launch_addr=x"1FF8" then ai := 16#05C000# + (ai mod 16#100000#);
+          end if;
+        end if;
         di <= flash(ai);
       end if;
     elsif iorq_n='0' and rd_n='0' then
@@ -149,6 +175,20 @@ begin
         if bootloader_n='0' and last_boot='0' and iorq_n='0' and wr_n='0' and
            a(7 downto 0)=x"3E" and dout(3)='1' then
           bank0<=x"00"; bank1<=x"01"; bank2<=x"02";
+        end if;
+
+        if evo_launch='1' then
+          report "EVO LAUNCH record="&hx(evo_launch_addr)&
+                 " sel="&hx(evo_game62&evo_game61)&" mode="&hx(evo_3ffe);
+        end if;
+        if mreq_n='0' and wr_n='0' and a=x"3FFE" then
+          report "EVO 3FFE="&hx(dout)&" PC="&hx(regs(45 downto 30))&
+                 " bios="&std_logic'image(not bootloader_n);
+        end if;
+        if iorq_n='0' and wr_n='0' and
+           (a(7 downto 0)=x"61" or a(7 downto 0)=x"62") then
+          report "EVO OUT "&hx(a(7 downto 0))&"="&hx(dout)&
+                 " PC="&hx(regs(45 downto 30));
         end if;
 
         if bootloader_n/=last_boot then
