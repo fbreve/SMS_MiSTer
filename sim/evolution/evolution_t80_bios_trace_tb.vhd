@@ -80,6 +80,7 @@ architecture tb of evolution_t80_bios_trace_tb is
   signal last_media_control : std_logic_vector(7 downto 5) := "111";
   signal last_cart_precedence : std_logic := '0';
   signal shinobi_3e04_seen : std_logic := '0';
+  constant DBR : std_logic := '1'; -- cartridge image is loaded in this harness
   signal last_boot : std_logic := '0';
   signal direct_shinobi : std_logic := '0';
   signal forced_launch_addr : std_logic_vector(15 downto 0) := (others=>'0');
@@ -130,10 +131,10 @@ begin
 
   -- Exact external-SMS-BIOS cartridge visibility equations from system.vhd
   -- for this harness configuration: SMS, external BIOS present, dbr=1.
-  cart_precedence <= '1' when bootloader_n='0' and media_control(6)='0' else '0';
+  cart_precedence <= '1' when DBR='1' and bootloader_n='0' and media_control(6)='0' else '0';
   cart_memory_selected <=
     '0' when bootloader_n='0' and cart_precedence='0' else
-    '0' when bootloader_n='1' and media_control(6)='1' else
+    '0' when bootloader_n='1' and (DBR='0' or media_control(6)='1') else
     '1';
 
   -- ROM/I/O mux with Sega 16 KiB banking. This mirrors the relevant source
@@ -245,13 +246,15 @@ begin
             shinobi_3e04_seen <= '1';
             report "SHINOBI $3E=$04 ARBITRATION EXPECTED next_boot=0 next_media=0 "&
                    "current_cartsel="&std_logic'image(cart_memory_selected)&
-                   " current_precedence="&std_logic'image(cart_precedence) severity warning;
+                   " current_precedence="&std_logic'image(cart_precedence)&
+                   " dbr="&std_logic'image(DBR) severity warning;
           elsif shinobi_3e04_seen='1' and dout=x"00" then
             report "SHINOBI $3E=$00 RESTORE current_boot="&
                    std_logic'image(bootloader_n)&
                    " current_cartsel="&std_logic'image(cart_memory_selected)&
                    " current_media="&hx(media_control)&
-                   " current_precedence="&std_logic'image(cart_precedence) severity warning;
+                   " current_precedence="&std_logic'image(cart_precedence)&
+                   " dbr="&std_logic'image(DBR) severity warning;
           end if;
         end if;
 
