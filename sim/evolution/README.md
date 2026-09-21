@@ -30,3 +30,28 @@ This is **not** yet a full ROM execution test. The next layer should instantiate
 the repository T80 and feed the exact external BIOS and Evolution flash images,
 while logging PC/M1/MREQ/IORQ, port $3E, media control, bootloader state and the
 selected instruction source. ROM images are intentionally not committed here.
+
+
+## evolution_t80_bios_trace_tb.vhd
+
+Second-stage harness using the repository's real T80. It loads the BIOS and
+16 MiB Evolution flash as simulation-time binary files and logs instruction
+fetches, writes to port $3E, BIOS/cart source changes, bootloader state and
+media-control bits.
+
+Run:
+
+```sh
+sh sim/evolution/run_t80_trace.sh "/path/to/HangOnBIOS.sms" "/path/to/MS132X1E.sms"
+```
+
+The peripheral side is intentionally stubbed and the first version maps the
+Evolution flash linearly. Therefore this stage is for validating the external
+BIOS handoff and finding the first point where richer cartridge/peripheral
+modelling becomes necessary. It must not be treated as proof that the full
+BIOS -> menu -> attract sequence is reproduced yet.
+
+The next increment, once the first trace is inspected, is to lift the exact
+`cart_precedence` / `cart_memory_selected` arbitration and Evolution launch
+page translation from `rtl/system.vhd` rather than guessing peripheral
+behaviour.
