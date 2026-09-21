@@ -59,6 +59,10 @@ architecture tb of evolution_t80_bios_trace_tb is
   signal iset : std_logic_vector(1 downto 0);
   signal bootloader_n : std_logic := '0';
   signal media_control : std_logic_vector(2 downto 0) := "111";
+  signal cart_precedence, cart_memory_selected : std_logic;
+  signal bank0 : std_logic_vector(7 downto 0) := x"00";
+  signal bank1 : std_logic_vector(7 downto 0) := x"01";
+  signal bank2 : std_logic_vector(7 downto 0) := x"02";
   signal cycles : natural := 0;
   signal last_boot : std_logic := '0';
 
@@ -79,19 +83,35 @@ begin
       RFSH_n=>rfsh_n,HALT_n=>halt_n,BUSAK_n=>busak_n,A=>a,DI=>di,DO=>dout,
       REG=>regs,ISet_out=>iset);
 
-  -- Minimal ROM/I/O mux. BIOS is full-size external SPRAM in the real core.
+  -- Exact external-SMS-BIOS cartridge visibility equations from system.vhd
+  -- for this harness configuration: SMS, external BIOS present, dbr=1.
+  cart_precedence <= '1' when bootloader_n='0' and media_control(6)='0' else '0';
+  cart_memory_selected <=
+    '0' when bootloader_n='0' and cart_precedence='0' else
+    '0' when bootloader_n='1' and media_control(6)='1' else
+    '1';
+
+  -- ROM/I/O mux with Sega 16 KiB banking. This mirrors the relevant source
+  -- selection instead of assuming bootloader_n alone chooses BIOS vs cart.
   process(all)
     variable ai : natural;
   begin
     di <= x"FF";
     ai := to_integer(unsigned(a));
     if mreq_n='0' and rd_n='0' then
-      if bootloader_n='0' then
+      if cart_memory_selected='0' then
         di <= bios(ai mod bios'length);
       else
-        -- Before Evolution game selection this is enough to execute the menu
-        -- at the base of the full flash image. Mapper/game-page modelling is
-        -- deliberately the next increment after BIOS handoff is established.
+        case a(15 downto 14) is
+          when "00" =>
+            if a(13 downto 10)="0000" then
+              ai := to_integer(unsigned(a));
+            else
+              ai := to_integer(unsigned(bank0 & a(13 downto 0)));
+            end if;
+          when "01" => ai := to_integer(unsigned(bank1 & a(13 downto 0)));
+          when others => ai := to_integer(unsigned(bank2 & a(13 downto 0)));
+        end case;
         di <= flash(ai);
       end if;
     elsif iorq_n='0' and rd_n='0' then
@@ -118,6 +138,19 @@ begin
                  " boot->"&std_logic'image(dout(3))&" media="&hx(dout(7 downto 5));
         end if;
 
+        -- Standard Sega mapper writes. The real core resets these banks to
+        -- 0/1/2 on a BIOS 0->1 handoff; model that below as well.
+        if mreq_n='0' and wr_n='0' then
+          if a=x"FFFD" then bank0<=dout;
+          elsif a=x"FFFE" then bank1<=dout;
+          elsif a=x"FFFF" then bank2<=dout;
+          end if;
+        end if;
+        if bootloader_n='0' and last_boot='0' and iorq_n='0' and wr_n='0' and
+           a(7 downto 0)=x"3E" and dout(3)='1' then
+          bank0<=x"00"; bank1<=x"01"; bank2<=x"02";
+        end if;
+
         if bootloader_n/=last_boot then
           report "SOURCE "&("CART" when bootloader_n='1' else "BIOS")&
                  " PC="&hx(regs(45 downto 30));
@@ -126,7 +159,10 @@ begin
 
         if m1_n='0' and mreq_n='0' and rd_n='0' then
           report "M1 PC="&hx(a)&" OP="&hx(di)&" SRC="&
-                 ("CART" when bootloader_n='1' else "BIOS");
+                 ("CART" when cart_memory_selected='1' else "BIOS")&
+                 " boot="&std_logic'image(bootloader_n)&
+                 " cartsel="&std_logic'image(cart_memory_selected)&
+                 " media="&hx(media_control);
         end if;
 
         if cycles>=MAX_CYCLES then
