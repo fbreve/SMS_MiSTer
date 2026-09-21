@@ -164,6 +164,17 @@ begin
             elsif enable = '1' then
                 old_m1_n <= m1_n;
 
+                -- External SMS BIOS execution is not Evolution mapper traffic.
+                -- The Evolution cartridge is already detected while the BIOS is
+                -- running, so without this guard BIOS I/O/memory activity can
+                -- pre-load Evolution registers before cartridge handoff.
+                if bios_active = '1' then
+                    switch_pending <= '0';
+                    switch_armed <= '0';
+                    record_read_pending_r <= '0';
+                    menu_launch_armed_r <= '0';
+                else
+
                 -- Delayed mode switch state machine:
                 -- Detect falling edge of M1_n (start of opcode fetch)
                 if old_m1_n = '1' and m1_n = '0' then
@@ -271,6 +282,7 @@ begin
                         end if;
                     end if;
                 end if;
+                end if; -- bios_active
             end if;
         end if;
     end process;
