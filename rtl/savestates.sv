@@ -579,7 +579,7 @@ always @(posedge clk or negedge reset_n) begin
             if (!DDRAM_BUSY) begin
                 mapper_in  <= mapper_snap;
                 mapper_set <= 1;
-                evolution_in  <= evolution_snap;
+                evolution_in  <= evolution_snap[95:0];
                 evolution_set <= 1;
                 eeprom_in  <= eeprom_snap;
                 eeprom_set <= 1;
