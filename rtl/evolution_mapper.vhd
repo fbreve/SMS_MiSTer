@@ -179,6 +179,13 @@ begin
                     if cpu_a = x"1380" and
                        reg3ffe_r /= x"87" and reg3ffe_r /= x"97" and
                        reg3ffe_r /= x"C7" then
+                        -- A new menu launch attempt starts here. Re-arm the
+                        -- diagnostic trace so attract-mode launches after the
+                        -- first game do not retain the previous game's frozen
+                        -- $87/$97/$C7 trace.
+                        launch_trace_r <= (others => '0');
+                        trace_frozen_r <= '0';
+                        trace_last_event_r <= (others => '0');
                         record_read_pending_r <= '1';
                     end if;
                     if switch_armed = '1' then
