@@ -74,6 +74,7 @@ architecture tb of evolution_t80_bios_trace_tb is
   signal cart_handoff_seen : std_logic := '0';
   signal evolution_launch_count : natural := 0;
   signal post_launch_3e_count : natural := 0;
+  signal first_post_launch_3e_seen : std_logic := '0';
   signal last_boot : std_logic := '0';
   signal direct_shinobi : std_logic := '0';
   signal forced_launch_addr : std_logic_vector(15 downto 0) := (others=>'0');
@@ -192,6 +193,7 @@ begin
         cart_handoff_seen <= '0';
         evolution_launch_count <= 0;
         post_launch_3e_count <= 0;
+        first_post_launch_3e_seen <= '0';
       else
         cycles <= cycles+1;
 
@@ -202,10 +204,30 @@ begin
           report "OUT 3E="&hx(dout)&" PC="&hx(a)&
                  " boot->"&std_logic'image(dout(3))&" media="&hx(dout(7 downto 5))&
                  " launches="&integer'image(evolution_launch_count);
-          if cart_handoff_seen='1' and evolution_launch_count>0 then
+          if cart_handoff_seen='1' and
+             (evolution_launch_count>0 or direct_shinobi='1') then
             post_launch_3e_count <= post_launch_3e_count+1;
             report "POST-LAUNCH $3E write #"&integer'image(post_launch_3e_count+1)&
-                   " value="&hx(dout)&" PC="&hx(a) severity warning;
+                   " value="&hx(dout)&" A="&hx(a)&
+                   " boot_before="&std_logic'image(bootloader_n)&
+                   " cartsel_before="&std_logic'image(cart_memory_selected)&
+                   " media_before="&hx(media_control)&
+                   " banks="&hx(bank0)&"/"&hx(bank1)&"/"&hx(bank2)&
+                   " evo_mode="&hx(evo_3ffe)&
+                   " evo_sel="&hx(evo_game62&evo_game61)&
+                   " record="&hx(forced_launch_addr) severity warning;
+            if first_post_launch_3e_seen='0' then
+              first_post_launch_3e_seen <= '1';
+              report "FIRST POST-LAUNCH $3E SNAPSHOT mode="&START_MODE&
+                     " value="&hx(dout)&
+                     " boot_before="&std_logic'image(bootloader_n)&
+                     " cartsel_before="&std_logic'image(cart_memory_selected)&
+                     " media_before="&hx(media_control)&
+                     " banks="&hx(bank0)&"/"&hx(bank1)&"/"&hx(bank2)&
+                     " evo_mode="&hx(evo_3ffe)&
+                     " evo61="&hx(evo_bank61)&" evo62="&hx(evo_bank62)&
+                     " record="&hx(forced_launch_addr) severity warning;
+            end if;
           end if;
           if dout(3)='1' then cart_handoff_seen <= '1'; end if;
         end if;
