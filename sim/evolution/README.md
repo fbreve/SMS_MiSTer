@@ -55,3 +55,21 @@ The next increment, once the first trace is inspected, is to lift the exact
 `cart_precedence` / `cart_memory_selected` arbitration and Evolution launch
 page translation from `rtl/system.vhd` rather than guessing peripheral
 behaviour.
+
+
+### Direct Shinobi control
+
+The T80 harness has two start modes. The default `BIOS_EVOLUTION` follows the
+external BIOS into the Evolution flash. `DIRECT_SHINOBI` is a control path:
+after the same BIOS arbitration, cartridge reads are translated directly to
+Shinobi's physical base at `$05C000`, bypassing Evolution menu/attract state.
+
+```sh
+sim/evolution/run_t80_trace.sh hangon_bios.bin MS132X1E.sms 2000000 BIOS_EVOLUTION
+sim/evolution/run_t80_trace.sh hangon_bios.bin MS132X1E.sms 2000000 DIRECT_SHINOBI
+```
+
+Compare the first post-launch `OUT $3E` writes, `media_control`,
+`bootloader_n`, cartridge selection, and Sega banks between the two traces.
+The harness intentionally uses the CPU address bus for reported fetch/write
+addresses rather than depending on the T80 debug REG vector layout.
