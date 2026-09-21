@@ -15,7 +15,8 @@ entity evolution_t80_bios_trace_tb is
   generic (
     BIOS_FILE  : string := "hangon_bios.bin";
     FLASH_FILE : string := "MS132X1E.sms";
-    MAX_CYCLES : natural := 2000000
+    MAX_CYCLES : natural := 2000000;
+    START_MODE : string := "BIOS_EVOLUTION" -- or DIRECT_SHINOBI
   );
 end entity;
 
@@ -74,6 +75,8 @@ architecture tb of evolution_t80_bios_trace_tb is
   signal evolution_launch_count : natural := 0;
   signal post_launch_3e_count : natural := 0;
   signal last_boot : std_logic := '0';
+  signal direct_shinobi : std_logic := '0';
+  signal forced_launch_addr : std_logic_vector(15 downto 0) := (others=>'0');
 
   function hx(v:std_logic_vector) return string is
     constant h:string:="0123456789ABCDEF"; variable s:string(1 to (v'length+3)/4);
@@ -83,6 +86,8 @@ architecture tb of evolution_t80_bios_trace_tb is
     return s;
   end;
 begin
+  direct_shinobi <= '1' when START_MODE="DIRECT_SHINOBI" else '0';
+  forced_launch_addr <= x"1FF8" when direct_shinobi='1' else evo_launch_addr;
   clk <= not clk after 10 ns;
 
   cpu: entity work.T80s
@@ -137,8 +142,8 @@ begin
         -- the captured launch record as the authoritative base, matching
         -- evolution_record_page() in system.vhd for Sonic and Shinobi.
         if evo_3ffe=x"87" or evo_3ffe=x"97" or evo_3ffe=x"C7" then
-          if evo_launch_addr=x"1FE8" then ai := 16#01C000# + (ai mod 16#100000#);
-          elsif evo_launch_addr=x"1FF8" then ai := 16#05C000# + (ai mod 16#100000#);
+          if forced_launch_addr=x"1FE8" then ai := 16#01C000# + (ai mod 16#100000#);
+          elsif forced_launch_addr=x"1FF8" then ai := 16#05C000# + (ai mod 16#100000#);
           end if;
         end if;
         di <= flash(ai);
@@ -152,8 +157,15 @@ begin
   begin
     if rising_edge(clk) then
       if reset_n='0' then
-        bootloader_n <= '0';
-        media_control <= "111";
+        if START_MODE="DIRECT_SHINOBI" then
+          -- Control experiment: conventional BIOS hands off directly to a
+          -- Shinobi cartridge image, bypassing Evolution menu/attract state.
+          bootloader_n <= '0';
+          media_control <= "111";
+        else
+          bootloader_n <= '0';
+          media_control <= "111";
+        end if;
         last_boot <= '0';
         cycles <= 0;
         cart_handoff_seen <= '0';
