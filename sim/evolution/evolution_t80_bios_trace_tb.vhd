@@ -77,6 +77,8 @@ architecture tb of evolution_t80_bios_trace_tb is
   signal first_post_launch_3e_seen : std_logic := '0';
   signal first_game_fetch_seen : std_logic := '0';
   signal last_cart_selected : std_logic := '0';
+  signal last_media_control : std_logic_vector(7 downto 5) := "111";
+  signal last_cart_precedence : std_logic := '0';
   signal last_boot : std_logic := '0';
   signal direct_shinobi : std_logic := '0';
   signal forced_launch_addr : std_logic_vector(15 downto 0) := (others=>'0');
@@ -198,6 +200,8 @@ begin
         first_post_launch_3e_seen <= '0';
         first_game_fetch_seen <= '0';
         last_cart_selected <= '0';
+        last_media_control <= "111";
+        last_cart_precedence <= '0';
       else
         cycles <= cycles+1;
 
@@ -307,6 +311,23 @@ begin
                  " media="&hx(media_control)&
                  " precedence="&std_logic'image(cart_precedence);
           last_cart_selected <= cart_memory_selected;
+        end if;
+
+        if media_control/=last_media_control then
+          report "MEDIA CONTROL "&hx(last_media_control)&"->"&hx(media_control)&
+                 " A="&hx(a)&" boot="&std_logic'image(bootloader_n)&
+                 " cartsel="&std_logic'image(cart_memory_selected)&
+                 " precedence="&std_logic'image(cart_precedence);
+          last_media_control <= media_control;
+        end if;
+
+        if cart_precedence/=last_cart_precedence then
+          report "CART PRECEDENCE "&std_logic'image(last_cart_precedence)&"->"&
+                 std_logic'image(cart_precedence)&" A="&hx(a)&
+                 " boot="&std_logic'image(bootloader_n)&
+                 " media="&hx(media_control)&
+                 " cartsel="&std_logic'image(cart_memory_selected);
+          last_cart_precedence <= cart_precedence;
         end if;
 
         if m1_n='0' and mreq_n='0' and rd_n='0' then
