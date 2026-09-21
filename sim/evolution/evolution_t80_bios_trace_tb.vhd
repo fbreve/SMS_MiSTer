@@ -78,11 +78,25 @@ architecture tb of evolution_t80_bios_trace_tb is
   signal direct_shinobi : std_logic := '0';
   signal forced_launch_addr : std_logic_vector(15 downto 0) := (others=>'0');
 
-  function hx(v:std_logic_vector) return string is
-    constant h:string:="0123456789ABCDEF"; variable s:string(1 to (v'length+3)/4);
-    variable u:unsigned(v'length-1 downto 0):=unsigned(v);
+  function source_name(cart_selected : std_logic) return string is
   begin
-    for i in s'reverse_range loop s(i):=h(to_integer(u(3 downto 0))+1); u:=shift_right(u,4); end loop;
+    if cart_selected='1' then return "CART";
+    else return "BIOS";
+    end if;
+  end;
+
+  function hx(v:std_logic_vector) return string is
+    constant h : string := "0123456789ABCDEF";
+    constant digits : natural := (v'length+3)/4;
+    variable s : string(1 to digits);
+    variable padded : unsigned(digits*4-1 downto 0) := (others=>'0');
+    variable nibble : unsigned(3 downto 0);
+  begin
+    padded(v'length-1 downto 0) := unsigned(v);
+    for i in 0 to digits-1 loop
+      nibble := padded((digits-i)*4-1 downto (digits-i-1)*4);
+      s(i+1) := h(to_integer(nibble)+1);
+    end loop;
     return s;
   end;
 begin
@@ -185,13 +199,13 @@ begin
         if iorq_n='0' and wr_n='0' and a(7 downto 0)=x"3E" then
           bootloader_n <= dout(3);
           media_control <= dout(7 downto 5);
-          report "OUT 3E="&hx(dout)&" PC="&hx(regs(45 downto 30))&
+          report "OUT 3E="&hx(dout)&" PC="&hx(a)&
                  " boot->"&std_logic'image(dout(3))&" media="&hx(dout(7 downto 5))&
                  " launches="&integer'image(evolution_launch_count);
           if cart_handoff_seen='1' and evolution_launch_count>0 then
             post_launch_3e_count <= post_launch_3e_count+1;
             report "POST-LAUNCH $3E write #"&integer'image(post_launch_3e_count+1)&
-                   " value="&hx(dout)&" PC="&hx(regs(45 downto 30)) severity warning;
+                   " value="&hx(dout)&" PC="&hx(a) severity warning;
           end if;
           if dout(3)='1' then cart_handoff_seen <= '1'; end if;
         end if;
@@ -216,24 +230,23 @@ begin
                  " sel="&hx(evo_game62&evo_game61)&" mode="&hx(evo_3ffe);
         end if;
         if mreq_n='0' and wr_n='0' and a=x"3FFE" then
-          report "EVO 3FFE="&hx(dout)&" PC="&hx(regs(45 downto 30))&
+          report "EVO 3FFE="&hx(dout)&" PC="&hx(a)&
                  " bios="&std_logic'image(not bootloader_n);
         end if;
         if iorq_n='0' and wr_n='0' and
            (a(7 downto 0)=x"61" or a(7 downto 0)=x"62") then
           report "EVO OUT "&hx(a(7 downto 0))&"="&hx(dout)&
-                 " PC="&hx(regs(45 downto 30));
+                 " PC="&hx(a);
         end if;
 
         if bootloader_n/=last_boot then
-          report "SOURCE "&("CART" when bootloader_n='1' else "BIOS")&
-                 " PC="&hx(regs(45 downto 30));
+          report "SOURCE "&source_name(bootloader_n)&
+                 " PC="&hx(a);
           last_boot <= bootloader_n;
         end if;
 
         if m1_n='0' and mreq_n='0' and rd_n='0' then
-          report "M1 PC="&hx(a)&" OP="&hx(di)&" SRC="&
-                 ("CART" when cart_memory_selected='1' else "BIOS")&
+          report "M1 PC="&hx(a)&" OP="&hx(di)&" SRC="&source_name(cart_memory_selected)&
                  " boot="&std_logic'image(bootloader_n)&
                  " cartsel="&std_logic'image(cart_memory_selected)&
                  " media="&hx(media_control);
