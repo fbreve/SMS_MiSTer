@@ -124,24 +124,31 @@ begin
     di <= x"FF";
     ai := to_integer(unsigned(a));
     if mreq_n='0' and rd_n='0' then
+      -- rom_a_i equivalent: external BIOS and cartridge both see the same
+      -- Sega mapper translation in system.vhd. This matters for the 128 KiB
+      -- Hang On/Safari Hunt BIOS, whose upper half is unreachable if BIOS
+      -- reads are incorrectly treated as a flat 64 KiB CPU window.
+      case a(15 downto 14) is
+        when "00" =>
+          if a(13 downto 10)="0000" then
+            ai := to_integer(unsigned(a));
+          else
+            ai := to_integer(unsigned(bank0 & a(13 downto 0)));
+          end if;
+        when "01" => ai := to_integer(unsigned(bank1 & a(13 downto 0)));
+        when others => ai := to_integer(unsigned(bank2 & a(13 downto 0)));
+      end case;
+
       if cart_memory_selected='0' then
         di <= bios(ai mod bios'length);
       else
-        case a(15 downto 14) is
-          when "00" =>
-            if a(13 downto 10)="0000" then
-              ai := to_integer(unsigned(a));
-            else
-              ai := to_integer(unsigned(bank0 & a(13 downto 0)));
-            end if;
-          when "01" => ai := to_integer(unsigned(bank1 & a(13 downto 0)));
-          when others => ai := to_integer(unsigned(bank2 & a(13 downto 0)));
-        end case;
-        -- Selected-game bases observed in the deterministic attract sequence.
-        -- Menu/service view remains linear. Once $3FFE enters game view, use
-        -- the captured launch record as the authoritative base, matching
-        -- evolution_record_page() in system.vhd for Sonic and Shinobi.
-        if evo_3ffe=x"87" or evo_3ffe=x"97" or evo_3ffe=x"C7" then
+        -- Control experiment: direct Shinobi is a conventional cartridge
+        -- view from the first handoff, with no Evolution menu state involved.
+        if direct_shinobi='1' then
+          ai := 16#05C000# + (ai mod 16#100000#);
+        -- Attract path: selected-game translation only after Evolution's
+        -- delayed $3FFE mode switch has actually entered game view.
+        elsif evo_3ffe=x"87" or evo_3ffe=x"97" or evo_3ffe=x"C7" then
           if forced_launch_addr=x"1FE8" then ai := 16#01C000# + (ai mod 16#100000#);
           elsif forced_launch_addr=x"1FF8" then ai := 16#05C000# + (ai mod 16#100000#);
           end if;
