@@ -58,7 +58,7 @@ architecture tb of evolution_t80_bios_trace_tb is
   signal regs : std_logic_vector(229 downto 0);
   signal iset : std_logic_vector(1 downto 0);
   signal bootloader_n : std_logic := '0';
-  signal media_control : std_logic_vector(2 downto 0) := "111";
+  signal media_control : std_logic_vector(7 downto 5) := "111";
   signal cart_precedence, cart_memory_selected : std_logic;
   signal bank0 : std_logic_vector(7 downto 0) := x"00";
   signal bank1 : std_logic_vector(7 downto 0) := x"01";
