@@ -1386,7 +1386,17 @@ port map(
 					-- ($FA bit3=1) to port $02 during SMS/GG mode detection, which
 					-- would incorrectly set bootloader_n=1 and corrupt BIOS execution.
 					if A(7 downto 0) = x"3E" then
-						bootloader_n <= D_in(3);
+						-- Evolution software was built for hardware with no SMS BIOS.
+						-- Some embedded games (notably Shinobi) deliberately write
+						-- $04/$00 to port $3E while probing FM/I/O, after clearing
+						-- the BIOS-provided $C000 slot shadow.  With an optional
+						-- MiSTer BIOS loaded, honoring bit 3 here would unexpectedly
+						-- page that BIOS back in mid-game.  Once the external BIOS
+						-- has handed an Evolution image control, keep it paged out
+						-- until reset; normal cartridges retain full $3E behavior.
+						if mapper_evolution = '0' or bootloader_n = '0' then
+							bootloader_n <= D_in(3);
+						end if;
 					end if;
 				elsif bootloader_n='0' then
 					-- Internal BIOS (mboot.mif): any write disables BIOS, original behaviour
