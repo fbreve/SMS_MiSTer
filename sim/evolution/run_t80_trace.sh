@@ -11,4 +11,4 @@ done
 "$GHDL" -e --std=08 evolution_t80_bios_trace_tb
 "$GHDL" -r --std=08 evolution_t80_bios_trace_tb \
   -gBIOS_FILE="$1" -gFLASH_FILE="$2" -gMAX_CYCLES="${3:-2000000}" \
-  --assert-level=error
+  -gSTART_MODE="${4:-BIOS_EVOLUTION}" --assert-level=error
