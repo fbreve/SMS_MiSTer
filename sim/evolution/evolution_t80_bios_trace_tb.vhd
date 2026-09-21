@@ -76,6 +76,7 @@ architecture tb of evolution_t80_bios_trace_tb is
   signal post_launch_3e_count : natural := 0;
   signal first_post_launch_3e_seen : std_logic := '0';
   signal first_game_fetch_seen : std_logic := '0';
+  signal last_cart_selected : std_logic := '0';
   signal last_boot : std_logic := '0';
   signal direct_shinobi : std_logic := '0';
   signal forced_launch_addr : std_logic_vector(15 downto 0) := (others=>'0');
@@ -196,6 +197,7 @@ begin
         post_launch_3e_count <= 0;
         first_post_launch_3e_seen <= '0';
         first_game_fetch_seen <= '0';
+        last_cart_selected <= '0';
       else
         cycles <= cycles+1;
 
@@ -287,9 +289,24 @@ begin
         end if;
 
         if bootloader_n/=last_boot then
-          report "SOURCE "&source_name(bootloader_n)&
-                 " PC="&hx(a);
+          report "BOOTLOADER "&std_logic'image(last_boot)&"->"&
+                 std_logic'image(bootloader_n)&" A="&hx(a)&
+                 " media="&hx(media_control)&
+                 " cartsel="&std_logic'image(cart_memory_selected);
           last_boot <= bootloader_n;
+        end if;
+
+        -- bootloader_n is not the ROM source by itself: SMS1 cartridge
+        -- precedence can keep bootloader_n=0 while the cartridge owns the bus.
+        -- Trace the effective source separately so a $3E write cannot hide the
+        -- actual arbitration transition we are trying to compare.
+        if cart_memory_selected/=last_cart_selected then
+          report "ROM SOURCE "&source_name(last_cart_selected)&"->"&
+                 source_name(cart_memory_selected)&" A="&hx(a)&
+                 " boot="&std_logic'image(bootloader_n)&
+                 " media="&hx(media_control)&
+                 " precedence="&std_logic'image(cart_precedence);
+          last_cart_selected <= cart_memory_selected;
         end if;
 
         if m1_n='0' and mreq_n='0' and rd_n='0' then
