@@ -46,7 +46,7 @@ entity evolution_mapper is
         launch_trace : out std_logic_vector(63 downto 0);
         launch_fetch_addr : out std_logic_vector(15 downto 0);
         game_launch : out std_logic;
-        ss_out      : out std_logic_vector(95 downto 0);
+        ss_out      : out std_logic_vector(159 downto 0);
         ss_in       : in  std_logic_vector(95 downto 0) := (others => '0');
         ss_mapper_in: in  std_logic_vector(63 downto 0) := (others => '0');
         ss_set      : in  std_logic := '0'
@@ -286,7 +286,11 @@ begin
     -- The extra Evolution state is stored in unused header bits and in the
     -- EEPROM word (Evolution has no cartridge EEPROM). The generic mapper
     -- word carries the launch record, normal Sega banks and active $3FFE mode.
-    ss_out <= reg3ffe_pending & reg8f_r & reg8e_r & reg8d_r & reg88_r &
+    -- Diagnostic extension: preserve the rolling launch trace in the upper
+    -- 64 bits of ss_out. savestates.sv writes this to an otherwise-unused
+    -- non-System-E header word, so hardware captures can distinguish a
+    -- successful launch sequence from a launch that stalls after $85.
+    ss_out <= launch_trace_r & reg3ffe_pending & reg8f_r & reg8e_r & reg8d_r & reg88_r &
               reg63_r & regcd_r & reg8c_r & x"E132" & bank61_r & bank62_r
               when enable = '1' else
               (others => '0');

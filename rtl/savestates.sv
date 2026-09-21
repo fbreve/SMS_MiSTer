@@ -92,7 +92,7 @@ module savestates (
     // ---- Master System Evolution extra mapper snapshot / restore ----
     // Stored in otherwise-unused IO word bits and the EEPROM word. This keeps
     // the established save/load FSM path unchanged for every other mapper.
-    input       [95:0] evolution_out,
+    input      [159:0] evolution_out,
     output reg  [95:0] evolution_in,
     output reg         evolution_set,
 
@@ -297,7 +297,7 @@ reg [127:0] vdp_snap;
 reg [383:0] cram_snap;
 reg  [55:0] psg_snap;
 reg  [63:0] mapper_snap;
-reg  [95:0] evolution_snap;
+reg [159:0] evolution_snap;
 // System E latching buffers
 reg [127:0] vdp2_snap;
 reg [383:0] cram2_snap;
@@ -672,6 +672,11 @@ always @(posedge clk or negedge reset_n) begin
         ST_SAVE_MAPPER: begin
             if (!DDRAM_BUSY) begin
                 ddram_write(base_addr + 29'd15, mapper_snap, 8'hFF);
+                // Offset $10 is unused by ordinary SMS/GG states. For
+                // Evolution, store the 64-bit rolling launch trace there.
+                // System E owns $10 for VDP2 and never uses Evolution.
+                if (evolution_state)
+                    ddram_write(base_addr + 29'h010, evolution_snap[159:96], 8'hFF);
                 state <= ST_SAVE_IO;
             end
         end

@@ -169,7 +169,7 @@ entity system is
 		mapper_out   : out STD_LOGIC_VECTOR(63 downto 0);
 		mapper_in    : in  STD_LOGIC_VECTOR(63 downto 0) := (others => '0');
 		mapper_set   : in  STD_LOGIC := '0';
-		evolution_ss_out : out STD_LOGIC_VECTOR(95 downto 0);
+		evolution_ss_out : out STD_LOGIC_VECTOR(159 downto 0);
 		evolution_ss_in  : in  STD_LOGIC_VECTOR(95 downto 0) := (others => '0');
 		evolution_ss_set : in  STD_LOGIC := '0';
 		eeprom_ss_out : out STD_LOGIC_VECTOR(63 downto 0);
