@@ -79,6 +79,7 @@ architecture tb of evolution_t80_bios_trace_tb is
   signal last_cart_selected : std_logic := '0';
   signal last_media_control : std_logic_vector(7 downto 5) := "111";
   signal last_cart_precedence : std_logic := '0';
+  signal shinobi_3e04_seen : std_logic := '0';
   signal last_boot : std_logic := '0';
   signal direct_shinobi : std_logic := '0';
   signal forced_launch_addr : std_logic_vector(15 downto 0) := (others=>'0');
@@ -202,6 +203,7 @@ begin
         last_cart_selected <= '0';
         last_media_control <= "111";
         last_cart_precedence <= '0';
+        shinobi_3e04_seen <= '0';
       else
         cycles <= cycles+1;
 
@@ -238,6 +240,19 @@ begin
             end if;
           end if;
           if dout(3)='1' then cart_handoff_seen <= '1'; end if;
+          if dout=x"04" and
+             (direct_shinobi='1' or forced_launch_addr=x"1FF8") then
+            shinobi_3e04_seen <= '1';
+            report "SHINOBI $3E=$04 ARBITRATION EXPECTED next_boot=0 next_media=0 "&
+                   "current_cartsel="&std_logic'image(cart_memory_selected)&
+                   " current_precedence="&std_logic'image(cart_precedence) severity warning;
+          elsif shinobi_3e04_seen='1' and dout=x"00" then
+            report "SHINOBI $3E=$00 RESTORE current_boot="&
+                   std_logic'image(bootloader_n)&
+                   " current_cartsel="&std_logic'image(cart_memory_selected)&
+                   " current_media="&hx(media_control)&
+                   " current_precedence="&std_logic'image(cart_precedence) severity warning;
+          end if;
         end if;
 
         -- Standard Sega mapper writes. The real core resets these banks to
