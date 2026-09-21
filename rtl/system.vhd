@@ -625,6 +625,7 @@ begin
 		clk        => clk_sys,
 		reset_n    => RESET_n,
 		enable     => mapper_evolution,
+		bios_active => not bootloader_n,
 		cpu_a      => A,
 		mreq_n     => MREQ_n,
 		iorq_n     => IORQ_n,

@@ -80,6 +80,7 @@ architecture rtl of evolution_mapper is
     signal game_launch_r   : std_logic := '0';
     signal launch_trace_r  : std_logic_vector(63 downto 0) := (others => '0');
     signal trace_frozen_r  : std_logic := '0';
+    signal old_bios_active_r : std_logic := '0';
     signal trace_last_event_r : std_logic_vector(11 downto 0) := (others => '0');
     signal trace_io_code   : std_logic_vector(3 downto 0);
     signal launch_fetch_addr_r : std_logic_vector(15 downto 0) := (others => '0');
@@ -123,6 +124,7 @@ begin
                 game_started    <= '0';
                 launch_trace_r  <= (others => '0');
                 trace_frozen_r  <= '0';
+                old_bios_active_r <= bios_active;
                 trace_last_event_r <= (others => '0');
                 launch_fetch_addr_r <= (others => '0');
                 record_read_pending_r <= '0';
