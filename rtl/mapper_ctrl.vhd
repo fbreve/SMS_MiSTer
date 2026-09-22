@@ -15,7 +15,6 @@ entity mapper_ctrl is
 		mapper_janggun : in std_logic;
 		systeme : in std_logic;
 		bootloader_n : in std_logic;
-		evolution_game_launch : in std_logic;
 		mapper_wonderkid : in std_logic;
 		mapper_lock : in std_logic;
 		detect_codies_static : in std_logic;
