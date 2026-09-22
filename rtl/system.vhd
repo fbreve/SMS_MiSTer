@@ -626,7 +626,10 @@ begin
 		clk        => clk_sys,
 		reset_n    => RESET_n,
 		enable     => mapper_evolution,
-		bios_active => not bootloader_n,
+		-- bootloader_n=0 does not necessarily mean the BIOS owns the ROM bus:
+		-- on SMS1, an enabled loaded cartridge has precedence when media_control(6)=0.
+		-- Gate Evolution state only while the BIOS is the effective ROM source.
+		bios_active => (not bootloader_n) and (not cart_precedence),
 		cpu_a      => A,
 		mreq_n     => MREQ_n,
 		iorq_n     => IORQ_n,
