@@ -221,14 +221,16 @@ begin
 					mapper_codies_lock <= '0';
 				end if;
 				-- BIOS handoff: restore standard cartridge startup banks.
-				-- Evolution has its own explicit game-launch bank reset above.
-				-- Do not interpret later $3E-driven 0->1 transitions as BIOS handoffs
-				-- while an Evolution image is running; embedded games legitimately
+				-- Evolution has its own explicit game-launch bank reset above, so
+				-- never use bootloader_n edges to reset its Sega banks. The Evolution
+				-- cartridge is detected before BIOS handoff and its menu/game launches
+				-- provide the correct reset point. Embedded games also legitimately
 				-- toggle $3E and their live banks must survive those transitions.
-				-- BIOS bank writes can leave bank0/1/2 in non-default states, which
+				-- For ordinary cartridges, BIOS bank writes can leave bank0/1/2 in
+				-- non-default states, which
 				-- breaks static Codemasters detection and forced Codemasters start.
 				if bootloader_n = '1' and bootloader_n_prev = '0' and
-				   not (mapper_evolution = '1' and evolution_game_launch = '0') then
+				   mapper_evolution = '0' then
 					bank0 <= "00000000";
 					bank1 <= "00000001";
 					bank2 <= "00000010";
