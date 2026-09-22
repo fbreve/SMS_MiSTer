@@ -8,6 +8,7 @@ entity mapper_ctrl is
 		RESET_n : in std_logic;
 		clk_sys : in std_logic;
 		evolution_game_launch : in std_logic;
+		evolution_game_launch_early : in std_logic;
 		mapper_set : in std_logic;
 		mapper_evolution : in std_logic;
 		evolution_ss_in : in std_logic_vector(95 downto 0);
@@ -155,7 +156,7 @@ begin
 				-- The Evolution launcher stores data in the top bytes of RAM,
 				-- which alias the standard SMS mapper registers in this core.
 				-- Start each selected game with the normal Sega power-on banks.
-				if evolution_game_launch = '1' then
+				if evolution_game_launch = '1' or evolution_game_launch_early = '1' then
 					bank0 <= x"00";
 					bank1 <= x"01";
 					bank2 <= x"02";
