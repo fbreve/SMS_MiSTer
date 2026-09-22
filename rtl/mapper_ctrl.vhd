@@ -156,12 +156,6 @@ begin
 				-- The Evolution launcher stores data in the top bytes of RAM,
 				-- which alias the standard SMS mapper registers in this core.
 				-- Start each selected game with the normal Sega power-on banks.
-				if evolution_game_launch_early = '1' or evolution_game_launch = '1' then
-					bank0 <= x"00";
-					bank1 <= x"01";
-					bank2 <= x"02";
-					bank3 <= x"03";
-				end if;
 				if mapper_set = '1' then
 					if mapper_evolution = '1' and
 					   evolution_ss_in(31 downto 16) = x"E132" then
@@ -461,6 +455,17 @@ begin
 					end if;
 				end if;
 				end if; -- mapper_set
+
+				-- Give a real Evolution game launch final priority over mapper writes
+				-- seen on the same clock. The menu uses $FFFA-$FFFF as workspace,
+				-- overlapping the Sega mapper registers; the selected game must see
+				-- power-on banks from its very first opcode fetch.
+				if evolution_game_launch_early = '1' or evolution_game_launch = '1' then
+					bank0 <= x"00";
+					bank1 <= x"01";
+					bank2 <= x"02";
+					bank3 <= x"03";
+				end if;
 			end if;
 		end if;
 	end process;
