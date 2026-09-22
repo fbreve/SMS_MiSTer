@@ -15,7 +15,7 @@ entity mapper_ctrl is
 		mapper_janggun : in std_logic;
 		systeme : in std_logic;
 		bootloader_n : in std_logic;
-		evolution_game_active : in std_logic;
+		evolution_game_launch : in std_logic;
 		mapper_wonderkid : in std_logic;
 		mapper_lock : in std_logic;
 		detect_codies_static : in std_logic;
@@ -222,12 +222,14 @@ begin
 					mapper_codies_lock <= '0';
 				end if;
 				-- BIOS handoff: restore standard cartridge startup banks.
-				-- Do this only before Evolution has launched a selected game. Some
-				-- embedded games toggle $3E themselves; treating their later 0->1
-				-- transition as another BIOS handoff would clobber live game banks.
+				-- Evolution has its own explicit game-launch bank reset above.
+				-- Do not interpret later $3E-driven 0->1 transitions as BIOS handoffs
+				-- while an Evolution image is running; embedded games legitimately
+				-- toggle $3E and their live banks must survive those transitions.
 				-- BIOS bank writes can leave bank0/1/2 in non-default states, which
 				-- breaks static Codemasters detection and forced Codemasters start.
-				if bootloader_n = '1' and bootloader_n_prev = '0' and evolution_game_active = '0' then
+				if bootloader_n = '1' and bootloader_n_prev = '0' and
+				   not (mapper_evolution = '1' and evolution_game_launch = '0') then
 					bank0 <= "00000000";
 					bank1 <= "00000001";
 					bank2 <= "00000010";
