@@ -274,6 +274,7 @@ architecture Behavioral of system is
 	signal evolution_63, evolution_88 : std_logic_vector(7 downto 0);
 	signal evolution_8d, evolution_8e, evolution_8f : std_logic_vector(7 downto 0);
 	signal evolution_game_launch : std_logic;
+	signal evolution_game_launch_early : std_logic;
 	signal evolution_menu_mode   : std_logic;
 	signal evolution_gg_mode     : std_logic;
 	signal effective_vdp_gg      : std_logic;
@@ -650,6 +651,7 @@ begin
 		launch_trace => evolution_launch_trace,
 		launch_fetch_addr => evolution_launch_fetch_addr,
 		game_launch => evolution_game_launch,
+		game_launch_early => evolution_game_launch_early,
 		ss_out      => evolution_ss_out,
 		ss_in       => evolution_ss_in,
 		ss_mapper_in=> mapper_in,
@@ -1568,6 +1570,7 @@ port map(
 			RESET_n => RESET_n,
 			clk_sys => clk_sys,
 			evolution_game_launch => evolution_game_launch,
+			evolution_game_launch_early => evolution_game_launch_early,
 			mapper_set => mapper_set,
 			mapper_evolution => mapper_evolution,
 			evolution_ss_in => evolution_ss_in,
