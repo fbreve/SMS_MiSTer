@@ -1575,8 +1575,6 @@ port map(
 			mapper_janggun => mapper_janggun,
 			systeme => systeme,
 			bootloader_n => bootloader_n,
-			evolution_game_active => '1' when mapper_evolution='1' and
-				(evolution_3ffe=x"87" or evolution_3ffe=x"97" or evolution_3ffe=x"C7") else '0',
 			mapper_wonderkid => mapper_wonderkid,
 			mapper_lock => mapper_lock,
 			detect_codies_static => detect_codies_static,
