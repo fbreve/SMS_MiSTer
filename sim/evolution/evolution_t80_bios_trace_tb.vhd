@@ -119,7 +119,8 @@ begin
       REG=>regs,ISet_out=>iset);
 
   evo: entity work.evolution_mapper
-    port map(clk=>clk, reset_n=>reset_n, enable=>'1', bios_active=>not bootloader_n,
+    port map(clk=>clk, reset_n=>reset_n, enable=>'1',
+              bios_active=>(not bootloader_n) and (not cart_precedence),
       cpu_a=>a, mreq_n=>mreq_n, iorq_n=>iorq_n, rd_n=>rd_n, wr_n=>wr_n,
       d_in=>dout, m1_n=>m1_n, bank61=>evo_bank61, bank62=>evo_bank62,
       game_bank61=>evo_game61, game_bank62=>evo_game62,
