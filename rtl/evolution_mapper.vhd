@@ -47,6 +47,7 @@ entity evolution_mapper is
         launch_trace : out std_logic_vector(63 downto 0);
         launch_fetch_addr : out std_logic_vector(15 downto 0);
         game_launch : out std_logic;
+        game_launch_early : out std_logic;
         ss_out      : out std_logic_vector(159 downto 0);
         ss_in       : in  std_logic_vector(95 downto 0) := (others => '0');
         ss_mapper_in: in  std_logic_vector(63 downto 0) := (others => '0');
@@ -79,6 +80,7 @@ architecture rtl of evolution_mapper is
     signal old_m1_n        : std_logic := '1';
     signal game_started    : std_logic := '0';
     signal game_launch_r   : std_logic := '0';
+    signal game_launch_early_s : std_logic;
     signal launch_trace_r  : std_logic_vector(63 downto 0) := (others => '0');
     signal trace_frozen_r  : std_logic := '0';
     signal old_bios_active_r : std_logic := '0';
@@ -88,6 +90,15 @@ architecture rtl of evolution_mapper is
     signal record_read_pending_r : std_logic := '0';
     signal menu_launch_armed_r : std_logic := '0';
 begin
+
+    -- Combinational pre-launch indication. It is true before the clock edge
+    -- that commits the selected-game view, so external Sega mapper state can
+    -- be reset on that same edge rather than one clock later.
+    game_launch_early_s <= '1' when enable = '1' and bios_active = '0' and
+        old_m1_n = '1' and m1_n = '0' and switch_armed = '1' and
+        (reg3ffe_pending = x"87" or reg3ffe_pending = x"97" or
+         reg3ffe_pending = x"C7") and
+        (game_started = '0' or menu_launch_armed_r = '1') else '0';
 
     with cpu_a(7 downto 0) select trace_io_code <=
         x"1" when x"61", x"2" when x"62",
@@ -330,6 +341,7 @@ begin
     launch_trace <= launch_trace_r;
     launch_fetch_addr <= launch_fetch_addr_r;
     game_launch <= game_launch_r;
+    game_launch_early <= game_launch_early_s;
 
     -- The extra Evolution state is stored in unused header bits and in the
     -- EEPROM word (Evolution has no cartridge EEPROM). The generic mapper
