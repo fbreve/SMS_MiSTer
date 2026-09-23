@@ -260,7 +260,10 @@ begin
     -- the established low 96-bit layout.
     ss_out <= x"0000000000000000" & reg3ffe_pending & reg8f_r & reg8e_r & reg8d_r & reg88_r &
               reg63_r & regcd_r & reg8c_r &
-              (x"E133" when bios_active = '1' else x"E132") & bank61_r & bank62_r
+              x"E133" & bank61_r & bank62_r
+              when enable = '1' and bios_active = '1' else
+          x"0000000000000000" & reg3ffe_pending & reg8f_r & reg8e_r & reg8d_r & reg88_r &
+              reg63_r & regcd_r & reg8c_r & x"E132" & bank61_r & bank62_r
               when enable = '1' else
               (others => '0');
 
