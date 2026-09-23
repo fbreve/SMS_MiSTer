@@ -46,6 +46,7 @@ entity evolution_mapper is
         reg8f      : out std_logic_vector(7 downto 0);
         launch_fetch_addr : out std_logic_vector(15 downto 0);
         game_launch : out std_logic;
+        switch_busy : out std_logic;
         ss_out      : out std_logic_vector(159 downto 0);
         ss_in       : in  std_logic_vector(95 downto 0) := (others => '0');
         ss_mapper_in: in  std_logic_vector(63 downto 0) := (others => '0');
@@ -251,6 +252,7 @@ begin
     reg8f <= reg8f_r;
     launch_fetch_addr <= launch_fetch_addr_r;
     game_launch <= game_launch_r;
+    switch_busy <= switch_pending or switch_armed;
 
     -- The extra Evolution state is stored in unused header bits and in the
     -- EEPROM word (Evolution has no cartridge EEPROM). The generic mapper
