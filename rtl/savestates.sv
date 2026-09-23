@@ -93,6 +93,8 @@ module savestates (
     // Stored in otherwise-unused IO word bits and the EEPROM word. This keeps
     // the established save/load FSM path unchanged for every other mapper.
     input       [95:0] evolution_out,
+    input              evolution_active,
+    input              evolution_switch_busy,
     output reg  [95:0] evolution_in,
     output reg         evolution_set,
 
@@ -508,7 +510,10 @@ always @(posedge clk or negedge reset_n) begin
             //   - ISet=00   : no prefix active (not mid-way through CB/DD/ED/FD sequence)
             //   - cpu_ce     : only act on an actual CPU tick, not on held bus
             //                  levels between ticks.
-            if (cpu_ce && !z80_m1_n && !z80_mreq_n && z80_iset == 2'b00 && vblank && x < 9'd256) begin
+            if (cpu_ce && !z80_m1_n && !z80_mreq_n && z80_iset == 2'b00 && vblank && x < 9'd256 &&
+                (!evolution_active ||
+                 (!evolution_switch_busy &&
+                  (mapper_out[15:8] == 8'h87 || mapper_out[15:8] == 8'h97 || mapper_out[15:8] == 8'hC7)))) begin
                 base_addr <= ss_bios_mode ? bios_slot_base(cur_slot) : slot_base(cur_slot);
                 cur_bios_mode <= ss_bios_mode;
                 cur_magic <= ss_bios_mode ? MAGIC_BIOS : MAGIC;
