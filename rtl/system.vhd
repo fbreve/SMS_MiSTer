@@ -112,6 +112,7 @@ entity system is
 		mapper_evolution_force : in STD_LOGIC;
 		evolution_gg_active : out STD_LOGIC;
 		evolution_active : out STD_LOGIC;
+		evolution_switch_busy : out STD_LOGIC;
 		mapper_eeprom_out   : out STD_LOGIC;  -- Active high when EEPROM game detected
 		vdp_enables:	in STD_LOGIC_VECTOR(1 downto 0);
 		psg_enables:	in STD_LOGIC_VECTOR(1 downto 0);
@@ -648,6 +649,7 @@ begin
 		reg8f      => evolution_8f,
 		launch_fetch_addr => evolution_launch_fetch_addr,
 		game_launch => evolution_game_launch,
+		switch_busy => evolution_switch_busy,
 		ss_out      => evolution_ss_out,
 		ss_in       => evolution_ss_in,
 		ss_mapper_in=> mapper_in,
