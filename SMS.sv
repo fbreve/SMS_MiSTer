@@ -948,6 +948,7 @@ wire mapper_force_zemina    = (mapper_sel == 4'd5);  // covers MSX, Nemesis II+ 
 // It intentionally has no manual OSD selection.
 wire mapper_force_evolution = 1'b0;
 wire evolution_gg_mode;
+wire evolution_switch_busy;
 wire mapper_eeprom;
 wire eeprom_active          = mapper_eeprom;
 
@@ -1069,6 +1070,7 @@ system #(63) system
 	.mapper_evolution_force(mapper_force_evolution),
 	.evolution_gg_active(evolution_gg_mode),
 	.evolution_active(evolution_mode),
+	.evolution_switch_busy(evolution_switch_busy),
 	.mapper_eeprom_out(mapper_eeprom),
 	.eeprom_ss_out(eeprom_ss_out),
 	.eeprom_ss_in (eeprom_ss_in),
@@ -1223,6 +1225,8 @@ savestates savestates_inst (
 	.mapper_in       (ss_mapper_in),
 	.mapper_set      (ss_mapper_set),
 	.evolution_out   (ss_evolution_out),
+	.evolution_active(evolution_mode),
+	.evolution_switch_busy(evolution_switch_busy),
 	.evolution_in    (ss_evolution_in),
 	.evolution_set   (ss_evolution_set),
 	// EEPROM
