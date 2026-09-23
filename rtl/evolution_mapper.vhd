@@ -115,7 +115,8 @@ begin
                 record_read_pending_r <= '0';
                 menu_launch_armed_r <= '0';
             elsif ss_set = '1' and enable = '1' and
-                  ss_in(31 downto 16) = x"E132" then
+                  (ss_in(31 downto 16) = x"E132" or
+                   ss_in(31 downto 16) = x"E133") then
                 launch_fetch_addr_r        <= ss_mapper_in(63 downto 48);
                 bank61_r                   <= ss_in(15 downto 8);
                 bank62_r                   <= ss_in(7 downto 0);
@@ -258,7 +259,8 @@ begin
     -- The upper 64 bits are reserved; operational restore state remains in
     -- the established low 96-bit layout.
     ss_out <= x"0000000000000000" & reg3ffe_pending & reg8f_r & reg8e_r & reg8d_r & reg88_r &
-              reg63_r & regcd_r & reg8c_r & x"E132" & bank61_r & bank62_r
+              reg63_r & regcd_r & reg8c_r &
+              (x"E133" when bios_active = '1' else x"E132") & bank61_r & bank62_r
               when enable = '1' else
               (others => '0');
 

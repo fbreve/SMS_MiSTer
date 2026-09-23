@@ -263,7 +263,8 @@ localparam [27:0] OP_COOLDOWN_MAX = 28'd26846500; // ~500ms @ 53.7MHz
 localparam [19:0] FLUSH_MAX       = 20'd900000;    // ≈16.8ms @ 53.7MHz
 
 // NVRAM size calculation helpers
-wire evolution_state = evolution_snap[31:16] == 16'hE132;
+wire evolution_state = (evolution_snap[31:16] == 16'hE132) ||
+                       (evolution_snap[31:16] == 16'hE133);
 wire has_nvram_8k  = !evolution_state && (mapper_snap[48] | mapper_snap[53]); // Dahjee A / Codemasters CME
 wire has_nvram_16k = !evolution_state && mapper_snap[50];                    // Sega mapper nvram_e
 wire has_nvram_32k = !evolution_state && (mapper_snap[51] | mapper_snap[52] | mapper_snap[61]); // nvram_ex / nvram_p / The Castle
@@ -693,7 +694,7 @@ always @(posedge clk or negedge reset_n) begin
         ST_SAVE_EEPROM: begin
             if (!DDRAM_BUSY) begin
                 ddram_write(base_addr + 29'h01b,
-                            evolution_snap[31:16] == 16'hE132 ? evolution_snap[95:32] : eeprom_snap,
+                            (evolution_snap[31:16] == 16'hE132 || evolution_snap[31:16] == 16'hE133) ? evolution_snap[95:32] : eeprom_snap,
                             8'hFF);
                 if (systeme) begin
                     // System E: save VDP2/CRAM2/PSG2 before VRAM1
@@ -1260,7 +1261,7 @@ always @(posedge clk or negedge reset_n) begin
                 dout_expected <= 0;
                 dout_latch    <= DDRAM_DOUT;
             end else if (!dout_expected && !DDRAM_BUSY) begin
-                if (evolution_snap[31:16] == 16'hE132) begin
+                if ((evolution_snap[31:16] == 16'hE132 || evolution_snap[31:16] == 16'hE133)) begin
                     evolution_snap[95:32] <= dout_latch;
                     eeprom_snap <= 64'd0;
                 end else begin

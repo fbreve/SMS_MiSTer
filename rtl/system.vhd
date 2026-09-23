@@ -1368,10 +1368,17 @@ port map(
 				-- disabled (bootloader_n=1) would leave bootloader_n=0 (reset default)
 				-- so the Z80 would read BIOS ROM instead of cart ROM → instant crash.
 				if mapper_evolution = '1' and
-				   evolution_ss_in(31 downto 16) = x"E132" then
-					-- Evolution repurposes the mapper word for its launch record.
-					-- The flash image is already the active cartridge at restore time.
-					bootloader_n <= '1';
+				   (evolution_ss_in(31 downto 16) = x"E132" or
+				    evolution_ss_in(31 downto 16) = x"E133") then
+					-- Evolution repurposes the generic mapper bit that normally
+					-- stores bootloader_n.  E133 is the Evolution marker with the
+					-- external BIOS logically enabled (bootloader_n=0); E132 keeps
+					-- the established/legacy disabled-BIOS state.
+					if evolution_ss_in(31 downto 16) = x"E133" then
+						bootloader_n <= '0';
+					else
+						bootloader_n <= '1';
+					end if;
 				else
 					bootloader_n <= mapper_in(54);
 				end if;
@@ -1526,7 +1533,8 @@ port map(
 			if rising_edge(clk_sys) then
 				if mapper_set = '1' then
 					if mapper_evolution = '1' and
-					   evolution_ss_in(31 downto 16) = x"E132" then
+					   (evolution_ss_in(31 downto 16) = x"E132" or
+					    evolution_ss_in(31 downto 16) = x"E133") then
 						-- Evolution's record address occupies the generic mapper flag
 						-- bits; never interpret it as an MSX mapper selection.
 						mapper_msx <= '0';

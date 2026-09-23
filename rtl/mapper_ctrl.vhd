@@ -163,7 +163,8 @@ begin
 				end if;
 				if mapper_set = '1' then
 					if mapper_evolution = '1' and
-					   evolution_ss_in(31 downto 16) = x"E132" then
+					   (evolution_ss_in(31 downto 16) = x"E132" or
+					    evolution_ss_in(31 downto 16) = x"E133") then
 						bank0 <= mapper_in(47 downto 40);
 						bank1 <= mapper_in(39 downto 32);
 						bank2 <= mapper_in(31 downto 24);
