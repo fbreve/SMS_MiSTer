@@ -963,8 +963,13 @@ port map(
 	io_sc_legacy_port <= '1' when (A(7 downto 0)=x"DE" or A(7 downto 0)=x"DF") and palettemode='1' and gg='0' and systeme='0' else '0';
 	io_sc_mc_port <= '1' when A(7 downto 5)="111" and sc_multicart_en='1' and gg='0' and systeme='0' else '0';
 
+	-- M2's Sega 3D Classics build of Maze Walker (CRC32 F8CE3CC3) uses
+	-- $C000-$DFFF and $E000-$FFFF as independent 8 KiB work-RAM banks
+	-- instead of the normal SMS 8 KiB mirror. Experimental compatibility
+	-- path: expose the core's full 16 KiB RAM only for this exact ROM.
 	ram_a <= "000" & A(10 downto 0) when sc3000_en = '1' else
 	         A(13 downto 0) when systeme = '1' else
+	         A(13 downto 0) when (rom_crc32 xor x"FFFFFFFF") = x"F8CE3CC3" else
 	         '0' & A(12 downto 0);
 	ram_we <= ram_WR;
 	ram_d <= D_in;
