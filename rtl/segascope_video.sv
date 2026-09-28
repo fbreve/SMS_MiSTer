@@ -41,10 +41,13 @@ wire [3:0] live_luma=live_luma_sum[5:2];
 // ---- Shared 32768x20 dual-port presentation RAM ---------------------------
 // Port A captures the source raster. Port B independently scans SBS.
 wire [19:0] ram_qa,ram_qb;
-reg [14:0] ram_addr_a=0;
-reg [19:0] ram_data_a=0;
-reg ram_we_a=0;
+reg [14:0] normal_ram_addr_a=0,sbs_ram_addr_a=0;
+reg [19:0] normal_ram_data_a=0,sbs_ram_data_a=0;
+reg normal_ram_we_a=0,sbs_ram_we_a=0;
 reg [14:0] ram_addr_b=0;
+wire [14:0] ram_addr_a=mode_sbs?sbs_ram_addr_a:normal_ram_addr_a;
+wire [19:0] ram_data_a=mode_sbs?sbs_ram_data_a:normal_ram_data_a;
+wire ram_we_a=mode_sbs?sbs_ram_we_a:normal_ram_we_a;
 
 dpram #(.widthad_a(15),.width_a(20),.mixed_port_rdwr("OLD_DATA"))
 framebuffer (
@@ -108,23 +111,23 @@ always @(*) begin
 end
 
 always @(posedge clk_sys) begin
- ram_we_a<=0;
+ normal_ram_we_a<=0;
  if(reset||!active||mode_sbs) begin
   cap_phase<=CAP_IDLE;
  end else case(cap_phase)
   CAP_IDLE: if(capture_normal) begin
    cap_addr<=normal_addr; cap_half<=normal_half; cap_eye<=eye;
    cap_rgb<=live_rgb; cap_luma<=live_luma; cap_mode<=mode;
-   ram_addr_a<=normal_addr; cap_phase<=CAP_READ;
+   normal_ram_addr_a<=normal_addr; cap_phase<=CAP_READ;
   end
   CAP_READ: begin
    cap_phase<=CAP_WRITE;
   end
   CAP_WRITE: begin
-   ram_addr_a<=cap_addr;
-   ram_data_a<=cap_half?{4'd0,new_payload,ram_qa[7:0]}:
+   normal_ram_addr_a<=cap_addr;
+   normal_ram_data_a<=cap_half?{4'd0,new_payload,ram_qa[7:0]}:
                             {4'd0,ram_qa[15:8],new_payload};
-   ram_we_a<=1;
+   normal_ram_we_a<=1;
    cap_phase<=CAP_IDLE;
   end
   default: cap_phase<=CAP_IDLE;
@@ -240,22 +243,23 @@ reg [14:0] sbs_cap_addr=0;
 reg [1:0] sbs_cap_slot_q=0;
 reg [5:0] sbs_cap_rgb=0;
 always @(posedge clk_sys) begin
+ sbs_ram_we_a<=0;
  if(reset||!active||!mode_sbs) begin
   sbs_cap_phase<=0;
  end else case(sbs_cap_phase)
   0: if(ce_pix&&active_area) begin
    sbs_cap_addr<=sbs_cap_word; sbs_cap_slot_q<=sbs_cap_slot;
-   sbs_cap_rgb<=live_rgb; ram_addr_a<=sbs_cap_word; sbs_cap_phase<=1;
+   sbs_cap_rgb<=live_rgb; sbs_ram_addr_a<=sbs_cap_word; sbs_cap_phase<=1;
   end
   1: sbs_cap_phase<=2;
   2: begin
-   ram_addr_a<=sbs_cap_addr;
+   sbs_ram_addr_a<=sbs_cap_addr;
    case(sbs_cap_slot_q)
-    0: ram_data_a<={ram_qa[19:6],sbs_cap_rgb};
-    1: ram_data_a<={ram_qa[19:12],sbs_cap_rgb,ram_qa[5:0]};
-    default: ram_data_a<={2'b00,sbs_cap_rgb,ram_qa[11:0]};
+    0: sbs_ram_data_a<={ram_qa[19:6],sbs_cap_rgb};
+    1: sbs_ram_data_a<={ram_qa[19:12],sbs_cap_rgb,ram_qa[5:0]};
+    default: sbs_ram_data_a<={2'b00,sbs_cap_rgb,ram_qa[11:0]};
    endcase
-   ram_we_a<=1; sbs_cap_phase<=0;
+   sbs_ram_we_a<=1; sbs_cap_phase<=0;
   end
  endcase
 end
