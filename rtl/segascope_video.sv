@@ -10,7 +10,7 @@ module segascope_video
 (
  input clk_sys, input reset, input ce_pix,
  input [2:0] mode, input [2:0] left_color, input [2:0] right_color,
- input pal, input active, input eye,
+ input active, input eye,
  input source_hs, input source_vs, input source_hblank, input source_vblank,
  input [8:0] x, input [8:0] y,
  input [11:0] color_in, output [11:0] color_out,
