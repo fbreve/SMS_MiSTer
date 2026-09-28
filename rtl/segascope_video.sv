@@ -235,7 +235,7 @@ wire [16:0] sbs_capture_index=(eye?17'd0:17'd49152)+
                               {y[7:0],8'd0}+{9'd0,x[7:0]};
 wire [32:0] sbs_cap_mult=sbs_capture_index*16'd43691;
 wire [14:0] sbs_cap_word=sbs_cap_mult[31:17];
-wire [16:0] sbs_cap_base={sbs_cap_word,1'b0}+sbs_cap_word;
+wire [16:0] sbs_cap_base={1'b0,sbs_cap_word,1'b0}+{2'b00,sbs_cap_word};
 wire [1:0] sbs_cap_slot=sbs_capture_index-sbs_cap_base;
 
 reg [1:0] sbs_cap_phase=0;
@@ -293,7 +293,7 @@ wire [16:0] sbs_read_index=(sbs_x<10'd256?17'd0:17'd49152)+
                             {sbs_y[7:0],8'd0}+{9'd0,sbs_x[7:0]};
 wire [32:0] sbs_read_mult=sbs_read_index*16'd43691;
 wire [14:0] sbs_read_word=sbs_read_mult[31:17];
-wire [16:0] sbs_read_base={sbs_read_word,1'b0}+sbs_read_word;
+wire [16:0] sbs_read_base={1'b0,sbs_read_word,1'b0}+{2'b00,sbs_read_word};
 wire [1:0] sbs_read_slot=sbs_read_index-sbs_read_base;
 always @(posedge clk_sys)
  if(mode_sbs&&sbs_x<10'd512&&sbs_y<9'd192) ram_addr_b<=sbs_read_word;
