@@ -238,7 +238,7 @@ parameter CONF_STR = {
 	"d2P1o7,Game Gear Res.,Standard,Extended;",
 	"P1-;",
 	"P1OC,SMS FM Sound,Enable,Disable;",
-	"P1O[70:69],SegaScope 3D,Original,Left Eye,Right Eye,Red/Cyan;",
+	"P1O[71:69],SegaScope 3D,Original,Left Eye,Right Eye,Red/Cyan,TriOviz;",
 
 	"P2,Input;",
 	"P2-;",
@@ -1583,7 +1583,7 @@ always @(posedge CLK_VIDEO) begin
 	if(~HSync & HS) VSync <= VS;
 end
 
-wire [1:0] segascope_mode = status[70:69];
+wire [2:0] segascope_mode = status[71:69];
 wire [11:0] display_color;
 
 segascope_video segascope_video
