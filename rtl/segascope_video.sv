@@ -41,13 +41,15 @@ wire [3:0] live_luma=live_luma_sum[5:2];
 // ---- Shared 32768x20 dual-port presentation RAM ---------------------------
 // Port A captures the source raster. Port B independently scans SBS.
 wire [19:0] ram_qa,ram_qb;
-reg [14:0] normal_ram_addr_a=0,sbs_ram_addr_a=0;
-reg [19:0] normal_ram_data_a=0,sbs_ram_data_a=0;
-reg normal_ram_we_a=0,sbs_ram_we_a=0;
-reg [14:0] ram_addr_b=0;
-wire [14:0] ram_addr_a=mode_sbs?sbs_ram_addr_a:normal_ram_addr_a;
-wire [19:0] ram_data_a=mode_sbs?sbs_ram_data_a:normal_ram_data_a;
-wire ram_we_a=mode_sbs?sbs_ram_we_a:normal_ram_we_a;
+reg [14:0] normal_ram_addr_a=0,sbs_ram_addr_a=0,lr_ram_addr_a=0;
+reg [19:0] normal_ram_data_a=0,sbs_ram_data_a=0,lr_ram_data_a=0;
+reg normal_ram_we_a=0,sbs_ram_we_a=0,lr_ram_we_a=0;
+reg [14:0] sbs_ram_addr_b=0;
+wire [14:0] ram_addr_a=mode_sbs?sbs_ram_addr_a:
+                         mode_2d?lr_ram_addr_a:normal_ram_addr_a;
+wire [19:0] ram_data_a=mode_sbs?sbs_ram_data_a:
+                         mode_2d?lr_ram_data_a:normal_ram_data_a;
+wire ram_we_a=mode_sbs?sbs_ram_we_a:mode_2d?lr_ram_we_a:normal_ram_we_a;
 
 dpram #(.widthad_a(15),.width_a(20),.mixed_port_rdwr("OLD_DATA"))
 framebuffer (
@@ -59,6 +61,7 @@ framebuffer (
 
 // Normal modes use 256x192 only: two 8-bit pixels per 20-bit word.
 wire [14:0] normal_addr={y[7:0],x[7:1]};
+wire [14:0] ram_addr_b=mode_2d?normal_addr:sbs_ram_addr_b;
 wire normal_half=x[0];
 wire [7:0] normal_q=normal_half?ram_qa[15:8]:ram_qa[7:0];
 
@@ -70,8 +73,7 @@ reg [5:0] cap_rgb=0;
 reg [3:0] cap_luma=0;
 reg [2:0] cap_mode=0;
 
-wire capture_normal=ce_pix&&active&&active_area&&
-                    (mode_filter||(mode_2d&&(eye==selected_eye)));
+wire capture_normal=ce_pix&&active&&active_area&&mode_filter;
 
 function automatic [1:0] cc_blue;
  input [1:0] r,g,b;
@@ -210,22 +212,40 @@ always @(posedge clk_sys)
  if(active&&mode_filter&&pair_valid&&(cap_phase==CAP_WRITE))
   filter_pixel<=filter_color;
 
-// Left/Right replay: selected eye stays live; opposite eye replays stored RGB.
-reg [11:0] replay_pixel=0;
-reg replay_valid=0,eye_d=0;
+// Left/Right use a direct packed framebuffer path, independent of the
+// stereo-filter read/modify/write pipeline. Two adjacent RGB222 pixels are
+// written together, restoring continuous raster replay without extra RAM.
+reg [7:0] lr_even_pixel=0;
+reg lr_valid=0,lr_eye_d=0;
 always @(posedge clk_sys) begin
- eye_d<=eye;
- if(reset||!active||!mode_2d||(mode!=mode_d)) replay_valid<=0;
- else if((eye!=eye_d)&&(eye_d==selected_eye)) replay_valid<=1;
- if(active&&mode_2d&&(cap_phase==CAP_WRITE)) begin
-  replay_pixel<={old_payload[7:6],old_payload[7:6],
-                 old_payload[5:4],old_payload[5:4],
-                 old_payload[3:2],old_payload[3:2]};
+ lr_ram_we_a<=0;
+ lr_eye_d<=eye;
+
+ if(reset||!active||!mode_2d||(mode!=mode_d)) begin
+  lr_valid<=0;
+ end else begin
+  if((lr_eye_d==selected_eye)&&(eye!=lr_eye_d))
+   lr_valid<=1;
+
+  if(ce_pix&&active_area&&(eye==selected_eye)) begin
+   if(!x[0]) begin
+    lr_even_pixel<={live_b,live_g,live_r,2'b00};
+   end else begin
+    lr_ram_addr_a<=normal_addr;
+    lr_ram_data_a<={4'd0,{live_b,live_g,live_r,2'b00},lr_even_pixel};
+    lr_ram_we_a<=1;
+   end
+  end
  end
 end
-wire replay=active&&mode_2d&&replay_valid&&(eye!=selected_eye)&&active_area;
+
+wire [7:0] lr_q=normal_half?ram_qb[15:8]:ram_qb[7:0];
+wire [11:0] lr_color={lr_q[7:6],lr_q[7:6],
+                      lr_q[5:4],lr_q[5:4],
+                      lr_q[3:2],lr_q[3:2]};
+wire replay=active&&mode_2d&&lr_valid&&(eye!=selected_eye)&&active_area;
 assign color_out=(active&&mode_filter&&pair_valid&&active_area)?filter_pixel:
-                 replay?replay_pixel:color_in;
+                 replay?lr_color:color_in;
 
 // ---- Full-resolution side-by-side -----------------------------------------
 // Linear stereo index: left eye first, then right. 3 RGB222 pixels are packed
@@ -305,7 +325,7 @@ wire [1:0] sbs_read_slot=sbs_read_remainder[1:0];
 reg [1:0] sbs_read_slot_req=0,sbs_read_slot_q=0;
 always @(posedge clk_sys) begin
  if(mode_sbs&&sbs_x<10'd512&&sbs_y<9'd192) begin
-  ram_addr_b<=sbs_read_word;
+  sbs_ram_addr_b<=sbs_read_word;
   sbs_read_slot_req<=sbs_read_slot;
   sbs_read_slot_q<=sbs_read_slot_req;
  end
