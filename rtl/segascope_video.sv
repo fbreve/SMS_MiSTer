@@ -63,7 +63,7 @@ framebuffer (
 wire [14:0] normal_addr={y[7:0],x[7:1]};
 wire [14:0] ram_addr_b=mode_2d?normal_addr:sbs_ram_addr_b;
 wire normal_half=x[0];
-wire [7:0] normal_q=normal_half?ram_qa[15:8]:ram_qa[7:0];
+wire [9:0] normal_q=normal_half?ram_qa[19:10]:ram_qa[9:0];
 
 reg [1:0] cap_phase=0;
 localparam [1:0] CAP_IDLE=2'd0,CAP_READ=2'd1,CAP_WRITE=2'd2;
@@ -90,24 +90,30 @@ function automatic [1:0] cc_blue;
 endfunction
 
 wire [1:0] cap_r=cap_rgb[1:0],cap_g=cap_rgb[3:2],cap_b=cap_rgb[5:4];
-wire [7:0] old_payload=cap_half?ram_qa[15:8]:ram_qa[7:0];
-reg [7:0] new_payload;
+wire [9:0] old_payload=cap_half?ram_qa[19:10]:ram_qa[9:0];
+reg [9:0] new_payload;
 always @(*) begin
  new_payload=old_payload;
  case(cap_mode)
-  MODE_LEFT,MODE_RIGHT: new_payload={cap_b,cap_g,cap_r,2'b00};
   MODE_REDCYAN:
-   if(cap_eye) new_payload={old_payload[7:6],old_payload[5:4],cap_r,2'b00};
-   else        new_payload={cap_b,cap_g,old_payload[3:2],2'b00};
+   if(cap_eye) new_payload[7:0]={old_payload[7:6],old_payload[5:4],cap_r,2'b00};
+   else        new_payload[7:0]={cap_b,cap_g,old_payload[3:2],2'b00};
+  // Optimized green/magenta needs more source color than the simple channel
+  // split. Keep the magenta/left eye at full RGB222. The green/right eye
+  // keeps G at 2 bits and R/B at 1 bit each, fitting both eyes in 10 bits.
   MODE_TRIOVIZ:
-   if(cap_eye) new_payload={cap_b,old_payload[5:4],cap_r,2'b00};
-   else        new_payload={old_payload[7:6],cap_g,old_payload[3:2],2'b00};
+   if(cap_eye) new_payload[5:0]={cap_b,cap_g,cap_r};
+   else begin
+    new_payload[9:8]=cap_g;
+    new_payload[7]=cap_r[1];
+    new_payload[6]=cap_b[1];
+   end
   MODE_COLORCODE:
-   if(cap_eye) new_payload={old_payload[7:6],cap_g,cap_r,2'b00};
-   else        new_payload={cc_blue(cap_r,cap_g,cap_b),old_payload[5:0]};
+   if(cap_eye) new_payload[7:0]={old_payload[7:6],cap_g,cap_r,2'b00};
+   else        new_payload[7:0]={cc_blue(cap_r,cap_g,cap_b),old_payload[5:0]};
   MODE_CUSTOM:
-   if(cap_eye) new_payload={cap_luma,old_payload[3:0]};
-   else        new_payload={old_payload[7:4],cap_luma};
+   if(cap_eye) new_payload[7:0]={cap_luma,old_payload[3:0]};
+   else        new_payload[7:0]={old_payload[7:4],cap_luma};
   default: new_payload=old_payload;
  endcase
 end
@@ -127,8 +133,8 @@ always @(posedge clk_sys) begin
   end
   CAP_WRITE: begin
    normal_ram_addr_a<=cap_addr;
-   normal_ram_data_a<=cap_half?{4'd0,new_payload,ram_qa[7:0]}:
-                            {4'd0,ram_qa[15:8],new_payload};
+   normal_ram_data_a<=cap_half?{new_payload,ram_qa[9:0]}:
+                            {ram_qa[19:10],new_payload};
    normal_ram_we_a<=1;
    cap_phase<=CAP_IDLE;
   end
@@ -152,7 +158,7 @@ wire pair_valid=left_seen&&right_seen;
 
 // Reconstruct the current normal-mode pair from live current eye + stored
 // opposite-eye payload during CAP_READ.
-wire [7:0] pair_payload=old_payload;
+wire [7:0] pair_payload=old_payload[7:0];
 wire [1:0] rc_left_r =cap_eye?cap_r:pair_payload[3:2];
 wire [1:0] rc_right_g=cap_eye?pair_payload[5:4]:cap_g;
 wire [1:0] rc_right_b=cap_eye?pair_payload[7:6]:cap_b;
@@ -160,12 +166,51 @@ wire [11:0] redcyan_color={rc_right_b,rc_right_b,
                            rc_right_g,rc_right_g,
                            rc_left_r,rc_left_r};
 
-wire [1:0] trio_left_r =cap_eye?cap_r:pair_payload[3:2];
-wire [1:0] trio_left_b =cap_eye?cap_b:pair_payload[7:6];
-wire [1:0] trio_right_g=cap_eye?pair_payload[5:4]:cap_g;
-wire [11:0] trioviz_color={trio_left_b,trio_left_b,
-                           trio_right_g,trio_right_g,
-                           trio_left_r,trio_left_r};
+// TriOviz-compatible optimized green/magenta presentation.
+//
+// The original implementation was the brute-force split {left B, right G,
+// left R}. Genuine Inficolor filters intentionally overlap spectrally, so
+// that split produces visible crosstalk. Use the established Dubois
+// green/magenta least-squares transform instead. Coefficients are FFmpeg's
+// fixed-point matrix rounded to /64. SegaScope bit 1 is the left eye; genuine
+// TriOviz glasses are magenta-left / green-right.
+//
+// To stay within the existing 32768x20 framebuffer, the left/magenta source
+// is RGB222 while the right/green source stores G2 plus one bit each of R/B.
+wire [1:0] trio_left_r =cap_eye?cap_r:old_payload[1:0];
+wire [1:0] trio_left_g =cap_eye?cap_g:old_payload[3:2];
+wire [1:0] trio_left_b =cap_eye?cap_b:old_payload[5:4];
+wire [1:0] trio_right_r=cap_eye?{old_payload[7],old_payload[7]}:{cap_r[1],cap_r[1]};
+wire [1:0] trio_right_g=cap_eye?old_payload[9:8]:cap_g;
+wire [1:0] trio_right_b=cap_eye?{old_payload[6],old_payload[6]}:{cap_b[1],cap_b[1]};
+
+function automatic [3:0] dubois_clip;
+ input integer v;
+ integer q;
+ begin
+  // v is in units of 1/64 of an RGB222 level. Expand 0..3 to RGB444 0..15.
+  q=(v*5+32)/64;
+  if(q<0) dubois_clip=4'd0;
+  else if(q>15) dubois_clip=4'd15;
+  else dubois_clip=q[3:0];
+ end
+endfunction
+
+integer trio_r_sum,trio_g_sum,trio_b_sum;
+reg [3:0] trio_r4,trio_g4,trio_b4;
+always @(*) begin
+ // FFmpeg ANAGLYPH_GM_DUBOIS ordering is green-eye RGB, magenta-eye RGB.
+ trio_r_sum=(-4*trio_right_r)+(-10*trio_right_g)+(-2*trio_right_b)+
+            (34*trio_left_r)+(45*trio_left_g)+(2*trio_left_b);
+ trio_g_sum=(18*trio_right_r)+(43*trio_right_g)+(9*trio_right_b)+
+            (-1*trio_left_r)+(-1*trio_left_g)+(-4*trio_left_b);
+ trio_b_sum=(-1*trio_right_r)+(-2*trio_right_g)+(1*trio_right_b)+
+            (1*trio_left_r)+(5*trio_left_g)+(60*trio_left_b);
+ trio_r4=dubois_clip(trio_r_sum);
+ trio_g4=dubois_clip(trio_g_sum);
+ trio_b4=dubois_clip(trio_b_sum);
+end
+wire [11:0] trioviz_color={trio_b4,trio_g4,trio_r4};
 
 // Full-color ColorCode: left eye supplies original R/G; right eye supplies
 // the blue plane from weighted RGB (15%,15%,70%).
