@@ -238,7 +238,7 @@ parameter CONF_STR = {
 	"d2P1o7,Game Gear Res.,Standard,Extended;",
 	"P1-;",
 	"P1OC,SMS FM Sound,Enable,Disable;",
-	"P1O[70:69],SegaScope 3D,Original,Left Eye,Right Eye;",
+	"P1O[70:69],SegaScope 3D,Original,Left Eye,Right Eye,Red/Cyan;",
 
 	"P2,Input;",
 	"P2-;",

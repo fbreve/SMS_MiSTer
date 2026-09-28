@@ -72,9 +72,22 @@ wire [11:0] fb_color = {fb_q[7:6], fb_q[7:6],
 // contains the selected-eye pixel at each address until that address is
 // overwritten later in the same raster.
 wire replay =
-	active && (mode != 2'd0) && fb_valid &&
+	active && ((mode == 2'd1) || (mode == 2'd2)) && fb_valid &&
 	(eye != selected_eye) && fb_area;
 
-assign color_out = replay ? fb_color : color_in;
+// Red/cyan anaglyph. Eye 1 is the current Left Eye convention used above:
+// its red component is combined with green/blue from eye 0. Swap live/stored
+// sources on alternate fields so the color assignment remains stable.
+wire [11:0] left_color  = eye ? color_in : fb_color;
+wire [11:0] right_color = eye ? fb_color : color_in;
+wire [11:0] anaglyph_color =
+	{left_color[11:8], right_color[7:4], right_color[3:0]};
+
+wire anaglyph =
+	active && (mode == 2'd3) && fb_valid && fb_area;
+
+assign color_out = anaglyph ? anaglyph_color :
+                   replay   ? fb_color :
+                              color_in;
 
 endmodule
