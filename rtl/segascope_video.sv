@@ -305,10 +305,6 @@ always @(posedge clk_sys) begin
   // Re-arm during blanking. The first active sample starts at column zero.
   sbs_div<=0;
   sbs_x<=0;
- end else if(source_hblank_d&&!source_hblank) begin
-  sbs_div<=0;
-  sbs_x<=0;
-  sbs_ce<=1;
  end else if(sbs_div==3'd4) begin
   sbs_div<=0;
   sbs_ce<=1;
