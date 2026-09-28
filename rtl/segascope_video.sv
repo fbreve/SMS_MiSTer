@@ -45,7 +45,6 @@ reg [14:0] normal_ram_addr_a=0,sbs_ram_addr_a=0,lr_ram_addr_a=0;
 reg [19:0] normal_ram_data_a=0,sbs_ram_data_a=0,lr_ram_data_a=0;
 reg normal_ram_we_a=0,sbs_ram_we_a=0,lr_ram_we_a=0;
 reg [14:0] sbs_ram_addr_b=0;
-wire [14:0] ram_addr_b=mode_sbs?sbs_ram_addr_b:normal_addr;
 wire [14:0] ram_addr_a=mode_sbs?sbs_ram_addr_a:
                          mode_2d?lr_ram_addr_a:normal_ram_addr_a;
 wire [19:0] ram_data_a=mode_sbs?sbs_ram_data_a:
@@ -62,6 +61,7 @@ framebuffer (
 
 // Normal modes use 256x192 only: two 8-bit pixels per 20-bit word.
 wire [14:0] normal_addr={y[7:0],x[7:1]};
+wire [14:0] ram_addr_b=mode_sbs?sbs_ram_addr_b:normal_addr;
 wire normal_half=x[0];
 wire [7:0] normal_q=normal_half?ram_qa[15:8]:ram_qa[7:0];
 
