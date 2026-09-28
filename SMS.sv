@@ -1599,7 +1599,6 @@ segascope_video segascope_video
 	.mode             (segascope_mode),
 	.left_color       (status[74:72]),
 	.right_color      (status[77:75]),
-	.pal              (pal),
 	.active           (segascope_active),
 	.eye              (segascope_eye),
 	.source_hs        (HS),
