@@ -52,46 +52,38 @@ wire [5:0] live_luma_sum={2'b00,color_in[11:8]}+
                           {2'b00,color_in[3:0]};
 wire [3:0] live_luma=live_luma_sum[5:2];
 
-reg [16:0] stereo_addr=0;
-reg [3:0] stereo_data=0;
-reg stereo_we=0;
 wire [3:0] stereo_q;
 reg [3:0] opposite_luma=0;
-reg stereo_read_pending=0;
 reg [3:0] current_luma=0;
 reg [15:0] current_addr=0;
 reg current_eye=0;
-reg current_area=0;
+reg read_pending=0;
+
+// ce_pix is already stable before the positive clk_sys edge. Feed the write
+// controls directly to the single-port RAM so that edge stores this pixel.
+// Between pixel enables, point the port at the latched opposite-eye address.
+wire stereo_write = ce_pix && active && mode_stereo && fb_area;
+wire [16:0] stereo_ram_addr = stereo_write ?
+ {eye,pix_addr} : {~current_eye,current_addr};
 
 spram #(.widthad_a(17),.width_a(4)) stereo_luma (
- .clock(clk_sys),.address(stereo_addr),.wren(stereo_we),
- .data(stereo_data),.q(stereo_q)
+ .clock(clk_sys),.address(stereo_ram_addr),.wren(stereo_write),
+ .data(live_luma),.q(stereo_q)
 );
 
-// At ce_pix: write the current eye. On the next clk, switch the address to the
-// opposite eye. On the following clk, latch its unregistered RAM output.
-// No cycle reads and writes the same address.
 always @(posedge clk_sys) begin
- stereo_we<=0;
  if(reset||!active||!mode_stereo) begin
-  stereo_read_pending<=0;
-  current_area<=0;
+  read_pending<=0;
  end else begin
-  if(ce_pix&&fb_area) begin
-   stereo_addr<={eye,pix_addr};
-   stereo_data<=live_luma;
-   stereo_we<=1;
+  if(stereo_write) begin
    current_luma<=live_luma;
    current_addr<=pix_addr;
    current_eye<=eye;
-   current_area<=1;
-   stereo_read_pending<=1;
-  end else if(stereo_read_pending) begin
-   stereo_addr<={~current_eye,current_addr};
-   stereo_read_pending<=0;
-  end else if(current_area) begin
+   read_pending<=1;
+  end else if(read_pending) begin
+   // The port has addressed {opposite eye,current_addr} for this full cycle.
    opposite_luma<=stereo_q;
-   current_area<=0;
+   read_pending<=0;
   end
  end
 end
@@ -135,7 +127,7 @@ wire [11:0] stereo_color=(mode==MODE_TRIOVIZ)?trioviz_color:redcyan_color;
 // Hold the completed composition for the full pixel period.
 reg [11:0] stereo_pixel=0;
 always @(posedge clk_sys)
- if(active&&mode_stereo&&stereo_valid&&!current_area&&!stereo_read_pending)
+ if(active&&mode_stereo&&stereo_valid&&!read_pending&&!ce_pix)
   stereo_pixel<=stereo_color;
 
 assign color_out=(active&&mode_stereo&&stereo_valid&&fb_area)?stereo_pixel:
