@@ -27,7 +27,6 @@ module segascope_video
 localparam [2:0] MODE_ORIGINAL=3'd0, MODE_LEFT=3'd1, MODE_RIGHT=3'd2,
                  MODE_REDCYAN=3'd3, MODE_TRIOVIZ=3'd4,
                  MODE_COLORCODE=3'd5, MODE_SBS=3'd6, MODE_CUSTOM=3'd7;
-localparam [14:0] FRAME_WORDS=15'd12288; // 192 * 64
 wire mode_sbs=(mode==MODE_SBS);
 wire mode_filter=(mode==MODE_REDCYAN)||(mode==MODE_TRIOVIZ)||
                  (mode==MODE_COLORCODE)||(mode==MODE_CUSTOM);
@@ -55,7 +54,6 @@ function automatic [28:0] frame_base;
 endfunction
 
 reg [63:0] pack=0;
-reg [1:0] pack_slot=0;
 reg pack_active=0;
 reg [7:0] pack_y=0;
 reg pack_eye=0,pack_bank=0;
@@ -67,13 +65,10 @@ reg [5:0] wf_wr=0,wf_rd=0;
 wire wf_empty=(wf_wr==wf_rd);
 wire wf_full=((wf_wr-wf_rd)==6'd32);
 
-wire [28:0] cap_word_addr=frame_base(eye,eye?left_cap_bank:right_cap_bank)+
-                           ({21'd0,y[7:0]}<<6)+{23'd0,x[7:2]};
-
 always @(posedge clk_sys) begin
  eye_d<=eye;
  if(reset||!active||!ddr_grant) begin
-  pack_slot<=0; pack_active<=0; wf_wr<=0;
+  pack_active<=0; wf_wr<=0;
   left_cap_bank<=0; right_cap_bank<=0;
   left_done_toggle<=0; right_done_toggle<=0;
  end else begin
@@ -94,20 +89,20 @@ always @(posedge clk_sys) begin
     pack_active<=!wf_full;
     if(!wf_full) begin
      pack<={48'd0,color_in};
-     pack_slot<=1; pack_y<=y[7:0]; pack_eye<=eye;
+     pack_y<=y[7:0]; pack_eye<=eye;
      pack_bank<=eye?left_cap_bank:right_cap_bank;
     end
    end else if(pack_active) begin
     case(x[1:0])
-     1: begin pack[27:16]<=color_in; pack_slot<=2; end
-     2: begin pack[43:32]<=color_in; pack_slot<=3; end
+     1: pack[27:16]<=color_in;
+     2: pack[43:32]<=color_in;
      3: begin
       wf_addr[wf_wr]<=frame_base(pack_eye,pack_bank)+
                       ({21'd0,pack_y}<<6)+{23'd0,x[7:2]};
       wf_data[wf_wr]<={4'd0,color_in,4'd0,pack[43:32],
                        4'd0,pack[27:16],4'd0,pack[11:0]};
       wf_wr<=wf_wr+1'd1;
-      pack_slot<=0; pack_active<=0;
+      pack_active<=0;
      end
     endcase
    end
@@ -165,7 +160,6 @@ assign ddr_be=8'hFF;
 assign ddr_rd=(dma==DMA_READ_REQ);
 assign ddr_we=(dma==DMA_WRITE);
 
-integer ri;
 always @(posedge clk_sys) begin
  if(reset||!active||!ddr_grant) begin
   dma<=DMA_IDLE; returned<=0; wf_rd<=0; cache_valid<=0;
@@ -225,7 +219,11 @@ end
 // ---- Stereo presentation -------------------------------------------------
 wire pair_valid=left_valid&&right_valid;
 wire cache_hit=pair_valid&&cache_valid&&(cache_y==y[7:0])&&active_area;
-wire [5:0] line_rd_addr=mode_sbs?sbs_x[7:2]:x[7:2];
+// The SBS counter advances on the clock that raises sbs_ce, while the
+// consumer samples that pixel on the following clock. Prefetch x+1 so the
+// synchronous M10K read has the next 64-bit word ready at every 4-pixel edge.
+wire [9:0] sbs_prefetch_x=sbs_x+10'd1;
+wire [5:0] line_rd_addr=mode_sbs?sbs_prefetch_x[7:2]:x[7:2];
 reg [63:0] left_word=0,right_word=0;
 always @(posedge clk_sys) begin
  left_word<=left_line[line_rd_addr];
