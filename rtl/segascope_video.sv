@@ -59,7 +59,7 @@ framebuffer (
  .data_b(20'd0),.q_b(ram_qb)
 );
 
-// Normal modes use 256x192 only: two 8-bit pixels per 20-bit word.
+// Normal modes use 256x192 only: two 10-bit payloads per 20-bit word.
 wire [14:0] normal_addr={y[7:0],x[7:1]};
 wire [14:0] ram_addr_b=mode_2d?normal_addr:sbs_ram_addr_b;
 wire normal_half=x[0];
@@ -192,20 +192,21 @@ function automatic [3:0] dubois_clip;
   q=(v*5+32)/64;
   if(q<0) dubois_clip=4'd0;
   else if(q>15) dubois_clip=4'd15;
-  else dubois_clip=q[3:0];
+  else dubois_clip=q;
  end
 endfunction
 
 integer trio_r_sum,trio_g_sum,trio_b_sum;
+integer trr,trg,trb,tlr,tlg,tlb;
 reg [3:0] trio_r4,trio_g4,trio_b4;
 always @(*) begin
+ // Promote the small unsigned vectors before applying negative coefficients.
+ trr=trio_right_r; trg=trio_right_g; trb=trio_right_b;
+ tlr=trio_left_r;  tlg=trio_left_g;  tlb=trio_left_b;
  // FFmpeg ANAGLYPH_GM_DUBOIS ordering is green-eye RGB, magenta-eye RGB.
- trio_r_sum=(-4*trio_right_r)+(-10*trio_right_g)+(-2*trio_right_b)+
-            (34*trio_left_r)+(45*trio_left_g)+(2*trio_left_b);
- trio_g_sum=(18*trio_right_r)+(43*trio_right_g)+(9*trio_right_b)+
-            (-1*trio_left_r)+(-1*trio_left_g)+(-4*trio_left_b);
- trio_b_sum=(-1*trio_right_r)+(-2*trio_right_g)+(1*trio_right_b)+
-            (1*trio_left_r)+(5*trio_left_g)+(60*trio_left_b);
+ trio_r_sum=(-4*trr)+(-10*trg)+(-2*trb)+(34*tlr)+(45*tlg)+(2*tlb);
+ trio_g_sum=(18*trr)+(43*trg)+(9*trb)+(-1*tlr)+(-1*tlg)+(-4*tlb);
+ trio_b_sum=(-1*trr)+(-2*trg)+(1*trb)+(1*tlr)+(5*tlg)+(60*tlb);
  trio_r4=dubois_clip(trio_r_sum);
  trio_g4=dubois_clip(trio_g_sum);
  trio_b4=dubois_clip(trio_b_sum);
