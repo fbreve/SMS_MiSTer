@@ -59,6 +59,7 @@ wire [3:0] stereo_q;
 reg [3:0] opposite_luma=0;
 reg stereo_read_pending=0;
 reg [3:0] current_luma=0;
+reg [15:0] current_addr=0;
 reg current_eye=0;
 reg current_area=0;
 
@@ -81,11 +82,12 @@ always @(posedge clk_sys) begin
    stereo_data<=live_luma;
    stereo_we<=1;
    current_luma<=live_luma;
+   current_addr<=pix_addr;
    current_eye<=eye;
    current_area<=1;
    stereo_read_pending<=1;
   end else if(stereo_read_pending) begin
-   stereo_addr<={~current_eye,pix_addr};
+   stereo_addr<={~current_eye,current_addr};
    stereo_read_pending<=0;
   end else if(current_area) begin
    opposite_luma<=stereo_q;
@@ -109,14 +111,19 @@ wire [3:0] left_luma = current_eye ? current_luma : opposite_luma;
 wire [3:0] right_luma= current_eye ? opposite_luma : current_luma;
 wire [7:0] ll={left_luma,left_luma}, rl={right_luma,right_luma};
 
-wire [15:0] rc_g_sum=(rl<<7)+(rl<<6)+(rl<<2)+(rl<<1);
-wire [15:0] rc_b_sum=(rl<<7)+(rl<<6)+(rl<<5)+(rl<<4);
+wire [15:0] rc_g_sum=({8'd0,rl}<<7)+({8'd0,rl}<<6)+
+                         ({8'd0,rl}<<2)+({8'd0,rl}<<1);
+wire [15:0] rc_b_sum=({8'd0,rl}<<7)+({8'd0,rl}<<6)+
+                         ({8'd0,rl}<<5)+({8'd0,rl}<<4);
 wire [11:0] redcyan_color={left_luma,rc_g_sum[15:12],rc_b_sum[15:12]};
 
-wire [15:0] tl_r_sum=(ll<<7)+(ll<<5)+(ll<<4)+(ll<<3)+(ll<<2)+ll;
-wire [15:0] tl_g_sum=(ll<<4)+(ll<<2)+(ll<<1)+ll;
-wire [15:0] tl_b_sum=(ll<<7)+(ll<<5)+(ll<<3)+(ll<<1)+ll;
-wire [15:0] tr_rb_sum=(rl<<6)+(rl<<3)+rl;
+wire [15:0] tl_r_sum=({8'd0,ll}<<7)+({8'd0,ll}<<5)+({8'd0,ll}<<4)+
+                         ({8'd0,ll}<<3)+({8'd0,ll}<<2)+{8'd0,ll};
+wire [15:0] tl_g_sum=({8'd0,ll}<<4)+({8'd0,ll}<<2)+
+                         ({8'd0,ll}<<1)+{8'd0,ll};
+wire [15:0] tl_b_sum=({8'd0,ll}<<7)+({8'd0,ll}<<5)+
+                         ({8'd0,ll}<<3)+({8'd0,ll}<<1)+{8'd0,ll};
+wire [15:0] tr_rb_sum=({8'd0,rl}<<6)+({8'd0,rl}<<3)+{8'd0,rl};
 wire [7:0] tl_r=tl_r_sum[15:8],tl_g=tl_g_sum[15:8],tl_b=tl_b_sum[15:8];
 wire [7:0] tr_r=tr_rb_sum[15:8],tr_g=rl,tr_b=tr_rb_sum[15:8];
 wire [7:0] trio_r=(tl_r>tr_r)?tl_r:tr_r;
