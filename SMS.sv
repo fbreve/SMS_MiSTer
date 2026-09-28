@@ -1587,7 +1587,7 @@ wire [1:0] segascope_mode = status[70:69];
 wire segascope_selected_eye = (segascope_mode == 2'd1);
 wire segascope_fb_area = ~x[8] & ~y[8];
 wire [15:0] segascope_fb_addr = {y[7:0], x[7:0]};
-wire [11:0] segascope_fb_q;
+wire [7:0] segascope_fb_q;
 wire segascope_fb_we =
 	ce_pix && segascope_active && (segascope_mode != 2'd0) &&
 	(segascope_eye == segascope_selected_eye) && segascope_fb_area;
@@ -1609,25 +1609,28 @@ always @(posedge clk_sys) begin
 		segascope_fb_valid <= 1;
 end
 
-dpram #(.widthad_a(16), .width_a(12)) segascope_framebuffer
+dpram #(.widthad_a(16), .width_a(8)) segascope_framebuffer
 (
 	.clock_a   (clk_sys),
 	.address_a (segascope_fb_addr),
 	.wren_a    (segascope_fb_we),
-	.data_a    (color),
+	.data_a    ({color[11:10], color[7:6], color[3:2], 2'b00}),
 	.q_a       (segascope_fb_q),
 
 	.clock_b   (clk_sys),
 	.address_b (segascope_fb_addr),
 	.wren_b    (1'b0),
-	.data_b    (12'h000),
+	.data_b    (8'h00),
 	.q_b       ()
 );
 
 wire segascope_replay =
 	segascope_active && (segascope_mode != 2'd0) && segascope_fb_valid &&
 	(segascope_eye != segascope_selected_eye) && segascope_fb_area;
-wire [11:0] display_color = segascope_replay ? segascope_fb_q : color;
+wire [11:0] segascope_fb_color = {segascope_fb_q[7:6], segascope_fb_q[7:6],
+                                      segascope_fb_q[5:4], segascope_fb_q[5:4],
+                                      segascope_fb_q[3:2], segascope_fb_q[3:2]};
+wire [11:0] display_color = segascope_replay ? segascope_fb_color : color;
 
 wire [3:0] vid_r = se_pause_gate ? {1'b0, display_color[3:1]}  : display_color[3:0];
 wire [3:0] vid_g = se_pause_gate ? {1'b0, display_color[7:5]}  : display_color[7:4];
