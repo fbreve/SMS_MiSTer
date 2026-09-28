@@ -207,7 +207,7 @@ wire [11:0] filter_color=(cap_mode==MODE_REDCYAN)?redcyan_color:
                          custom_color;
 reg [11:0] filter_pixel=0;
 always @(posedge clk_sys)
- if(active&&mode_filter&&pair_valid&&(cap_phase==CAP_READ))
+ if(active&&mode_filter&&pair_valid&&(cap_phase==CAP_WRITE))
   filter_pixel<=filter_color;
 
 // Left/Right replay: selected eye stays live; opposite eye replays stored RGB.
@@ -217,7 +217,7 @@ always @(posedge clk_sys) begin
  eye_d<=eye;
  if(reset||!active||!mode_2d||(mode!=mode_d)) replay_valid<=0;
  else if((eye!=eye_d)&&(eye_d==selected_eye)) replay_valid<=1;
- if(active&&mode_2d&&(cap_phase==CAP_READ)) begin
+ if(active&&mode_2d&&(cap_phase==CAP_WRITE)) begin
   replay_pixel<={old_payload[7:6],old_payload[7:6],
                  old_payload[5:4],old_payload[5:4],
                  old_payload[3:2],old_payload[3:2]};
