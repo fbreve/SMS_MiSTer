@@ -3,8 +3,9 @@
 //
 // One 512 Kib single-port RAM is shared by all presentation modes.
 // Left/Right use it as the hardware-proven 65536x8 RGB222 framebuffer.
-// Stereo modes reinterpret each byte as {left_luma,right_luma} and update one
-// nibble with a read-modify-write sequence between ce_pix pulses.
+// Red/Cyan reinterprets each byte as {left_luma,right_luma}. TriOviz keeps
+// native color channels as {left_R[1:0],left_B[1:0],right_G[1:0],2'b00}.
+// Both use read-modify-write sequences between ce_pix pulses.
 //============================================================================
 
 module segascope_video
@@ -25,8 +26,10 @@ wire [15:0] pix_addr={y[7:0],x[7:0]};
 
 // ---- Shared 512 Kib presentation RAM ---------------------------------------
 // 2-D modes: RGB222 in bits [7:2], exactly as the proven Left/Right path.
-// Stereo modes: {left_luma[3:0],right_luma[3:0]}. Since spram has no nibble
-// write enable, stereo capture performs a read-modify-write between ce_pix pulses.
+// Red/Cyan: {left_luma[3:0],right_luma[3:0]}.
+// TriOviz:   {left_R[1:0],left_B[1:0],right_G[1:0],2'b00}.
+// spram has no partial write enable, so stereo capture performs a
+// read-modify-write between ce_pix pulses.
 wire [5:0] live_luma_sum={2'b00,color_in[11:8]}+
                           {1'b0,color_in[7:4],1'b0}+
                           {2'b00,color_in[3:0]};
@@ -34,6 +37,7 @@ wire [3:0] live_luma=live_luma_sum[5:2];
 
 wire [7:0] fb_q;
 reg [3:0] current_luma=0;
+reg [5:0] current_rgb=0;
 reg [15:0] current_addr=0;
 reg current_eye=0;
 reg [1:0] stereo_phase=0;
@@ -43,9 +47,14 @@ wire fb_we_2d=ce_pix&&active&&mode_2d&&(eye==selected_eye)&&fb_area;
 wire stereo_start=ce_pix&&active&&mode_stereo&&fb_area;
 wire stereo_we=active&&mode_stereo&&(stereo_phase==ST_WRITE);
 wire [15:0] fb_addr=(stereo_phase==ST_IDLE)?pix_addr:current_addr;
-wire [7:0] stereo_new_word=current_eye ?
-                         {current_luma,fb_q[3:0]} :
-                         {fb_q[7:4],current_luma};
+wire [7:0] redcyan_new_word=current_eye ?
+                          {current_luma,fb_q[3:0]} :
+                          {fb_q[7:4],current_luma};
+wire [7:0] trioviz_new_word=current_eye ?
+                         {current_rgb[5:4],current_rgb[1:0],fb_q[3:0]} :
+                         {fb_q[7:4],current_rgb[3:2],2'b00};
+wire [7:0] stereo_new_word=(mode==MODE_TRIOVIZ) ?
+                            trioviz_new_word : redcyan_new_word;
 wire [7:0] fb_data=fb_we_2d ?
                     {color_in[11:10],color_in[7:6],color_in[3:2],2'b00} :
                     stereo_new_word;
@@ -77,6 +86,7 @@ always @(posedge clk_sys) begin
   case(stereo_phase)
    ST_IDLE: if(stereo_start) begin
     current_luma<=live_luma;
+    current_rgb<={color_in[11:10],color_in[7:6],color_in[3:2]};
     current_addr<=pix_addr;
     current_eye<=eye;
     stereo_phase<=ST_CAPTURE;
@@ -110,19 +120,16 @@ wire [15:0] rc_b_sum=({8'd0,rl}<<7)+({8'd0,rl}<<6)+
                          ({8'd0,rl}<<5)+({8'd0,rl}<<4);
 wire [11:0] redcyan_color={left_luma,rc_g_sum[15:12],rc_b_sum[15:12]};
 
-wire [15:0] tl_r_sum=({8'd0,ll}<<7)+({8'd0,ll}<<5)+({8'd0,ll}<<4)+
-                         ({8'd0,ll}<<3)+({8'd0,ll}<<2)+{8'd0,ll};
-wire [15:0] tl_g_sum=({8'd0,ll}<<4)+({8'd0,ll}<<2)+
-                         ({8'd0,ll}<<1)+{8'd0,ll};
-wire [15:0] tl_b_sum=({8'd0,ll}<<7)+({8'd0,ll}<<5)+
-                         ({8'd0,ll}<<3)+({8'd0,ll}<<1)+{8'd0,ll};
-wire [15:0] tr_rb_sum=({8'd0,rl}<<6)+({8'd0,rl}<<3)+{8'd0,rl};
-wire [7:0] tl_r=tl_r_sum[15:8],tl_g=tl_g_sum[15:8],tl_b=tl_b_sum[15:8];
-wire [7:0] tr_r=tr_rb_sum[15:8],tr_g=rl,tr_b=tr_rb_sum[15:8];
-wire [7:0] trio_r=(tl_r>tr_r)?tl_r:tr_r;
-wire [7:0] trio_g=(tl_g>tr_g)?tl_g:tr_g;
-wire [7:0] trio_b=(tl_b>tr_b)?tl_b:tr_b;
-wire [11:0] trioviz_color={trio_r[7:4],trio_g[7:4],trio_b[7:4]};
+// SuperDepth3D Inficolor Alpha at its default saturation/contrast is a
+// full-color channel split: left eye contributes magenta (R+B), right eye
+// contributes green. Preserve those native SMS RGB222 channels instead of
+// converting both eyes to luminance as the monochrome Virtual Boy path does.
+wire [1:0] trio_left_r=current_eye ? current_rgb[5:4] : fb_q[7:6];
+wire [1:0] trio_left_b=current_eye ? current_rgb[1:0] : fb_q[5:4];
+wire [1:0] trio_right_g=current_eye ? fb_q[3:2] : current_rgb[3:2];
+wire [11:0] trioviz_color={trio_left_r,trio_left_r,
+                           trio_right_g,trio_right_g,
+                           trio_left_b,trio_left_b};
 wire [11:0] stereo_color=(mode==MODE_TRIOVIZ)?trioviz_color:redcyan_color;
 
 // ST_CAPTURE is the cycle in which fb_q contains the pre-update packed pair.
