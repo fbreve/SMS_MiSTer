@@ -239,8 +239,8 @@ parameter CONF_STR = {
 	"P1-;",
 	"P1OC,SMS FM Sound,Enable,Disable;",
 	"P1O[71:69],SegaScope 3D,Original,Left Eye,Right Eye,Red/Cyan,TriOviz,ColorCode,Side by Side,Custom;",
-	"d5P1O[74:72],3D Left Color,Red,Magenta,Blue,Cyan,Green,Yellow,White;",
-	"d5P1O[77:75],3D Right Color,Red,Magenta,Blue,Cyan,Green,Yellow,White;",
+	"h5P1O[74:72],3D Left Color,Red,Magenta,Blue,Cyan,Green,Yellow,White;",
+	"h5P1O[77:75],3D Right Color,Red,Magenta,Blue,Cyan,Green,Yellow,White;",
 
 	"P2,Input;",
 	"P2-;",
