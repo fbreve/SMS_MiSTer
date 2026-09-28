@@ -44,7 +44,8 @@ wire [19:0] ram_qa,ram_qb;
 reg [14:0] normal_ram_addr_a=0,sbs_ram_addr_a=0,lr_ram_addr_a=0;
 reg [19:0] normal_ram_data_a=0,sbs_ram_data_a=0,lr_ram_data_a=0;
 reg normal_ram_we_a=0,sbs_ram_we_a=0,lr_ram_we_a=0;
-reg [14:0] ram_addr_b=0;
+reg [14:0] sbs_ram_addr_b=0;
+wire [14:0] ram_addr_b=mode_sbs?sbs_ram_addr_b:normal_addr;
 wire [14:0] ram_addr_a=mode_sbs?sbs_ram_addr_a:
                          mode_2d?lr_ram_addr_a:normal_ram_addr_a;
 wire [19:0] ram_data_a=mode_sbs?sbs_ram_data_a:
@@ -237,11 +238,6 @@ always @(posedge clk_sys) begin
   end
  end
 
- // Port B continuously follows the normal raster in Left/Right modes. The
- // generic dpram registers this address internally; x/y remain stable for
- // many clk_sys cycles between ce_pix strobes, so q_b settles before output.
- if(mode_2d)
-  ram_addr_b<=normal_addr;
 end
 
 wire [7:0] lr_q=normal_half?ram_qb[15:8]:ram_qb[7:0];
@@ -330,7 +326,7 @@ wire [1:0] sbs_read_slot=sbs_read_remainder[1:0];
 reg [1:0] sbs_read_slot_req=0,sbs_read_slot_q=0;
 always @(posedge clk_sys) begin
  if(mode_sbs&&sbs_x<10'd512&&sbs_y<9'd192) begin
-  ram_addr_b<=sbs_read_word;
+  sbs_ram_addr_b<=sbs_read_word;
   sbs_read_slot_req<=sbs_read_slot;
   sbs_read_slot_q<=sbs_read_slot_req;
  end
