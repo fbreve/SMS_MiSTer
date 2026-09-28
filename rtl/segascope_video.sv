@@ -1,12 +1,13 @@
 //============================================================================
-// SegaScope 3-D video presentation
+// SegaScope 3-D video presentation - DDR backed stereo framebuffers
 //
-// A single 32768x20 dual-port RAM uses the Cyclone V M10K native x20 width.
-// Normal modes pack two 8-bit presentation pixels per word. Side-by-side
-// packs three native RGB222 pixels per word, fitting two complete 256x192
-// eyes (98,304 pixels) in 32,768 words without reducing spatial/color detail.
+// Four RGB444 frame banks live in MiSTer DDR (two ping-pong banks per eye).
+// Each pixel occupies a 16-bit slot, so four pixels form one 64-bit DDR word
+// and one 256-pixel scanline is exactly 64 words. Display reads fetch a whole
+// stereo line (128 words) into small on-chip line caches.
 //============================================================================
 module segascope_video
+#(parameter [28:0] DDR_BASE_ADDR=29'h06080000)
 (
  input clk_sys, input reset, input ce_pix,
  input [2:0] mode, input [2:0] left_color, input [2:0] right_color,
@@ -14,307 +15,318 @@ module segascope_video
  input [8:0] x, input [8:0] y,
  input [11:0] color_in, output [11:0] color_out,
  output reg sbs_ce, output sbs_hs, output sbs_vs,
- output sbs_hblank, output sbs_vblank, output [11:0] sbs_color
+ output sbs_hblank, output sbs_vblank, output [11:0] sbs_color,
+
+ input ddr_grant, input ddr_busy,
+ output [7:0] ddr_burst, output [28:0] ddr_addr,
+ output [63:0] ddr_din, output [7:0] ddr_be,
+ output ddr_rd, output ddr_we,
+ input [63:0] ddr_dout, input ddr_ready
 );
 
 localparam [2:0] MODE_ORIGINAL=3'd0, MODE_LEFT=3'd1, MODE_RIGHT=3'd2,
                  MODE_REDCYAN=3'd3, MODE_TRIOVIZ=3'd4,
                  MODE_COLORCODE=3'd5, MODE_SBS=3'd6, MODE_CUSTOM=3'd7;
-wire mode_2d=(mode==MODE_LEFT)||(mode==MODE_RIGHT);
+localparam [14:0] FRAME_WORDS=15'd12288; // 192 * 64
+wire mode_sbs=(mode==MODE_SBS);
 wire mode_filter=(mode==MODE_REDCYAN)||(mode==MODE_TRIOVIZ)||
                  (mode==MODE_COLORCODE)||(mode==MODE_CUSTOM);
-wire mode_sbs=(mode==MODE_SBS);
-wire mode_pair=mode_filter||mode_sbs;
-wire selected_eye=(mode==MODE_LEFT);
 wire active_area=(x<9'd256)&&(y<9'd192);
 
-// SMS color bus is {BBBB,GGGG,RRRR}; keep semantic names explicit.
-wire [1:0] live_r=color_in[3:2];
-wire [1:0] live_g=color_in[7:6];
-wire [1:0] live_b=color_in[11:10];
-wire [5:0] live_rgb={live_b,live_g,live_r};
-wire [5:0] live_luma_sum={2'b00,color_in[11:8]}+
-                          {1'b0,color_in[7:4],1'b0}+
-                          {2'b00,color_in[3:0]};
-wire [3:0] live_luma=live_luma_sum[5:2];
+// SMS color bus is {BBBB,GGGG,RRRR}.
+wire [3:0] live_r=color_in[3:0];
+wire [3:0] live_g=color_in[7:4];
+wire [3:0] live_b=color_in[11:8];
 
-// ---- Shared 32768x20 dual-port presentation RAM ---------------------------
-// Port A captures the source raster. Port B independently scans SBS.
-wire [19:0] ram_qa,ram_qb;
-reg [14:0] normal_ram_addr_a=0,sbs_ram_addr_a=0;
-reg [19:0] normal_ram_data_a=0,sbs_ram_data_a=0;
-reg normal_ram_we_a=0,sbs_ram_we_a=0;
-reg [14:0] ram_addr_b=0;
-wire [14:0] ram_addr_a=mode_sbs?sbs_ram_addr_a:normal_ram_addr_a;
-wire [19:0] ram_data_a=mode_sbs?sbs_ram_data_a:normal_ram_data_a;
-wire ram_we_a=mode_sbs?sbs_ram_we_a:normal_ram_we_a;
+// ---- DDR capture ----------------------------------------------------------
+// Ping-pong each semantic eye. A completed bank is published only after the
+// queued writes from that eye have drained.
+reg left_cap_bank=0,right_cap_bank=0,left_disp_bank=0,right_disp_bank=0;
+reg left_done_toggle=0,right_done_toggle=0,left_done_bank=0,right_done_bank=0;
+reg eye_d=0;
 
-dpram #(.widthad_a(15),.width_a(20),.mixed_port_rdwr("OLD_DATA"))
-framebuffer (
- .clock_a(clk_sys),.address_a(ram_addr_a),.wren_a(ram_we_a),
- .data_a(ram_data_a),.q_a(ram_qa),
- .clock_b(clk_sys),.address_b(ram_addr_b),.wren_b(1'b0),
- .data_b(20'd0),.q_b(ram_qb)
-);
-
-// Normal modes use 256x192 only: two 8-bit pixels per 20-bit word.
-wire [14:0] normal_addr={y[7:0],x[7:1]};
-wire normal_half=x[0];
-wire [7:0] normal_q=normal_half?ram_qa[15:8]:ram_qa[7:0];
-
-reg [1:0] cap_phase=0;
-localparam [1:0] CAP_IDLE=2'd0,CAP_READ=2'd1,CAP_WRITE=2'd2;
-reg [14:0] cap_addr=0;
-reg cap_half=0,cap_eye=0;
-reg [5:0] cap_rgb=0;
-reg [3:0] cap_luma=0;
-reg [2:0] cap_mode=0;
-
-wire capture_normal=ce_pix&&active&&active_area&&
-                    (mode_filter||(mode_2d&&(eye==selected_eye)));
-
-function automatic [1:0] cc_blue;
- input [1:0] r,g,b;
- reg [8:0] sum;
+function automatic [28:0] frame_base;
+ input which_eye; input bank;
  begin
-  // ColorCode patent example: B = 0.15R + 0.15G + 0.70B.
-  // Threshold the weighted 2-bit result directly; no divider is needed.
-  sum=(r*9'd15)+(g*9'd15)+(b*9'd70);
-  if(sum<9'd50) cc_blue=2'd0;
-  else if(sum<9'd150) cc_blue=2'd1;
-  else if(sum<9'd250) cc_blue=2'd2;
-  else cc_blue=2'd3;
+  // left0,left1,right0,right1, each 12288 64-bit words (96 KiB).
+  if(which_eye) frame_base=DDR_BASE_ADDR+(bank?29'd12288:29'd0);
+  else          frame_base=DDR_BASE_ADDR+(bank?29'd36864:29'd24576);
  end
 endfunction
 
-wire [1:0] cap_r=cap_rgb[1:0],cap_g=cap_rgb[3:2],cap_b=cap_rgb[5:4];
-wire [7:0] old_payload=cap_half?ram_qa[15:8]:ram_qa[7:0];
-reg [7:0] new_payload;
-always @(*) begin
- new_payload=old_payload;
- case(cap_mode)
-  MODE_LEFT,MODE_RIGHT: new_payload={cap_b,cap_g,cap_r,2'b00};
-  MODE_REDCYAN:
-   if(cap_eye) new_payload={old_payload[7:6],old_payload[5:4],cap_r,2'b00};
-   else        new_payload={cap_b,cap_g,old_payload[3:2],2'b00};
-  MODE_TRIOVIZ:
-   if(cap_eye) new_payload={cap_b,old_payload[5:4],cap_r,2'b00};
-   else        new_payload={old_payload[7:6],cap_g,old_payload[3:2],2'b00};
-  MODE_COLORCODE:
-   if(cap_eye) new_payload={old_payload[7:6],cap_g,cap_r,2'b00};
-   else        new_payload={cc_blue(cap_r,cap_g,cap_b),old_payload[5:0]};
-  MODE_CUSTOM:
-   if(cap_eye) new_payload={cap_luma,old_payload[3:0]};
-   else        new_payload={old_payload[7:4],cap_luma};
-  default: new_payload=old_payload;
- endcase
-end
+reg [63:0] pack=0;
+reg [1:0] pack_slot=0;
+reg pack_active=0;
+reg [7:0] pack_y=0;
+reg pack_eye=0,pack_bank=0;
+
+// Small write FIFO decouples the SMS pixel cadence from DDR latency.
+reg [28:0] wf_addr[0:31];
+reg [63:0] wf_data[0:31];
+reg [5:0] wf_wr=0,wf_rd=0;
+wire wf_empty=(wf_wr==wf_rd);
+wire wf_full=((wf_wr-wf_rd)==6'd32);
+
+wire [28:0] cap_word_addr=frame_base(eye,eye?left_cap_bank:right_cap_bank)+
+                           ({21'd0,y[7:0]}<<6)+{23'd0,x[7:2]};
 
 always @(posedge clk_sys) begin
- normal_ram_we_a<=0;
- if(reset||!active||mode_sbs) begin
-  cap_phase<=CAP_IDLE;
- end else case(cap_phase)
-  CAP_IDLE: if(capture_normal) begin
-   cap_addr<=normal_addr; cap_half<=normal_half; cap_eye<=eye;
-   cap_rgb<=live_rgb; cap_luma<=live_luma; cap_mode<=mode;
-   normal_ram_addr_a<=normal_addr; cap_phase<=CAP_READ;
+ eye_d<=eye;
+ if(reset||!active||!ddr_grant) begin
+  pack_slot<=0; pack_active<=0; wf_wr<=0;
+  left_cap_bank<=0; right_cap_bank<=0;
+  left_done_toggle<=0; right_done_toggle<=0;
+ end else begin
+  // Eye changes occur at field boundaries. Start writing the new field into
+  // the alternate bank; publish the old bank after all queued writes drain.
+  if(eye!=eye_d) begin
+   if(eye_d) begin
+    left_done_bank<=left_cap_bank; left_done_toggle<=~left_done_toggle;
+    left_cap_bank<=~left_cap_bank;
+   end else begin
+    right_done_bank<=right_cap_bank; right_done_toggle<=~right_done_toggle;
+    right_cap_bank<=~right_cap_bank;
+   end
   end
-  CAP_READ: begin
-   cap_phase<=CAP_WRITE;
-  end
-  CAP_WRITE: begin
-   normal_ram_addr_a<=cap_addr;
-   normal_ram_data_a<=cap_half?{4'd0,new_payload,ram_qa[7:0]}:
-                            {4'd0,ram_qa[15:8],new_payload};
-   normal_ram_we_a<=1;
-   cap_phase<=CAP_IDLE;
-  end
-  default: cap_phase<=CAP_IDLE;
- endcase
-end
 
-// Pair validity is reset on mode changes and becomes true after both semantic
-// eye states have appeared.
-reg left_seen=0,right_seen=0;
-reg [2:0] mode_d=MODE_ORIGINAL;
-always @(posedge clk_sys) begin
- mode_d<=mode;
- if(reset||!active||!mode_pair||(mode!=mode_d)) begin
-  left_seen<=0; right_seen<=0;
- end else if(ce_pix&&active_area) begin
-  if(eye) left_seen<=1; else right_seen<=1;
+  if(ce_pix&&active_area) begin
+   if(x[1:0]==0) begin
+    pack_active<=!wf_full;
+    if(!wf_full) begin
+     pack<={48'd0,color_in};
+     pack_slot<=1; pack_y<=y[7:0]; pack_eye<=eye;
+     pack_bank<=eye?left_cap_bank:right_cap_bank;
+    end
+   end else if(pack_active) begin
+    case(x[1:0])
+     1: begin pack[27:16]<=color_in; pack_slot<=2; end
+     2: begin pack[43:32]<=color_in; pack_slot<=3; end
+     3: begin
+      wf_addr[wf_wr]<=frame_base(pack_eye,pack_bank)+
+                      ({21'd0,pack_y}<<6)+{23'd0,x[7:2]};
+      wf_data[wf_wr]<={4'd0,color_in,4'd0,pack[43:32],
+                       4'd0,pack[27:16],4'd0,pack[11:0]};
+      wf_wr<=wf_wr+1'd1;
+      pack_slot<=0; pack_active<=0;
+     end
+    endcase
+   end
+  end
  end
 end
-wire pair_valid=left_seen&&right_seen;
 
-// Reconstruct the current normal-mode pair from live current eye + stored
-// opposite-eye payload during CAP_READ.
-wire [7:0] pair_payload=old_payload;
-wire [1:0] rc_left_r =cap_eye?cap_r:pair_payload[3:2];
-wire [1:0] rc_right_g=cap_eye?pair_payload[5:4]:cap_g;
-wire [1:0] rc_right_b=cap_eye?pair_payload[7:6]:cap_b;
-wire [11:0] redcyan_color={rc_right_b,rc_right_b,
-                           rc_right_g,rc_right_g,
-                           rc_left_r,rc_left_r};
+// ---- Stable stereo line cache -------------------------------------------
+(* ramstyle = "M10K, no_rw_check" *) reg [63:0] left_line[0:63];
+(* ramstyle = "M10K, no_rw_check" *) reg [63:0] right_line[0:63];
+reg [7:0] cache_y=0;
+reg cache_valid=0;
+reg fetch_toggle=0;
+reg [7:0] fetch_req_y=0;
+reg [7:0] dma_fetch_y=0;
+reg [7:0] returned=0;
 
-wire [1:0] trio_left_r =cap_eye?cap_r:pair_payload[3:2];
-wire [1:0] trio_left_b =cap_eye?cap_b:pair_payload[7:6];
-wire [1:0] trio_right_g=cap_eye?pair_payload[5:4]:cap_g;
-wire [11:0] trioviz_color={trio_left_b,trio_left_b,
-                           trio_right_g,trio_right_g,
-                           trio_left_r,trio_left_r};
+reg [9:0] sbs_x=0;
+reg [8:0] sbs_y=0;
+reg [2:0] sbs_div=0;
+wire [8:0] sbs_last_y=pal?9'd312:9'd261;
 
-// Full-color ColorCode: left eye supplies original R/G; right eye supplies
-// the blue plane from weighted RGB (15%,15%,70%).
-wire [1:0] cc_left_r=cap_eye?cap_r:pair_payload[3:2];
-wire [1:0] cc_left_g=cap_eye?cap_g:pair_payload[5:4];
-wire [1:0] cc_right_b=cap_eye?pair_payload[7:6]:cc_blue(cap_r,cap_g,cap_b);
-wire [11:0] colorcode_color={cc_right_b,cc_right_b,
-                             cc_left_g,cc_left_g,
-                             cc_left_r,cc_left_r};
+// Request the next line well before it is displayed. Normal modes use the
+// source raster's horizontal blanking; SBS uses its own wider raster.
+always @(posedge clk_sys) begin
+ if(reset||!active||!ddr_grant) begin
+  fetch_toggle<=0;
+ end else begin
+  if(!mode_sbs && ce_pix && x==9'd256 && y<9'd192) begin
+   fetch_req_y <= (y==9'd191)?8'd0:y[7:0]+1'd1;
+   fetch_toggle<=~fetch_toggle;
+  end
+  if(mode_sbs && sbs_ce && sbs_x==10'd512) begin
+   if(sbs_y<9'd191) fetch_req_y<=sbs_y[7:0]+1'd1;
+   else fetch_req_y<=8'd0;
+   fetch_toggle<=~fetch_toggle;
+  end
+ end
+end
 
-wire [3:0] left_luma=cap_eye?cap_luma:pair_payload[7:4];
-wire [3:0] right_luma=cap_eye?pair_payload[3:0]:cap_luma;
+// ---- DDR DMA -------------------------------------------------------------
+localparam [1:0] DMA_IDLE=2'd0,DMA_READ_REQ=2'd1,DMA_READ_DATA=2'd2,DMA_WRITE=2'd3;
+reg [1:0] dma=DMA_IDLE;
+reg [28:0] read_base=0;
+reg last_fetch_toggle=0,left_done_seen=0,right_done_seen=0;
+reg left_publish_pending=0,right_publish_pending=0;
+reg left_valid=0,right_valid=0;
+wire [28:0] left_read_base=frame_base(1'b1,left_disp_bank)+({21'd0,dma_fetch_y}<<6);
+wire [28:0] right_read_base=frame_base(1'b0,right_disp_bank)+({21'd0,dma_fetch_y}<<6);
+
+assign ddr_burst=(dma==DMA_READ_REQ||dma==DMA_READ_DATA)?8'd64:8'd1;
+assign ddr_addr=(dma==DMA_WRITE)?wf_addr[wf_rd]:read_base;
+assign ddr_din=wf_data[wf_rd];
+assign ddr_be=8'hFF;
+assign ddr_rd=(dma==DMA_READ_REQ);
+assign ddr_we=(dma==DMA_WRITE);
+
+integer ri;
+always @(posedge clk_sys) begin
+ if(reset||!active||!ddr_grant) begin
+  dma<=DMA_IDLE; returned<=0; wf_rd<=0; cache_valid<=0;
+  last_fetch_toggle<=fetch_toggle;
+  left_done_seen<=left_done_toggle; right_done_seen<=right_done_toggle;
+  left_publish_pending<=0; right_publish_pending<=0;
+  left_disp_bank<=0; right_disp_bank<=0; left_valid<=0; right_valid<=0;
+ end else begin
+  if(left_done_toggle!=left_done_seen) left_publish_pending<=1;
+  if(right_done_toggle!=right_done_seen) right_publish_pending<=1;
+  case(dma)
+   DMA_IDLE: begin
+    // Publish completed eye banks only after all capture writes have drained.
+    // Do not start a read in the same cycle: nonblocking bank updates would
+    // otherwise fetch one line from the just-retired display bank.
+    if(wf_empty && (left_publish_pending||right_publish_pending)) begin
+     if(left_publish_pending) begin
+      left_disp_bank<=left_done_bank; left_done_seen<=left_done_toggle;
+      left_publish_pending<=0; left_valid<=1;
+     end
+     if(right_publish_pending) begin
+      right_disp_bank<=right_done_bank; right_done_seen<=right_done_toggle;
+      right_publish_pending<=0; right_valid<=1;
+     end
+     cache_valid<=0;
+    end else if(fetch_toggle!=last_fetch_toggle) begin
+     // Reads have priority so video timing never waits behind capture writes.
+     last_fetch_toggle<=fetch_toggle; returned<=0; dma_fetch_y<=fetch_req_y;
+     read_base<=frame_base(1'b1,left_disp_bank)+({21'd0,fetch_req_y}<<6);
+     dma<=DMA_READ_REQ;
+    end else if(!wf_empty) dma<=DMA_WRITE;
+   end
+   DMA_READ_REQ: if(!ddr_busy) dma<=DMA_READ_DATA;
+   DMA_READ_DATA: if(ddr_ready) begin
+    if(returned<64) left_line[returned[5:0]]<=ddr_dout;
+    else right_line[returned[5:0]]<=ddr_dout;
+    returned<=returned+1'd1;
+    if(returned==8'd63) begin
+     // DDR bursts cannot jump from left bank to right bank. Finish this burst,
+     // then issue the right-eye 64-word burst.
+     read_base<=right_read_base; dma<=DMA_READ_REQ;
+    end
+    if(returned==8'd127) begin
+     cache_y<=dma_fetch_y; cache_valid<=1; dma<=DMA_IDLE;
+    end
+   end
+   DMA_WRITE: if(!ddr_busy) begin
+    wf_rd<=wf_rd+1'd1;
+    dma<=DMA_IDLE;
+   end
+  endcase
+ end
+end
+
+// The two eye banks are non-contiguous, so each cache fill is two 64-word bursts.
+
+// ---- Stereo presentation -------------------------------------------------
+wire pair_valid=left_valid&&right_valid;
+wire cache_hit=pair_valid&&cache_valid&&(cache_y==y[7:0])&&active_area;
+wire [63:0] left_word=left_line[x[7:2]];
+wire [63:0] right_word=right_line[x[7:2]];
+reg [11:0] left_px,right_px;
+always @(*) begin
+ case(x[1:0])
+  0: begin left_px=left_word[11:0]; right_px=right_word[11:0]; end
+  1: begin left_px=left_word[27:16]; right_px=right_word[27:16]; end
+  2: begin left_px=left_word[43:32]; right_px=right_word[43:32]; end
+  default: begin left_px=left_word[59:48]; right_px=right_word[59:48]; end
+ endcase
+end
+wire [3:0] lr=left_px[3:0],lg=left_px[7:4],lb=left_px[11:8];
+wire [3:0] rr=right_px[3:0],rg=right_px[7:4],rb=right_px[11:8];
+
+wire [11:0] redcyan={rb,rg,lr};
+
+function automatic [3:0] clip_q6;
+ input integer v; integer q;
+ begin
+  q=(v*5+32)/64;
+  if(q<0) clip_q6=0; else if(q>15) clip_q6=15; else clip_q6=q[3:0];
+ end
+endfunction
+integer trio_rs,trio_gs,trio_bs;
+reg [3:0] trio_r,trio_g,trio_b;
+always @(*) begin
+ trio_rs=(-4*rr)+(-10*rg)+(-2*rb)+(34*lr)+(45*lg)+(2*lb);
+ trio_gs=(18*rr)+(43*rg)+(9*rb)+(-1*lr)+(-1*lg)+(-4*lb);
+ trio_bs=(-1*rr)+(-2*rg)+(1*rb)+(1*lr)+(5*lg)+(60*lb);
+ trio_r=clip_q6(trio_rs); trio_g=clip_q6(trio_gs); trio_b=clip_q6(trio_bs);
+end
+wire [11:0] trioviz={trio_b,trio_g,trio_r};
+
+integer cc_sum;
+reg [3:0] cc_b;
+always @(*) begin
+ cc_sum=15*rr+15*rg+70*rb;
+ cc_b=(cc_sum+50)/100;
+end
+wire [11:0] colorcode={cc_b,lg,lr};
+
+wire [5:0] left_lsum={2'b0,lr}+{1'b0,lg,1'b0}+{2'b0,lb};
+wire [5:0] right_lsum={2'b0,rr}+{1'b0,rg,1'b0}+{2'b0,rb};
+wire [3:0] left_luma=left_lsum[5:2],right_luma=right_lsum[5:2];
 function automatic [11:0] eye_color;
  input [2:0] sel; input [3:0] luma;
  begin
   case(sel)
-   3'd0: eye_color={4'd0,4'd0,luma}; // R
-   3'd1: eye_color={luma,4'd0,luma}; // Magenta
-   3'd2: eye_color={luma,4'd0,4'd0}; // B
-   3'd3: eye_color={luma,luma,4'd0}; // Cyan
-   3'd4: eye_color={4'd0,luma,4'd0}; // Green
-   3'd5: eye_color={4'd0,luma,luma}; // Yellow
-   3'd6: eye_color={luma,luma,luma}; // White
-   default: eye_color={4'd0,4'd0,luma};
+   0: eye_color={4'd0,4'd0,luma};
+   1: eye_color={luma,4'd0,luma};
+   2: eye_color={luma,4'd0,4'd0};
+   3: eye_color={luma,luma,4'd0};
+   4: eye_color={4'd0,luma,4'd0};
+   5: eye_color={4'd0,luma,luma};
+   6: eye_color={luma,luma,luma};
+   default: eye_color=0;
   endcase
  end
 endfunction
-wire [11:0] custom_left=eye_color(left_color,left_luma);
-wire [11:0] custom_right=eye_color(right_color,right_luma);
-wire [3:0] custom_b=(custom_left[11:8]>custom_right[11:8])?
-                     custom_left[11:8]:custom_right[11:8];
-wire [3:0] custom_g=(custom_left[7:4]>custom_right[7:4])?
-                     custom_left[7:4]:custom_right[7:4];
-wire [3:0] custom_r=(custom_left[3:0]>custom_right[3:0])?
-                     custom_left[3:0]:custom_right[3:0];
-wire [11:0] custom_color={custom_b,custom_g,custom_r};
+wire [11:0] cl=eye_color(left_color,left_luma),cr=eye_color(right_color,right_luma);
+wire [11:0] custom={
+ (cl[11:8]>cr[11:8])?cl[11:8]:cr[11:8],
+ (cl[7:4]>cr[7:4])?cl[7:4]:cr[7:4],
+ (cl[3:0]>cr[3:0])?cl[3:0]:cr[3:0]};
 
-wire [11:0] filter_color=(cap_mode==MODE_REDCYAN)?redcyan_color:
-                         (cap_mode==MODE_TRIOVIZ)?trioviz_color:
-                         (cap_mode==MODE_COLORCODE)?colorcode_color:
-                         custom_color;
-reg [11:0] filter_pixel=0;
-always @(posedge clk_sys)
- if(active&&mode_filter&&pair_valid&&(cap_phase==CAP_WRITE))
-  filter_pixel<=filter_color;
+wire [11:0] filtered=(mode==MODE_REDCYAN)?redcyan:
+                     (mode==MODE_TRIOVIZ)?trioviz:
+                     (mode==MODE_COLORCODE)?colorcode:custom;
+assign color_out=!active||mode==MODE_ORIGINAL||!cache_hit ? color_in :
+                 (mode==MODE_LEFT)?left_px :
+                 (mode==MODE_RIGHT)?right_px :
+                 mode_filter?filtered:color_in;
 
-// Left/Right replay: selected eye stays live; opposite eye replays stored RGB.
-reg [11:0] replay_pixel=0;
-reg replay_valid=0,eye_d=0;
-always @(posedge clk_sys) begin
- eye_d<=eye;
- if(reset||!active||!mode_2d||(mode!=mode_d)) replay_valid<=0;
- else if((eye!=eye_d)&&(eye_d==selected_eye)) replay_valid<=1;
- if(active&&mode_2d&&(cap_phase==CAP_WRITE)) begin
-  replay_pixel<={old_payload[7:6],old_payload[7:6],
-                 old_payload[5:4],old_payload[5:4],
-                 old_payload[3:2],old_payload[3:2]};
- end
-end
-wire replay=active&&mode_2d&&replay_valid&&(eye!=selected_eye)&&active_area;
-assign color_out=(active&&mode_filter&&pair_valid&&active_area)?filter_pixel:
-                 replay?replay_pixel:color_in;
-
-// ---- Full-resolution side-by-side -----------------------------------------
-// Linear stereo index: left eye first, then right. 3 RGB222 pixels are packed
-// into each 20-bit word. Division by 3 uses exact reciprocal multiplication
-// for the 17-bit range 0..98303: floor(n/3)=(n*43691)>>17.
-wire [16:0] sbs_capture_index=(eye?17'd0:17'd49152)+
-                              {y[7:0],8'd0}+{9'd0,x[7:0]};
-wire [32:0] sbs_cap_mult=sbs_capture_index*16'd43691;
-wire [14:0] sbs_cap_word=sbs_cap_mult[31:17];
-wire [16:0] sbs_cap_base={1'b0,sbs_cap_word,1'b0}+{2'b00,sbs_cap_word};
-wire [16:0] sbs_cap_remainder=sbs_capture_index-sbs_cap_base;
-wire [1:0] sbs_cap_slot=sbs_cap_remainder[1:0];
-
-reg [1:0] sbs_cap_phase=0;
-reg [14:0] sbs_cap_addr=0;
-reg [1:0] sbs_cap_slot_q=0;
-reg [5:0] sbs_cap_rgb=0;
-always @(posedge clk_sys) begin
- sbs_ram_we_a<=0;
- if(reset||!active||!mode_sbs) begin
-  sbs_cap_phase<=0;
- end else case(sbs_cap_phase)
-  0: if(ce_pix&&active_area) begin
-   sbs_cap_addr<=sbs_cap_word; sbs_cap_slot_q<=sbs_cap_slot;
-   sbs_cap_rgb<=live_rgb; sbs_ram_addr_a<=sbs_cap_word; sbs_cap_phase<=1;
-  end
-  1: sbs_cap_phase<=2;
-  2: begin
-   sbs_ram_addr_a<=sbs_cap_addr;
-   case(sbs_cap_slot_q)
-    0: sbs_ram_data_a<={ram_qa[19:6],sbs_cap_rgb};
-    1: sbs_ram_data_a<={ram_qa[19:12],sbs_cap_rgb,ram_qa[5:0]};
-    default: sbs_ram_data_a<={2'b00,sbs_cap_rgb,ram_qa[11:0]};
-   endcase
-   sbs_ram_we_a<=1; sbs_cap_phase<=0;
-  end
- endcase
-end
-
-// 2x SMS dot clock: 684 samples/line, 262 NTSC or 313 PAL lines/frame.
-// Active area is 512x192: full 256-pixel left eye followed by full right eye.
-reg [2:0] sbs_div=0;
-reg [9:0] sbs_x=0;
-reg [8:0] sbs_y=0;
+// ---- Side-by-side raster -------------------------------------------------
 always @(posedge clk_sys) begin
  sbs_ce<=0;
- if(reset||!active||!mode_sbs) begin
-  sbs_div<=0; sbs_x<=0; sbs_y<=0;
- end else if(sbs_div==3'd4) begin
-  sbs_div<=0; sbs_ce<=1;
+ if(reset||!active||!mode_sbs) begin sbs_div<=0;sbs_x<=0;sbs_y<=0; end
+ else if(sbs_div==3'd4) begin
+  sbs_div<=0;sbs_ce<=1;
   if(sbs_x==10'd683) begin
    sbs_x<=0;
-   if((!pal&&sbs_y==9'd261)||(pal&&sbs_y==9'd312)) sbs_y<=0;
-   else sbs_y<=sbs_y+1'd1;
+   if(sbs_y==sbs_last_y) sbs_y<=0; else sbs_y<=sbs_y+1'd1;
   end else sbs_x<=sbs_x+1'd1;
  end else sbs_div<=sbs_div+1'd1;
 end
-
-assign sbs_hblank=(sbs_x>=10'd512);
-assign sbs_vblank=(sbs_y>=9'd192);
-assign sbs_hs=(sbs_x>=10'd560)&&(sbs_x<10'd608);
-assign sbs_vs=pal?((sbs_y>=9'd243)&&(sbs_y<9'd246)):
-                  ((sbs_y>=9'd221)&&(sbs_y<9'd224));
-
-wire [16:0] sbs_read_x = {9'b0,sbs_x[7:0]};
-wire [16:0] sbs_read_y = {1'b0,sbs_y[7:0],8'b0};
-wire [16:0] sbs_read_eye = (sbs_x < 10'd256) ? 17'd0 : 17'd49152;
-wire [16:0] sbs_read_index = sbs_read_eye + sbs_read_y + sbs_read_x;
-wire [32:0] sbs_read_mult=sbs_read_index*16'd43691;
-wire [14:0] sbs_read_word=sbs_read_mult[31:17];
-wire [16:0] sbs_read_base={1'b0,sbs_read_word,1'b0}+{2'b00,sbs_read_word};
-wire [16:0] sbs_read_remainder=sbs_read_index-sbs_read_base;
-wire [1:0] sbs_read_slot=sbs_read_remainder[1:0];
-// dpram registers port-B address internally (address_reg_b=CLOCK1). Since
-// ram_addr_b is also registered here, q_b corresponds to the request from the
-// preceding clk_sys edge. Delay the packed-pixel slot by the same extra edge.
-reg [1:0] sbs_read_slot_req=0,sbs_read_slot_q=0;
-always @(posedge clk_sys) begin
- if(mode_sbs&&sbs_x<10'd512&&sbs_y<9'd192) begin
-  ram_addr_b<=sbs_read_word;
-  sbs_read_slot_req<=sbs_read_slot;
-  sbs_read_slot_q<=sbs_read_slot_req;
- end
+assign sbs_hblank=(sbs_x>=512);
+assign sbs_vblank=(sbs_y>=192);
+assign sbs_hs=(sbs_x>=560)&&(sbs_x<608);
+assign sbs_vs=pal?((sbs_y>=243)&&(sbs_y<246)):((sbs_y>=221)&&(sbs_y<224));
+wire sbs_cache_hit=pair_valid&&cache_valid&&(cache_y==sbs_y[7:0])&&(sbs_y<192);
+wire [63:0] sbs_left_word=left_line[sbs_x[7:2]];
+wire [63:0] sbs_right_word=right_line[sbs_x[7:2]];
+reg [11:0] sbs_left,sbs_right;
+always @(*) begin
+ case(sbs_x[1:0])
+  0: begin sbs_left=sbs_left_word[11:0]; sbs_right=sbs_right_word[11:0]; end
+  1: begin sbs_left=sbs_left_word[27:16]; sbs_right=sbs_right_word[27:16]; end
+  2: begin sbs_left=sbs_left_word[43:32]; sbs_right=sbs_right_word[43:32]; end
+  default: begin sbs_left=sbs_left_word[59:48]; sbs_right=sbs_right_word[59:48]; end
+ endcase
 end
+assign sbs_color=(!sbs_cache_hit||sbs_hblank||sbs_vblank)?12'd0:
+                 (sbs_x<256?sbs_left:sbs_right);
 
-wire [5:0] sbs_rgb=(sbs_read_slot_q==0)?ram_qb[5:0]:
-                    (sbs_read_slot_q==1)?ram_qb[11:6]:ram_qb[17:12];
-assign sbs_color=(sbs_hblank||sbs_vblank)?12'd0:
-                 {sbs_rgb[5:4],sbs_rgb[5:4],
-                  sbs_rgb[3:2],sbs_rgb[3:2],
-                  sbs_rgb[1:0],sbs_rgb[1:0]};
 endmodule
