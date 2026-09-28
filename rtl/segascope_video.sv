@@ -3,8 +3,8 @@
 //
 // One 512 Kib single-port RAM is shared by all presentation modes.
 // Left/Right use it as the hardware-proven 65536x8 RGB222 framebuffer.
-// Red/Cyan reinterprets each byte as {left_luma,right_luma}. TriOviz keeps
-// native color channels as {left_R[1:0],left_B[1:0],right_G[1:0],2'b00}.
+// Red/Cyan keeps {left_R[1:0],right_G[1:0],right_B[1:0],2'b00}.
+// TriOviz keeps {left_R[1:0],left_B[1:0],right_G[1:0],2'b00}.
 // Both use read-modify-write sequences between ce_pix pulses.
 //============================================================================
 
@@ -26,17 +26,11 @@ wire [15:0] pix_addr={y[7:0],x[7:0]};
 
 // ---- Shared 512 Kib presentation RAM ---------------------------------------
 // 2-D modes: RGB222 in bits [7:2], exactly as the proven Left/Right path.
-// Red/Cyan: {left_luma[3:0],right_luma[3:0]}.
+// Red/Cyan: {left_R[1:0],right_G[1:0],right_B[1:0],2'b00}.
 // TriOviz:   {left_R[1:0],left_B[1:0],right_G[1:0],2'b00}.
 // spram has no partial write enable, so stereo capture performs a
 // read-modify-write between ce_pix pulses.
-wire [5:0] live_luma_sum={2'b00,color_in[11:8]}+
-                          {1'b0,color_in[7:4],1'b0}+
-                          {2'b00,color_in[3:0]};
-wire [3:0] live_luma=live_luma_sum[5:2];
-
 wire [7:0] fb_q;
-reg [3:0] current_luma=0;
 reg [5:0] current_rgb=0;
 reg [15:0] current_addr=0;
 reg current_eye=0;
@@ -48,8 +42,8 @@ wire stereo_start=ce_pix&&active&&mode_stereo&&fb_area;
 wire stereo_we=active&&mode_stereo&&(stereo_phase==ST_WRITE);
 wire [15:0] fb_addr=(stereo_phase==ST_IDLE)?pix_addr:current_addr;
 wire [7:0] redcyan_new_word=current_eye ?
-                          {current_luma,fb_q[3:0]} :
-                          {fb_q[7:4],current_luma};
+                          {current_rgb[5:4],fb_q[5:0]} :
+                          {fb_q[7:6],current_rgb[3:2],current_rgb[1:0],2'b00};
 wire [7:0] trioviz_new_word=current_eye ?
                          {current_rgb[5:4],current_rgb[1:0],fb_q[3:0]} :
                          {fb_q[7:4],current_rgb[3:2],2'b00};
@@ -85,7 +79,6 @@ always @(posedge clk_sys) begin
  end else begin
   case(stereo_phase)
    ST_IDLE: if(stereo_start) begin
-    current_luma<=live_luma;
     current_rgb<={color_in[11:10],color_in[7:6],color_in[3:2]};
     current_addr<=pix_addr;
     current_eye<=eye;
@@ -108,17 +101,15 @@ always @(posedge clk_sys) begin
 end
 wire stereo_valid=left_seen&&right_seen;
 
-// During ST_CAPTURE fb_q is the packed word read before the current nibble is
-// updated. Pair the live current-eye luma with the stored opposite eye.
-wire [3:0] left_luma = current_eye ? current_luma : fb_q[7:4];
-wire [3:0] right_luma= current_eye ? fb_q[3:0] : current_luma;
-wire [7:0] ll={left_luma,left_luma}, rl={right_luma,right_luma};
-
-wire [15:0] rc_g_sum=({8'd0,rl}<<7)+({8'd0,rl}<<6)+
-                         ({8'd0,rl}<<2)+({8'd0,rl}<<1);
-wire [15:0] rc_b_sum=({8'd0,rl}<<7)+({8'd0,rl}<<6)+
-                         ({8'd0,rl}<<5)+({8'd0,rl}<<4);
-wire [11:0] redcyan_color={left_luma,rc_g_sum[15:12],rc_b_sum[15:12]};
+// Full-color red/cyan anaglyph: left eye contributes red, while the right
+// eye contributes green and blue. This preserves native SMS chroma instead of
+// reducing both views to luminance first.
+wire [1:0] rc_left_r=current_eye ? current_rgb[5:4] : fb_q[7:6];
+wire [1:0] rc_right_g=current_eye ? fb_q[5:4] : current_rgb[3:2];
+wire [1:0] rc_right_b=current_eye ? fb_q[3:2] : current_rgb[1:0];
+wire [11:0] redcyan_color={rc_left_r,rc_left_r,
+                           rc_right_g,rc_right_g,
+                           rc_right_b,rc_right_b};
 
 // SuperDepth3D Inficolor Alpha at its default saturation/contrast is a
 // full-color channel split: left eye contributes magenta (R+B), right eye
