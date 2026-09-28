@@ -238,6 +238,7 @@ parameter CONF_STR = {
 	"d2P1o7,Game Gear Res.,Standard,Extended;",
 	"P1-;",
 	"P1OC,SMS FM Sound,Enable,Disable;",
+	"P1O[70:69],SegaScope 3D,Original,Left Eye,Right Eye;",
 
 	"P2,Input;",
 	"P2-;",
@@ -1051,6 +1052,7 @@ system #(63) system
 	.y(y),
 	.vcounter_cpu(vcounter_cpu),
 	.color(color),
+	.segascope_eye(segascope_eye),
 	.palettemode(sg_palette),
 	.mask_column(mask_column),
 	.black_column(status[28] && ~status[13]),
@@ -1496,6 +1498,7 @@ wire [8:0] x;
 wire [8:0] y;
 wire [7:0] vcounter_cpu;
 wire [11:0] color;
+wire segascope_eye;
 wire mask_column;
 wire smode_M1, smode_M2, smode_M3, smode_M4;
 wire pal = status[2];
@@ -1578,9 +1581,15 @@ always @(posedge CLK_VIDEO) begin
 	if(~HSync & HS) VSync <= VS;
 end
 
-wire [3:0] vid_r = se_pause_gate ? {1'b0, color[3:1]}  : color[3:0];
-wire [3:0] vid_g = se_pause_gate ? {1'b0, color[7:5]}  : color[7:4];
-wire [3:0] vid_b = se_pause_gate ? {1'b0, color[11:9]} : color[11:8];
+wire [1:0] segascope_mode = status[70:69];
+wire segascope_hide =
+	(segascope_mode == 2'd1 && segascope_eye != 1'b1) ||
+	(segascope_mode == 2'd2 && segascope_eye != 1'b0);
+wire [11:0] display_color = segascope_hide ? 12'h000 : color;
+
+wire [3:0] vid_r = se_pause_gate ? {1'b0, display_color[3:1]}  : display_color[3:0];
+wire [3:0] vid_g = se_pause_gate ? {1'b0, display_color[7:5]}  : display_color[7:4];
+wire [3:0] vid_b = se_pause_gate ? {1'b0, display_color[11:9]} : display_color[11:8];
 
 video_mixer #(.HALF_DEPTH(1), .LINE_LENGTH(300), .GAMMA(1)) video_mixer
 (
