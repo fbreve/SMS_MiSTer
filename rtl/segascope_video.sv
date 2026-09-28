@@ -297,11 +297,16 @@ wire [32:0] sbs_read_mult=sbs_read_index*16'd43691;
 wire [14:0] sbs_read_word=sbs_read_mult[31:17];
 wire [16:0] sbs_read_base={1'b0,sbs_read_word,1'b0}+{2'b00,sbs_read_word};
 wire [1:0] sbs_read_slot=sbs_read_index-sbs_read_base;
-always @(posedge clk_sys)
- if(mode_sbs&&sbs_x<10'd512&&sbs_y<9'd192) ram_addr_b<=sbs_read_word;
+reg [1:0] sbs_read_slot_q=0;
+always @(posedge clk_sys) begin
+ if(mode_sbs&&sbs_x<10'd512&&sbs_y<9'd192) begin
+  ram_addr_b<=sbs_read_word;
+  sbs_read_slot_q<=sbs_read_slot;
+ end
+end
 
-wire [5:0] sbs_rgb=(sbs_read_slot==0)?ram_qb[5:0]:
-                    (sbs_read_slot==1)?ram_qb[11:6]:ram_qb[17:12];
+wire [5:0] sbs_rgb=(sbs_read_slot_q==0)?ram_qb[5:0]:
+                    (sbs_read_slot_q==1)?ram_qb[11:6]:ram_qb[17:12];
 assign sbs_color=(sbs_hblank||sbs_vblank)?12'd0:
                  {sbs_rgb[5:4],sbs_rgb[5:4],
                   sbs_rgb[3:2],sbs_rgb[3:2],
