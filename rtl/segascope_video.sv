@@ -97,9 +97,9 @@ always @(posedge clk_sys) begin
      1: pack[27:16]<=color_in;
      2: pack[43:32]<=color_in;
      3: begin
-      wf_addr[wf_wr]<=frame_base(pack_eye,pack_bank)+
+      wf_addr[wf_wr[4:0]]<=frame_base(pack_eye,pack_bank)+
                       ({21'd0,pack_y}<<6)+{23'd0,x[7:2]};
-      wf_data[wf_wr]<={4'd0,color_in,4'd0,pack[43:32],
+      wf_data[wf_wr[4:0]]<={4'd0,color_in,4'd0,pack[43:32],
                        4'd0,pack[27:16],4'd0,pack[11:0]};
       wf_wr<=wf_wr+1'd1;
       pack_active<=0;
@@ -154,8 +154,8 @@ wire [28:0] left_read_base=frame_base(1'b1,left_disp_bank)+({21'd0,dma_fetch_y}<
 wire [28:0] right_read_base=frame_base(1'b0,right_disp_bank)+({21'd0,dma_fetch_y}<<6);
 
 assign ddr_burst=(dma==DMA_READ_REQ||dma==DMA_READ_DATA)?8'd64:8'd1;
-assign ddr_addr=(dma==DMA_WRITE)?wf_addr[wf_rd]:read_base;
-assign ddr_din=wf_data[wf_rd];
+assign ddr_addr=(dma==DMA_WRITE)?wf_addr[wf_rd[4:0]]:read_base;
+assign ddr_din=wf_data[wf_rd[4:0]];
 assign ddr_be=8'hFF;
 assign ddr_rd=(dma==DMA_READ_REQ);
 assign ddr_we=(dma==DMA_WRITE);
