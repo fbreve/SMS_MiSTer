@@ -246,7 +246,8 @@ wire [11:0] redcyan={rb,rg,lr};
 function automatic [3:0] clip_q6;
  input integer v; integer q;
  begin
-  q=(v*5+32)/64;
+  // Matrix coefficients are Q6 and inputs are already full RGB444 (0..15).
+  q=(v+32)/64;
   if(q<0) clip_q6=0; else if(q>15) clip_q6=15; else clip_q6=q[3:0];
  end
 endfunction
