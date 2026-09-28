@@ -95,6 +95,7 @@ entity system is
 		vcounter_cpu:	in	 STD_LOGIC_VECTOR(7 downto 0);
 		color:		out STD_LOGIC_VECTOR(11 downto 0);
 		segascope_eye: out STD_LOGIC;
+		segascope_active: out STD_LOGIC;
 		palettemode:	in	STD_LOGIC;
 		mask_column:out STD_LOGIC;
 		black_column:		in STD_LOGIC;
@@ -248,6 +249,7 @@ architecture Behavioral of system is
 	signal ram_WR:				std_logic;
 	signal ram_D_out:			std_logic_vector(7 downto 0);
 	signal segascope_eye_i:	std_logic := '0';
+	signal segascope_active_i:	std_logic := '0';
 
 	signal vram_WR:			std_logic;
 	signal vram2_WR:			std_logic;
@@ -1191,6 +1193,7 @@ port map(
 	vram2_WR  <= not WR_n when ss_freeze = '0' and MREQ_n='0' and A(15 downto 14)="10" and vdp_cpu_bank='0' and systeme='1' else '0';
 	color    <= vdp2_color when (vdp2_y1='1' and systeme='1' and vdp_enables(1)='0') else vdp_color when vdp_enables(0)='0' else x"000";
 	segascope_eye <= segascope_eye_i;
+	segascope_active <= segascope_active_i;
 
 	-- SegaScope 3-D glasses control. On SMS/Mark III the adapter decodes
 	-- writes to $FFF8-$FFFB; bit 0 selects which eye is visible.
@@ -1200,9 +1203,11 @@ port map(
 		if rising_edge(clk_sys) then
 			if RESET_n='0' then
 				segascope_eye_i <= '0';
+				segascope_active_i <= '0';
 			elsif ss_freeze='0' and MREQ_n='0' and WR_n='0' and
 			      A(15 downto 2)="11111111111110" then
 				segascope_eye_i <= D_in(0);
+				segascope_active_i <= '1';
 			end if;
 		end if;
 	end process;
