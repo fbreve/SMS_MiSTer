@@ -236,7 +236,8 @@ wire [16:0] sbs_capture_index=(eye?17'd0:17'd49152)+
 wire [32:0] sbs_cap_mult=sbs_capture_index*16'd43691;
 wire [14:0] sbs_cap_word=sbs_cap_mult[31:17];
 wire [16:0] sbs_cap_base={1'b0,sbs_cap_word,1'b0}+{2'b00,sbs_cap_word};
-wire [1:0] sbs_cap_slot=sbs_capture_index-sbs_cap_base;
+wire [16:0] sbs_cap_remainder=sbs_capture_index-sbs_cap_base;
+wire [1:0] sbs_cap_slot=sbs_cap_remainder[1:0];
 
 reg [1:0] sbs_cap_phase=0;
 reg [14:0] sbs_cap_addr=0;
@@ -296,12 +297,17 @@ wire [16:0] sbs_read_index = sbs_read_eye + sbs_read_y + sbs_read_x;
 wire [32:0] sbs_read_mult=sbs_read_index*16'd43691;
 wire [14:0] sbs_read_word=sbs_read_mult[31:17];
 wire [16:0] sbs_read_base={1'b0,sbs_read_word,1'b0}+{2'b00,sbs_read_word};
-wire [1:0] sbs_read_slot=sbs_read_index-sbs_read_base;
-reg [1:0] sbs_read_slot_q=0;
+wire [16:0] sbs_read_remainder=sbs_read_index-sbs_read_base;
+wire [1:0] sbs_read_slot=sbs_read_remainder[1:0];
+// dpram registers port-B address internally (address_reg_b=CLOCK1). Since
+// ram_addr_b is also registered here, q_b corresponds to the request from the
+// preceding clk_sys edge. Delay the packed-pixel slot by the same extra edge.
+reg [1:0] sbs_read_slot_req=0,sbs_read_slot_q=0;
 always @(posedge clk_sys) begin
  if(mode_sbs&&sbs_x<10'd512&&sbs_y<9'd192) begin
   ram_addr_b<=sbs_read_word;
-  sbs_read_slot_q<=sbs_read_slot;
+  sbs_read_slot_req<=sbs_read_slot;
+  sbs_read_slot_q<=sbs_read_slot_req;
  end
 end
 
