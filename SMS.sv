@@ -173,8 +173,8 @@ video_freak video_freak
 (
 	.*,
 	.VGA_DE_IN(vga_de),
-	.ARX((!ar) ? arx : (ar - 1'd1)),
-	.ARY((!ar) ? ary : 12'd0),
+	.ARX((!ar) ? (segascope_sbs ? 12'd16 : arx) : (ar - 1'd1)),
+	.ARY((!ar) ? (segascope_sbs ? 12'd9 : ary) : 12'd0),
 	.CROP_SIZE(en216p && vcrop_en ? 10'd216 : 10'd0),
 	.CROP_OFF(voff),
 	.SCALE(status[31:30])
@@ -1587,6 +1587,9 @@ end
 
 wire [2:0] segascope_mode = status[71:69];
 wire [11:0] display_color;
+wire segascope_sbs_ce, segascope_sbs_hs, segascope_sbs_vs;
+wire segascope_sbs_hblank, segascope_sbs_vblank;
+wire [11:0] segascope_sbs_color;
 
 segascope_video segascope_video
 (
@@ -1596,21 +1599,41 @@ segascope_video segascope_video
 	.mode             (segascope_mode),
 	.left_color       (status[74:72]),
 	.right_color      (status[77:75]),
+	.pal              (pal),
 	.active           (segascope_active),
 	.eye              (segascope_eye),
 	.x                (x),
 	.y                (y),
 	.color_in         (color),
-	.color_out        (display_color)
+	.color_out        (display_color),
+	.sbs_ce           (segascope_sbs_ce),
+	.sbs_hs           (segascope_sbs_hs),
+	.sbs_vs           (segascope_sbs_vs),
+	.sbs_hblank       (segascope_sbs_hblank),
+	.sbs_vblank       (segascope_sbs_vblank),
+	.sbs_color        (segascope_sbs_color)
 );
 
-wire [3:0] vid_r = se_pause_gate ? {1'b0, display_color[3:1]}  : display_color[3:0];
-wire [3:0] vid_g = se_pause_gate ? {1'b0, display_color[7:5]}  : display_color[7:4];
-wire [3:0] vid_b = se_pause_gate ? {1'b0, display_color[11:9]} : display_color[11:8];
+wire segascope_sbs = segascope_active && (segascope_mode == 3'd6);
+wire [11:0] mixer_color = segascope_sbs ? segascope_sbs_color : display_color;
+wire [3:0] vid_r = se_pause_gate ? {1'b0, mixer_color[3:1]}  : mixer_color[3:0];
+wire [3:0] vid_g = se_pause_gate ? {1'b0, mixer_color[7:5]}  : mixer_color[7:4];
+wire [3:0] vid_b = se_pause_gate ? {1'b0, mixer_color[11:9]} : mixer_color[11:8];
 
-video_mixer #(.HALF_DEPTH(1), .LINE_LENGTH(300), .GAMMA(1)) video_mixer
+wire mixer_ce = segascope_sbs ? segascope_sbs_ce : ce_pix;
+wire mixer_hs = segascope_sbs ? segascope_sbs_hs : HS;
+wire mixer_vs = segascope_sbs ? segascope_sbs_vs : VS;
+wire mixer_hblank = segascope_sbs ? segascope_sbs_hblank : HBlank;
+wire mixer_vblank = segascope_sbs ? segascope_sbs_vblank : VBlank;
+
+video_mixer #(.HALF_DEPTH(1), .LINE_LENGTH(520), .GAMMA(1)) video_mixer
 (
 	.*,
+	.ce_pix(mixer_ce),
+	.HSync(mixer_hs),
+	.VSync(mixer_vs),
+	.HBlank(mixer_hblank),
+	.VBlank(mixer_vblank),
 	.scandoubler(scale || forced_scandoubler),
 	.hq2x(scale==1),
 	.freeze_sync(),
