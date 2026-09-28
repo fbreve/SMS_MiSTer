@@ -299,15 +299,19 @@ always @(posedge clk_sys) begin
  if(reset||!active||!mode_sbs) begin
   sbs_div<=0;
   sbs_x<=0;
- end else if(source_hblank) begin
-  // Re-arm during blanking. The first active sample starts at column zero.
-  sbs_div<=0;
-  sbs_x<=0;
- end else if(sbs_div==3'd4) begin
-  sbs_div<=0;
-  sbs_ce<=1;
-  if(sbs_x<10'd511) sbs_x<=sbs_x+1'd1;
- end else sbs_div<=sbs_div+1'd1;
+ end else begin
+  // Keep CE running through blanking: video_mixer publishes sync transitions
+  // only on CE_PIXEL. Five clk_sys clocks per sample is exactly 2x the normal
+  // SMS dot cadence.
+  if(sbs_div==3'd4) begin
+   sbs_div<=0;
+   sbs_ce<=1;
+   if(!source_hblank&&sbs_x<10'd511) sbs_x<=sbs_x+1'd1;
+  end else sbs_div<=sbs_div+1'd1;
+
+  // The active pixel index is independent from the free-running CE cadence.
+  if(source_hblank) sbs_x<=0;
+ end
 end
 
 assign sbs_hblank=source_hblank;
@@ -329,7 +333,7 @@ wire [1:0] sbs_read_slot=sbs_read_remainder[1:0];
 // preceding clk_sys edge. Delay the packed-pixel slot by the same extra edge.
 reg [1:0] sbs_read_slot_req=0,sbs_read_slot_q=0;
 always @(posedge clk_sys) begin
- if(mode_sbs&&!source_hblank&&!source_vblank&&sbs_x<10'd512&&y<9'd192) begin
+ if(mode_sbs&&!source_vblank&&y<9'd192) begin
   sbs_ram_addr_b<=sbs_read_word;
   sbs_read_slot_req<=sbs_read_slot;
   sbs_read_slot_q<=sbs_read_slot_req;
