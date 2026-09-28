@@ -48,21 +48,16 @@ always @(posedge clk_sys) begin
 		fb_valid <= 1;
 end
 
-// Keep the proven framebuffer implementation unchanged during extraction.
-// Port B remains intentionally unused; RAM cleanup can be evaluated separately.
-dpram #(.widthad_a(16), .width_a(8)) framebuffer
+// Capture and replay use the same raster address, so a single-port RAM is
+// sufficient. This avoids instantiating and then synthesizing away the unused
+// second port of the generic dual-port framebuffer.
+spram #(.widthad_a(16), .width_a(8)) framebuffer
 (
-	.clock_a   (clk_sys),
-	.address_a (fb_addr),
-	.wren_a    (fb_we),
-	.data_a    ({color_in[11:10], color_in[7:6], color_in[3:2], 2'b00}),
-	.q_a       (fb_q),
-
-	.clock_b   (clk_sys),
-	.address_b (fb_addr),
-	.wren_b    (1'b0),
-	.data_b    (8'h00),
-	.q_b       ()
+	.clock   (clk_sys),
+	.address (fb_addr),
+	.wren    (fb_we),
+	.data    ({color_in[11:10], color_in[7:6], color_in[3:2], 2'b00}),
+	.q       (fb_q)
 );
 
 wire replay =
