@@ -294,10 +294,8 @@ end
 // from hand-derived totals.
 reg [2:0] sbs_div=0;
 reg [9:0] sbs_x=0;
-reg source_hblank_d=1;
 always @(posedge clk_sys) begin
  sbs_ce<=0;
- source_hblank_d<=source_hblank;
  if(reset||!active||!mode_sbs) begin
   sbs_div<=0;
   sbs_x<=0;
