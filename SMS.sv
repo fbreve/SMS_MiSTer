@@ -102,7 +102,8 @@ always @(posedge CLK_VIDEO) begin
 end
 
 wire video_rotated;
-wire no_rotate = ~status[41];
+wire segascope_ddr_active;
+wire no_rotate = segascope_ddr_active ? 1'b1 : ~status[41];
 wire flip = status[42];
 wire rotate_ccw = 1'b0;
 wire [5:0] arx, ary;
@@ -239,8 +240,8 @@ parameter CONF_STR = {
 	"P1-;",
 	"P1OC,SMS FM Sound,Enable,Disable;",
 	"P1O[71:69],SegaScope 3D,Original,Left Eye,Right Eye,Red/Cyan,TriOviz,ColorCode,Side by Side,Custom;",
-	"P1O[74:72],3D Left Color,Red,Magenta,Blue,Cyan,Green,Yellow,White;",
-	"P1O[77:75],3D Right Color,Red,Magenta,Blue,Cyan,Green,Yellow,White;",
+	"h5P1O[74:72],3D Left Color,Red,Magenta,Blue,Cyan,Green,Yellow,White;",
+	"h5P1O[77:75],3D Right Color,Red,Magenta,Blue,Cyan,Green,Yellow,White;",
 
 	"P2,Input;",
 	"P2-;",
@@ -494,7 +495,7 @@ hps_io #(.CONF_STR(CONF_STR), .WIDE(0)) hps_io
 	.status(status),
 	.status_in(status_in),
 	.status_set(status_set),
-	.status_menumask({status[25],systeme,~dbg_menu,en216p,status[13],~gun_en,~raw_serial,gg,~gg_avail,~bk_ena}),
+	.status_menumask({status[25],systeme,~dbg_menu,en216p,(status[71:69] == 3'd7),~gun_en,~raw_serial,gg,~gg_avail,~bk_ena}),
 	.forced_scandoubler(forced_scandoubler),
 	.new_vmode(pal),
 	.gamma_bus(gamma_bus),
@@ -1286,13 +1287,19 @@ savestates savestates_inst (
 	.DDRAM_BUSY      (DDRAM_BUSY)
 );
 
-assign DDRAM_CLK      = clk_sys; // always stable; sr_ddram_clk (CLK_VIDEO) would glitch on ss_freeze toggle
-assign DDRAM_BURSTCNT = ss_freeze ? ss_ddram_burstcnt : sr_ddram_burstcnt;
-assign DDRAM_ADDR     = ss_freeze ? ss_ddram_addr     : sr_ddram_addr;
-assign DDRAM_DIN      = ss_freeze ? ss_ddram_din      : sr_ddram_din;
-assign DDRAM_BE       = ss_freeze ? ss_ddram_be       : sr_ddram_be;
-assign DDRAM_WE       = ss_freeze ? ss_ddram_we       : sr_ddram_we;
-assign DDRAM_RD       = ss_freeze ? ss_ddram_rd       : sr_ddram_rd;
+wire [7:0]  sg_ddram_burstcnt;
+wire [28:0] sg_ddram_addr;
+wire [63:0] sg_ddram_din;
+wire [7:0]  sg_ddram_be;
+wire        sg_ddram_we,sg_ddram_rd;
+
+assign DDRAM_CLK      = clk_sys; // stable clock shared by all DDR clients
+assign DDRAM_BURSTCNT = ss_freeze ? ss_ddram_burstcnt : segascope_ddr_active ? sg_ddram_burstcnt : sr_ddram_burstcnt;
+assign DDRAM_ADDR     = ss_freeze ? ss_ddram_addr     : segascope_ddr_active ? sg_ddram_addr     : sr_ddram_addr;
+assign DDRAM_DIN      = ss_freeze ? ss_ddram_din      : segascope_ddr_active ? sg_ddram_din      : sr_ddram_din;
+assign DDRAM_BE       = ss_freeze ? ss_ddram_be       : segascope_ddr_active ? sg_ddram_be       : sr_ddram_be;
+assign DDRAM_WE       = ss_freeze ? ss_ddram_we       : segascope_ddr_active ? sg_ddram_we       : sr_ddram_we;
+assign DDRAM_RD       = ss_freeze ? ss_ddram_rd       : segascope_ddr_active ? sg_ddram_rd       : sr_ddram_rd;
 
 wire [12:0] key_a;
 wire [7:0] key_d;
@@ -1586,6 +1593,7 @@ always @(posedge CLK_VIDEO) begin
 end
 
 wire [2:0] segascope_mode = status[71:69];
+assign segascope_ddr_active = segascope_active && (segascope_mode != 3'd0);
 wire [11:0] display_color;
 wire segascope_sbs_ce, segascope_sbs_hs, segascope_sbs_vs;
 wire segascope_sbs_hblank, segascope_sbs_vblank;
@@ -1611,7 +1619,17 @@ segascope_video segascope_video
 	.sbs_vs           (segascope_sbs_vs),
 	.sbs_hblank       (segascope_sbs_hblank),
 	.sbs_vblank       (segascope_sbs_vblank),
-	.sbs_color        (segascope_sbs_color)
+	.sbs_color        (segascope_sbs_color),
+	.ddr_grant        (segascope_ddr_active && !ss_freeze),
+	.ddr_busy         (DDRAM_BUSY),
+	.ddr_burst        (sg_ddram_burstcnt),
+	.ddr_addr         (sg_ddram_addr),
+	.ddr_din          (sg_ddram_din),
+	.ddr_be           (sg_ddram_be),
+	.ddr_rd           (sg_ddram_rd),
+	.ddr_we           (sg_ddram_we),
+	.ddr_dout         (DDRAM_DOUT),
+	.ddr_ready        (DDRAM_DOUT_READY)
 );
 
 wire segascope_sbs = segascope_active && (segascope_mode == 3'd6);
