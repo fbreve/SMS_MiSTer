@@ -27,13 +27,38 @@ wire selected_eye=(mode==MODE_LEFT);
 wire fb_area=~x[8]&~y[8];
 wire [15:0] pix_addr={y[7:0],x[7:0]};
 
-// ---- Proven Left/Right framebuffer: unchanged 8-bit RGB222 storage ----------
+// ---- Shared 512 Kib presentation RAM ---------------------------------------
+// 2-D modes: RGB222 in bits [7:2], exactly as the proven Left/Right path.
+// Stereo modes: {left_luma[3:0],right_luma[3:0]}. Since spram has no nibble
+// write enable, stereo capture performs a read-modify-write between ce_pix pulses.
+wire [5:0] live_luma_sum={2'b00,color_in[11:8]}+
+                          {1'b0,color_in[7:4],1'b0}+
+                          {2'b00,color_in[3:0]};
+wire [3:0] live_luma=live_luma_sum[5:2];
+
 wire [7:0] fb_q;
-wire fb_we=ce_pix&&active&&mode_2d&&(eye==selected_eye)&&fb_area;
+reg [3:0] current_luma=0;
+reg [15:0] current_addr=0;
+reg current_eye=0;
+reg [1:0] stereo_phase=0;
+localparam [1:0] ST_IDLE=2'd0, ST_CAPTURE=2'd1, ST_WRITE=2'd2;
+
+wire fb_we_2d=ce_pix&&active&&mode_2d&&(eye==selected_eye)&&fb_area;
+wire stereo_start=ce_pix&&active&&mode_stereo&&fb_area;
+wire stereo_we=active&&mode_stereo&&(stereo_phase==ST_WRITE);
+wire [15:0] fb_addr=(stereo_phase==ST_IDLE)?pix_addr:current_addr;
+wire [7:0] stereo_new_word=current_eye ?
+                         {current_luma,fb_q[3:0]} :
+                         {fb_q[7:4],current_luma};
+wire [7:0] fb_data=fb_we_2d ?
+                    {color_in[11:10],color_in[7:6],color_in[3:2],2'b00} :
+                    stereo_new_word;
+
 spram #(.widthad_a(16),.width_a(8)) framebuffer (
- .clock(clk_sys),.address(pix_addr),.wren(fb_we),
- .data({color_in[11:10],color_in[7:6],color_in[3:2],2'b00}),.q(fb_q)
+ .clock(clk_sys),.address(fb_addr),.wren(fb_we_2d||stereo_we),
+ .data(fb_data),.q(fb_q)
 );
+
 wire [11:0] fb_color={fb_q[7:6],fb_q[7:6],fb_q[5:4],fb_q[5:4],
                       fb_q[3:2],fb_q[3:2]};
 
@@ -46,49 +71,22 @@ always @(posedge clk_sys) begin
 end
 wire replay=active&&mode_2d&&fb_valid&&(eye!=selected_eye)&&fb_area;
 
-// ---- Dual-eye luma presentation store for stereo filters -------------------
-wire [5:0] live_luma_sum={2'b00,color_in[11:8]}+
-                          {1'b0,color_in[7:4],1'b0}+
-                          {2'b00,color_in[3:0]};
-wire [3:0] live_luma=live_luma_sum[5:2];
-
-wire [3:0] stereo_q;
-reg [3:0] opposite_luma=0;
-reg [3:0] current_luma=0;
-reg [15:0] current_addr=0;
-reg current_eye=0;
-reg [1:0] stereo_phase=0;
-
-localparam [1:0] ST_IDLE=2'd0, ST_READ=2'd1, ST_CAPTURE=2'd2;
-
-// On ce_pix the RAM port writes the live eye directly. The pixel address, eye
-// and luma are latched at the same edge. ST_READ then presents the opposite-eye
-// address for a complete RAM clock. ST_CAPTURE samples q one clock later.
-wire stereo_write = ce_pix && active && mode_stereo && fb_area;
-wire [16:0] stereo_ram_addr = stereo_write ?
- {eye,pix_addr} : {~current_eye,current_addr};
-
-spram #(.widthad_a(17),.width_a(4)) stereo_luma (
- .clock(clk_sys),.address(stereo_ram_addr),.wren(stereo_write),
- .data(live_luma),.q(stereo_q)
-);
-
+// A stereo pixel first reads the packed L/R word at its coordinate. One clock
+// later ST_CAPTURE sees that word on q; ST_WRITE then replaces only the current
+// eye nibble. The opposite nibble remains intact.
 always @(posedge clk_sys) begin
  if(reset||!active||!mode_stereo) begin
   stereo_phase<=ST_IDLE;
  end else begin
   case(stereo_phase)
-   ST_IDLE: if(stereo_write) begin
+   ST_IDLE: if(stereo_start) begin
     current_luma<=live_luma;
     current_addr<=pix_addr;
     current_eye<=eye;
-    stereo_phase<=ST_READ;
+    stereo_phase<=ST_CAPTURE;
    end
-   ST_READ: stereo_phase<=ST_CAPTURE;
-   ST_CAPTURE: begin
-    opposite_luma<=stereo_q;
-    stereo_phase<=ST_IDLE;
-   end
+   ST_CAPTURE: stereo_phase<=ST_WRITE;
+   ST_WRITE: stereo_phase<=ST_IDLE;
    default: stereo_phase<=ST_IDLE;
   endcase
  end
@@ -104,9 +102,10 @@ always @(posedge clk_sys) begin
 end
 wire stereo_valid=left_seen&&right_seen;
 
-// Current/opposite ownership is fixed by SegaScope eye state.
-wire [3:0] left_luma = current_eye ? current_luma : opposite_luma;
-wire [3:0] right_luma= current_eye ? opposite_luma : current_luma;
+// During ST_CAPTURE fb_q is the packed word read before the current nibble is
+// updated. Pair the live current-eye luma with the stored opposite eye.
+wire [3:0] left_luma = current_eye ? current_luma : fb_q[7:4];
+wire [3:0] right_luma= current_eye ? fb_q[3:0] : current_luma;
 wire [7:0] ll={left_luma,left_luma}, rl={right_luma,right_luma};
 
 wire [15:0] rc_g_sum=({8'd0,rl}<<7)+({8'd0,rl}<<6)+
@@ -130,10 +129,10 @@ wire [7:0] trio_b=(tl_b>tr_b)?tl_b:tr_b;
 wire [11:0] trioviz_color={trio_r[7:4],trio_g[7:4],trio_b[7:4]};
 wire [11:0] stereo_color=(mode==MODE_TRIOVIZ)?trioviz_color:redcyan_color;
 
-// Hold the completed composition for the full pixel period.
+// ST_CAPTURE is the cycle in which fb_q contains the pre-update packed pair.
 reg [11:0] stereo_pixel=0;
 always @(posedge clk_sys)
- if(active&&mode_stereo&&stereo_valid&&(stereo_phase==ST_IDLE)&&!ce_pix)
+ if(active&&mode_stereo&&stereo_valid&&(stereo_phase==ST_CAPTURE))
   stereo_pixel<=stereo_color;
 
 assign color_out=(active&&mode_stereo&&stereo_valid&&fb_area)?stereo_pixel:
