@@ -11,6 +11,7 @@ module segascope_video
  input clk_sys, input reset, input ce_pix,
  input [2:0] mode, input [2:0] left_color, input [2:0] right_color,
  input pal, input active, input eye,
+ input source_hs, input source_vs, input source_hblank, input source_vblank,
  input [8:0] x, input [8:0] y,
  input [11:0] color_in, output [11:0] color_out,
  output reg sbs_ce, output sbs_hs, output sbs_vs,
@@ -286,33 +287,42 @@ always @(posedge clk_sys) begin
  endcase
 end
 
-// 2x SMS dot clock: 684 samples/line, 262 NTSC or 313 PAL lines/frame.
-// Active area is 512x192: full 256-pixel left eye followed by full right eye.
+// Side-by-side keeps the proven SMS public raster. Only pixel service is
+// doubled so the two 256-pixel eyes occupy the same active-line duration as
+// one normal 256-pixel SMS image. HS/VS/blanking therefore remain exactly the
+// VDP timings already accepted by displays/scalers instead of being recreated
+// from hand-derived totals.
 reg [2:0] sbs_div=0;
 reg [9:0] sbs_x=0;
-reg [8:0] sbs_y=0;
+reg source_hblank_d=1;
 always @(posedge clk_sys) begin
  sbs_ce<=0;
+ source_hblank_d<=source_hblank;
  if(reset||!active||!mode_sbs) begin
-  sbs_div<=0; sbs_x<=0; sbs_y<=0;
+  sbs_div<=0;
+  sbs_x<=0;
+ end else if(source_hblank) begin
+  // Re-arm during blanking. The first active sample starts at column zero.
+  sbs_div<=0;
+  sbs_x<=0;
+ end else if(source_hblank_d&&!source_hblank) begin
+  sbs_div<=0;
+  sbs_x<=0;
+  sbs_ce<=1;
  end else if(sbs_div==3'd4) begin
-  sbs_div<=0; sbs_ce<=1;
-  if(sbs_x==10'd683) begin
-   sbs_x<=0;
-   if((!pal&&sbs_y==9'd261)||(pal&&sbs_y==9'd312)) sbs_y<=0;
-   else sbs_y<=sbs_y+1'd1;
-  end else sbs_x<=sbs_x+1'd1;
+  sbs_div<=0;
+  sbs_ce<=1;
+  if(sbs_x<10'd511) sbs_x<=sbs_x+1'd1;
  end else sbs_div<=sbs_div+1'd1;
 end
 
-assign sbs_hblank=(sbs_x>=10'd512);
-assign sbs_vblank=(sbs_y>=9'd192);
-assign sbs_hs=(sbs_x>=10'd560)&&(sbs_x<10'd608);
-assign sbs_vs=pal?((sbs_y>=9'd243)&&(sbs_y<9'd246)):
-                  ((sbs_y>=9'd221)&&(sbs_y<9'd224));
+assign sbs_hblank=source_hblank;
+assign sbs_vblank=source_vblank;
+assign sbs_hs=source_hs;
+assign sbs_vs=source_vs;
 
 wire [16:0] sbs_read_x = {9'b0,sbs_x[7:0]};
-wire [16:0] sbs_read_y = {1'b0,sbs_y[7:0],8'b0};
+wire [16:0] sbs_read_y = {1'b0,y[7:0],8'b0};
 wire [16:0] sbs_read_eye = (sbs_x < 10'd256) ? 17'd0 : 17'd49152;
 wire [16:0] sbs_read_index = sbs_read_eye + sbs_read_y + sbs_read_x;
 wire [32:0] sbs_read_mult=sbs_read_index*16'd43691;
@@ -325,7 +335,7 @@ wire [1:0] sbs_read_slot=sbs_read_remainder[1:0];
 // preceding clk_sys edge. Delay the packed-pixel slot by the same extra edge.
 reg [1:0] sbs_read_slot_req=0,sbs_read_slot_q=0;
 always @(posedge clk_sys) begin
- if(mode_sbs&&sbs_x<10'd512&&sbs_y<9'd192) begin
+ if(mode_sbs&&!source_hblank&&!source_vblank&&sbs_x<10'd512&&y<9'd192) begin
   sbs_ram_addr_b<=sbs_read_word;
   sbs_read_slot_req<=sbs_read_slot;
   sbs_read_slot_q<=sbs_read_slot_req;
