@@ -173,8 +173,8 @@ video_freak video_freak
 (
 	.*,
 	.VGA_DE_IN(vga_de),
-	.ARX((!ar) ? (segascope_sbs ? 12'd8 : arx) : (ar - 1'd1)),
-	.ARY((!ar) ? (segascope_sbs ? 12'd3 : ary) : 12'd0),
+	.ARX((!ar) ? (segascope_sbs ? 12'd16 : arx) : (ar - 1'd1)),
+	.ARY((!ar) ? (segascope_sbs ? 12'd9 : ary) : 12'd0),
 	.CROP_SIZE(en216p && vcrop_en ? 10'd216 : 10'd0),
 	.CROP_OFF(voff),
 	.SCALE(status[31:30])
@@ -1602,6 +1602,10 @@ segascope_video segascope_video
 	.pal              (pal),
 	.active           (segascope_active),
 	.eye              (segascope_eye),
+	.source_hs        (HS),
+	.source_vs        (VS),
+	.source_hblank    (HBlank),
+	.source_vblank    (VBlank),
 	.x                (x),
 	.y                (y),
 	.color_in         (color),
