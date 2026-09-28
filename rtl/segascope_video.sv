@@ -1,14 +1,10 @@
 //============================================================================
 // SegaScope 3-D video presentation
 //
-// Left/Right 2-D modes keep the hardware-proven 8-bit selected-eye framebuffer.
-// Stereo filters use a separate 512 Kib luma store organized as:
-//   address[16] = eye (1 Left, 0 Right)
-//   address[15:0] = {y[7:0],x[7:0]}
-// ce_pix is asserted once every ten clk_sys cycles, so the single-port stereo
-// RAM is time-multiplexed: write current eye on the pixel edge, then read the
-// opposite eye on the following clock. The result is latched well before the
-// next pixel.
+// One 512 Kib single-port RAM is shared by all presentation modes.
+// Left/Right use it as the hardware-proven 65536x8 RGB222 framebuffer.
+// Stereo modes reinterpret each byte as {left_luma,right_luma} and update one
+// nibble with a read-modify-write sequence between ce_pix pulses.
 //============================================================================
 
 module segascope_video
