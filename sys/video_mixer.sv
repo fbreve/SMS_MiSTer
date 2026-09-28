@@ -110,7 +110,10 @@ generate
 		gamma_corr gamma(
 			.clk_sys(gamma_bus[20]),
 			.clk_vid(CLK_VIDEO),
-			.ce_pix(ce_pix),
+	// Keep the line-buffered path idle when its output isn't selected.
+	// Wide native rasters (SegaScope SBS) can then bypass these RAMs
+	// without increasing LINE_LENGTH for every normal video mode.
+	.ce_pix(scandoubler ? ce_pix : 1'b0),
 
 			.gamma_en(gamma_bus[19]),
 			.gamma_wr(gamma_bus[18]),
