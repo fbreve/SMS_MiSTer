@@ -225,8 +225,12 @@ end
 // ---- Stereo presentation -------------------------------------------------
 wire pair_valid=left_valid&&right_valid;
 wire cache_hit=pair_valid&&cache_valid&&(cache_y==y[7:0])&&active_area;
-wire [63:0] left_word=left_line[x[7:2]];
-wire [63:0] right_word=right_line[x[7:2]];
+wire [5:0] line_rd_addr=mode_sbs?sbs_x[7:2]:x[7:2];
+reg [63:0] left_word=0,right_word=0;
+always @(posedge clk_sys) begin
+ left_word<=left_line[line_rd_addr];
+ right_word<=right_line[line_rd_addr];
+end
 reg [11:0] left_px,right_px;
 always @(*) begin
  case(x[1:0])
@@ -315,15 +319,13 @@ assign sbs_vblank=(sbs_y>=192);
 assign sbs_hs=(sbs_x>=560)&&(sbs_x<608);
 assign sbs_vs=pal?((sbs_y>=243)&&(sbs_y<246)):((sbs_y>=221)&&(sbs_y<224));
 wire sbs_cache_hit=pair_valid&&cache_valid&&(cache_y==sbs_y[7:0])&&(sbs_y<192);
-wire [63:0] sbs_left_word=left_line[sbs_x[7:2]];
-wire [63:0] sbs_right_word=right_line[sbs_x[7:2]];
 reg [11:0] sbs_left,sbs_right;
 always @(*) begin
  case(sbs_x[1:0])
-  0: begin sbs_left=sbs_left_word[11:0]; sbs_right=sbs_right_word[11:0]; end
-  1: begin sbs_left=sbs_left_word[27:16]; sbs_right=sbs_right_word[27:16]; end
-  2: begin sbs_left=sbs_left_word[43:32]; sbs_right=sbs_right_word[43:32]; end
-  default: begin sbs_left=sbs_left_word[59:48]; sbs_right=sbs_right_word[59:48]; end
+  0: begin sbs_left=left_word[11:0]; sbs_right=right_word[11:0]; end
+  1: begin sbs_left=left_word[27:16]; sbs_right=right_word[27:16]; end
+  2: begin sbs_left=left_word[43:32]; sbs_right=right_word[43:32]; end
+  default: begin sbs_left=left_word[59:48]; sbs_right=right_word[59:48]; end
  endcase
 end
 assign sbs_color=(!sbs_cache_hit||sbs_hblank||sbs_vblank)?12'd0:
