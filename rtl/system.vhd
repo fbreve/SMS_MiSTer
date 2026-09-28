@@ -1201,7 +1201,7 @@ port map(
 			if RESET_n='0' then
 				segascope_eye_i <= '0';
 			elsif ss_freeze='0' and MREQ_n='0' and WR_n='0' and
-			      A(15 downto 2)=x"3FFE" then
+			      A(15 downto 2)="11111111111110" then
 				segascope_eye_i <= D_in(0);
 			end if;
 		end if;
