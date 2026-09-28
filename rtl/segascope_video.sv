@@ -289,8 +289,10 @@ assign sbs_hs=(sbs_x>=10'd560)&&(sbs_x<10'd608);
 assign sbs_vs=pal?((sbs_y>=9'd243)&&(sbs_y<9'd246)):
                   ((sbs_y>=9'd221)&&(sbs_y<9'd224));
 
-wire [16:0] sbs_read_index=(sbs_x<10'd256?17'd0:17'd49152)+
-                            {sbs_y[7:0],8'd0}+{9'd0,sbs_x[7:0]};
+wire [16:0] sbs_read_x = {9'b0,sbs_x[7:0]};
+wire [16:0] sbs_read_y = {1'b0,sbs_y[7:0],8'b0};
+wire [16:0] sbs_read_eye = (sbs_x < 10'd256) ? 17'd0 : 17'd49152;
+wire [16:0] sbs_read_index = sbs_read_eye + sbs_read_y + sbs_read_x;
 wire [32:0] sbs_read_mult=sbs_read_index*16'd43691;
 wire [14:0] sbs_read_word=sbs_read_mult[31:17];
 wire [16:0] sbs_read_base={1'b0,sbs_read_word,1'b0}+{2'b00,sbs_read_word};
