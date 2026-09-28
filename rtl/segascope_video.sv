@@ -57,11 +57,13 @@ reg [3:0] opposite_luma=0;
 reg [3:0] current_luma=0;
 reg [15:0] current_addr=0;
 reg current_eye=0;
-reg read_pending=0;
+reg [1:0] stereo_phase=0;
 
-// ce_pix is already stable before the positive clk_sys edge. Feed the write
-// controls directly to the single-port RAM so that edge stores this pixel.
-// Between pixel enables, point the port at the latched opposite-eye address.
+localparam [1:0] ST_IDLE=2'd0, ST_READ=2'd1, ST_CAPTURE=2'd2;
+
+// On ce_pix the RAM port writes the live eye directly. The pixel address, eye
+// and luma are latched at the same edge. ST_READ then presents the opposite-eye
+// address for a complete RAM clock. ST_CAPTURE samples q one clock later.
 wire stereo_write = ce_pix && active && mode_stereo && fb_area;
 wire [16:0] stereo_ram_addr = stereo_write ?
  {eye,pix_addr} : {~current_eye,current_addr};
@@ -73,18 +75,22 @@ spram #(.widthad_a(17),.width_a(4)) stereo_luma (
 
 always @(posedge clk_sys) begin
  if(reset||!active||!mode_stereo) begin
-  read_pending<=0;
+  stereo_phase<=ST_IDLE;
  end else begin
-  if(stereo_write) begin
-   current_luma<=live_luma;
-   current_addr<=pix_addr;
-   current_eye<=eye;
-   read_pending<=1;
-  end else if(read_pending) begin
-   // The port has addressed {opposite eye,current_addr} for this full cycle.
-   opposite_luma<=stereo_q;
-   read_pending<=0;
-  end
+  case(stereo_phase)
+   ST_IDLE: if(stereo_write) begin
+    current_luma<=live_luma;
+    current_addr<=pix_addr;
+    current_eye<=eye;
+    stereo_phase<=ST_READ;
+   end
+   ST_READ: stereo_phase<=ST_CAPTURE;
+   ST_CAPTURE: begin
+    opposite_luma<=stereo_q;
+    stereo_phase<=ST_IDLE;
+   end
+   default: stereo_phase<=ST_IDLE;
+  endcase
  end
 end
 
@@ -127,7 +133,7 @@ wire [11:0] stereo_color=(mode==MODE_TRIOVIZ)?trioviz_color:redcyan_color;
 // Hold the completed composition for the full pixel period.
 reg [11:0] stereo_pixel=0;
 always @(posedge clk_sys)
- if(active&&mode_stereo&&stereo_valid&&!read_pending&&!ce_pix)
+ if(active&&mode_stereo&&stereo_valid&&(stereo_phase==ST_IDLE)&&!ce_pix)
   stereo_pixel<=stereo_color;
 
 assign color_out=(active&&mode_stereo&&stereo_valid&&fb_area)?stereo_pixel:
