@@ -137,7 +137,7 @@ reg [7:0] returned=0;
 
 reg [9:0] sbs_x=0;
 reg [8:0] sbs_y=0;
-reg [2:0] sbs_div=0;
+reg [5:0] sbs_phase=0;
 wire [8:0] sbs_last_y=pal?9'd312:9'd261;
 
 // Request the next line well before it is displayed. Normal modes use the
@@ -193,7 +193,7 @@ always @(posedge clk_sys) begin
   // launched at x=0, so the fill has nearly a complete line period to finish.
   if(mode_sbs && sbs_ready &&
      ((sbs_vblank && sbs_ready_y==8'd0) ||
-      (sbs_ce && sbs_x==10'd683 && !sbs_vblank &&
+      (sbs_ce && sbs_x==10'd911 && !sbs_vblank &&
        sbs_ready_y==((sbs_y==9'd191)?8'd0:sbs_y[7:0]+1'd1)))) begin
    sbs_cache_y<=sbs_ready_y;
    sbs_display_secondary<=sbs_ready_secondary;
@@ -406,25 +406,40 @@ assign color_out=!active||mode==MODE_ORIGINAL||!cache_hit ? color_in :
                  mode_filter?filtered:color_in;
 
 // ---- Side-by-side raster -------------------------------------------------
+// A TV in half-SBS mode expands each half horizontally by 2x.  To preserve
+// the SMS 4:3 eye image, each complete 256x192 eye is centered in a 342-pixel
+// half: 43 black + 256 image + 43 black.  The combined visible raster is
+// therefore 684x192 and is advertised to the scaler as 16:9.
+//
+// Normal SMS timing is 342 pixels at one pixel per 10 clk_sys cycles.  The
+// 912-pixel SBS line uses 8 pixel enables per 30 clocks (average 3.75 clocks),
+// so both modes retain exactly the same 3420-clk_sys line duration.
 always @(posedge clk_sys) begin
  sbs_ce<=0;
- if(reset||!active||!mode_sbs) begin sbs_div<=0;sbs_x<=0;sbs_y<=0; end
- else if(sbs_div==3'd4) begin
-  sbs_div<=0;sbs_ce<=1;
-  if(sbs_x==10'd683) begin
+ if(reset||!active||!mode_sbs) begin
+  sbs_phase<=0;sbs_x<=0;sbs_y<=0;
+ end else if(sbs_phase>=6'd22) begin
+  sbs_phase<=sbs_phase+6'd8-6'd30;
+  sbs_ce<=1;
+  if(sbs_x==10'd911) begin
    sbs_x<=0;
    if(sbs_y==sbs_last_y) sbs_y<=0; else sbs_y<=sbs_y+1'd1;
   end else sbs_x<=sbs_x+1'd1;
- end else sbs_div<=sbs_div+1'd1;
+ end else sbs_phase<=sbs_phase+6'd8;
 end
-assign sbs_hblank=(sbs_x>=512);
+assign sbs_hblank=(sbs_x>=684);
 assign sbs_vblank=(sbs_y>=192);
-assign sbs_hs=(sbs_x>=560)&&(sbs_x<608);
+// Scale the native SMS HS window (280..303 of 342) by 8/3 for the 912-pixel line.
+assign sbs_hs=(sbs_x>=747)&&(sbs_x<811);
 assign sbs_vs=pal?((sbs_y>=243)&&(sbs_y<246)):((sbs_y>=221)&&(sbs_y<224));
 wire sbs_cache_hit=pair_valid&&sbs_cache_valid&&(sbs_cache_y==sbs_y[7:0])&&(sbs_y<192);
+wire sbs_left_active =(sbs_x>=10'd43 )&&(sbs_x<10'd299);
+wire sbs_right_active=(sbs_x>=10'd385)&&(sbs_x<10'd641);
+wire [8:0] sbs_src_x=sbs_left_active ? sbs_x-10'd43 :
+                         sbs_right_active ? sbs_x-10'd385 : 9'd0;
 reg [11:0] sbs_left,sbs_right;
 always @(*) begin
- case(sbs_x[1:0])
+ case(sbs_src_x[1:0])
   0: begin sbs_left=left_word[11:0]; sbs_right=right_word[11:0]; end
   1: begin sbs_left=left_word[23:12]; sbs_right=right_word[23:12]; end
   2: begin sbs_left=left_word[35:24]; sbs_right=right_word[35:24]; end
@@ -432,6 +447,5 @@ always @(*) begin
  endcase
 end
 assign sbs_color=(!sbs_cache_hit||sbs_hblank||sbs_vblank)?12'd0:
-                 (sbs_x<256?sbs_left:sbs_right);
+                 (sbs_left_active?sbs_left:(sbs_right_active?sbs_right:12'd0));
 
-endmodule
