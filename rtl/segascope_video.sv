@@ -120,6 +120,9 @@ reg [7:0] sbs_cache_y=0;
 reg sbs_cache_valid=0;
 reg sbs_display_secondary=0;
 reg sbs_fill_secondary=0;
+reg sbs_ready=0;
+reg [7:0] sbs_ready_y=0;
+reg sbs_ready_secondary=0;
 reg fetch_toggle=0;
 reg [7:0] fetch_req_y=0;
 reg [7:0] dma_fetch_y=0;
@@ -170,6 +173,7 @@ always @(posedge clk_sys) begin
  if(reset||!active||!ddr_grant) begin
   dma<=DMA_IDLE; returned<=0; wf_rd<=0; cache_valid<=0;
    sbs_cache_valid<=0; sbs_display_secondary<=0; sbs_fill_secondary<=0;
+  sbs_ready<=0;
   last_fetch_toggle<=fetch_toggle;
   left_done_seen<=left_done_toggle; right_done_seen<=right_done_toggle;
   left_publish_pending<=0; right_publish_pending<=0;
@@ -188,7 +192,7 @@ always @(posedge clk_sys) begin
      right_disp_bank<=right_done_bank; right_done_seen<=right_done_toggle;
      left_publish_pending<=0; right_publish_pending<=0;
      left_valid<=1; right_valid<=1;
-     cache_valid<=0; sbs_cache_valid<=0;
+     cache_valid<=0; sbs_cache_valid<=0; sbs_ready<=0;
     end else if(fetch_toggle!=last_fetch_toggle) begin
      // Reads have priority so video timing never waits behind capture writes.
      last_fetch_toggle<=fetch_toggle; returned<=0; dma_fetch_y<=fetch_req_y;
@@ -221,8 +225,9 @@ always @(posedge clk_sys) begin
     end
     if(returned==8'd127) begin
      if(mode_sbs) begin
-      sbs_cache_y<=dma_fetch_y; sbs_cache_valid<=1;
-      sbs_display_secondary<=sbs_fill_secondary;
+      sbs_ready_y<=dma_fetch_y;
+      sbs_ready_secondary<=sbs_fill_secondary;
+      sbs_ready<=1;
      end else begin
       cache_y<=dma_fetch_y; cache_valid<=1;
      end
@@ -347,6 +352,23 @@ assign color_out=!active||mode==MODE_ORIGINAL||!cache_hit ? color_in :
                  mode_filter?filtered:color_in;
 
 // ---- Side-by-side raster -------------------------------------------------
+// A completed DDR line becomes visible only between scanlines. This keeps the
+// cache used for the current line stable even if the next-line burst finishes
+// early. The request was launched at x=0, so it has nearly a full line period
+// to become ready before this boundary.
+always @(posedge clk_sys) begin
+ if(reset||!active||!mode_sbs) begin
+  sbs_ready<=0;
+ end else if(sbs_ce && sbs_x==10'd683) begin
+  if(sbs_ready && sbs_ready_y==((sbs_y==9'd191)?8'd0:sbs_y[7:0]+1'd1)) begin
+   sbs_cache_y<=sbs_ready_y;
+   sbs_display_secondary<=sbs_ready_secondary;
+   sbs_cache_valid<=1;
+   sbs_ready<=0;
+  end
+ end
+end
+
 always @(posedge clk_sys) begin
  sbs_ce<=0;
  if(reset||!active||!mode_sbs) begin sbs_div<=0;sbs_x<=0;sbs_y<=0; end
