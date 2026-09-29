@@ -197,16 +197,20 @@ always @(posedge clk_sys) begin
 
   case(dma)
    DMA_IDLE: begin
-    // Normal reconstructed modes follow the rolling SegaScope cadence:
+    // All reconstructed modes follow the rolling SegaScope cadence:
     // publish whichever eye just completed and combine it with the latest
-    // completed opposite eye. SBS instead needs a stable simultaneous pair,
-    // so it advances both banks atomically during its vertical blank.
+    // completed opposite eye. SBS latches that rolling combination only during
+    // vertical blank so its source banks never change halfway down a frame.
     if(wf_empty && mode_sbs && sbs_vblank &&
-       left_publish_pending && right_publish_pending) begin
-     left_disp_bank<=left_done_bank; left_done_seen<=left_done_toggle;
-     right_disp_bank<=right_done_bank; right_done_seen<=right_done_toggle;
-     left_publish_pending<=0; right_publish_pending<=0;
-     left_valid<=1; right_valid<=1;
+       (left_publish_pending || right_publish_pending)) begin
+     if(left_publish_pending) begin
+      left_disp_bank<=left_done_bank; left_done_seen<=left_done_toggle;
+      left_publish_pending<=0; left_valid<=1;
+     end
+     if(right_publish_pending) begin
+      right_disp_bank<=right_done_bank; right_done_seen<=right_done_toggle;
+      right_publish_pending<=0; right_valid<=1;
+     end
      sbs_cache_valid<=0; sbs_ready<=0; sbs_prime_pending<=1;
     end else if(wf_empty && !mode_sbs &&
                 (left_publish_pending || right_publish_pending)) begin
