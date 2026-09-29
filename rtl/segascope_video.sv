@@ -282,7 +282,7 @@ wire cache_hit=pair_valid&&cache_valid&&(cache_y==y[7:0])&&active_area;
 // The SBS counter advances on the clock that raises sbs_ce, while the
 // consumer samples that pixel on the following clock. Prefetch x+1 so the
 // synchronous M10K read has the next 64-bit word ready at every 4-pixel edge.
-wire [9:0] sbs_prefetch_x=sbs_x+10'd1;
+wire [9:0] sbs_prefetch_x=(sbs_x==10'd683)?10'd0:sbs_x+10'd1;
 wire [5:0] line_rd_addr=mode_sbs?sbs_prefetch_x[7:2]:x[7:2];
 // Port B addresses are registered inside dpram, matching the one-clock
 // synchronous-read latency the pixel prefetch logic already expects.
