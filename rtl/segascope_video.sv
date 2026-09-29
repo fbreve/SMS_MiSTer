@@ -449,3 +449,4 @@ end
 assign sbs_color=(!sbs_cache_hit||sbs_hblank||sbs_vblank)?12'd0:
                  (sbs_left_active?sbs_left:(sbs_right_active?sbs_right:12'd0));
 
+endmodule
