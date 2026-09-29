@@ -351,9 +351,9 @@ wire [11:0] trioviz={trio_b,trio_g,trio_r};
 integer cc_sum;
 reg [3:0] cc_b;
 always @(*) begin
- // Rounded (15*R + 15*G + 70*B) / 100, expressed as thresholds so
- // Quartus does not infer a general-purpose divider.
- cc_sum=15*rr+15*rg+70*rb;
+ // Rounded (11*R + 22*G + 67*B) / 100, matching the published
+ // ColorCode amber/blue weighting. Thresholds avoid a general-purpose divider.
+ cc_sum=11*rr+22*rg+67*rb;
  if(cc_sum<50) cc_b=4'd0;
  else if(cc_sum<150) cc_b=4'd1;
  else if(cc_sum<250) cc_b=4'd2;
