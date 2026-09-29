@@ -282,33 +282,33 @@ wire [9:0] sbs_prefetch_x=sbs_x+10'd1;
 wire [5:0] line_rd_addr=mode_sbs?sbs_prefetch_x[7:2]:x[7:2];
 // Port B addresses are registered inside dpram, matching the one-clock
 // synchronous-read latency the pixel prefetch logic already expects.
-dpram #(.widthad_a(6),.width_a(64),.mixed_port_rdwr("DONT_CARE")) left_line_ram
+sdpram #(.widthad_a(6),.width_a(64),.mixed_port_rdwr("DONT_CARE")) left_line_ram
 (
  .address_a(returned[5:0]),.address_b(line_rd_addr),
- .clock_a(clk_sys),.clock_b(clk_sys),.data_a(ddr_dout),.data_b(64'd0),
- .wren_a(line_fill_primary && line_fill_left),.wren_b(1'b0),
- .q_a(),.q_b(left_line_q)
+ .clock(clk_sys),.data_a(ddr_dout),
+ .wren_a(line_fill_primary && line_fill_left),
+ .q_b(left_line_q)
 );
-dpram #(.widthad_a(6),.width_a(64),.mixed_port_rdwr("DONT_CARE")) right_line_ram
+sdpram #(.widthad_a(6),.width_a(64),.mixed_port_rdwr("DONT_CARE")) right_line_ram
 (
  .address_a(returned[5:0]),.address_b(line_rd_addr),
- .clock_a(clk_sys),.clock_b(clk_sys),.data_a(ddr_dout),.data_b(64'd0),
- .wren_a(line_fill_primary && line_fill_right),.wren_b(1'b0),
- .q_a(),.q_b(right_line_q)
+ .clock(clk_sys),.data_a(ddr_dout),
+ .wren_a(line_fill_primary && line_fill_right),
+ .q_b(right_line_q)
 );
-dpram #(.widthad_a(6),.width_a(64),.mixed_port_rdwr("DONT_CARE")) sbs_left_line_ram
+sdpram #(.widthad_a(6),.width_a(64),.mixed_port_rdwr("DONT_CARE")) sbs_left_line_ram
 (
  .address_a(returned[5:0]),.address_b(line_rd_addr),
- .clock_a(clk_sys),.clock_b(clk_sys),.data_a(ddr_dout),.data_b(64'd0),
- .wren_a(line_fill_secondary && line_fill_left),.wren_b(1'b0),
- .q_a(),.q_b(sbs_left_line_q)
+ .clock(clk_sys),.data_a(ddr_dout),
+ .wren_a(line_fill_secondary && line_fill_left),
+ .q_b(sbs_left_line_q)
 );
-dpram #(.widthad_a(6),.width_a(64),.mixed_port_rdwr("DONT_CARE")) sbs_right_line_ram
+sdpram #(.widthad_a(6),.width_a(64),.mixed_port_rdwr("DONT_CARE")) sbs_right_line_ram
 (
  .address_a(returned[5:0]),.address_b(line_rd_addr),
- .clock_a(clk_sys),.clock_b(clk_sys),.data_a(ddr_dout),.data_b(64'd0),
- .wren_a(line_fill_secondary && line_fill_right),.wren_b(1'b0),
- .q_a(),.q_b(sbs_right_line_q)
+ .clock(clk_sys),.data_a(ddr_dout),
+ .wren_a(line_fill_secondary && line_fill_right),
+ .q_b(sbs_right_line_q)
 );
 wire [63:0] left_word=(mode_sbs && sbs_display_secondary)?sbs_left_line_q:left_line_q;
 wire [63:0] right_word=(mode_sbs && sbs_display_secondary)?sbs_right_line_q:right_line_q;
