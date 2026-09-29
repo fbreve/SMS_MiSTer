@@ -146,7 +146,9 @@ scandoubler #(.LENGTH(LINE_LENGTH), .HALF_DEPTH(HALF_DEPTH_SD)) sd
 	.clk_vid(CLK_VIDEO),
 	.hq2x(hq2x),
 
-	.ce_pix(ce_pix),
+	// Keep the line-buffered path idle when its output isn't selected.
+	// SBS bypasses these RAMs, so LINE_LENGTH can remain at the normal size.
+	.ce_pix(scandoubler ? ce_pix : 1'b0),
 	.hs_in(hs_g),
 	.vs_in(vs_g),
 	.hb_in(hb_g),

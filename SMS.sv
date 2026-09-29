@@ -102,7 +102,8 @@ always @(posedge CLK_VIDEO) begin
 end
 
 wire video_rotated;
-wire no_rotate = ~status[41];
+wire segascope_ddr_active;
+wire no_rotate = segascope_ddr_active ? 1'b1 : ~status[41];
 wire flip = status[42];
 wire rotate_ccw = 1'b0;
 wire [5:0] arx, ary;
@@ -173,8 +174,8 @@ video_freak video_freak
 (
 	.*,
 	.VGA_DE_IN(vga_de),
-	.ARX((!ar) ? arx : (ar - 1'd1)),
-	.ARY((!ar) ? ary : 12'd0),
+	.ARX((!ar) ? (segascope_sbs ? 12'd8 : arx) : (ar - 1'd1)),
+	.ARY((!ar) ? (segascope_sbs ? 12'd3 : ary) : 12'd0),
 	.CROP_SIZE(en216p && vcrop_en ? 10'd216 : 10'd0),
 	.CROP_OFF(voff),
 	.SCALE(status[31:30])
@@ -238,6 +239,9 @@ parameter CONF_STR = {
 	"d2P1o7,Game Gear Res.,Standard,Extended;",
 	"P1-;",
 	"P1OC,SMS FM Sound,Enable,Disable;",
+	"P1O[71:69],SegaScope 3D,Original,Left Eye,Right Eye,Red/Cyan,TriOviz,ColorCode,Side by Side,Custom;",
+	"h5P1O[74:72],3D Left Color,Red,Magenta,Blue,Cyan,Green,Yellow,White;",
+	"h5P1O[77:75],3D Right Color,Red,Magenta,Blue,Cyan,Green,Yellow,White;",
 
 	"P2,Input;",
 	"P2-;",
@@ -491,7 +495,7 @@ hps_io #(.CONF_STR(CONF_STR), .WIDE(0)) hps_io
 	.status(status),
 	.status_in(status_in),
 	.status_set(status_set),
-	.status_menumask({status[25],systeme,~dbg_menu,en216p,status[13],~gun_en,~raw_serial,gg,~gg_avail,~bk_ena}),
+	.status_menumask({status[25],systeme,~dbg_menu,en216p,(status[71:69] == 3'd7),~gun_en,~raw_serial,gg,~gg_avail,~bk_ena}),
 	.forced_scandoubler(forced_scandoubler),
 	.new_vmode(pal),
 	.gamma_bus(gamma_bus),
@@ -1051,6 +1055,8 @@ system #(63) system
 	.y(y),
 	.vcounter_cpu(vcounter_cpu),
 	.color(color),
+	.segascope_eye(segascope_eye),
+	.segascope_active(segascope_active),
 	.palettemode(sg_palette),
 	.mask_column(mask_column),
 	.black_column(status[28] && ~status[13]),
@@ -1281,13 +1287,19 @@ savestates savestates_inst (
 	.DDRAM_BUSY      (DDRAM_BUSY)
 );
 
-assign DDRAM_CLK      = clk_sys; // always stable; sr_ddram_clk (CLK_VIDEO) would glitch on ss_freeze toggle
-assign DDRAM_BURSTCNT = ss_freeze ? ss_ddram_burstcnt : sr_ddram_burstcnt;
-assign DDRAM_ADDR     = ss_freeze ? ss_ddram_addr     : sr_ddram_addr;
-assign DDRAM_DIN      = ss_freeze ? ss_ddram_din      : sr_ddram_din;
-assign DDRAM_BE       = ss_freeze ? ss_ddram_be       : sr_ddram_be;
-assign DDRAM_WE       = ss_freeze ? ss_ddram_we       : sr_ddram_we;
-assign DDRAM_RD       = ss_freeze ? ss_ddram_rd       : sr_ddram_rd;
+wire [7:0]  sg_ddram_burstcnt;
+wire [28:0] sg_ddram_addr;
+wire [63:0] sg_ddram_din;
+wire [7:0]  sg_ddram_be;
+wire        sg_ddram_we,sg_ddram_rd;
+
+assign DDRAM_CLK      = clk_sys; // stable clock shared by all DDR clients
+assign DDRAM_BURSTCNT = ss_freeze ? ss_ddram_burstcnt : segascope_ddr_active ? sg_ddram_burstcnt : sr_ddram_burstcnt;
+assign DDRAM_ADDR     = ss_freeze ? ss_ddram_addr     : segascope_ddr_active ? sg_ddram_addr     : sr_ddram_addr;
+assign DDRAM_DIN      = ss_freeze ? ss_ddram_din      : segascope_ddr_active ? sg_ddram_din      : sr_ddram_din;
+assign DDRAM_BE       = ss_freeze ? ss_ddram_be       : segascope_ddr_active ? sg_ddram_be       : sr_ddram_be;
+assign DDRAM_WE       = ss_freeze ? ss_ddram_we       : segascope_ddr_active ? sg_ddram_we       : sr_ddram_we;
+assign DDRAM_RD       = ss_freeze ? ss_ddram_rd       : segascope_ddr_active ? sg_ddram_rd       : sr_ddram_rd;
 
 wire [12:0] key_a;
 wire [7:0] key_d;
@@ -1496,6 +1508,8 @@ wire [8:0] x;
 wire [8:0] y;
 wire [7:0] vcounter_cpu;
 wire [11:0] color;
+wire segascope_eye;
+wire segascope_active;
 wire mask_column;
 wire smode_M1, smode_M2, smode_M3, smode_M4;
 wire pal = status[2];
@@ -1578,14 +1592,67 @@ always @(posedge CLK_VIDEO) begin
 	if(~HSync & HS) VSync <= VS;
 end
 
-wire [3:0] vid_r = se_pause_gate ? {1'b0, color[3:1]}  : color[3:0];
-wire [3:0] vid_g = se_pause_gate ? {1'b0, color[7:5]}  : color[7:4];
-wire [3:0] vid_b = se_pause_gate ? {1'b0, color[11:9]} : color[11:8];
+wire [2:0] segascope_mode = status[71:69];
+assign segascope_ddr_active = segascope_active && (segascope_mode != 3'd0);
+wire [11:0] display_color;
+wire segascope_sbs_ce, segascope_sbs_hs, segascope_sbs_vs;
+wire segascope_sbs_hblank, segascope_sbs_vblank;
+wire [11:0] segascope_sbs_color;
+
+segascope_video segascope_video
+(
+	.clk_sys          (clk_sys),
+	.reset            (reset_active),
+	.ce_pix           (ce_pix),
+	.mode             (segascope_mode),
+	.left_color       (status[74:72]),
+	.right_color      (status[77:75]),
+	.pal              (pal),
+	.active           (segascope_active),
+	.eye              (segascope_eye),
+	.x                (x),
+	.y                (y),
+	.color_in         (color),
+	.color_out        (display_color),
+	.sbs_ce           (segascope_sbs_ce),
+	.sbs_hs           (segascope_sbs_hs),
+	.sbs_vs           (segascope_sbs_vs),
+	.sbs_hblank       (segascope_sbs_hblank),
+	.sbs_vblank       (segascope_sbs_vblank),
+	.sbs_color        (segascope_sbs_color),
+	.ddr_grant        (segascope_ddr_active && !ss_freeze),
+	.ddr_busy         (DDRAM_BUSY),
+	.ddr_burst        (sg_ddram_burstcnt),
+	.ddr_addr         (sg_ddram_addr),
+	.ddr_din          (sg_ddram_din),
+	.ddr_be           (sg_ddram_be),
+	.ddr_rd           (sg_ddram_rd),
+	.ddr_we           (sg_ddram_we),
+	.ddr_dout         (DDRAM_DOUT),
+	.ddr_ready        (DDRAM_DOUT_READY)
+);
+
+wire segascope_sbs = segascope_active && (segascope_mode == 3'd6);
+wire [11:0] mixer_color = segascope_sbs ? segascope_sbs_color : display_color;
+wire [3:0] vid_r = se_pause_gate ? {1'b0, mixer_color[3:1]}  : mixer_color[3:0];
+wire [3:0] vid_g = se_pause_gate ? {1'b0, mixer_color[7:5]}  : mixer_color[7:4];
+wire [3:0] vid_b = se_pause_gate ? {1'b0, mixer_color[11:9]} : mixer_color[11:8];
+
+wire mixer_ce = segascope_sbs ? segascope_sbs_ce : ce_pix;
+wire mixer_hs = segascope_sbs ? segascope_sbs_hs : HS;
+wire mixer_vs = segascope_sbs ? segascope_sbs_vs : VS;
+wire mixer_hblank = segascope_sbs ? segascope_sbs_hblank : HBlank;
+wire mixer_vblank = segascope_sbs ? segascope_sbs_vblank : VBlank;
 
 video_mixer #(.HALF_DEPTH(1), .LINE_LENGTH(300), .GAMMA(1)) video_mixer
 (
 	.*,
-	.scandoubler(scale || forced_scandoubler),
+	.ce_pix(mixer_ce),
+	.HSync(mixer_hs),
+	.VSync(mixer_vs),
+	.HBlank(mixer_hblank),
+	.VBlank(mixer_vblank),
+	.scandoubler(!segascope_sbs && (scale || forced_scandoubler)),
 	.hq2x(scale==1),
 	.freeze_sync(),
 
