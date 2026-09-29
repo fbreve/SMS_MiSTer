@@ -110,8 +110,16 @@ end
 // ---- Stable stereo line cache -------------------------------------------
 (* ramstyle = "M10K, no_rw_check" *) reg [63:0] left_line[0:63];
 (* ramstyle = "M10K, no_rw_check" *) reg [63:0] right_line[0:63];
+// SBS gets a second stereo line cache so DDR can fetch line N+1 while line N
+// remains stable on screen.
+(* ramstyle = "M10K, no_rw_check" *) reg [63:0] sbs_left_line[0:63];
+(* ramstyle = "M10K, no_rw_check" *) reg [63:0] sbs_right_line[0:63];
 reg [7:0] cache_y=0;
 reg cache_valid=0;
+reg [7:0] sbs_cache_y=0;
+reg sbs_cache_valid=0;
+reg sbs_display_secondary=0;
+reg sbs_fill_secondary=0;
 reg fetch_toggle=0;
 reg [7:0] fetch_req_y=0;
 reg [7:0] dma_fetch_y=0;
@@ -132,9 +140,11 @@ always @(posedge clk_sys) begin
    fetch_req_y <= (y==9'd191)?8'd0:y[7:0]+1'd1;
    fetch_toggle<=~fetch_toggle;
   end
-  if(mode_sbs && sbs_ce && sbs_x==10'd512) begin
-   if(sbs_y<9'd191) fetch_req_y<=sbs_y[7:0]+1'd1;
-   else fetch_req_y<=8'd0;
+  // With a second SBS cache, prefetch line N+1 as soon as line N starts.
+  // This gives DDR almost a complete 684-pixel line period instead of only
+  // horizontal blanking, without disturbing the line currently displayed.
+  if(mode_sbs && sbs_ce && sbs_x==10'd0 && sbs_y<9'd192) begin
+   fetch_req_y <= (sbs_y==9'd191)?8'd0:sbs_y[7:0]+1'd1;
    fetch_toggle<=~fetch_toggle;
   end
  end
@@ -159,6 +169,7 @@ assign ddr_we=(dma==DMA_WRITE);
 always @(posedge clk_sys) begin
  if(reset||!active||!ddr_grant) begin
   dma<=DMA_IDLE; returned<=0; wf_rd<=0; cache_valid<=0;
+   sbs_cache_valid<=0; sbs_display_secondary<=0; sbs_fill_secondary<=0;
   last_fetch_toggle<=fetch_toggle;
   left_done_seen<=left_done_toggle; right_done_seen<=right_done_toggle;
   left_publish_pending<=0; right_publish_pending<=0;
@@ -168,30 +179,40 @@ always @(posedge clk_sys) begin
   if(right_done_toggle!=right_done_seen) right_publish_pending<=1;
   case(dma)
    DMA_IDLE: begin
-    // Publish completed eye banks only after all capture writes have drained.
-    // Do not start a read in the same cycle: nonblocking bank updates would
-    // otherwise fetch one line from the just-retired display bank.
-    if(wf_empty && (left_publish_pending||right_publish_pending)) begin
-     if(left_publish_pending) begin
-      left_disp_bank<=left_done_bank; left_done_seen<=left_done_toggle;
-      left_publish_pending<=0; left_valid<=1;
-     end
-     if(right_publish_pending) begin
-      right_disp_bank<=right_done_bank; right_done_seen<=right_done_toggle;
-      right_publish_pending<=0; right_valid<=1;
-     end
-     cache_valid<=0;
+    // Publish only a complete adjacent stereo pair. Publishing each eye
+    // independently can combine fields from different stereo instants.
+    // Wait until both completed banks are present and all queued capture writes
+    // have drained, then advance both display banks atomically.
+    if(wf_empty && left_publish_pending && right_publish_pending) begin
+     left_disp_bank<=left_done_bank; left_done_seen<=left_done_toggle;
+     right_disp_bank<=right_done_bank; right_done_seen<=right_done_toggle;
+     left_publish_pending<=0; right_publish_pending<=0;
+     left_valid<=1; right_valid<=1;
+     cache_valid<=0; sbs_cache_valid<=0;
     end else if(fetch_toggle!=last_fetch_toggle) begin
      // Reads have priority so video timing never waits behind capture writes.
      last_fetch_toggle<=fetch_toggle; returned<=0; dma_fetch_y<=fetch_req_y;
+     // SBS alternates between the primary and secondary line caches.
+     // Normal presentation modes continue using the primary cache only.
+     if(mode_sbs) sbs_fill_secondary<=sbs_cache_valid ? ~sbs_display_secondary : 1'b0;
      read_base<=frame_base(1'b1,left_disp_bank)+({21'd0,fetch_req_y}<<6);
      dma<=DMA_READ_REQ;
     end else if(!wf_empty) dma<=DMA_WRITE;
    end
    DMA_READ_REQ: if(!ddr_busy) dma<=DMA_READ_DATA;
    DMA_READ_DATA: if(ddr_ready) begin
-    if(returned<64) left_line[returned[5:0]]<=ddr_dout;
-    else right_line[returned[5:0]]<=ddr_dout;
+    if(mode_sbs) begin
+     if(returned<64) begin
+      if(sbs_fill_secondary) sbs_left_line[returned[5:0]]<=ddr_dout;
+      else left_line[returned[5:0]]<=ddr_dout;
+     end else begin
+      if(sbs_fill_secondary) sbs_right_line[returned[5:0]]<=ddr_dout;
+      else right_line[returned[5:0]]<=ddr_dout;
+     end
+    end else begin
+     if(returned<64) left_line[returned[5:0]]<=ddr_dout;
+     else right_line[returned[5:0]]<=ddr_dout;
+    end
     returned<=returned+1'd1;
     if(returned==8'd63) begin
      // DDR bursts cannot jump from left bank to right bank. Finish this burst,
@@ -199,7 +220,13 @@ always @(posedge clk_sys) begin
      read_base<=right_read_base; dma<=DMA_READ_REQ;
     end
     if(returned==8'd127) begin
-     cache_y<=dma_fetch_y; cache_valid<=1; dma<=DMA_IDLE;
+     if(mode_sbs) begin
+      sbs_cache_y<=dma_fetch_y; sbs_cache_valid<=1;
+      sbs_display_secondary<=sbs_fill_secondary;
+     end else begin
+      cache_y<=dma_fetch_y; cache_valid<=1;
+     end
+     dma<=DMA_IDLE;
     end
    end
    DMA_WRITE: if(!ddr_busy) begin
@@ -222,8 +249,13 @@ wire [9:0] sbs_prefetch_x=sbs_x+10'd1;
 wire [5:0] line_rd_addr=mode_sbs?sbs_prefetch_x[7:2]:x[7:2];
 reg [63:0] left_word=0,right_word=0;
 always @(posedge clk_sys) begin
- left_word<=left_line[line_rd_addr];
- right_word<=right_line[line_rd_addr];
+ if(mode_sbs && sbs_display_secondary) begin
+  left_word<=sbs_left_line[line_rd_addr];
+  right_word<=sbs_right_line[line_rd_addr];
+ end else begin
+  left_word<=left_line[line_rd_addr];
+  right_word<=right_line[line_rd_addr];
+ end
 end
 reg [11:0] left_px,right_px;
 always @(*) begin
@@ -330,7 +362,7 @@ assign sbs_hblank=(sbs_x>=512);
 assign sbs_vblank=(sbs_y>=192);
 assign sbs_hs=(sbs_x>=560)&&(sbs_x<608);
 assign sbs_vs=pal?((sbs_y>=243)&&(sbs_y<246)):((sbs_y>=221)&&(sbs_y<224));
-wire sbs_cache_hit=pair_valid&&cache_valid&&(cache_y==sbs_y[7:0])&&(sbs_y<192);
+wire sbs_cache_hit=pair_valid&&sbs_cache_valid&&(sbs_cache_y==sbs_y[7:0])&&(sbs_y<192);
 reg [11:0] sbs_left,sbs_right;
 always @(*) begin
  case(sbs_x[1:0])
