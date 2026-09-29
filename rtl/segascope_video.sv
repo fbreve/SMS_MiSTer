@@ -110,7 +110,11 @@ end
 // ---- Stable stereo line cache -------------------------------------------
 // Four 64x64 dual-port line caches. Use the core's explicit altsyncram
 // wrapper instead of inferred reg arrays so Quartus maps them to block RAM.
-wire [63:0] left_line_q,right_line_q,sbs_left_line_q,sbs_right_line_q;
+wire [47:0] left_line_q,right_line_q,sbs_left_line_q,sbs_right_line_q;
+// DDR stores four RGB444 pixels in 16-bit slots. Strip each unused high
+// nibble before the word enters the on-chip line cache.
+wire [47:0] line_fill_data={ddr_dout[59:48],ddr_dout[43:32],
+                            ddr_dout[27:16],ddr_dout[11:0]};
 wire line_fill = (dma==DMA_READ_DATA) && ddr_ready;
 wire line_fill_left = line_fill && (returned<8'd64);
 wire line_fill_right = line_fill && (returned>=8'd64);
@@ -282,43 +286,43 @@ wire [9:0] sbs_prefetch_x=sbs_x+10'd1;
 wire [5:0] line_rd_addr=mode_sbs?sbs_prefetch_x[7:2]:x[7:2];
 // Port B addresses are registered inside dpram, matching the one-clock
 // synchronous-read latency the pixel prefetch logic already expects.
-sdpram #(.widthad_a(6),.width_a(64),.mixed_port_rdwr("DONT_CARE")) left_line_ram
+sdpram #(.widthad_a(6),.width_a(48),.mixed_port_rdwr("DONT_CARE")) left_line_ram
 (
  .address_a(returned[5:0]),.address_b(line_rd_addr),
- .clock(clk_sys),.data_a(ddr_dout),
+ .clock(clk_sys),.data_a(line_fill_data),
  .wren_a(line_fill_primary && line_fill_left),
  .q_b(left_line_q)
 );
-sdpram #(.widthad_a(6),.width_a(64),.mixed_port_rdwr("DONT_CARE")) right_line_ram
+sdpram #(.widthad_a(6),.width_a(48),.mixed_port_rdwr("DONT_CARE")) right_line_ram
 (
  .address_a(returned[5:0]),.address_b(line_rd_addr),
- .clock(clk_sys),.data_a(ddr_dout),
+ .clock(clk_sys),.data_a(line_fill_data),
  .wren_a(line_fill_primary && line_fill_right),
  .q_b(right_line_q)
 );
-sdpram #(.widthad_a(6),.width_a(64),.mixed_port_rdwr("DONT_CARE")) sbs_left_line_ram
+sdpram #(.widthad_a(6),.width_a(48),.mixed_port_rdwr("DONT_CARE")) sbs_left_line_ram
 (
  .address_a(returned[5:0]),.address_b(line_rd_addr),
- .clock(clk_sys),.data_a(ddr_dout),
+ .clock(clk_sys),.data_a(line_fill_data),
  .wren_a(line_fill_secondary && line_fill_left),
  .q_b(sbs_left_line_q)
 );
-sdpram #(.widthad_a(6),.width_a(64),.mixed_port_rdwr("DONT_CARE")) sbs_right_line_ram
+sdpram #(.widthad_a(6),.width_a(48),.mixed_port_rdwr("DONT_CARE")) sbs_right_line_ram
 (
  .address_a(returned[5:0]),.address_b(line_rd_addr),
- .clock(clk_sys),.data_a(ddr_dout),
+ .clock(clk_sys),.data_a(line_fill_data),
  .wren_a(line_fill_secondary && line_fill_right),
  .q_b(sbs_right_line_q)
 );
-wire [63:0] left_word=(mode_sbs && sbs_display_secondary)?sbs_left_line_q:left_line_q;
-wire [63:0] right_word=(mode_sbs && sbs_display_secondary)?sbs_right_line_q:right_line_q;
+wire [47:0] left_word=(mode_sbs && sbs_display_secondary)?sbs_left_line_q:left_line_q;
+wire [47:0] right_word=(mode_sbs && sbs_display_secondary)?sbs_right_line_q:right_line_q;
 reg [11:0] left_px,right_px;
 always @(*) begin
  case(x[1:0])
   0: begin left_px=left_word[11:0]; right_px=right_word[11:0]; end
-  1: begin left_px=left_word[27:16]; right_px=right_word[27:16]; end
-  2: begin left_px=left_word[43:32]; right_px=right_word[43:32]; end
-  default: begin left_px=left_word[59:48]; right_px=right_word[59:48]; end
+  1: begin left_px=left_word[23:12]; right_px=right_word[23:12]; end
+  2: begin left_px=left_word[35:24]; right_px=right_word[35:24]; end
+  default: begin left_px=left_word[47:36]; right_px=right_word[47:36]; end
  endcase
 end
 wire [3:0] lr=left_px[3:0],lg=left_px[7:4],lb=left_px[11:8];
@@ -422,9 +426,9 @@ reg [11:0] sbs_left,sbs_right;
 always @(*) begin
  case(sbs_x[1:0])
   0: begin sbs_left=left_word[11:0]; sbs_right=right_word[11:0]; end
-  1: begin sbs_left=left_word[27:16]; sbs_right=right_word[27:16]; end
-  2: begin sbs_left=left_word[43:32]; sbs_right=right_word[43:32]; end
-  default: begin sbs_left=left_word[59:48]; sbs_right=right_word[59:48]; end
+  1: begin sbs_left=left_word[23:12]; sbs_right=right_word[23:12]; end
+  2: begin sbs_left=left_word[35:24]; sbs_right=right_word[35:24]; end
+  default: begin sbs_left=left_word[47:36]; sbs_right=right_word[47:36]; end
  endcase
 end
 assign sbs_color=(!sbs_cache_hit||sbs_hblank||sbs_vblank)?12'd0:
