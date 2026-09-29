@@ -381,6 +381,7 @@ architecture Behavioral of system is
 	signal sega_mapper_write_seen : std_logic;
 	signal rom_size_pages : std_logic_vector(7 downto 0);
 	signal rom_crc32 : std_logic_vector(31 downto 0);
+	signal maze_3d_classics : std_logic;
 	signal detect_zemina_static : std_logic;
 	signal detect_codies_static : std_logic;
 	signal detect_castle : std_logic;
@@ -963,8 +964,13 @@ port map(
 	io_sc_legacy_port <= '1' when (A(7 downto 0)=x"DE" or A(7 downto 0)=x"DF") and palettemode='1' and gg='0' and systeme='0' else '0';
 	io_sc_mc_port <= '1' when A(7 downto 5)="111" and sc_multicart_en='1' and gg='0' and systeme='0' else '0';
 
+	-- The 3D Classics Maze Walker ROM expects $C000-$DFFF and $E000-$FFFF
+	-- to be independent 8 KiB banks instead of the normal SMS RAM mirror.
+	-- Experimental M2 compatibility path, selected by full-ROM CRC32.
+	maze_3d_classics <= '1' when (rom_crc32 xor x"FFFFFFFF") = x"F8CE3CC3" else '0';
+
 	ram_a <= "000" & A(10 downto 0) when sc3000_en = '1' else
-	         A(13 downto 0) when systeme = '1' else
+	         A(13 downto 0) when systeme = '1' or maze_3d_classics = '1' else
 	         '0' & A(12 downto 0);
 	ram_we <= ram_WR;
 	ram_d <= D_in;
