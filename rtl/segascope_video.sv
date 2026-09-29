@@ -181,6 +181,17 @@ always @(posedge clk_sys) begin
  end else begin
   if(left_done_toggle!=left_done_seen) left_publish_pending<=1;
   if(right_done_toggle!=right_done_seen) right_publish_pending<=1;
+
+  // Make a completed SBS line visible only between scanlines. The request was
+  // launched at x=0, so the fill has nearly a complete line period to finish.
+  if(mode_sbs && sbs_ce && sbs_x==10'd683 &&
+     sbs_ready && sbs_ready_y==((sbs_y==9'd191)?8'd0:sbs_y[7:0]+1'd1)) begin
+   sbs_cache_y<=sbs_ready_y;
+   sbs_display_secondary<=sbs_ready_secondary;
+   sbs_cache_valid<=1;
+   sbs_ready<=0;
+  end
+
   case(dma)
    DMA_IDLE: begin
     // Publish only a complete adjacent stereo pair. Publishing each eye
@@ -352,23 +363,6 @@ assign color_out=!active||mode==MODE_ORIGINAL||!cache_hit ? color_in :
                  mode_filter?filtered:color_in;
 
 // ---- Side-by-side raster -------------------------------------------------
-// A completed DDR line becomes visible only between scanlines. This keeps the
-// cache used for the current line stable even if the next-line burst finishes
-// early. The request was launched at x=0, so it has nearly a full line period
-// to become ready before this boundary.
-always @(posedge clk_sys) begin
- if(reset||!active||!mode_sbs) begin
-  sbs_ready<=0;
- end else if(sbs_ce && sbs_x==10'd683) begin
-  if(sbs_ready && sbs_ready_y==((sbs_y==9'd191)?8'd0:sbs_y[7:0]+1'd1)) begin
-   sbs_cache_y<=sbs_ready_y;
-   sbs_display_secondary<=sbs_ready_secondary;
-   sbs_cache_valid<=1;
-   sbs_ready<=0;
-  end
- end
-end
-
 always @(posedge clk_sys) begin
  sbs_ce<=0;
  if(reset||!active||!mode_sbs) begin sbs_div<=0;sbs_x<=0;sbs_y<=0; end
