@@ -224,8 +224,8 @@ always @(posedge clk_sys) begin
      end
      cache_valid<=0;
     end else if(mode_sbs && sbs_prime_pending) begin
-     // After an atomic pair swap during vertical blank, refill line 0 from
-     // the new pair immediately so the next SBS frame starts valid.
+     // After latching the latest rolling eye combination during vertical blank,
+     // refill line 0 immediately so the next SBS frame starts valid.
      returned<=0; dma_fetch_y<=8'd0;
      sbs_fill_secondary<=~sbs_display_secondary;
      read_base<=frame_base(1'b1,left_disp_bank);
