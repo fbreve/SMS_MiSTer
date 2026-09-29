@@ -435,8 +435,8 @@ assign sbs_vs=pal?((sbs_y>=243)&&(sbs_y<246)):((sbs_y>=221)&&(sbs_y<224));
 wire sbs_cache_hit=pair_valid&&sbs_cache_valid&&(sbs_cache_y==sbs_y[7:0])&&(sbs_y<192);
 wire sbs_left_active =(sbs_x>=10'd43 )&&(sbs_x<10'd299);
 wire sbs_right_active=(sbs_x>=10'd385)&&(sbs_x<10'd641);
-wire [8:0] sbs_src_x=sbs_left_active ? sbs_x-10'd43 :
-                         sbs_right_active ? sbs_x-10'd385 : 9'd0;
+wire [8:0] sbs_src_x=sbs_left_active ? sbs_x[8:0]-9'd43 :
+                         sbs_right_active ? sbs_x[8:0]-9'd385 : 9'd0;
 reg [11:0] sbs_left,sbs_right;
 always @(*) begin
  case(sbs_src_x[1:0])
