@@ -108,12 +108,14 @@ always @(posedge clk_sys) begin
 end
 
 // ---- Stable stereo line cache -------------------------------------------
-(* ramstyle = "M10K, no_rw_check" *) reg [63:0] left_line[0:63];
-(* ramstyle = "M10K, no_rw_check" *) reg [63:0] right_line[0:63];
-// SBS gets a second stereo line cache so DDR can fetch line N+1 while line N
-// remains stable on screen.
-(* ramstyle = "M10K, no_rw_check" *) reg [63:0] sbs_left_line[0:63];
-(* ramstyle = "M10K, no_rw_check" *) reg [63:0] sbs_right_line[0:63];
+// Four 64x64 dual-port line caches. Use the core's explicit altsyncram
+// wrapper instead of inferred reg arrays so Quartus maps them to block RAM.
+wire [63:0] left_line_q,right_line_q,sbs_left_line_q,sbs_right_line_q;
+wire line_fill = (dma==DMA_READ_DATA) && ddr_ready;
+wire line_fill_left = line_fill && (returned<8'd64);
+wire line_fill_right = line_fill && (returned>=8'd64);
+wire line_fill_primary = !mode_sbs || !sbs_fill_secondary;
+wire line_fill_secondary = mode_sbs && sbs_fill_secondary;
 reg [7:0] cache_y=0;
 reg cache_valid=0;
 reg [7:0] sbs_cache_y=0;
@@ -243,18 +245,6 @@ always @(posedge clk_sys) begin
    end
    DMA_READ_REQ: if(!ddr_busy) dma<=DMA_READ_DATA;
    DMA_READ_DATA: if(ddr_ready) begin
-    if(mode_sbs) begin
-     if(returned<64) begin
-      if(sbs_fill_secondary) sbs_left_line[returned[5:0]]<=ddr_dout;
-      else left_line[returned[5:0]]<=ddr_dout;
-     end else begin
-      if(sbs_fill_secondary) sbs_right_line[returned[5:0]]<=ddr_dout;
-      else right_line[returned[5:0]]<=ddr_dout;
-     end
-    end else begin
-     if(returned<64) left_line[returned[5:0]]<=ddr_dout;
-     else right_line[returned[5:0]]<=ddr_dout;
-    end
     returned<=returned+1'd1;
     if(returned==8'd63) begin
      // DDR bursts cannot jump from left bank to right bank. Finish this burst,
@@ -290,16 +280,38 @@ wire cache_hit=pair_valid&&cache_valid&&(cache_y==y[7:0])&&active_area;
 // synchronous M10K read has the next 64-bit word ready at every 4-pixel edge.
 wire [9:0] sbs_prefetch_x=sbs_x+10'd1;
 wire [5:0] line_rd_addr=mode_sbs?sbs_prefetch_x[7:2]:x[7:2];
-reg [63:0] left_word=0,right_word=0;
-always @(posedge clk_sys) begin
- if(mode_sbs && sbs_display_secondary) begin
-  left_word<=sbs_left_line[line_rd_addr];
-  right_word<=sbs_right_line[line_rd_addr];
- end else begin
-  left_word<=left_line[line_rd_addr];
-  right_word<=right_line[line_rd_addr];
- end
-end
+// Port B addresses are registered inside dpram, matching the one-clock
+// synchronous-read latency the pixel prefetch logic already expects.
+dpram #(.widthad_a(6),.width_a(64),.mixed_port_rdwr("DONT_CARE")) left_line_ram
+(
+ .address_a(returned[5:0]),.address_b(line_rd_addr),
+ .clock_a(clk_sys),.clock_b(clk_sys),.data_a(ddr_dout),.data_b(64'd0),
+ .wren_a(line_fill_primary && line_fill_left),.wren_b(1'b0),
+ .q_a(),.q_b(left_line_q)
+);
+dpram #(.widthad_a(6),.width_a(64),.mixed_port_rdwr("DONT_CARE")) right_line_ram
+(
+ .address_a(returned[5:0]),.address_b(line_rd_addr),
+ .clock_a(clk_sys),.clock_b(clk_sys),.data_a(ddr_dout),.data_b(64'd0),
+ .wren_a(line_fill_primary && line_fill_right),.wren_b(1'b0),
+ .q_a(),.q_b(right_line_q)
+);
+dpram #(.widthad_a(6),.width_a(64),.mixed_port_rdwr("DONT_CARE")) sbs_left_line_ram
+(
+ .address_a(returned[5:0]),.address_b(line_rd_addr),
+ .clock_a(clk_sys),.clock_b(clk_sys),.data_a(ddr_dout),.data_b(64'd0),
+ .wren_a(line_fill_secondary && line_fill_left),.wren_b(1'b0),
+ .q_a(),.q_b(sbs_left_line_q)
+);
+dpram #(.widthad_a(6),.width_a(64),.mixed_port_rdwr("DONT_CARE")) sbs_right_line_ram
+(
+ .address_a(returned[5:0]),.address_b(line_rd_addr),
+ .clock_a(clk_sys),.clock_b(clk_sys),.data_a(ddr_dout),.data_b(64'd0),
+ .wren_a(line_fill_secondary && line_fill_right),.wren_b(1'b0),
+ .q_a(),.q_b(sbs_right_line_q)
+);
+wire [63:0] left_word=(mode_sbs && sbs_display_secondary)?sbs_left_line_q:left_line_q;
+wire [63:0] right_word=(mode_sbs && sbs_display_secondary)?sbs_right_line_q:right_line_q;
 reg [11:0] left_px,right_px;
 always @(*) begin
  case(x[1:0])
