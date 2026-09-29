@@ -33,9 +33,6 @@ wire mode_filter=(mode==MODE_REDCYAN)||(mode==MODE_TRIOVIZ)||
 wire active_area=(x<9'd256)&&(y<9'd192);
 
 // SMS color bus is {BBBB,GGGG,RRRR}.
-wire [3:0] live_r=color_in[3:0];
-wire [3:0] live_g=color_in[7:4];
-wire [3:0] live_b=color_in[11:8];
 
 // ---- DDR capture ----------------------------------------------------------
 // Ping-pong each semantic eye. A completed bank is published only after the
@@ -150,7 +147,6 @@ reg [28:0] read_base=0;
 reg last_fetch_toggle=0,left_done_seen=0,right_done_seen=0;
 reg left_publish_pending=0,right_publish_pending=0;
 reg left_valid=0,right_valid=0;
-wire [28:0] left_read_base=frame_base(1'b1,left_disp_bank)+({21'd0,dma_fetch_y}<<6);
 wire [28:0] right_read_base=frame_base(1'b0,right_disp_bank)+({21'd0,dma_fetch_y}<<6);
 
 assign ddr_burst=(dma==DMA_READ_REQ||dma==DMA_READ_DATA)?8'd64:8'd1;
@@ -264,8 +260,25 @@ wire [11:0] trioviz={trio_b,trio_g,trio_r};
 integer cc_sum;
 reg [3:0] cc_b;
 always @(*) begin
+ // Rounded (15*R + 15*G + 70*B) / 100, expressed as thresholds so
+ // Quartus does not infer a general-purpose divider.
  cc_sum=15*rr+15*rg+70*rb;
- cc_b=(cc_sum+50)/100;
+ if(cc_sum<50) cc_b=4'd0;
+ else if(cc_sum<150) cc_b=4'd1;
+ else if(cc_sum<250) cc_b=4'd2;
+ else if(cc_sum<350) cc_b=4'd3;
+ else if(cc_sum<450) cc_b=4'd4;
+ else if(cc_sum<550) cc_b=4'd5;
+ else if(cc_sum<650) cc_b=4'd6;
+ else if(cc_sum<750) cc_b=4'd7;
+ else if(cc_sum<850) cc_b=4'd8;
+ else if(cc_sum<950) cc_b=4'd9;
+ else if(cc_sum<1050) cc_b=4'd10;
+ else if(cc_sum<1150) cc_b=4'd11;
+ else if(cc_sum<1250) cc_b=4'd12;
+ else if(cc_sum<1350) cc_b=4'd13;
+ else if(cc_sum<1450) cc_b=4'd14;
+ else cc_b=4'd15;
 end
 wire [11:0] colorcode={cc_b,lg,lr};
 
