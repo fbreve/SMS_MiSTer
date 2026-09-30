@@ -380,6 +380,7 @@ architecture Behavioral of system is
 	signal sega_mapper_write_seen : std_logic;
 	signal rom_size_pages : std_logic_vector(7 downto 0);
 	signal rom_crc32 : std_logic_vector(31 downto 0);
+	signal m2_maze_3d : std_logic;
 	signal detect_zemina_static : std_logic;
 	signal detect_codies_static : std_logic;
 	signal detect_castle : std_logic;
@@ -649,7 +650,7 @@ begin
 		ggres			=> ggres,
 		-- Bsg			=> sg,		-- sg1000
 		se_bank	=> vdp_se_bank,
-		m2_3d		=> '1' when (rom_crc32 xor x"FFFFFFFF") = x"F8CE3CC3" else '0',
+		m2_3d		=> m2_maze_3d,
 		RD_n		=> vdp_RD_n,
 		WR_n		=> vdp_WR_n,
 		IRQ_n		=> vdp_IRQ_n,
@@ -967,6 +968,8 @@ port map(
 	-- $C000-$DFFF and $E000-$FFFF as independent 8 KiB work-RAM banks
 	-- instead of the normal SMS 8 KiB mirror. Enable 16 KiB WRAM only
 	-- for this exact ROM; all other software keeps standard SMS mirroring.
+	m2_maze_3d <= '1' when (rom_crc32 xor x"FFFFFFFF") = x"F8CE3CC3" else '0';
+
 	ram_a <= "000" & A(10 downto 0) when sc3000_en = '1' else
 	         A(13 downto 0) when systeme = '1' else
 	         A(13 downto 0) when (rom_crc32 xor x"FFFFFFFF") = x"F8CE3CC3" else
