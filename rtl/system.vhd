@@ -649,6 +649,7 @@ begin
 		ggres			=> ggres,
 		-- Bsg			=> sg,		-- sg1000
 		se_bank	=> vdp_se_bank,
+		m2_3d		=> '1' when (rom_crc32 xor x"FFFFFFFF") = x"F8CE3CC3" else '0',
 		RD_n		=> vdp_RD_n,
 		WR_n		=> vdp_WR_n,
 		IRQ_n		=> vdp_IRQ_n,
@@ -705,6 +706,7 @@ begin
 		ggres			=> ggres,
 		-- Bsg			=> sg,		-- sg1000
 		se_bank	=> vdp2_se_bank,
+		m2_3d		=> '0',
 		RD_n		=> vdp2_RD_n,
 		WR_n		=> vdp2_WR_n,
 		IRQ_n		=> vdp2_IRQ_n,
