@@ -16,6 +16,7 @@ entity vdp_main is
 		sp64:					in  std_logic;
 		legacy_ext_nt:	in  std_logic := '0';
 		vram_A:				out std_logic_vector(13 downto 0);
+		vram_sprite:		out std_logic;
 		vram_D:				in  std_logic_vector(7 downto 0);
 		cram_A:				out std_logic_vector(4 downto 0);
 		cram_D:				in  std_logic_vector(11 downto 0);
