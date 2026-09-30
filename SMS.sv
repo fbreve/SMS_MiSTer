@@ -1486,7 +1486,7 @@ spram #(.widthad_a(14)) ram_inst
 (
 	.clock     (clk_sys),
 	.address   (ss_freeze ? (ss_wram_WE ? ss_wram_WA : ss_wram_A) :
-	             (ram_clr_run ? ram_clr_addr : (systeme ? ram_a : {1'b0,ram_a[12:0]}))),
+	             (ram_clr_run ? ram_clr_addr : ram_a)),
 	.wren      (ss_freeze ? ss_wram_WE : (ram_clr_run | ram_we)),
 	.data      (ss_freeze ? ss_wram_WD : (ram_clr_run ? 8'h00 : ram_d)),
 	.q         (ram_q)
