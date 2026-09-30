@@ -15,6 +15,8 @@ entity vdp is
 		gg:				in  STD_LOGIC;
 		ggres:			        in STD_LOGIC;
 		se_bank:			in  STD_LOGIC;
+		-- M2 Maze Walker extension: second sprite SAT in the spare 16 KiB VRAM bank.
+		m2_3d:			in  STD_LOGIC := '0';
 		sp64:				in  STD_LOGIC;
 		HL:				in  STD_LOGIC;
 		-- Mask only IRQ delivery; the line counter and pending flag keep running.
@@ -146,6 +148,10 @@ architecture Behavioral of vdp is
 	
 	-- vram and cram lines for the video interface
 	signal vram_vdp_A:		std_logic_vector(13 downto 0);
+	signal vram_vdp_sprite:	std_logic;
+	signal vram_vdp_bank:	std_logic;
+	signal m2_cpu_bank:		std_logic := '0';
+	signal m2_sprite_bank:	std_logic := '0';
 	signal vram_vdp_D:		std_logic_vector(7 downto 0);	
 	signal cram_vdp_A:		std_logic_vector(4 downto 0);
 	signal cram_vdp_D:		std_logic_vector(11 downto 0);
@@ -217,6 +223,7 @@ begin
 		sp64				=> sp64,
 		legacy_ext_nt	=> legacy_ext_nt,
 		vram_A			=> vram_vdp_A,
+		vram_sprite	=> vram_vdp_sprite,
 		vram_D			=> vram_vdp_D,
 		cram_A			=> cram_vdp_A,
 		cram_D			=> cram_vdp_D,
@@ -284,7 +291,7 @@ begin
       q_a				=> vram_cpu_D_out_raw,
 
       clock_b			=> clk_sys,
-      address_b		=> se_bank & vram_vdp_A,
+      address_b		=> vram_vdp_bank & vram_vdp_A,
       wren_b			=> '0',
       data_b			=> (others => '0'),
       q_b				=> vram_vdp_D
@@ -316,7 +323,15 @@ begin
 							when gg='0' else (cpu_write_data(3 downto 0) & cram_latch);
 	cram_cpu_WE <= data_write when to_cram and ((gg='0') or (xram_cpu_A(0)='1')) and WR_direct='0' else '0';
 	vram_cpu_WE <= data_write when (WR_direct='1' or not to_cram) else '0';
-	vram_cpu_A <= not se_bank & A_direct & A when WR_direct='1' else se_bank & xram_cpu_A;
+	-- M2's patched Maze Walker uploads the normal SAT with a VRAM-write command
+	-- and the opposite-eye SAT after a VRAM-read address command. The latter is
+	-- an emulator extension: use the otherwise spare second 16 KiB VRAM bank.
+	vram_cpu_A <= not se_bank & A_direct & A when WR_direct='1' else
+	              m2_cpu_bank & xram_cpu_A when m2_3d='1' else
+	              se_bank & xram_cpu_A;
+	-- R5 bit 7 is ignored by real SMS VDPs. M2 uses FF/7F to select which of
+	-- those two SAT banks is scanned; background fetches remain in bank 0.
+	vram_vdp_bank <= m2_sprite_bank when m2_3d='1' and vram_vdp_sprite='1' else se_bank;
 
 	-- ----------------------------------------------------------------
 	-- Save-state: VDP register snapshot (combinational)
@@ -398,6 +413,8 @@ begin
 			mode_M3			<= '0';
 			mode_M4			<= '1';
 			legacy_fg_color <= (others=>'0');
+			m2_cpu_bank    <= '0';
+			m2_sprite_bank <= '0';
 			
 		elsif rising_edge(clk_sys) then
 			data_write <= '0';
@@ -483,6 +500,10 @@ begin
 						else
 							xram_cpu_A(13 downto 8) <= D_in(5 downto 0);
 							to_cram <= D_in(7 downto 6)="11";
+							if m2_3d='1' and D_in(7)='0' then
+								-- command 01 -> bank 0; command 00 -> bank 1
+								m2_cpu_bank <= not D_in(6);
+							end if;
 							if D_in(7 downto 6)="00" then
 								xram_cpu_read <= '1';
 							end if;
@@ -510,6 +531,7 @@ begin
 								m2mg_address	<= xram_cpu_A(2 downto 0);
 							when "100101" =>
 								spr_address		<= xram_cpu_A(6 downto 0);
+								if m2_3d='1' then m2_sprite_bank <= not xram_cpu_A(7); end if;
 							when "100110" =>
 								spr_high_bits	<= xram_cpu_A(2 downto 0);
 							when "100111" =>
