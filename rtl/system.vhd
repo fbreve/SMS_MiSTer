@@ -381,7 +381,6 @@ architecture Behavioral of system is
 	signal rom_size_pages : std_logic_vector(7 downto 0);
 	signal rom_crc32 : std_logic_vector(31 downto 0);
 	signal m2_maze_3d : std_logic;
-	signal m2_irq_fast : std_logic := '0';
 	signal detect_zemina_static : std_logic;
 	signal detect_codies_static : std_logic;
 	signal detect_castle : std_logic;
@@ -935,26 +934,7 @@ port map(
 	);
 	
 	ce_z80 <= '0' when se_pause='1' else
-	          ce_pix when (systeme = '1' or turbo='1' or m2_irq_fast='1') else ce_cpu;
-	-- The M2 Maze Walker patch brackets its enlarged VBlank handler with
-	-- OUT ($F4),A / OUT ($F5),A.  No SMS hardware decodes these ports; the
-	-- 3DS emulator uses them as a private fast-section hook.  Run the Z80 at
-	-- the core's existing turbo cadence only inside that bracket.
-	process (clk_sys)
-	begin
-		if rising_edge(clk_sys) then
-			if RESET_n='0' or m2_maze_3d='0' then
-				m2_irq_fast <= '0';
-			elsif IORQ_n='0' and M1_n='1' and WR_n='0' then
-				if A(7 downto 0)=x"F4" then
-					m2_irq_fast <= '1';
-				elsif A(7 downto 0)=x"F5" then
-					m2_irq_fast <= '0';
-				end if;
-			end if;
-		end if;
-	end process;
-
+	          ce_pix when (systeme = '1' or turbo='1') else ce_cpu;
 	io_cycle <= '1' when IORQ_n='0' and M1_n='1' else '0';
 	-- Only ports demonstrated by the menu ROM and implemented by the
 	-- Evolution mapper are exclusive. $A0 remains a mirrored VDP data port.
