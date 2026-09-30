@@ -285,8 +285,9 @@ wire cache_hit=pair_valid&&cache_valid&&(cache_y==y[7:0])&&active_area;
 wire [9:0] sbs_prefetch_x=(sbs_x==10'd911)?10'd0:sbs_x+10'd1;
 wire sbs_prefetch_left =(sbs_prefetch_x>=10'd43 )&&(sbs_prefetch_x<10'd299);
 wire sbs_prefetch_right=(sbs_prefetch_x>=10'd385)&&(sbs_prefetch_x<10'd641);
-wire [8:0] sbs_prefetch_src_x=sbs_prefetch_left ? sbs_prefetch_x[8:0]-9'd43 :
-                                sbs_prefetch_right ? sbs_prefetch_x[8:0]-9'd385 : 9'd0;
+wire [9:0] sbs_prefetch_src_x_full=sbs_prefetch_left ? sbs_prefetch_x-10'd43 :
+                                     sbs_prefetch_right ? sbs_prefetch_x-10'd385 : 10'd0;
+wire [8:0] sbs_prefetch_src_x=sbs_prefetch_src_x_full[8:0];
 wire [5:0] line_rd_addr=mode_sbs?sbs_prefetch_src_x[7:2]:x[7:2];
 // Port B addresses are registered inside dpram, matching the one-clock
 // synchronous-read latency the pixel prefetch logic already expects.
@@ -439,8 +440,9 @@ assign sbs_vs=pal?((sbs_y>=243)&&(sbs_y<246)):((sbs_y>=221)&&(sbs_y<224));
 wire sbs_cache_hit=pair_valid&&sbs_cache_valid&&(sbs_cache_y==sbs_y[7:0])&&(sbs_y<192);
 wire sbs_left_active =(sbs_x>=10'd43 )&&(sbs_x<10'd299);
 wire sbs_right_active=(sbs_x>=10'd385)&&(sbs_x<10'd641);
-wire [8:0] sbs_src_x=sbs_left_active ? sbs_x[8:0]-9'd43 :
-                         sbs_right_active ? sbs_x[8:0]-9'd385 : 9'd0;
+wire [9:0] sbs_src_x_full=sbs_left_active ? sbs_x-10'd43 :
+                              sbs_right_active ? sbs_x-10'd385 : 10'd0;
+wire [8:0] sbs_src_x=sbs_src_x_full[8:0];
 reg [11:0] sbs_left,sbs_right;
 always @(*) begin
  case(sbs_src_x[1:0])
