@@ -174,8 +174,8 @@ video_freak video_freak
 (
 	.*,
 	.VGA_DE_IN(vga_de),
-	.ARX(segascope_sbs ? 12'd16 : ((!ar) ? arx : (ar - 1'd1))),
-	.ARY(segascope_sbs ? 12'd9  : ((!ar) ? ary : 12'd0)),
+	.ARX((!ar) ? (segascope_sbs ? 12'd16 : arx) : (ar - 1'd1)),
+	.ARY((!ar) ? (segascope_sbs ? 12'd9 : ary) : 12'd0),
 	.CROP_SIZE(en216p && vcrop_en ? 10'd216 : 10'd0),
 	.CROP_OFF(voff),
 	.SCALE(status[31:30])
@@ -1644,7 +1644,7 @@ wire mixer_vs = segascope_sbs ? segascope_sbs_vs : VS;
 wire mixer_hblank = segascope_sbs ? segascope_sbs_hblank : HBlank;
 wire mixer_vblank = segascope_sbs ? segascope_sbs_vblank : VBlank;
 
-video_mixer #(.HALF_DEPTH(1), .LINE_LENGTH(684), .GAMMA(1)) video_mixer
+video_mixer #(.HALF_DEPTH(1), .LINE_LENGTH(300), .GAMMA(1)) video_mixer
 (
 	.*,
 	.ce_pix(mixer_ce),
