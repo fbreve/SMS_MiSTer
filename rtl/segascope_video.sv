@@ -282,8 +282,12 @@ wire cache_hit=pair_valid&&cache_valid&&(cache_y==y[7:0])&&active_area;
 // The SBS counter advances on the clock that raises sbs_ce, while the
 // consumer samples that pixel on the following clock. Prefetch x+1 so the
 // synchronous M10K read has the next 64-bit word ready at every 4-pixel edge.
-wire [9:0] sbs_prefetch_x=(sbs_x==10'd683)?10'd0:sbs_x+10'd1;
-wire [5:0] line_rd_addr=mode_sbs?sbs_prefetch_x[7:2]:x[7:2];
+wire [9:0] sbs_prefetch_x=(sbs_x==10'd911)?10'd0:sbs_x+10'd1;
+wire sbs_prefetch_left =(sbs_prefetch_x>=10'd43 )&&(sbs_prefetch_x<10'd299);
+wire sbs_prefetch_right=(sbs_prefetch_x>=10'd385)&&(sbs_prefetch_x<10'd641);
+wire [8:0] sbs_prefetch_src_x=sbs_prefetch_left ? sbs_prefetch_x[8:0]-9'd43 :
+                                sbs_prefetch_right ? sbs_prefetch_x[8:0]-9'd385 : 9'd0;
+wire [5:0] line_rd_addr=mode_sbs?sbs_prefetch_src_x[7:2]:x[7:2];
 // Port B addresses are registered inside dpram, matching the one-clock
 // synchronous-read latency the pixel prefetch logic already expects.
 sdpram #(.widthad_a(6),.width_a(48),.mixed_port_rdwr("DONT_CARE")) left_line_ram
