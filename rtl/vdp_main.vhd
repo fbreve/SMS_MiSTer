@@ -70,6 +70,7 @@ architecture Behavioral of vdp_main is
 	signal bg_priority:	std_logic;
 	signal out_color: 	std_logic_vector(3 downto 0) ;	
 	signal spr_vram_A:	std_logic_vector(13 downto 0);
+	signal spr_sat_fetch:	std_logic;
 	signal spr_color:		std_logic_vector(3 downto 0);
 	signal text_mode:		std_logic;
 	
@@ -153,6 +154,7 @@ begin
 		smode_M3			=> smode_M3,
 		smode_M4			=> smode_M4,
 		vram_A			=> spr_vram_A,
+		sat_fetch		=> spr_sat_fetch,
 		vram_D			=> vram_D,		
 		color				=> spr_color,
 		ss_regs_set		=> ss_regs_set,
