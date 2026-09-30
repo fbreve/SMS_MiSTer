@@ -1644,7 +1644,7 @@ wire mixer_vs = segascope_sbs ? segascope_sbs_vs : VS;
 wire mixer_hblank = segascope_sbs ? segascope_sbs_hblank : HBlank;
 wire mixer_vblank = segascope_sbs ? segascope_sbs_vblank : VBlank;
 
-video_mixer #(.HALF_DEPTH(1), .LINE_LENGTH(300), .GAMMA(1)) video_mixer
+video_mixer #(.HALF_DEPTH(1), .LINE_LENGTH(684), .GAMMA(1)) video_mixer
 (
 	.*,
 	.ce_pix(mixer_ce),
