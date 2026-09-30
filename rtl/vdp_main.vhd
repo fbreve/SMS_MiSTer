@@ -200,7 +200,7 @@ begin
 		end if;		
 	end process;
 	
-	vram_sprite <= '1' when x>=256 and x<496 else '0';
+	vram_sprite <= spr_sat_fetch when x>=256 and x<496 else '0';
 	vram_A <= spr_vram_A when x>=256 and x<496 else bg_vram_A;  -- Does bg only need x<504 only?
 	color <= "000000000000" when black_column='1' and mask_column0='1' and x>0 and x<9 else
 			cram_D when smode_M4='1' else 
