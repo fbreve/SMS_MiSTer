@@ -329,8 +329,8 @@ begin
 	vram_cpu_A <= not se_bank & A_direct & A when WR_direct='1' else
 	              m2_cpu_bank & xram_cpu_A when m2_3d='1' and vram_cpu_WE='1' else
 	              se_bank & xram_cpu_A;
-	-- R5 bit 7 is ignored by real SMS VDPs. M2 uses FF/7F to select which of
-	-- those two SAT banks is scanned; background fetches remain in bank 0.
+	-- R5 bit 7 is ignored by real SMS VDPs. M2 uses FF/7F to select the normal
+	-- or hidden sprite-pattern bank. SAT and background fetches remain in bank 0.
 	vram_vdp_bank <= m2_sprite_bank when m2_3d='1' and vram_vdp_sprite='1' else se_bank;
 
 	-- ----------------------------------------------------------------
