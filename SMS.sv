@@ -174,8 +174,8 @@ video_freak video_freak
 (
 	.*,
 	.VGA_DE_IN(vga_de),
-	.ARX((!ar) ? (segascope_sbs ? 12'd16 : arx) : (ar - 1'd1)),
-	.ARY((!ar) ? (segascope_sbs ? 12'd9 : ary) : 12'd0),
+	.ARX(segascope_sbs ? 12'd16 : ((!ar) ? arx : (ar - 1'd1))),
+	.ARY(segascope_sbs ? 12'd9  : ((!ar) ? ary : 12'd0)),
 	.CROP_SIZE(en216p && vcrop_en ? 10'd216 : 10'd0),
 	.CROP_OFF(voff),
 	.SCALE(status[31:30])
