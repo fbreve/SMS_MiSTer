@@ -22,7 +22,7 @@ port (
 	smode_M3			: in	std_logic ;
 	smode_M4			: in	std_logic ;
 	vram_A			: out STD_LOGIC_VECTOR (13 downto 0);
-	sat_fetch		: out std_logic;
+	pattern_fetch	: out std_logic;
 	vram_D			: in  STD_LOGIC_VECTOR (7 downto 0);
 	x					: in  STD_LOGIC_VECTOR (8 downto 0);
 	y					: in  STD_LOGIC_VECTOR (8 downto 0);
@@ -96,10 +96,12 @@ begin
 
 	end generate;
 
-	-- In mode 4 only COMPARE/LOAD_N/LOAD_X read the sprite attribute table.
-	-- LOAD_0..LOAD_3 fetch pattern graphics and must remain in normal VRAM.
-	sat_fetch <= '1' when smode_M4='1' and
-	                    (state=COMPARE or state=LOAD_N or state=LOAD_X) else '0';
+	-- M2 Maze Walker uploads 9*256 bytes (72 32-byte patterns) to the hidden
+	-- VRAM bank. Only LOAD_0..LOAD_3 fetch sprite pattern graphics; the sprite
+	-- attribute table itself remains in normal VRAM.
+	pattern_fetch <= '1' when smode_M4='1' and
+	                        (state=LOAD_0 or state=LOAD_1 or
+	                         state=LOAD_2 or state=LOAD_3) else '0';
 
 	with smode_M4 & state select
 	vram_a <=	table_address&index(4 downto 0)&"00"	when '0' & COMPARE,
