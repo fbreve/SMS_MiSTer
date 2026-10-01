@@ -282,12 +282,10 @@ wire cache_hit=pair_valid&&cache_valid&&(cache_y==y[7:0])&&active_area;
 // The SBS counter advances on the clock that raises sbs_ce, while the
 // consumer samples that pixel on the following clock. Prefetch x+1 so the
 // synchronous M10K read has the next 64-bit word ready at every 4-pixel edge.
-wire [9:0] sbs_prefetch_x=(sbs_x==10'd911)?10'd0:sbs_x+10'd1;
-wire sbs_prefetch_left =(sbs_prefetch_x>=10'd43 )&&(sbs_prefetch_x<10'd299);
-wire sbs_prefetch_right=(sbs_prefetch_x>=10'd385)&&(sbs_prefetch_x<10'd641);
-wire [9:0] sbs_prefetch_src_x_full=sbs_prefetch_left ? sbs_prefetch_x-10'd43 :
-                                     sbs_prefetch_right ? sbs_prefetch_x-10'd385 : 10'd0;
-wire [8:0] sbs_prefetch_src_x=sbs_prefetch_src_x_full[8:0];
+wire [9:0] sbs_prefetch_x=(sbs_x==10'd683)?10'd0:sbs_x+10'd1;
+wire sbs_prefetch_right=(sbs_prefetch_x>=10'd256)&&(sbs_prefetch_x<10'd512);
+wire [8:0] sbs_prefetch_src_x=sbs_prefetch_right ?
+                                sbs_prefetch_x[8:0]-9'd256 : sbs_prefetch_x[8:0];
 wire [5:0] line_rd_addr=mode_sbs?sbs_prefetch_src_x[7:2]:x[7:2];
 // Port B addresses are registered inside dpram, matching the one-clock
 // synchronous-read latency the pixel prefetch logic already expects.
@@ -411,35 +409,33 @@ assign color_out=!active||mode==MODE_ORIGINAL||!cache_hit ? color_in :
                  mode_filter?filtered:color_in;
 
 // ---- Side-by-side raster -------------------------------------------------
-// Half-SBS for a 16:9 display: each 8:9 half contains one horizontally
-// squeezed 4:3 eye. Keeping all 256 source pixels requires each eye to occupy
-// 3/4 of its 342-pixel half: 43 black + 256 eye + 43 black.
-// The TV's half-SBS mode then expands each half 2x horizontally, restoring
-// each eye to 4:3. Total active width is 684; total raster is 912 so the
-// original SMS line period (3420 clk_sys clocks) is preserved.
+// Follow VirtualBoy_MiSTer's proven SBS architecture: double the complete
+// horizontal raster and active width, preserving every source pixel.
+// SMS 342 -> 684 total pixels; 256 -> 512 active pixels. The left eye is
+// x=0..255 and the right eye x=256..511. One SBS pixel is emitted every
+// 5 clk_sys clocks, so a complete 684-pixel line still lasts 3420 clocks.
+// This raster bypasses video_mixer and is presented directly as 16:9.
 always @(posedge clk_sys) begin
  sbs_ce<=0;
  if(reset||!active||!mode_sbs) begin
   sbs_phase<=0;sbs_x<=0;sbs_y<=0;
- end else if(sbs_phase>=6'd22) begin
-  sbs_phase<=sbs_phase+6'd8-6'd30;
+ end else if(sbs_phase>=6'd24) begin
+  sbs_phase<=sbs_phase+6'd6-6'd30;
   sbs_ce<=1;
-  if(sbs_x==10'd911) begin
+  if(sbs_x==10'd683) begin
    sbs_x<=0;
    if(sbs_y==sbs_last_y) sbs_y<=0; else sbs_y<=sbs_y+1'd1;
   end else sbs_x<=sbs_x+1'd1;
- end else sbs_phase<=sbs_phase+6'd8;
+ end else sbs_phase<=sbs_phase+6'd6;
 end
-assign sbs_hblank=(sbs_x>=684);
+assign sbs_hblank=(sbs_x>=512);
 assign sbs_vblank=(sbs_y>=192);
-assign sbs_hs=(sbs_x>=747)&&(sbs_x<811);
+assign sbs_hs=(sbs_x>=560)&&(sbs_x<608);
 assign sbs_vs=pal?((sbs_y>=243)&&(sbs_y<246)):((sbs_y>=221)&&(sbs_y<224));
 wire sbs_cache_hit=pair_valid&&sbs_cache_valid&&(sbs_cache_y==sbs_y[7:0])&&(sbs_y<192);
-wire sbs_left_active =(sbs_x>=10'd43 )&&(sbs_x<10'd299);
-wire sbs_right_active=(sbs_x>=10'd385)&&(sbs_x<10'd641);
-wire [9:0] sbs_src_x_full=sbs_left_active ? sbs_x-10'd43 :
-                              sbs_right_active ? sbs_x-10'd385 : 10'd0;
-wire [8:0] sbs_src_x=sbs_src_x_full[8:0];
+wire sbs_left_active =(sbs_x<10'd256);
+wire sbs_right_active=(sbs_x>=10'd256)&&(sbs_x<10'd512);
+wire [8:0] sbs_src_x=sbs_right_active ? sbs_x[8:0]-9'd256 : sbs_x[8:0];
 reg [11:0] sbs_left,sbs_right;
 always @(*) begin
  case(sbs_src_x[1:0])
