@@ -1674,6 +1674,15 @@ wire public_vga_vs = segascope_sbs ? segascope_sbs_vs : mixer_vga_vs;
 wire public_vga_de = segascope_sbs ? ~(segascope_sbs_hblank | segascope_sbs_vblank) : mixer_vga_de;
 wire public_ce_pixel = segascope_sbs ? segascope_sbs_ce : mixer_ce_pixel;
 
+// Public video pins now select either the conventional mixer output or the
+// dedicated SegaScope SBS raster before screen_rotate/video_freak.
+assign CE_PIXEL = public_ce_pixel;
+assign VGA_R = public_vga_r;
+assign VGA_G = public_vga_g;
+assign VGA_B = public_vga_b;
+assign VGA_HS = public_vga_hs;
+assign VGA_VS = public_vga_vs;
+
 
 /////////////////////////  STATE SAVE/LOAD  /////////////////////////////
 wire bk_save_write = nvram_we;
