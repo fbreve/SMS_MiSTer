@@ -193,7 +193,7 @@ always @(posedge clk_sys) begin
   // launched at x=0, so the fill has nearly a complete line period to finish.
   if(mode_sbs && sbs_ready &&
      ((sbs_vblank && sbs_ready_y==8'd0) ||
-      (sbs_ce && sbs_x==10'd911 && !sbs_vblank &&
+      (sbs_ce && sbs_x==10'd683 && !sbs_vblank &&
        sbs_ready_y==((sbs_y==9'd191)?8'd0:sbs_y[7:0]+1'd1)))) begin
    sbs_cache_y<=sbs_ready_y;
    sbs_display_secondary<=sbs_ready_secondary;
