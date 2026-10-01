@@ -142,12 +142,12 @@ wire [1:0] ar = status[27:26];
 wire vga_de;
 screen_rotate screen_rotate (
 	.CLK_VIDEO     (CLK_VIDEO),
-	.CE_PIXEL      (CE_PIXEL),
-	.VGA_R         (VGA_R),
-	.VGA_G         (VGA_G),
-	.VGA_B         (VGA_B),
-	.VGA_HS        (VGA_HS),
-	.VGA_VS        (VGA_VS),
+	.CE_PIXEL      (public_ce_pixel),
+	.VGA_R         (public_vga_r),
+	.VGA_G         (public_vga_g),
+	.VGA_B         (public_vga_b),
+	.VGA_HS        (public_vga_hs),
+	.VGA_VS        (public_vga_vs),
 	.VGA_DE        (VGA_DE),
 	.rotate_ccw    (rotate_ccw),
 	.no_rotate     (no_rotate),
@@ -173,7 +173,7 @@ screen_rotate screen_rotate (
 video_freak video_freak
 (
 	.*,
-	.VGA_DE_IN(vga_de),
+	.VGA_DE_IN(segascope_sbs ? public_vga_de : vga_de),
 	.ARX(segascope_sbs ? 12'd16 : ((!ar) ? arx : (ar - 1'd1))),
 	.ARY(segascope_sbs ? 12'd9  : ((!ar) ? ary : 12'd0)),
 	.CROP_SIZE(en216p && vcrop_en ? 10'd216 : 10'd0),
@@ -1633,34 +1633,46 @@ segascope_video segascope_video
 );
 
 wire segascope_sbs = segascope_active && (segascope_mode == 3'd6);
-wire [11:0] mixer_color = segascope_sbs ? segascope_sbs_color : display_color;
-wire [3:0] vid_r = se_pause_gate ? {1'b0, mixer_color[3:1]}  : mixer_color[3:0];
-wire [3:0] vid_g = se_pause_gate ? {1'b0, mixer_color[7:5]}  : mixer_color[7:4];
-wire [3:0] vid_b = se_pause_gate ? {1'b0, mixer_color[11:9]} : mixer_color[11:8];
+wire [3:0] vid_r = se_pause_gate ? {1'b0, display_color[3:1]}  : display_color[3:0];
+wire [3:0] vid_g = se_pause_gate ? {1'b0, display_color[7:5]}  : display_color[7:4];
+wire [3:0] vid_b = se_pause_gate ? {1'b0, display_color[11:9]} : display_color[11:8];
 
-wire mixer_ce = segascope_sbs ? segascope_sbs_ce : ce_pix;
-wire mixer_hs = segascope_sbs ? segascope_sbs_hs : HS;
-wire mixer_vs = segascope_sbs ? segascope_sbs_vs : VS;
-wire mixer_hblank = segascope_sbs ? segascope_sbs_hblank : HBlank;
-wire mixer_vblank = segascope_sbs ? segascope_sbs_vblank : VBlank;
+// Keep the normal SMS path entirely conventional. SegaScope SBS has its own
+// public raster, like VirtualBoy_MiSTer: RGB/CE/sync/DE bypass video_mixer.
+wire mixer_ce_pixel;
+wire [7:0] mixer_vga_r, mixer_vga_g, mixer_vga_b;
+wire mixer_vga_hs, mixer_vga_vs, mixer_vga_de;
 
 video_mixer #(.HALF_DEPTH(1), .LINE_LENGTH(300), .GAMMA(1)) video_mixer
 (
 	.*,
-	.ce_pix(mixer_ce),
-	.HSync(mixer_hs),
-	.VSync(mixer_vs),
-	.HBlank(mixer_hblank),
-	.VBlank(mixer_vblank),
-	.scandoubler(!segascope_sbs && (scale || forced_scandoubler)),
+	.ce_pix(ce_pix),
+	.HSync(HS),
+	.VSync(VS),
+	.HBlank(HBlank),
+	.VBlank(VBlank),
+	.scandoubler(scale || forced_scandoubler),
 	.hq2x(scale==1),
 	.freeze_sync(),
-
-	.VGA_DE(vga_de),
+	.CE_PIXEL(mixer_ce_pixel),
+	.VGA_R(mixer_vga_r),
+	.VGA_G(mixer_vga_g),
+	.VGA_B(mixer_vga_b),
+	.VGA_HS(mixer_vga_hs),
+	.VGA_VS(mixer_vga_vs),
+	.VGA_DE(mixer_vga_de),
 	.R((gun_en & gun_target && (~&gun_crosshair)) ? 8'd255 : {2{vid_r}}),
 	.G((gun_en & gun_target && (~&gun_crosshair)) ? 8'd0   : {2{vid_g}}),
 	.B((gun_en & gun_target && (~&gun_crosshair)) ? 8'd0   : {2{vid_b}})
 );
+
+wire [7:0] public_vga_r = segascope_sbs ? {2{segascope_sbs_color[3:0]}}  : mixer_vga_r;
+wire [7:0] public_vga_g = segascope_sbs ? {2{segascope_sbs_color[7:4]}}  : mixer_vga_g;
+wire [7:0] public_vga_b = segascope_sbs ? {2{segascope_sbs_color[11:8]}} : mixer_vga_b;
+wire public_vga_hs = segascope_sbs ? segascope_sbs_hs : mixer_vga_hs;
+wire public_vga_vs = segascope_sbs ? segascope_sbs_vs : mixer_vga_vs;
+wire public_vga_de = segascope_sbs ? ~(segascope_sbs_hblank | segascope_sbs_vblank) : mixer_vga_de;
+wire public_ce_pixel = segascope_sbs ? segascope_sbs_ce : mixer_ce_pixel;
 
 
 /////////////////////////  STATE SAVE/LOAD  /////////////////////////////
