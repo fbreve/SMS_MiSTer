@@ -449,7 +449,11 @@ always @(*) begin
   default: begin sbs_left=left_word[47:36]; sbs_right=right_word[47:36]; end
  endcase
 end
+// TEMPORARY DIAGNOSTIC: mirror the left-eye cache into both SBS halves.
+ // If both halves now have identical width, the remaining fault is in the
+ // right-eye cache/data path. If the right half is still narrow, it is
+ // downstream of the caches. Remove after the next hardware test.
 assign sbs_color=(!sbs_cache_hit||sbs_hblank||sbs_vblank)?12'd0:
-                 (sbs_left_active?sbs_left:(sbs_right_active?sbs_right:12'd0));
+                 ((sbs_left_active||sbs_right_active)?sbs_left:12'd0);
 
 endmodule
