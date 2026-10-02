@@ -37,17 +37,19 @@ dpram #(.widthad_a(16),.width_a(6),.mixed_port_rdwr("OLD_DATA")) framebuffer
  .wren_b(1'b0), .data_b(6'd0), .q_b(prev_rgb)
 );
 
-reg eye_d=0;
-reg pair_valid=0;
+reg left_seen=0,right_seen=0;
 reg [2:0] mode_d=MODE_ORIGINAL;
 always @(posedge clk_sys) begin
- eye_d<=eye;
  mode_d<=mode;
- if(reset||!active||(mode==MODE_ORIGINAL)||(mode!=mode_d))
-  pair_valid<=0;
- else if(eye!=eye_d)
-  pair_valid<=1;
+ if(reset||!active||(mode==MODE_ORIGINAL)||(mode!=mode_d)) begin
+  left_seen<=0;
+  right_seen<=0;
+ end else if(ce_pix&&active_area) begin
+  if(eye) left_seen<=1;
+  else right_seen<=1;
+ end
 end
+wire pair_valid=left_seen&&right_seen;
 
 wire [3:0] live_r={color_in[3:2],color_in[3:2]};
 wire [3:0] live_g={color_in[7:6],color_in[7:6]};
