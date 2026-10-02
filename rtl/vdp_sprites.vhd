@@ -96,11 +96,14 @@ begin
 
 	end generate;
 
-	-- M2 Maze Walker uploads 9*256 bytes (72 32-byte patterns) to the hidden
-	-- VRAM bank. Only LOAD_0..LOAD_3 fetch sprite pattern graphics; the sprite
-	-- attribute table itself remains in normal VRAM.
+	-- M2 Maze Walker uses the hidden VRAM bank for the eye-specific half of
+	-- the Mode 4 sprite data. Its command-00 transfers update the X/pattern SAT
+	-- entries at $3F80 as well as the hidden pattern graphics. The Y table at
+	-- $3F00 is shared, so COMPARE must stay on normal VRAM; LOAD_N/LOAD_X and
+	-- LOAD_0..LOAD_3 must follow the bank selected by R5 bit 7.
 	pattern_fetch <= '1' when smode_M4='1' and
-	                        (state=LOAD_0 or state=LOAD_1 or
+	                        (state=LOAD_N or state=LOAD_X or
+	                         state=LOAD_0 or state=LOAD_1 or
 	                         state=LOAD_2 or state=LOAD_3) else '0';
 
 	with smode_M4 & state select
