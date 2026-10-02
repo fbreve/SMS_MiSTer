@@ -68,71 +68,12 @@ wire [11:0] left_px={lb,lg,lr};
 wire [11:0] right_px={rb,rg,rr};
 wire [11:0] redcyan={rb,rg,lr};
 
-// The source channels are RGB222 expanded by replication, hence each 4-bit
-// channel is exactly 5 times its 2-bit value. Use the 2-bit values and
-// shift/add constant arithmetic. This is mathematically identical to the
-// latest color equations but avoids inferring six pixel-rate DSP multipliers.
-wire [1:0] lr2=lr[3:2],lg2=lg[3:2],lb2=lb[3:2];
-wire [1:0] rr2=rr[3:2],rg2=rg[3:2],rb2=rb[3:2];
-
-function automatic signed [13:0] sx2;
- input [1:0] v;
- begin sx2={12'd0,v}; end
-endfunction
-
-reg signed [13:0] trio_wr,trio_wg,trio_wb;
-reg signed [13:0] trio_rs,trio_gs,trio_bs;
-reg signed [13:0] trio_nr,trio_ng,trio_nb;
-reg [3:0] trio_r,trio_g,trio_b;
-always @(*) begin
- // Coefficients are unchanged. Multiply the weighted RGB222 sum by five
- // because RGB444 replication maps 0,1,2,3 to 0,5,10,15.
- trio_wr=(-(sx2(rr2)<<<2))-((sx2(rg2)<<<3)+(sx2(rg2)<<<1))-(sx2(rb2)<<<1)
-             +(sx2(lr2)<<<5)+(sx2(lr2)<<<1)
-             +(sx2(lg2)<<<5)+(sx2(lg2)<<<3)+(sx2(lg2)<<<2)+sx2(lg2)
-             +(sx2(lb2)<<<1);
- trio_wg=((sx2(rr2)<<<4)+(sx2(rr2)<<<1))
-             +(sx2(rg2)<<<5)+(sx2(rg2)<<<3)+(sx2(rg2)<<<1)+sx2(rg2)
-             +(sx2(rb2)<<<3)+sx2(rb2)-sx2(lr2)-sx2(lg2)-(sx2(lb2)<<<2);
- trio_wb=-sx2(rr2)-(sx2(rg2)<<<1)+sx2(rb2)+sx2(lr2)
-             +(sx2(lg2)<<<2)+sx2(lg2)
-             +(sx2(lb2)<<<5)+(sx2(lb2)<<<4)+(sx2(lb2)<<<3)+(sx2(lb2)<<<2);
- trio_rs=(trio_wr<<<2)+trio_wr;
- trio_gs=(trio_wg<<<2)+trio_wg;
- trio_bs=(trio_wb<<<2)+trio_wb;
- trio_nr=trio_rs+14'sd32; trio_ng=trio_gs+14'sd32; trio_nb=trio_bs+14'sd32;
- if(trio_nr<=0) trio_r=0; else if(trio_nr>=14'sd960) trio_r=15; else trio_r=trio_nr>>>6;
- if(trio_ng<=0) trio_g=0; else if(trio_ng>=14'sd960) trio_g=15; else trio_g=trio_ng>>>6;
- if(trio_nb<=0) trio_b=0; else if(trio_nb>=14'sd960) trio_b=15; else trio_b=trio_nb>>>6;
-end
-wire [11:0] trioviz={trio_b,trio_g,trio_r};
-
-// Corrected ColorCode weighting remains exactly 11% R + 22% G + 67% B.
-// Since all expanded channels are 5*x, divide the original thresholds by 5.
-reg [9:0] cc_sum;
-reg [3:0] cc_b;
-always @(*) begin
- cc_sum=(rr2<<<3)+(rr2<<<1)+rr2
-       +(rg2<<<4)+(rg2<<<2)+(rg2<<<1)
-       +(rb2<<<6)+(rb2<<<1)+rb2;
- if(cc_sum<10) cc_b=4'd0;
- else if(cc_sum<30) cc_b=4'd1;
- else if(cc_sum<50) cc_b=4'd2;
- else if(cc_sum<70) cc_b=4'd3;
- else if(cc_sum<90) cc_b=4'd4;
- else if(cc_sum<110) cc_b=4'd5;
- else if(cc_sum<130) cc_b=4'd6;
- else if(cc_sum<150) cc_b=4'd7;
- else if(cc_sum<170) cc_b=4'd8;
- else if(cc_sum<190) cc_b=4'd9;
- else if(cc_sum<210) cc_b=4'd10;
- else if(cc_sum<230) cc_b=4'd11;
- else if(cc_sum<250) cc_b=4'd12;
- else if(cc_sum<270) cc_b=4'd13;
- else if(cc_sum<290) cc_b=4'd14;
- else cc_b=4'd15;
-end
-wire [11:0] colorcode={cc_b,lg,lr};
+// Red/cyan is intentionally kept on the direct RGB channels. This is the
+// lightweight anaglyph path that predates the expensive color transforms.
+// TriOviz and ColorCode remain menu-compatible aliases for now; they are not
+// evaluated here so they cannot lengthen the pixel combinational path.
+wire [11:0] trioviz=redcyan;
+wire [11:0] colorcode=redcyan;
 
 wire [5:0] left_lsum={2'b0,lr}+{1'b0,lg,1'b0}+{2'b0,lb};
 wire [5:0] right_lsum={2'b0,rr}+{1'b0,rg,1'b0}+{2'b0,rb};
