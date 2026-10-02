@@ -1188,6 +1188,24 @@ port map(
 	vram_WR  <= not WR_n when ss_freeze = '0' and MREQ_n='0' and A(15 downto 14)="10" and vdp_cpu_bank='1' and systeme='1' else '0';
 	vram2_WR  <= not WR_n when ss_freeze = '0' and MREQ_n='0' and A(15 downto 14)="10" and vdp_cpu_bank='0' and systeme='1' else '0';
 	color    <= vdp2_color when (vdp2_y1='1' and systeme='1' and vdp_enables(1)='0') else vdp_color when vdp_enables(0)='0' else x"000";
+	segascope_eye <= segascope_eye_i;
+	segascope_active <= segascope_active_i;
+
+	-- SegaScope 3-D glasses control. The adapter observes writes in $FFF8-$FFFB;
+	-- bit 0 is the alternating eye state. The write still reaches normal WRAM.
+	process (clk_sys)
+	begin
+		if rising_edge(clk_sys) then
+			if RESET_n='0' then
+				segascope_eye_i <= '0';
+				segascope_active_i <= '0';
+			elsif ss_freeze='0' and MREQ_n='0' and WR_n='0' and
+			      A(15 downto 2)="11111111111110" then
+				segascope_eye_i <= D_in(0);
+				segascope_active_i <= '1';
+			end if;
+		end if;
+	end process;
 
 	active_bios <= '1' when (bios_en = '1' and (ext_bios_sel = '0' or ext_bios_loaded = '1')) or (gg_bios_en = '1' and ext_gg_bios_loaded = '1') else '0';
 
