@@ -62,6 +62,12 @@ reg [5:0] wf_wr=0,wf_rd=0;
 wire wf_empty=(wf_wr==wf_rd);
 wire wf_full=((wf_wr-wf_rd)==6'd32);
 
+// Register the FIFO head before it reaches the DDR interface.  Quartus maps
+// the FIFO arrays to M10K RAM; driving ddr_addr/ddr_din directly from their
+// asynchronous read path created the SegaScope critical timing path.
+reg [28:0] wf_head_addr=0;
+reg [63:0] wf_head_data=0;
+
 always @(posedge clk_sys) begin
  eye_d<=eye;
  if(reset||!active||!ddr_grant) begin
@@ -170,8 +176,8 @@ reg left_valid=0,right_valid=0;
 wire [28:0] right_read_base=frame_base(1'b0,right_disp_bank)+({21'd0,dma_fetch_y}<<6);
 
 assign ddr_burst=(dma==DMA_READ_REQ||dma==DMA_READ_DATA)?8'd64:8'd1;
-assign ddr_addr=(dma==DMA_WRITE)?wf_addr[wf_rd[4:0]]:read_base;
-assign ddr_din=wf_data[wf_rd[4:0]];
+assign ddr_addr=(dma==DMA_WRITE)?wf_head_addr:read_base;
+assign ddr_din=wf_head_data;
 assign ddr_be=8'hFF;
 assign ddr_rd=(dma==DMA_READ_REQ);
 assign ddr_we=(dma==DMA_WRITE);
@@ -245,7 +251,14 @@ always @(posedge clk_sys) begin
      if(mode_sbs) sbs_fill_secondary<=sbs_cache_valid ? ~sbs_display_secondary : 1'b0;
      read_base<=frame_base(1'b1,left_disp_bank)+({21'd0,fetch_req_y}<<6);
      dma<=DMA_READ_REQ;
-    end else if(!wf_empty) dma<=DMA_WRITE;
+    end else if(!wf_empty) begin
+     // Pipeline the inferred FIFO RAM output.  The actual DDR write is issued
+     // on the following cycle from these registers, keeping the M10K read
+     // path out of the DDR command/data combinational path.
+     wf_head_addr<=wf_addr[wf_rd[4:0]];
+     wf_head_data<=wf_data[wf_rd[4:0]];
+     dma<=DMA_WRITE;
+    end
    end
    DMA_READ_REQ: if(!ddr_busy) dma<=DMA_READ_DATA;
    DMA_READ_DATA: if(ddr_ready) begin
