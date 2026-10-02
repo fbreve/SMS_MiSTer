@@ -94,6 +94,8 @@ entity system is
 		y:				in	 STD_LOGIC_VECTOR(8 downto 0);
 		vcounter_cpu:	in	 STD_LOGIC_VECTOR(7 downto 0);
 		color:		out STD_LOGIC_VECTOR(11 downto 0);
+		segascope_eye:	out STD_LOGIC;
+		segascope_active:	out STD_LOGIC;
 		palettemode:	in	STD_LOGIC;
 		mask_column:out STD_LOGIC;
 		black_column:		in STD_LOGIC;
@@ -246,6 +248,9 @@ architecture Behavioral of system is
 	
 	signal ram_WR:				std_logic;
 	signal ram_D_out:			std_logic_vector(7 downto 0);
+
+	signal segascope_eye_i:	std_logic := '0';
+	signal segascope_active_i:	std_logic := '0';
 
 	signal vram_WR:			std_logic;
 	signal vram2_WR:			std_logic;
