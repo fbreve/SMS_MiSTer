@@ -80,22 +80,26 @@ function automatic signed [13:0] sx2;
  begin sx2={12'd0,v}; end
 endfunction
 
+reg signed [13:0] trio_wr,trio_wg,trio_wb;
 reg signed [13:0] trio_rs,trio_gs,trio_bs;
 reg signed [13:0] trio_nr,trio_ng,trio_nb;
 reg [3:0] trio_r,trio_g,trio_b;
 always @(*) begin
  // Coefficients are unchanged. Multiply the weighted RGB222 sum by five
  // because RGB444 replication maps 0,1,2,3 to 0,5,10,15.
- trio_rs=5*((-(sx2(rr2)<<<2))-((sx2(rg2)<<<3)+(sx2(rg2)<<<1))-(sx2(rb2)<<<1)
+ trio_wr=(-(sx2(rr2)<<<2))-((sx2(rg2)<<<3)+(sx2(rg2)<<<1))-(sx2(rb2)<<<1)
              +(sx2(lr2)<<<5)+(sx2(lr2)<<<1)
              +(sx2(lg2)<<<5)+(sx2(lg2)<<<3)+(sx2(lg2)<<<2)+sx2(lg2)
-             +(sx2(lb2)<<<1)));
- trio_gs=5*(((sx2(rr2)<<<4)+(sx2(rr2)<<<1))
+             +(sx2(lb2)<<<1);
+ trio_wg=((sx2(rr2)<<<4)+(sx2(rr2)<<<1))
              +(sx2(rg2)<<<5)+(sx2(rg2)<<<3)+(sx2(rg2)<<<1)+sx2(rg2)
-             +(sx2(rb2)<<<3)+sx2(rb2)-sx2(lr2)-sx2(lg2)-(sx2(lb2)<<<2));
- trio_bs=5*(-sx2(rr2)-(sx2(rg2)<<<1)+sx2(rb2)+sx2(lr2)
+             +(sx2(rb2)<<<3)+sx2(rb2)-sx2(lr2)-sx2(lg2)-(sx2(lb2)<<<2);
+ trio_wb=-sx2(rr2)-(sx2(rg2)<<<1)+sx2(rb2)+sx2(lr2)
              +(sx2(lg2)<<<2)+sx2(lg2)
-             +(sx2(lb2)<<<5)+(sx2(lb2)<<<4)+(sx2(lb2)<<<3)+(sx2(lb2)<<<2));
+             +(sx2(lb2)<<<5)+(sx2(lb2)<<<4)+(sx2(lb2)<<<3)+(sx2(lb2)<<<2);
+ trio_rs=(trio_wr<<<2)+trio_wr;
+ trio_gs=(trio_wg<<<2)+trio_wg;
+ trio_bs=(trio_wb<<<2)+trio_wb;
  trio_nr=trio_rs+14'sd32; trio_ng=trio_gs+14'sd32; trio_nb=trio_bs+14'sd32;
  if(trio_nr<=0) trio_r=0; else if(trio_nr>=14'sd960) trio_r=15; else trio_r=trio_nr>>>6;
  if(trio_ng<=0) trio_g=0; else if(trio_ng>=14'sd960) trio_g=15; else trio_g=trio_ng>>>6;
