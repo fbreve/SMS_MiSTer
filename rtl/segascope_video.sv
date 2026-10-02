@@ -285,8 +285,9 @@ wire cache_hit=pair_valid&&cache_valid&&(cache_y==y[7:0])&&active_area;
 // before pixels 3,7,11,... are emitted, producing the visible periodic glitches.
 wire sbs_left_window=(sbs_x>=10'd43)&&(sbs_x<10'd299);
 wire sbs_right_window=(sbs_x>=10'd385)&&(sbs_x<10'd641);
-wire [8:0] sbs_cache_src_x=sbs_right_window ?
-                            sbs_x-10'd385 : sbs_x-10'd43;
+wire [9:0] sbs_cache_src_offset=sbs_right_window ?
+                              sbs_x-10'd385 : sbs_x-10'd43;
+wire [8:0] sbs_cache_src_x=sbs_cache_src_offset[8:0];
 wire [5:0] line_rd_addr=mode_sbs?sbs_cache_src_x[7:2]:x[7:2];
 // Port B addresses are registered inside dpram, matching the one-clock
 // synchronous-read latency the pixel prefetch logic already expects.
@@ -437,7 +438,7 @@ assign sbs_vs=pal?((sbs_y>=243)&&(sbs_y<246)):((sbs_y>=221)&&(sbs_y<224));
 wire sbs_cache_hit=pair_valid&&sbs_cache_valid&&(sbs_cache_y==sbs_y[7:0])&&(sbs_y<192);
 wire sbs_left_active =sbs_left_window;
 wire sbs_right_active=sbs_right_window;
-wire [8:0] sbs_src_x=sbs_right_active ? sbs_x-10'd385 : sbs_x-10'd43;
+wire [8:0] sbs_src_x=sbs_cache_src_x;
 reg [11:0] sbs_left,sbs_right;
 always @(*) begin
  case(sbs_src_x[1:0])
