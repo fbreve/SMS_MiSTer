@@ -23,18 +23,16 @@ localparam [2:0] MODE_ORIGINAL=3'd0, MODE_LEFT=3'd1, MODE_RIGHT=3'd2,
 
 wire active_area=(x<9'd256)&&(y<9'd192);
 wire [15:0] fb_addr={y[7:0],x[7:0]};
-wire [5:0] live_rgb={color_in[11:10],color_in[7:6],color_in[3:2]};
-wire [5:0] prev_rgb;
+wire [7:0] fb_q;
+wire fb_we=ce_pix&&active&&active_area&&(mode!=MODE_ORIGINAL);
 
-// Port A replaces the previous field with the live field. Port B observes
-// OLD_DATA on a same-address read/write collision, i.e. the opposite eye.
-dpram #(.widthad_a(16),.width_a(6),.mixed_port_rdwr("OLD_DATA")) framebuffer
+// Same single-port organization used by the timing-clean pre-DDR implementation.
+// At a raster location q still represents the preceding field until this clock
+// edge writes the current field.
+spram #(.widthad_a(16),.width_a(8)) framebuffer
 (
- .clock_a(clk_sys), .address_a(fb_addr),
- .wren_a(ce_pix&&active&&active_area&&(mode!=MODE_ORIGINAL)),
- .data_a(live_rgb), .q_a(),
- .clock_b(clk_sys), .address_b(fb_addr),
- .wren_b(1'b0), .data_b(6'd0), .q_b(prev_rgb)
+ .clock(clk_sys), .address(fb_addr), .wren(fb_we),
+ .data({color_in[11:10],color_in[7:6],color_in[3:2],2'b00}), .q(fb_q)
 );
 
 reg left_seen=0,right_seen=0;
@@ -54,9 +52,9 @@ wire pair_valid=left_seen&&right_seen;
 wire [3:0] live_r={color_in[3:2],color_in[3:2]};
 wire [3:0] live_g={color_in[7:6],color_in[7:6]};
 wire [3:0] live_b={color_in[11:10],color_in[11:10]};
-wire [3:0] prev_r={prev_rgb[1:0],prev_rgb[1:0]};
-wire [3:0] prev_g={prev_rgb[3:2],prev_rgb[3:2]};
-wire [3:0] prev_b={prev_rgb[5:4],prev_rgb[5:4]};
+wire [3:0] prev_r={fb_q[3:2],fb_q[3:2]};
+wire [3:0] prev_g={fb_q[5:4],fb_q[5:4]};
+wire [3:0] prev_b={fb_q[7:6],fb_q[7:6]};
 
 // eye=1 is the semantic left eye used by the existing SegaScope implementation.
 wire [3:0] lr=eye?live_r:prev_r;
@@ -70,46 +68,64 @@ wire [11:0] left_px={lb,lg,lr};
 wire [11:0] right_px={rb,rg,rr};
 wire [11:0] redcyan={rb,rg,lr};
 
-function automatic [3:0] clip_q6;
- input integer v; integer q;
- begin
-  q=(v+32)/64;
-  if(q<0) clip_q6=0; else if(q>15) clip_q6=15; else clip_q6=q[3:0];
- end
+// The source channels are RGB222 expanded by replication, hence each 4-bit
+// channel is exactly 5 times its 2-bit value. Use the 2-bit values and
+// shift/add constant arithmetic. This is mathematically identical to the
+// latest color equations but avoids inferring six pixel-rate DSP multipliers.
+wire [1:0] lr2=lr[3:2],lg2=lg[3:2],lb2=lb[3:2];
+wire [1:0] rr2=rr[3:2],rg2=rg[3:2],rb2=rb[3:2];
+
+function automatic signed [13:0] sx2;
+ input [1:0] v;
+ begin sx2={12'd0,v}; end
 endfunction
 
-// Latest fixed-point TriOviz/Dubois-style matrix from the DDR development
-// branch, retained verbatim while returning storage to FPGA RAM.
-integer trio_rs,trio_gs,trio_bs;
+reg signed [13:0] trio_rs,trio_gs,trio_bs;
+reg signed [13:0] trio_nr,trio_ng,trio_nb;
 reg [3:0] trio_r,trio_g,trio_b;
 always @(*) begin
- trio_rs=(-4*rr)+(-10*rg)+(-2*rb)+(34*lr)+(45*lg)+(2*lb);
- trio_gs=(18*rr)+(43*rg)+(9*rb)+(-1*lr)+(-1*lg)+(-4*lb);
- trio_bs=(-1*rr)+(-2*rg)+(1*rb)+(1*lr)+(5*lg)+(60*lb);
- trio_r=clip_q6(trio_rs); trio_g=clip_q6(trio_gs); trio_b=clip_q6(trio_bs);
+ // Coefficients are unchanged. Multiply the weighted RGB222 sum by five
+ // because RGB444 replication maps 0,1,2,3 to 0,5,10,15.
+ trio_rs=5*((-(sx2(rr2)<<<2))-((sx2(rg2)<<<3)+(sx2(rg2)<<<1))-(sx2(rb2)<<<1)
+             +(sx2(lr2)<<<5)+(sx2(lr2)<<<1)
+             +(sx2(lg2)<<<5)+(sx2(lg2)<<<3)+(sx2(lg2)<<<2)+sx2(lg2)
+             +(sx2(lb2)<<<1)));
+ trio_gs=5*(((sx2(rr2)<<<4)+(sx2(rr2)<<<1))
+             +(sx2(rg2)<<<5)+(sx2(rg2)<<<3)+(sx2(rg2)<<<1)+sx2(rg2)
+             +(sx2(rb2)<<<3)+sx2(rb2)-sx2(lr2)-sx2(lg2)-(sx2(lb2)<<<2));
+ trio_bs=5*(-sx2(rr2)-(sx2(rg2)<<<1)+sx2(rb2)+sx2(lr2)
+             +(sx2(lg2)<<<2)+sx2(lg2)
+             +(sx2(lb2)<<<5)+(sx2(lb2)<<<4)+(sx2(lb2)<<<3)+(sx2(lb2)<<<2));
+ trio_nr=trio_rs+14'sd32; trio_ng=trio_gs+14'sd32; trio_nb=trio_bs+14'sd32;
+ if(trio_nr<=0) trio_r=0; else if(trio_nr>=14'sd960) trio_r=15; else trio_r=trio_nr>>>6;
+ if(trio_ng<=0) trio_g=0; else if(trio_ng>=14'sd960) trio_g=15; else trio_g=trio_ng>>>6;
+ if(trio_nb<=0) trio_b=0; else if(trio_nb>=14'sd960) trio_b=15; else trio_b=trio_nb>>>6;
 end
 wire [11:0] trioviz={trio_b,trio_g,trio_r};
 
-// Corrected ColorCode amber/blue weighting: 11% R + 22% G + 67% B.
-integer cc_sum;
+// Corrected ColorCode weighting remains exactly 11% R + 22% G + 67% B.
+// Since all expanded channels are 5*x, divide the original thresholds by 5.
+reg [9:0] cc_sum;
 reg [3:0] cc_b;
 always @(*) begin
- cc_sum=11*rr+22*rg+67*rb;
- if(cc_sum<50) cc_b=4'd0;
- else if(cc_sum<150) cc_b=4'd1;
- else if(cc_sum<250) cc_b=4'd2;
- else if(cc_sum<350) cc_b=4'd3;
- else if(cc_sum<450) cc_b=4'd4;
- else if(cc_sum<550) cc_b=4'd5;
- else if(cc_sum<650) cc_b=4'd6;
- else if(cc_sum<750) cc_b=4'd7;
- else if(cc_sum<850) cc_b=4'd8;
- else if(cc_sum<950) cc_b=4'd9;
- else if(cc_sum<1050) cc_b=4'd10;
- else if(cc_sum<1150) cc_b=4'd11;
- else if(cc_sum<1250) cc_b=4'd12;
- else if(cc_sum<1350) cc_b=4'd13;
- else if(cc_sum<1450) cc_b=4'd14;
+ cc_sum=(rr2<<<3)+(rr2<<<1)+rr2
+       +(rg2<<<4)+(rg2<<<2)+(rg2<<<1)
+       +(rb2<<<6)+(rb2<<<1)+rb2;
+ if(cc_sum<10) cc_b=4'd0;
+ else if(cc_sum<30) cc_b=4'd1;
+ else if(cc_sum<50) cc_b=4'd2;
+ else if(cc_sum<70) cc_b=4'd3;
+ else if(cc_sum<90) cc_b=4'd4;
+ else if(cc_sum<110) cc_b=4'd5;
+ else if(cc_sum<130) cc_b=4'd6;
+ else if(cc_sum<150) cc_b=4'd7;
+ else if(cc_sum<170) cc_b=4'd8;
+ else if(cc_sum<190) cc_b=4'd9;
+ else if(cc_sum<210) cc_b=4'd10;
+ else if(cc_sum<230) cc_b=4'd11;
+ else if(cc_sum<250) cc_b=4'd12;
+ else if(cc_sum<270) cc_b=4'd13;
+ else if(cc_sum<290) cc_b=4'd14;
  else cc_b=4'd15;
 end
 wire [11:0] colorcode={cc_b,lg,lr};
