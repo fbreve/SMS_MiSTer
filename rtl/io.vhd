@@ -73,6 +73,10 @@ entity io is
 		se_mapper_set: in  STD_LOGIC := '0';
 		vdp_enables:   in  STD_LOGIC_VECTOR(1 downto 0) := (others => '0');
 		psg_enables:   in  STD_LOGIC_VECTOR(1 downto 0) := (others => '0');
+		-- Local Game Gear state; remote link pins/peer are not serialized.
+		gg_state_out: out STD_LOGIC_VECTOR(127 downto 0);
+		gg_state_in: in STD_LOGIC_VECTOR(127 downto 0) := (others => '0');
+		gg_state_set: in STD_LOGIC := '0';
 		io_state_out: out STD_LOGIC_VECTOR(31 downto 0);
 		io_state_in:  in  STD_LOGIC_VECTOR(31 downto 0) := (others => '0');
 		io_state_set: in  STD_LOGIC := '0';
@@ -197,6 +201,32 @@ begin
 	sk1100_port_a <= sk1100_row_data(7 downto 0);
 	sk1100_port_b <= sk1100_row_data(11 downto 8);
 
+	-- Versioned GG payload bits 113:0; 127:114 are reserved zero.
+	gg_state_out(7 downto 0) <= gg_ddr;
+	gg_state_out(15 downto 8) <= gg_txd;
+	gg_state_out(23 downto 16) <= gg_rxd;
+	gg_state_out(31 downto 24) <= gg_pdr;
+	gg_state_out(36 downto 32) <= gg_sctrl;
+	gg_state_out(37) <= gg_tx_line;
+	gg_state_out(38) <= gg_tx_busy;
+	gg_state_out(47 downto 39) <= gg_tx_shift(9 downto 1);
+	gg_state_out(61 downto 48) <= std_logic_vector(gg_tx_cnt);
+	gg_state_out(65 downto 62) <= std_logic_vector(gg_tx_bits);
+	gg_state_out(66) <= gg_tx_pending;
+	gg_state_out(74 downto 67) <= gg_tx_pending_data;
+	gg_state_out(77 downto 75) <= gg_rx_sync;
+	gg_state_out(80 downto 78) <= gg_pc6_sync;
+	gg_state_out(81) <= gg_pc6_prev;
+	gg_state_out(83 downto 82) <= std_logic_vector(gg_rx_state);
+	gg_state_out(97 downto 84) <= std_logic_vector(gg_rx_cnt);
+	gg_state_out(100 downto 98) <= std_logic_vector(gg_rx_bits);
+	gg_state_out(108 downto 101) <= gg_rx_shift;
+	gg_state_out(109) <= gg_rx_ready;
+	gg_state_out(110) <= gg_rx_frame_err;
+	gg_state_out(111) <= gg_nmi_serial;
+	gg_state_out(112) <= gg_nmi_pc6;
+	gg_state_out(113) <= gg_tx_wr_d;
+	gg_state_out(127 downto 114) <= (others => '0');
 	io_state_out(7 downto 0) <= ctrl;
 	io_state_out(15 downto 8) <= sc_multicart_latch;
 	io_state_out(23 downto 16) <= sk1100_port_c;
@@ -241,6 +271,7 @@ begin
 			analog_player <= '0';
 			analog_upper <= '0';
 		elsif rising_edge(clk) then
+			if ss_freeze = '0' then
 			if gg='0' or gg_link_en='0' then
 				gg_tx_line <= '1';
 				gg_tx_busy <= '0';
@@ -348,6 +379,8 @@ begin
 				gg_nmi_serial <= '0';
 			end if;
 
+			end if; -- GG protocol and read side effects hold while frozen.
+
 			if ss_freeze = '0' and gg='1' and A(7 downto 3) = "00000" then
 				if WR_n='0' then
 					case A(2 downto 0) is
@@ -432,10 +465,12 @@ begin
 					ctrl <= D_in;
 				end if ;
 			end if;
+			if ss_freeze = '0' then
 			if gg='1' and A(7 downto 3)="00000" and WR_n='0' and A(2 downto 0)="011" then
 				gg_tx_wr_d <= '1';
 			else
 				gg_tx_wr_d <= '0';
+			end if;
 			end if;
 			-- savestate restore: System E IO port 0xF7 state
 			if se_mapper_set = '1' and systeme = '1' then
@@ -443,6 +478,33 @@ begin
 				vdp2_bank    <= se_mapper_in(6);
 				vdp_cpu_bank <= se_mapper_in(5);
 				rom_bank     <= se_mapper_in(3 downto 0);
+			end if;
+			-- Last assignments win over normal bus/protocol updates on this edge.
+			if gg_state_set = '1' then
+				gg_ddr <= gg_state_in(7 downto 0);
+				gg_txd <= gg_state_in(15 downto 8);
+				gg_rxd <= gg_state_in(23 downto 16);
+				gg_pdr <= gg_state_in(31 downto 24);
+				gg_sctrl <= gg_state_in(36 downto 32);
+				gg_tx_line <= gg_state_in(37);
+				gg_tx_busy <= gg_state_in(38);
+				gg_tx_shift <= gg_state_in(47 downto 39) & '0';
+				gg_tx_cnt <= unsigned(gg_state_in(61 downto 48));
+				gg_tx_bits <= unsigned(gg_state_in(65 downto 62));
+				gg_tx_pending <= gg_state_in(66);
+				gg_tx_pending_data <= gg_state_in(74 downto 67);
+				gg_rx_sync <= gg_state_in(77 downto 75);
+				gg_pc6_sync <= gg_state_in(80 downto 78);
+				gg_pc6_prev <= gg_state_in(81);
+				gg_rx_state <= unsigned(gg_state_in(83 downto 82));
+				gg_rx_cnt <= unsigned(gg_state_in(97 downto 84));
+				gg_rx_bits <= unsigned(gg_state_in(100 downto 98));
+				gg_rx_shift <= gg_state_in(108 downto 101);
+				gg_rx_ready <= gg_state_in(109);
+				gg_rx_frame_err <= gg_state_in(110);
+				gg_nmi_serial <= gg_state_in(111);
+				gg_nmi_pc6 <= gg_state_in(112);
+				gg_tx_wr_d <= gg_state_in(113);
 			end if;
 			if io_state_set = '1' then
 				ctrl               <= io_state_in(7 downto 0);

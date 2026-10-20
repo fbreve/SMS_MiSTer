@@ -876,6 +876,8 @@ wire [63:0]  ss_mapper_out, ss_mapper_in;
 wire [95:0]  ss_evolution_out, ss_evolution_in;
 wire         ss_evolution_set;
 wire         ss_mapper_set;
+wire [127:0] ss_gg_out, ss_gg_in;
+wire ss_gg_set;
 wire [31:0]  ss_io_out, ss_io_in;
 wire         ss_io_set;
 wire [63:0]  eeprom_ss_out, eeprom_ss_in;
@@ -1165,6 +1167,9 @@ system #(63) system
 	.psg2_out     (ss_psg2_out),
 	.psg2_in      (ss_psg2_in),
 	.psg2_set     (ss_psg2_set),
+	.gg_state_out(ss_gg_out),
+	.gg_state_in(ss_gg_in),
+	.gg_state_set(ss_gg_set),
 	.io_state_out (ss_io_out),
 	.io_state_in  (ss_io_in),
 	.io_state_set (ss_io_set)
@@ -1259,6 +1264,9 @@ savestates savestates_inst (
 	.eeprom_out      (eeprom_ss_out),
 	.eeprom_in       (eeprom_ss_in),
 	.eeprom_set      (eeprom_ss_set),
+	.gg_out          (ss_gg_out),
+	.gg_in           (ss_gg_in),
+	.gg_set          (ss_gg_set),
 	.io_out          (ss_io_out),
 	.io_in           (ss_io_in),
 	.io_set          (ss_io_set),

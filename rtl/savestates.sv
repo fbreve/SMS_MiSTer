@@ -158,6 +158,9 @@ module savestates (
     output reg        psg2_set,
 
     // ---- IO snapshot / restore ----
+    input     [127:0] gg_out,
+    output reg [127:0] gg_in,
+    output reg        gg_set,
     input      [31:0] io_out,
     output reg [31:0] io_in,
     output reg        io_set,
@@ -263,6 +266,10 @@ localparam ST_SAVE_VIDEO         = 6'd60;
 localparam ST_LOAD_VIDEO         = 6'd61;
 localparam ST_LOAD_HDR_WT2       = 6'd62;
 localparam ST_UNFREEZE_SETTLE = 6'd63;
+localparam ST_SAVE_GG = 7'd73, ST_LOAD_GG = 7'd74;
+localparam [127:0] GG_RESET = 128'h00001fe00003f8000000ffa07fff00ff;
+reg [127:0] gg_snap;
+reg gg_word;
 
 // Post-op guard time to avoid pathological immediate re-entry (rapid hammering).
 localparam [27:0] OP_COOLDOWN_MAX = 28'd26846500; // ~500ms @ 53.7MHz
@@ -328,12 +335,15 @@ reg [135:0] vdp2_snap;
 // Video word extension v1: previously-written zero padding is never latch data
 // unless the full tag and reserved bits match. Legacy snapshots restore zero.
 localparam [23:0] HCOUNTER_MAGIC = 24'h484301; // "HC", version 1
+// Version 2 preserves the HCounter layout and adds two local GG words (01c/01d).
+// Bits 39:38 now give the GG payload length, exactly two 64-bit words.
+localparam [23:0] IO_EXT_MAGIC = 24'h484302;
 reg [383:0] cram2_snap;
 reg  [55:0] psg2_snap;
 reg  [31:0] io_snap;
 reg  [21:0] video_snap;
 reg  [63:0] eeprom_snap;
-wire [63:0] video_word = {HCOUNTER_MAGIC, 2'd0,
+wire [63:0] video_word = {IO_EXT_MAGIC, 2'd2,
                          systeme ? vdp2_snap[135:128] : 8'd0,
                          vdp_snap[135:128], video_snap};
 
@@ -483,6 +493,11 @@ always @(*) begin
         ST_SAVE_MAPPER: if (! DDRAM_BUSY) ddram_cmd_write ( base_addr + 29'd15 , mapper_snap , 8'hFF ) ;
         ST_SAVE_IO: if (! DDRAM_BUSY) ddram_cmd_write ( base_addr + 29'h019 , { evolution_snap [ 31 : 0 ] , io_snap } , 8'hFF ) ;
         ST_SAVE_VIDEO: if (! DDRAM_BUSY) ddram_cmd_write ( base_addr + 29'h01a , video_word , 8'hFF ) ;
+        ST_SAVE_GG: if (!DDRAM_BUSY) ddram_cmd_write(base_addr + 29'h01c + {28'd0,gg_word}, gg_word ? gg_snap[127:64] : gg_snap[63:0], 8'hFF);
+        ST_LOAD_GG: if (!(DDRAM_DOUT_READY && dout_expected) && !dout_expected && !DDRAM_BUSY) begin
+            if (!gg_word) ddram_cmd_read(base_addr + 29'h01d);
+            else ddram_cmd_read(base_addr + 29'h01b);
+        end
         ST_SAVE_EEPROM: if (! DDRAM_BUSY) ddram_cmd_write ( base_addr + 29'h01b , evolution_snap [ 31 : 16 ] == 16'hE132 ? evolution_snap [ 95 : 32 ] : eeprom_snap , 8'hFF ) ;
         ST_SAVE_VDP2REG: begin
             if (! DDRAM_BUSY) begin
@@ -608,7 +623,10 @@ always @(*) begin
             end
         end
         ST_LOAD_IO: if (!(DDRAM_DOUT_READY && dout_expected)) if (! dout_expected && ! DDRAM_BUSY) ddram_cmd_read ( base_addr + 29'h01a ) ;
-        ST_LOAD_VIDEO: if (!(DDRAM_DOUT_READY && dout_expected)) if (! dout_expected && ! DDRAM_BUSY) ddram_cmd_read ( base_addr + 29'h01b ) ;
+        ST_LOAD_VIDEO: if (!(DDRAM_DOUT_READY && dout_expected) && !dout_expected && !DDRAM_BUSY) begin
+            if (dout_latch[63:40] == IO_EXT_MAGIC && dout_latch[39:38] == 2'd2) ddram_cmd_read(base_addr + 29'h01c);
+            else ddram_cmd_read(base_addr + 29'h01b);
+        end
         ST_LOAD_EEPROM: begin
             if (!(DDRAM_DOUT_READY && dout_expected)) begin
                 if (! dout_expected && ! DDRAM_BUSY) begin
@@ -758,6 +776,7 @@ always @(posedge clk or negedge reset_n) begin
         vram2_WE        <= 0;
         dout_latch      <= 64'd0;
         io_in           <= 32'd0;
+        gg_in <= GG_RESET; gg_snap <= GG_RESET; gg_set <= 0; gg_word <= 0;
         io_set          <= 0;
         io_snap         <= 32'd0;
         video_state_in  <= 22'd0;
@@ -797,6 +816,7 @@ always @(posedge clk or negedge reset_n) begin
         psg2_set     <= 0;
         vram2_WE     <= 0;
         io_set       <= 0;
+        gg_set <= 0;
         video_state_set <= 0;
         audio_ext_set <= 0;
         audio_phase_set <= 0;
@@ -877,6 +897,7 @@ always @(posedge clk or negedge reset_n) begin
                 psg2_snap   <= psg2_out;
             end
             io_snap          <= io_out;
+            gg_snap          <= gg_out;
             video_snap       <= video_state_out;
             eeprom_snap      <= eeprom_out;
             
@@ -1039,7 +1060,16 @@ always @(posedge clk or negedge reset_n) begin
         ST_SAVE_VIDEO: begin
             if (!DDRAM_BUSY) begin
                 ddram_write(base_addr + 29'h01a, video_word, 8'hFF);
-                state <= ST_SAVE_EEPROM;
+                gg_word <= 0;
+                state <= ST_SAVE_GG;
+            end
+        end
+
+        ST_SAVE_GG: begin
+            if (!DDRAM_BUSY) begin
+                ddram_write(base_addr + 29'h01c + {28'd0,gg_word}, gg_word ? gg_snap[127:64] : gg_snap[63:0], 8'hFF);
+                if (gg_word) state <= ST_SAVE_EEPROM;
+                else gg_word <= 1;
             end
         end
 
@@ -1394,6 +1424,7 @@ always @(posedge clk or negedge reset_n) begin
                 // Old 64KB files bypass ST_LOAD_VIDEO entirely.
                 vdp_snap[135:128] <= 8'd0;
                 vdp2_snap[135:128] <= 8'd0;
+                gg_snap <= GG_RESET;
                 ddram_read(base_addr + 29'd0);
                 state <= ST_LOAD_HDR_WT;
             end
@@ -1607,15 +1638,41 @@ always @(posedge clk or negedge reset_n) begin
                 dout_latch    <= DDRAM_DOUT;
             end else if (!dout_expected && !DDRAM_BUSY) begin
                 video_snap       <= dout_latch[21:0];
-                if (dout_latch[63:40] == HCOUNTER_MAGIC && dout_latch[39:38] == 2'd0) begin
+                if ((dout_latch[63:40] == HCOUNTER_MAGIC && dout_latch[39:38] == 2'd0) ||
+                    (dout_latch[63:40] == IO_EXT_MAGIC && dout_latch[39:38] == 2'd2)) begin
                     vdp_snap[135:128] <= dout_latch[29:22];
                     vdp2_snap[135:128] <= systeme ? dout_latch[37:30] : 8'd0;
                 end else begin
                     vdp_snap[135:128] <= 8'd0;
                     vdp2_snap[135:128] <= 8'd0;
                 end
-                ddram_read(base_addr + 29'h01b);
-                state            <= ST_LOAD_EEPROM;
+                if (dout_latch[63:40] == IO_EXT_MAGIC && dout_latch[39:38] == 2'd2) begin
+                    gg_word <= 0;
+                    ddram_read(base_addr + 29'h01c);
+                    state <= ST_LOAD_GG;
+                end else begin
+                    ddram_read(base_addr + 29'h01b);
+                    state <= ST_LOAD_EEPROM;
+                end
+            end
+        end
+
+        ST_LOAD_GG: begin
+            if (DDRAM_DOUT_READY && dout_expected) begin
+                dout_expected <= 0;
+                dout_latch <= DDRAM_DOUT;
+            end else if (!dout_expected && !DDRAM_BUSY) begin
+                if (!gg_word) begin
+                    gg_snap[63:0] <= dout_latch;
+                    gg_word <= 1;
+                    ddram_read(base_addr + 29'h01d);
+                end else begin
+                    // Invalid/truncated padding never becomes local protocol state.
+                    if (dout_latch[63:50] == 14'd0) gg_snap[127:64] <= dout_latch;
+                    else gg_snap <= GG_RESET;
+                    ddram_read(base_addr + 29'h01b);
+                    state <= ST_LOAD_EEPROM;
+                end
             end
         end
 
@@ -1874,6 +1931,8 @@ always @(posedge clk or negedge reset_n) begin
             if (cram_entry == 0) begin
                 // CPU is frozen; restore all registers unconditionally.
                 // z80_set loads z80_dir into T80s regardless of CEN.
+                gg_in <= gg_snap;
+                gg_set <= 1; // Includes legacy64K, which intentionally skips ordinary IO restore.
                 z80_dir      <= z80_snap;
                 z80_set      <= 1;
                 vdp_regs_in  <= vdp_snap;

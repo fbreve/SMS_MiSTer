@@ -208,6 +208,10 @@ entity system is
 		psg2_in       : in  STD_LOGIC_VECTOR(55 downto 0) := (others => '0');
 		psg2_set      : in  STD_LOGIC := '0';
 		-- Save-state interface for IO registers
+		-- Local Game Gear state; remote link pins/peer are not serialized.
+		gg_state_out: out STD_LOGIC_VECTOR(127 downto 0);
+		gg_state_in: in STD_LOGIC_VECTOR(127 downto 0) := (others => '0');
+		gg_state_set: in STD_LOGIC := '0';
 		io_state_out  : out STD_LOGIC_VECTOR(31 downto 0);
 		io_state_in   : in  STD_LOGIC_VECTOR(31 downto 0) := (others => '0');
 		io_state_set  : in  STD_LOGIC := '0';
@@ -929,6 +933,9 @@ port map(
 		psg_enables   => psg_enables,
 		se_mapper_in  => mapper_in(7 downto 0),
 		se_mapper_set => mapper_set,
+		gg_state_out => gg_state_out,
+		gg_state_in => gg_state_in,
+		gg_state_set => gg_state_set,
 		io_state_out  => io_state_out_i,
 		io_state_in   => io_state_in,
 		io_state_set  => io_state_set,
