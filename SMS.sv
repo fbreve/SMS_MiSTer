@@ -880,6 +880,8 @@ wire [127:0] ss_gg_out, ss_gg_in;
 wire ss_gg_set;
 wire [45:0] ss_md_out, ss_md_in;
 wire ss_md_set, ss_md_valid;
+wire [18:0] ss_tap_out, ss_tap_in;
+wire ss_tap_set, ss_tap_valid;
 wire [31:0]  ss_io_out, ss_io_in;
 wire         ss_io_set;
 wire [63:0]  eeprom_ss_out, eeprom_ss_in;
@@ -1284,6 +1286,10 @@ savestates savestates_inst (
 	.gg_out          (ss_gg_out),
 	.gg_in           (ss_gg_in),
 	.gg_set          (ss_gg_set),
+	.tap_out         (ss_tap_out),
+	.tap_in          (ss_tap_in),
+	.tap_set         (ss_tap_set),
+	.tap_valid       (ss_tap_valid),
 	.md_out          (ss_md_out),
 	.md_in           (ss_md_in),
 	.md_set          (ss_md_set),
@@ -1410,6 +1416,9 @@ wire      joya_th;
 wire      joyb_th;
 wire      joyser_th;
 reg [1:0] jcnt = 0;
+reg old_th;
+reg [15:0] tmr;
+assign ss_tap_out = {old_th,jcnt,tmr};
 
 // Accessory routing and non-SMS systems retain their existing pin behavior.
 // TH is an input to the pad, so the existing TH return path stays untouched.
@@ -1466,8 +1475,6 @@ keyboard keyboard_mapper
 );
 
 always @(posedge clk_sys) begin
-	reg old_th;
-	reg [15:0] tmr;
 
 	if (raw_serial) begin
 		joyser[3] <= USER_IN[1];//up
@@ -1478,9 +1485,11 @@ always @(posedge clk_sys) begin
 		joyser[5] <= USER_IN[6];//button2
 		joyser_th <= USER_IN[4];//sensor
 
-		if (tmr) tmr <= tmr - 1'd1;
-		if (!USER_IN[0] & !USER_IN[2] & !USER_IN[6] & pause_combo) begin //D 1 2 combo
-			tmr <= 57000;
+		if (!ss_freeze) begin
+			if (tmr) tmr <= tmr - 1'd1;
+			if (!USER_IN[0] & !USER_IN[2] & !USER_IN[6] & pause_combo) begin //D 1 2 combo
+				tmr <= 57000;
+			end
 		end
 		joyser[6] <= !tmr;
 		joyser[7] <= 1'b0;
@@ -1498,7 +1507,7 @@ always @(posedge clk_sys) begin
 		joya_th <=  1'b1;
 		joyb_th <=  1'b1;
 
-		if(ce_cpu) begin
+		if(ce_cpu && !ss_freeze) begin
 			if(tmr > 57000) jcnt <= 0;
 			else if(joya_th_out) tmr <= tmr + 1'd1;
 
@@ -1530,6 +1539,15 @@ always @(posedge clk_sys) begin
 	if (paddle_en) begin
 		{joya[0], joya[1], joya[2], joya[3], joya[5]} <= {paddle_0_nib, paddle_0_tr};
 		{joyb[0], joyb[1], joyb[2], joyb[3], joyb[5]} <= {paddle_1_nib, paddle_1_tr};
+	end
+	// Restore after IO TH settles; pin caches reconstruct before release.
+	if (ss_tap_set) begin
+		if (ss_tap_valid) {old_th,jcnt,tmr} <= ss_tap_in;
+		else begin
+			jcnt <= 0;
+			tmr <= 16'd57001;
+			old_th <= joya_th_out;
+		end
 	end
 end
 
