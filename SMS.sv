@@ -882,6 +882,8 @@ wire [45:0] ss_md_out, ss_md_in;
 wire ss_md_set, ss_md_valid;
 wire [18:0] ss_tap_out, ss_tap_in;
 wire ss_tap_set, ss_tap_valid;
+wire [31:0] ss_paddle_out, ss_paddle_in;
+wire ss_paddle_set, ss_paddle_valid;
 wire [31:0]  ss_io_out, ss_io_in;
 wire         ss_io_set;
 wire [63:0]  eeprom_ss_out, eeprom_ss_in;
@@ -1286,6 +1288,10 @@ savestates savestates_inst (
 	.gg_out          (ss_gg_out),
 	.gg_in           (ss_gg_in),
 	.gg_set          (ss_gg_set),
+	.paddle_out      (ss_paddle_out),
+	.paddle_in       (ss_paddle_in),
+	.paddle_set      (ss_paddle_set),
+	.paddle_valid    (ss_paddle_valid),
 	.tap_out         (ss_tap_out),
 	.tap_in          (ss_tap_in),
 	.tap_set         (ss_tap_set),
@@ -1844,6 +1850,18 @@ wire       joya_th_rise,   joyb_th_rise;
 wire       joya_th_fall,   joyb_th_fall;
 
 always_ff @(posedge clk_sys) begin
+	if (ss_paddle_set) begin
+		if (ss_paddle_valid) begin
+			{joyb_th_out_q, joya_th_out_q, paddle_1_tr, paddle_0_tr,
+			 paddle_1_nib_q, paddle_1_nib, paddle_0_nib_q, paddle_0_nib} <= ss_paddle_in[19:0];
+		end else begin
+			// Legacy states have no sampled position: start with a fresh current sample.
+			{paddle_0_nib_q, paddle_0_nib} <= paddle_joy ? {~joy0_x[7], joy0_x[6:0]} : paddle_0;
+			{paddle_1_nib_q, paddle_1_nib} <= paddle_joy ? {~joy1_x[7], joy1_x[6:0]} : paddle_1;
+			{paddle_1_tr, paddle_0_tr} <= 2'b00;
+			{joyb_th_out_q, joya_th_out_q} <= {joyb_th_out, joya_th_out};
+		end
+	end else if (!ss_freeze) begin
 	if (jp_region) begin
 		// Japanese paddle (HPD-200)
 		if (en16khz) begin
@@ -1894,6 +1912,7 @@ always_ff @(posedge clk_sys) begin
 		end
 	end
 end
+end
 
 assign joya_th_rise = ~joya_th_out_q &  joya_th_out;
 assign joyb_th_rise = ~joyb_th_out_q &  joyb_th_out;
@@ -1904,10 +1923,16 @@ wire       en16khz;
 reg [11:0] cnt_en16khz;
 
 always_ff @(posedge clk_sys) begin
+	if (ss_paddle_set) cnt_en16khz <= ss_paddle_valid ? ss_paddle_in[31:20] : 12'd0;
+	else if (!ss_freeze) begin
 	cnt_en16khz <= cnt_en16khz + 1'd1;
 	if (cnt_en16khz == 3355) cnt_en16khz <= 0;
+	end
 end
 assign en16khz = cnt_en16khz == 0;
+assign ss_paddle_out = {cnt_en16khz, joyb_th_out_q, joya_th_out_q,
+                       paddle_1_tr, paddle_0_tr, paddle_1_nib_q, paddle_1_nib,
+                       paddle_0_nib_q, paddle_0_nib};
 
 reg dbg_menu = 0;
 always @(posedge clk_sys) begin

@@ -119,6 +119,11 @@ module savestates (
     output reg [127:0] eeprom_ext_in,
     output reg        eeprom_full,
     output reg        nvram_refill,
+    // Exact local paddle history and shared divider; raw position stays external.
+    input      [31:0] paddle_out,
+    output reg [31:0] paddle_in,
+    output reg        paddle_set,
+    output reg        paddle_valid,
     input      [18:0] tap_out,
     output reg [18:0] tap_in,
     output reg        tap_set,
@@ -307,6 +312,11 @@ localparam [23:0] TAP_EXT_MAGIC = 24'h484306;
 localparam ST_SAVE_TAP=7'd83, ST_LOAD_TAP=7'd84;
 reg [18:0] tap_snap;
 reg has_tap_tag;
+// v7 adds only word 0x027: local paddle state [63:32], "PAD7" [31:0].
+localparam [23:0] PADDLE_EXT_MAGIC = 24'h484307;
+localparam ST_SAVE_PADDLE=7'd85, ST_LOAD_PADDLE=7'd86;
+reg [31:0] paddle_snap;
+reg has_paddle_tag;
 reg do_save;
 wire transfer_sc = do_save ? sc_size_snap != 0 : sc_ram_full;
 wire transfer_eeprom = do_save ? eeprom_exists_snap : eeprom_full;
@@ -397,7 +407,7 @@ reg  [63:0] eeprom_snap;
 // SC payload shares 0d01..1d00, never the System E or EEPROM regions.
 // 01e: [22:0] P1, [45:23] P2, [63:46] zero. Per port:
 // [16:0] timer, [19:17] rises, [20] TH history, [22:21] type history.
-wire [63:0] video_word = {TAP_EXT_MAGIC, 2'd3,
+wire [63:0] video_word = {PADDLE_EXT_MAGIC, 2'd3,
                          systeme ? vdp2_snap[135:128] : 8'd0,
                          vdp_snap[135:128], video_snap};
 
@@ -561,7 +571,9 @@ always @(*) begin
         ST_SAVE_SC_DESC: if (!DDRAM_BUSY) ddram_cmd_write(base_addr + 29'h025, sc_descriptor, 8'hFF);
         ST_LOAD_SC_DESC: if (!(DDRAM_DOUT_READY && dout_expected) && !dout_expected && !DDRAM_BUSY) ddram_cmd_read(base_addr + (has_tap_tag ? 29'h026 : 29'h01f));
         ST_SAVE_TAP: if (!DDRAM_BUSY) ddram_cmd_write(base_addr + 29'h026, {13'd0,tap_snap,32'h4d544150}, 8'hFF);
-        ST_LOAD_TAP: if (!(DDRAM_DOUT_READY && dout_expected) && !dout_expected && !DDRAM_BUSY) ddram_cmd_read(base_addr + 29'h01f);
+        ST_LOAD_TAP: if (!(DDRAM_DOUT_READY && dout_expected) && !dout_expected && !DDRAM_BUSY) ddram_cmd_read(base_addr + (has_paddle_tag ? 29'h027 : 29'h01f));
+        ST_SAVE_PADDLE: if (!DDRAM_BUSY) ddram_cmd_write(base_addr + 29'h027, {paddle_snap,32'h50414437}, 8'hFF);
+        ST_LOAD_PADDLE: if (!(DDRAM_DOUT_READY && dout_expected) && !dout_expected && !DDRAM_BUSY) ddram_cmd_read(base_addr + 29'h01f);
         ST_SAVE_MD: if (!DDRAM_BUSY) ddram_cmd_write(base_addr + 29'h01e, {18'd0,md_snap}, 8'hFF);
         ST_LOAD_MD: if (!(DDRAM_DOUT_READY && dout_expected) && !dout_expected && !DDRAM_BUSY) begin
             if (has_sc_tag) ddram_cmd_read(base_addr + 29'h025);
@@ -700,7 +712,7 @@ always @(*) begin
         ST_LOAD_IO: if (!(DDRAM_DOUT_READY && dout_expected)) if (! dout_expected && ! DDRAM_BUSY) ddram_cmd_read ( base_addr + 29'h01a ) ;
         ST_LOAD_VIDEO: if (!(DDRAM_DOUT_READY && dout_expected) && !dout_expected && !DDRAM_BUSY) begin
             if ((dout_latch[63:40] == IO_EXT_MAGIC && dout_latch[39:38] == 2'd2) ||
-                    ((dout_latch[63:40] == MD_EXT_MAGIC || dout_latch[63:40] == EEPROM_EXT_MAGIC || dout_latch[63:40] == SC_EXT_MAGIC || dout_latch[63:40] == TAP_EXT_MAGIC) && dout_latch[39:38] == 2'd3)) ddram_cmd_read(base_addr + 29'h01c);
+                    ((dout_latch[63:40] == MD_EXT_MAGIC || dout_latch[63:40] == EEPROM_EXT_MAGIC || dout_latch[63:40] == SC_EXT_MAGIC || dout_latch[63:40] == TAP_EXT_MAGIC || dout_latch[63:40] == PADDLE_EXT_MAGIC) && dout_latch[39:38] == 2'd3)) ddram_cmd_read(base_addr + 29'h01c);
             else ddram_cmd_read(base_addr + 29'h01b);
         end
         ST_LOAD_EEPROM: begin
@@ -857,6 +869,7 @@ always @(posedge clk or negedge reset_n) begin
         eeprom_ext_in <= 0; eeprom_ext_snap <= 0; eeprom_full <= 0;
         eeprom_exists_snap <= 0; has_eeprom_tag <= 0; eeprom_ext_word <= 0; nvram_refill <= 0;
         sc_size_snap <= 0; has_sc_tag <= 0; sc_ram_full <= 0; sc_ram_restored <= 0;
+        paddle_snap <= 0; paddle_in <= 0; paddle_set <= 0; paddle_valid <= 0; has_paddle_tag <= 0;
         tap_snap <= 0; tap_in <= 0; tap_set <= 0; tap_valid <= 0; has_tap_tag <= 0;
         io_set          <= 0;
         io_snap         <= 32'd0;
@@ -900,6 +913,7 @@ always @(posedge clk or negedge reset_n) begin
         io_set       <= 0;
         gg_set <= 0;
         md_set <= 0;
+        paddle_set <= 0;
         tap_set <= 0;
         video_state_set <= 0;
         audio_ext_set <= 0;
@@ -1021,6 +1035,7 @@ always @(posedge clk or negedge reset_n) begin
                 // CPU, VDP, mapper, IO and video capture edges above are unchanged.
                 // MD pads run every clk_sys: capture after freeze is active.
                 md_snap <= md_out;
+                paddle_snap <= paddle_out;
                 tap_snap <= tap_out;
                 eeprom_snap <= eeprom_out;
                 eeprom_ext_snap <= eeprom_ext_out;
@@ -1182,6 +1197,13 @@ always @(posedge clk or negedge reset_n) begin
         ST_SAVE_TAP: begin
             if (!DDRAM_BUSY) begin
                 ddram_write(base_addr + 29'h026, {13'd0,tap_snap,32'h4d544150}, 8'hFF);
+                state <= ST_SAVE_PADDLE;
+            end
+        end
+
+        ST_SAVE_PADDLE: begin
+            if (!DDRAM_BUSY) begin
+                ddram_write(base_addr + 29'h027, {paddle_snap,32'h50414437}, 8'hFF);
                 state <= ST_SAVE_EE_DESC;
             end
         end
@@ -1559,6 +1581,7 @@ always @(posedge clk or negedge reset_n) begin
                 vdp2_snap[135:128] <= 8'd0;
                 gg_snap <= GG_RESET;
                 md_snap <= 0; md_valid <= 0; has_md_ext <= 0;
+                paddle_snap <= 0; paddle_valid <= 0; has_paddle_tag <= 0;
                 tap_snap <= 0; tap_valid <= 0; has_tap_tag <= 0;
                 eeprom_full <= 0; eeprom_ext_snap <= 0; has_eeprom_tag <= 0;
                 // Old 64K files bypass the EEPROM word entirely.
@@ -1776,13 +1799,14 @@ always @(posedge clk or negedge reset_n) begin
                 dout_latch    <= DDRAM_DOUT;
             end else if (!dout_expected && !DDRAM_BUSY) begin
                 video_snap       <= dout_latch[21:0];
-                has_tap_tag <= dout_latch[63:40] == TAP_EXT_MAGIC && dout_latch[39:38] == 2'd3;
-                has_sc_tag <= (dout_latch[63:40] == SC_EXT_MAGIC || dout_latch[63:40] == TAP_EXT_MAGIC) && dout_latch[39:38] == 2'd3;
-                has_eeprom_tag <= (dout_latch[63:40] == EEPROM_EXT_MAGIC || dout_latch[63:40] == SC_EXT_MAGIC || dout_latch[63:40] == TAP_EXT_MAGIC) && dout_latch[39:38] == 2'd3;
-                has_md_ext <= (dout_latch[63:40] == MD_EXT_MAGIC || dout_latch[63:40] == EEPROM_EXT_MAGIC || dout_latch[63:40] == SC_EXT_MAGIC || dout_latch[63:40] == TAP_EXT_MAGIC) && dout_latch[39:38] == 2'd3;
+                has_paddle_tag <= dout_latch[63:40] == PADDLE_EXT_MAGIC && dout_latch[39:38] == 2'd3;
+                has_tap_tag <= (dout_latch[63:40] == TAP_EXT_MAGIC || dout_latch[63:40] == PADDLE_EXT_MAGIC) && dout_latch[39:38] == 2'd3;
+                has_sc_tag <= (dout_latch[63:40] == SC_EXT_MAGIC || dout_latch[63:40] == TAP_EXT_MAGIC || dout_latch[63:40] == PADDLE_EXT_MAGIC) && dout_latch[39:38] == 2'd3;
+                has_eeprom_tag <= (dout_latch[63:40] == EEPROM_EXT_MAGIC || dout_latch[63:40] == SC_EXT_MAGIC || dout_latch[63:40] == TAP_EXT_MAGIC || dout_latch[63:40] == PADDLE_EXT_MAGIC) && dout_latch[39:38] == 2'd3;
+                has_md_ext <= (dout_latch[63:40] == MD_EXT_MAGIC || dout_latch[63:40] == EEPROM_EXT_MAGIC || dout_latch[63:40] == SC_EXT_MAGIC || dout_latch[63:40] == TAP_EXT_MAGIC || dout_latch[63:40] == PADDLE_EXT_MAGIC) && dout_latch[39:38] == 2'd3;
                 if ((dout_latch[63:40] == HCOUNTER_MAGIC && dout_latch[39:38] == 2'd0) ||
                     (dout_latch[63:40] == IO_EXT_MAGIC && dout_latch[39:38] == 2'd2) ||
-                    ((dout_latch[63:40] == MD_EXT_MAGIC || dout_latch[63:40] == EEPROM_EXT_MAGIC || dout_latch[63:40] == SC_EXT_MAGIC || dout_latch[63:40] == TAP_EXT_MAGIC) && dout_latch[39:38] == 2'd3)) begin
+                    ((dout_latch[63:40] == MD_EXT_MAGIC || dout_latch[63:40] == EEPROM_EXT_MAGIC || dout_latch[63:40] == SC_EXT_MAGIC || dout_latch[63:40] == TAP_EXT_MAGIC || dout_latch[63:40] == PADDLE_EXT_MAGIC) && dout_latch[39:38] == 2'd3)) begin
                     vdp_snap[135:128] <= dout_latch[29:22];
                     vdp2_snap[135:128] <= systeme ? dout_latch[37:30] : 8'd0;
                 end else begin
@@ -1790,7 +1814,7 @@ always @(posedge clk or negedge reset_n) begin
                     vdp2_snap[135:128] <= 8'd0;
                 end
                 if ((dout_latch[63:40] == IO_EXT_MAGIC && dout_latch[39:38] == 2'd2) ||
-                    ((dout_latch[63:40] == MD_EXT_MAGIC || dout_latch[63:40] == EEPROM_EXT_MAGIC || dout_latch[63:40] == SC_EXT_MAGIC || dout_latch[63:40] == TAP_EXT_MAGIC) && dout_latch[39:38] == 2'd3)) begin
+                    ((dout_latch[63:40] == MD_EXT_MAGIC || dout_latch[63:40] == EEPROM_EXT_MAGIC || dout_latch[63:40] == SC_EXT_MAGIC || dout_latch[63:40] == TAP_EXT_MAGIC || dout_latch[63:40] == PADDLE_EXT_MAGIC) && dout_latch[39:38] == 2'd3)) begin
                     gg_word <= 0;
                     ddram_read(base_addr + 29'h01c);
                     state <= ST_LOAD_GG;
@@ -1866,6 +1890,17 @@ always @(posedge clk or negedge reset_n) begin
                 tap_snap <= dout_latch[50:32];
                 tap_valid <= dout_latch[31:0] == 32'h4d544150 &&
                              dout_latch[63:51] == 0 && dout_latch[47:32] <= 16'd57001;
+                ddram_read(base_addr + (has_paddle_tag ? 29'h027 : 29'h01f));
+                state <= has_paddle_tag ? ST_LOAD_PADDLE : ST_LOAD_EE_DESC;
+            end
+        end
+
+        ST_LOAD_PADDLE: begin
+            if (DDRAM_DOUT_READY && dout_expected) begin
+                dout_expected <= 0; dout_latch <= DDRAM_DOUT;
+            end else if (!dout_expected && !DDRAM_BUSY) begin
+                paddle_snap <= dout_latch[63:32];
+                paddle_valid <= dout_latch[31:0] == 32'h50414437 && dout_latch[63:52] <= 12'd3355;
                 ddram_read(base_addr + 29'h01f); state <= ST_LOAD_EE_DESC;
             end
         end
@@ -2221,7 +2256,10 @@ always @(posedge clk or negedge reset_n) begin
             // IO TH has settled during the full restore/flush. Legacy history
             // is reconstructed here; exact v3 history remains held until release.
             if (!do_save) begin md_in <= md_snap; md_set <= 1; end
-            if (!do_save) begin tap_in <= tap_snap; tap_set <= 1; end
+            if (!do_save) begin
+                paddle_in <= paddle_snap; paddle_set <= 1;
+                tap_in <= tap_snap; tap_set <= 1;
+            end
             unfreeze_cnt <= 8'd0;
             align_timeout <= 22'd0;
             state <= ST_UNFREEZE;
