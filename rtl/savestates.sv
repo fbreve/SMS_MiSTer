@@ -61,8 +61,8 @@ module savestates (
     input             sp_ce,
 
     // ---- VDP registers ----
-    input     [127:0] vdp_regs,
-    output reg [127:0] vdp_regs_in,
+    input     [135:0] vdp_regs,
+    output reg [135:0] vdp_regs_in,
     output reg        vdp_regs_set,
 
     // ---- CRAM ----
@@ -134,8 +134,8 @@ module savestates (
     input             systeme,
 
     // ---- VDP2 registers (System E second VDP) ----
-    input     [127:0] vdp2_regs,
-    output reg [127:0] vdp2_regs_in,
+    input     [135:0] vdp2_regs,
+    output reg [135:0] vdp2_regs_in,
     output reg        vdp2_regs_set,
 
     // ---- CRAM2 (System E second VDP colour RAM) ----
@@ -318,18 +318,24 @@ reg  [7:0] unfreeze_cnt; // expanded to 8 bits for 255 cycles
 reg  [21:0] align_timeout;
 // Latching buffers for multi-word state
 reg [229:0] z80_snap;
-reg [127:0] vdp_snap;
+reg [135:0] vdp_snap;
 reg [383:0] cram_snap;
 reg  [55:0] psg_snap;
 reg  [63:0] mapper_snap;
 reg  [95:0] evolution_snap;
 // System E latching buffers
-reg [127:0] vdp2_snap;
+reg [135:0] vdp2_snap;
+// Video word extension v1: previously-written zero padding is never latch data
+// unless the full tag and reserved bits match. Legacy snapshots restore zero.
+localparam [23:0] HCOUNTER_MAGIC = 24'h484301; // "HC", version 1
 reg [383:0] cram2_snap;
 reg  [55:0] psg2_snap;
 reg  [31:0] io_snap;
 reg  [21:0] video_snap;
 reg  [63:0] eeprom_snap;
+wire [63:0] video_word = {HCOUNTER_MAGIC, 2'd0,
+                         systeme ? vdp2_snap[135:128] : 8'd0,
+                         vdp_snap[135:128], video_snap};
 
 // VRAM DMA pipelining: address issued, wait 2 clocks for data
 reg  [2:0]  vram_pipe;
@@ -476,7 +482,7 @@ always @(*) begin
         ST_SAVE_PSG: if (! DDRAM_BUSY) ddram_cmd_write ( base_addr + 29'd14 , { 8'd0 , psg_snap } , 8'hFF ) ;
         ST_SAVE_MAPPER: if (! DDRAM_BUSY) ddram_cmd_write ( base_addr + 29'd15 , mapper_snap , 8'hFF ) ;
         ST_SAVE_IO: if (! DDRAM_BUSY) ddram_cmd_write ( base_addr + 29'h019 , { evolution_snap [ 31 : 0 ] , io_snap } , 8'hFF ) ;
-        ST_SAVE_VIDEO: if (! DDRAM_BUSY) ddram_cmd_write ( base_addr + 29'h01a , { 42'd0 , video_snap } , 8'hFF ) ;
+        ST_SAVE_VIDEO: if (! DDRAM_BUSY) ddram_cmd_write ( base_addr + 29'h01a , video_word , 8'hFF ) ;
         ST_SAVE_EEPROM: if (! DDRAM_BUSY) ddram_cmd_write ( base_addr + 29'h01b , evolution_snap [ 31 : 16 ] == 16'hE132 ? evolution_snap [ 95 : 32 ] : eeprom_snap , 8'hFF ) ;
         ST_SAVE_VDP2REG: begin
             if (! DDRAM_BUSY) begin
@@ -1032,7 +1038,7 @@ always @(posedge clk or negedge reset_n) begin
 
         ST_SAVE_VIDEO: begin
             if (!DDRAM_BUSY) begin
-                ddram_write(base_addr + 29'h01a, {42'd0, video_snap}, 8'hFF);
+                ddram_write(base_addr + 29'h01a, video_word, 8'hFF);
                 state <= ST_SAVE_EEPROM;
             end
         end
@@ -1385,6 +1391,9 @@ always @(posedge clk or negedge reset_n) begin
 
         ST_LOAD_HDR_RD: begin
             if (!DDRAM_BUSY) begin
+                // Old 64KB files bypass ST_LOAD_VIDEO entirely.
+                vdp_snap[135:128] <= 8'd0;
+                vdp2_snap[135:128] <= 8'd0;
                 ddram_read(base_addr + 29'd0);
                 state <= ST_LOAD_HDR_WT;
             end
@@ -1598,6 +1607,13 @@ always @(posedge clk or negedge reset_n) begin
                 dout_latch    <= DDRAM_DOUT;
             end else if (!dout_expected && !DDRAM_BUSY) begin
                 video_snap       <= dout_latch[21:0];
+                if (dout_latch[63:40] == HCOUNTER_MAGIC && dout_latch[39:38] == 2'd0) begin
+                    vdp_snap[135:128] <= dout_latch[29:22];
+                    vdp2_snap[135:128] <= systeme ? dout_latch[37:30] : 8'd0;
+                end else begin
+                    vdp_snap[135:128] <= 8'd0;
+                    vdp2_snap[135:128] <= 8'd0;
+                end
                 ddram_read(base_addr + 29'h01b);
                 state            <= ST_LOAD_EEPROM;
             end

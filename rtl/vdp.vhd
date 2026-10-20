@@ -87,10 +87,11 @@ entity vdp is
 		--  [118]          overflow_flag
 		--  [119]          line_overflow
 		--  [127:120]      bg_scroll_x_latched
-		-- Total: 128 bits -> packed into ss_regs[127:0] (16 bytes, 2 DDRAM words)
-		ss_regs_out    : out STD_LOGIC_VECTOR(127 downto 0);
+		--  [135:128]      latched_x (versioned extension in the video word)
+		-- Low 128 bits retain their established two-word layout.
+		ss_regs_out    : out STD_LOGIC_VECTOR(135 downto 0);
 		-- Restore: load all VDP control registers at once (held one cycle while ss_regs_set='1')
-		ss_regs_in     : in  STD_LOGIC_VECTOR(127 downto 0) := (others => '0');
+		ss_regs_in     : in  STD_LOGIC_VECTOR(135 downto 0) := (others => '0');
 		ss_regs_set    : in  STD_LOGIC := '0';
 
 		-- CRAM snapshot (32 × 12 bits = 384 bits, combinational)
@@ -319,6 +320,7 @@ begin
 	-- ----------------------------------------------------------------
 	-- Save-state: VDP register snapshot (combinational)
 	-- ----------------------------------------------------------------
+	ss_regs_out(135 downto 128) <= latched_x;
 	ss_regs_out(0)           	<= disable_hscroll;
 	ss_regs_out(1)           	<= disable_vscroll;
 	ss_regs_out(2)           	<= mask_column0;
@@ -403,6 +405,7 @@ begin
 
 			-- Save-state register restore
 			if ss_regs_set = '1' then
+				latched_x      <= ss_regs_in(135 downto 128);
 				disable_hscroll <= ss_regs_in(0);
 				disable_vscroll <= ss_regs_in(1);
 				mask_column0    <= ss_regs_in(2);
@@ -448,7 +451,7 @@ begin
 			end if;
 
 			old_HL <= HL;
-			if old_HL = '0' and HL = '1' then
+			if ss_regs_set = '0' and old_HL = '0' and HL = '1' then
 				latched_x <= x(8 downto 1);
 			end if;
 

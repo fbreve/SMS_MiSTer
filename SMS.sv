@@ -856,7 +856,7 @@ wire         ss_z80_set;
 wire         ss_z80_m1_n;
 wire         ss_z80_mreq_n;   // low = normal opcode fetch, high = interrupt ack
 wire   [1:0] ss_z80_iset;     // "00" = clean instruction boundary (no prefix)
-wire [127:0] ss_vdp_regs, ss_vdp_regs_in;
+wire [135:0] ss_vdp_regs, ss_vdp_regs_in;
 wire         ss_vdp_regs_set;
 wire [383:0] ss_vdp_cram;
 wire  [4:0]  ss_cram_A;
@@ -907,7 +907,7 @@ wire [21:0]  ss_video_state_out, ss_video_state_in;
 wire         ss_video_state_set;
 
 // System E VDP2 / PSG2 save-state wires
-wire [127:0] ss_vdp2_regs, ss_vdp2_regs_in;
+wire [135:0] ss_vdp2_regs, ss_vdp2_regs_in;
 wire         ss_vdp2_regs_set;
 wire [383:0] ss_vdp2_cram;
 wire  [4:0]  ss_cram2_A;

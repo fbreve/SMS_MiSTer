@@ -150,8 +150,8 @@ entity system is
 		z80_reg_out  : out STD_LOGIC_VECTOR(229 downto 0);
 		z80_dir      : in  STD_LOGIC_VECTOR(229 downto 0) := (others => '0');
 		z80_set      : in  STD_LOGIC := '0';
-		vdp_regs_out : out STD_LOGIC_VECTOR(127 downto 0);
-		vdp_regs_in  : in  STD_LOGIC_VECTOR(127 downto 0) := (others => '0');
+		vdp_regs_out : out STD_LOGIC_VECTOR(135 downto 0);
+		vdp_regs_in  : in  STD_LOGIC_VECTOR(135 downto 0) := (others => '0');
 		vdp_regs_set : in  STD_LOGIC := '0';
 		vdp_cram_out : out STD_LOGIC_VECTOR(383 downto 0);
 		ss_cram_wr   : in  STD_LOGIC := '0';
@@ -190,8 +190,8 @@ entity system is
 		-- ISet: "00" = no prefix active (clean instruction boundary)
 		z80_iset     : out STD_LOGIC_VECTOR(1 downto 0);
 		-- Save-state interface for VDP2 (System E second VDP)
-		vdp2_regs_out : out STD_LOGIC_VECTOR(127 downto 0);
-		vdp2_regs_in  : in  STD_LOGIC_VECTOR(127 downto 0) := (others => '0');
+		vdp2_regs_out : out STD_LOGIC_VECTOR(135 downto 0);
+		vdp2_regs_in  : in  STD_LOGIC_VECTOR(135 downto 0) := (others => '0');
 		vdp2_regs_set : in  STD_LOGIC := '0';
 		vdp2_cram_out : out STD_LOGIC_VECTOR(383 downto 0);
 		ss_cram2_wr   : in  STD_LOGIC := '0';
@@ -308,7 +308,7 @@ architecture Behavioral of system is
 	signal vdp_cpu_bank:		std_logic := '0';
 
 	-- VDP2 save-state internal wires (System E)
-	signal vdp2_regs_out_i   : std_logic_vector(127 downto 0);
+	signal vdp2_regs_out_i   : std_logic_vector(135 downto 0);
 	signal vdp2_cram_out_i   : std_logic_vector(383 downto 0);
 	signal vdp2_vram_D_i     : std_logic_vector(7 downto 0);
 	-- PSG2 save-state internal wire
