@@ -158,6 +158,10 @@ module savestates (
     output reg        psg2_set,
 
     // ---- IO snapshot / restore ----
+    input     [45:0] md_out,
+    output reg [45:0] md_in,
+    output reg md_set,
+    output reg md_valid,
     input     [127:0] gg_out,
     output reg [127:0] gg_in,
     output reg        gg_set,
@@ -270,6 +274,10 @@ localparam ST_SAVE_GG = 7'd73, ST_LOAD_GG = 7'd74;
 localparam [127:0] GG_RESET = 128'h00001fe00003f8000000ffa07fff00ff;
 reg [127:0] gg_snap;
 reg gg_word;
+localparam ST_SAVE_MD = 7'd75, ST_LOAD_MD = 7'd76;
+localparam [23:0] MD_EXT_MAGIC = 24'h484303;
+reg [45:0] md_snap;
+reg has_md_ext;
 
 // Post-op guard time to avoid pathological immediate re-entry (rapid hammering).
 localparam [27:0] OP_COOLDOWN_MAX = 28'd26846500; // ~500ms @ 53.7MHz
@@ -343,7 +351,10 @@ reg  [55:0] psg2_snap;
 reg  [31:0] io_snap;
 reg  [21:0] video_snap;
 reg  [63:0] eeprom_snap;
-wire [63:0] video_word = {IO_EXT_MAGIC, 2'd2,
+// Version 3 retains v1/v2 fields and adds word 01e after the two GG words.
+// 01e: [22:0] P1, [45:23] P2, [63:46] zero. Per port:
+// [16:0] timer, [19:17] rises, [20] TH history, [22:21] type history.
+wire [63:0] video_word = {MD_EXT_MAGIC, 2'd3,
                          systeme ? vdp2_snap[135:128] : 8'd0,
                          vdp_snap[135:128], video_snap};
 
@@ -494,8 +505,11 @@ always @(*) begin
         ST_SAVE_IO: if (! DDRAM_BUSY) ddram_cmd_write ( base_addr + 29'h019 , { evolution_snap [ 31 : 0 ] , io_snap } , 8'hFF ) ;
         ST_SAVE_VIDEO: if (! DDRAM_BUSY) ddram_cmd_write ( base_addr + 29'h01a , video_word , 8'hFF ) ;
         ST_SAVE_GG: if (!DDRAM_BUSY) ddram_cmd_write(base_addr + 29'h01c + {28'd0,gg_word}, gg_word ? gg_snap[127:64] : gg_snap[63:0], 8'hFF);
+        ST_SAVE_MD: if (!DDRAM_BUSY) ddram_cmd_write(base_addr + 29'h01e, {18'd0,md_snap}, 8'hFF);
+        ST_LOAD_MD: if (!(DDRAM_DOUT_READY && dout_expected) && !dout_expected && !DDRAM_BUSY) ddram_cmd_read(base_addr + 29'h01b);
         ST_LOAD_GG: if (!(DDRAM_DOUT_READY && dout_expected) && !dout_expected && !DDRAM_BUSY) begin
             if (!gg_word) ddram_cmd_read(base_addr + 29'h01d);
+            else if (has_md_ext) ddram_cmd_read(base_addr + 29'h01e);
             else ddram_cmd_read(base_addr + 29'h01b);
         end
         ST_SAVE_EEPROM: if (! DDRAM_BUSY) ddram_cmd_write ( base_addr + 29'h01b , evolution_snap [ 31 : 16 ] == 16'hE132 ? evolution_snap [ 95 : 32 ] : eeprom_snap , 8'hFF ) ;
@@ -624,7 +638,8 @@ always @(*) begin
         end
         ST_LOAD_IO: if (!(DDRAM_DOUT_READY && dout_expected)) if (! dout_expected && ! DDRAM_BUSY) ddram_cmd_read ( base_addr + 29'h01a ) ;
         ST_LOAD_VIDEO: if (!(DDRAM_DOUT_READY && dout_expected) && !dout_expected && !DDRAM_BUSY) begin
-            if (dout_latch[63:40] == IO_EXT_MAGIC && dout_latch[39:38] == 2'd2) ddram_cmd_read(base_addr + 29'h01c);
+            if ((dout_latch[63:40] == IO_EXT_MAGIC && dout_latch[39:38] == 2'd2) ||
+                    (dout_latch[63:40] == MD_EXT_MAGIC && dout_latch[39:38] == 2'd3)) ddram_cmd_read(base_addr + 29'h01c);
             else ddram_cmd_read(base_addr + 29'h01b);
         end
         ST_LOAD_EEPROM: begin
@@ -777,6 +792,7 @@ always @(posedge clk or negedge reset_n) begin
         dout_latch      <= 64'd0;
         io_in           <= 32'd0;
         gg_in <= GG_RESET; gg_snap <= GG_RESET; gg_set <= 0; gg_word <= 0;
+        md_in <= 0; md_snap <= 0; md_set <= 0; md_valid <= 0; has_md_ext <= 0;
         io_set          <= 0;
         io_snap         <= 32'd0;
         video_state_in  <= 22'd0;
@@ -817,6 +833,7 @@ always @(posedge clk or negedge reset_n) begin
         vram2_WE     <= 0;
         io_set       <= 0;
         gg_set <= 0;
+        md_set <= 0;
         video_state_set <= 0;
         audio_ext_set <= 0;
         audio_phase_set <= 0;
@@ -930,8 +947,10 @@ always @(posedge clk or negedge reset_n) begin
             // synthesis translate_on
             if (!do_save) state <= ST_LOAD_HDR_RD;
             else if (audio_quiescent) begin
-                // PSG-only capture after the pending tick and write pipeline drain.
+                // Capture PSG after the pending tick and write pipeline drain.
                 // CPU, VDP, mapper, IO and video capture edges above are unchanged.
+                // MD pads run every clk_sys: capture after freeze is active.
+                md_snap <= md_out;
                 psg_snap <= psg_out;
                 psg2_snap <= psg2_out;
                 psg_ext_snap <= psg_ext_out;
@@ -1068,8 +1087,15 @@ always @(posedge clk or negedge reset_n) begin
         ST_SAVE_GG: begin
             if (!DDRAM_BUSY) begin
                 ddram_write(base_addr + 29'h01c + {28'd0,gg_word}, gg_word ? gg_snap[127:64] : gg_snap[63:0], 8'hFF);
-                if (gg_word) state <= ST_SAVE_EEPROM;
+                if (gg_word) state <= ST_SAVE_MD;
                 else gg_word <= 1;
+            end
+        end
+
+        ST_SAVE_MD: begin
+            if (!DDRAM_BUSY) begin
+                ddram_write(base_addr + 29'h01e, {18'd0,md_snap}, 8'hFF);
+                state <= ST_SAVE_EEPROM;
             end
         end
 
@@ -1425,6 +1451,7 @@ always @(posedge clk or negedge reset_n) begin
                 vdp_snap[135:128] <= 8'd0;
                 vdp2_snap[135:128] <= 8'd0;
                 gg_snap <= GG_RESET;
+                md_snap <= 0; md_valid <= 0; has_md_ext <= 0;
                 ddram_read(base_addr + 29'd0);
                 state <= ST_LOAD_HDR_WT;
             end
@@ -1638,15 +1665,18 @@ always @(posedge clk or negedge reset_n) begin
                 dout_latch    <= DDRAM_DOUT;
             end else if (!dout_expected && !DDRAM_BUSY) begin
                 video_snap       <= dout_latch[21:0];
+                has_md_ext <= dout_latch[63:40] == MD_EXT_MAGIC && dout_latch[39:38] == 2'd3;
                 if ((dout_latch[63:40] == HCOUNTER_MAGIC && dout_latch[39:38] == 2'd0) ||
-                    (dout_latch[63:40] == IO_EXT_MAGIC && dout_latch[39:38] == 2'd2)) begin
+                    (dout_latch[63:40] == IO_EXT_MAGIC && dout_latch[39:38] == 2'd2) ||
+                    (dout_latch[63:40] == MD_EXT_MAGIC && dout_latch[39:38] == 2'd3)) begin
                     vdp_snap[135:128] <= dout_latch[29:22];
                     vdp2_snap[135:128] <= systeme ? dout_latch[37:30] : 8'd0;
                 end else begin
                     vdp_snap[135:128] <= 8'd0;
                     vdp2_snap[135:128] <= 8'd0;
                 end
-                if (dout_latch[63:40] == IO_EXT_MAGIC && dout_latch[39:38] == 2'd2) begin
+                if ((dout_latch[63:40] == IO_EXT_MAGIC && dout_latch[39:38] == 2'd2) ||
+                    (dout_latch[63:40] == MD_EXT_MAGIC && dout_latch[39:38] == 2'd3)) begin
                     gg_word <= 0;
                     ddram_read(base_addr + 29'h01c);
                     state <= ST_LOAD_GG;
@@ -1670,9 +1700,29 @@ always @(posedge clk or negedge reset_n) begin
                     // Invalid/truncated padding never becomes local protocol state.
                     if (dout_latch[63:50] == 14'd0) gg_snap[127:64] <= dout_latch;
                     else gg_snap <= GG_RESET;
-                    ddram_read(base_addr + 29'h01b);
-                    state <= ST_LOAD_EEPROM;
+                    if (has_md_ext) begin
+                        ddram_read(base_addr + 29'h01e);
+                        state <= ST_LOAD_MD;
+                    end else begin
+                        ddram_read(base_addr + 29'h01b);
+                        state <= ST_LOAD_EEPROM;
+                    end
                 end
+            end
+        end
+
+        ST_LOAD_MD: begin
+            if (DDRAM_DOUT_READY && dout_expected) begin
+                dout_expected <= 0;
+                dout_latch <= DDRAM_DOUT;
+            end else if (!dout_expected && !DDRAM_BUSY) begin
+                // Reserved bits and impossible local timer/phase values fail closed.
+                md_valid <= dout_latch[63:46] == 0 &&
+                            dout_latch[16:0] < 80540 && dout_latch[39:23] < 80540 &&
+                            dout_latch[19:17] <= 4 && dout_latch[42:40] <= 4;
+                md_snap <= dout_latch[45:0];
+                ddram_read(base_addr + 29'h01b);
+                state <= ST_LOAD_EEPROM;
             end
         end
 
@@ -1986,6 +2036,9 @@ always @(posedge clk or negedge reset_n) begin
         end
 
         ST_PRE_UNFREEZE: begin
+            // IO TH has settled during the full restore/flush. Legacy history
+            // is reconstructed here; exact v3 history remains held until release.
+            if (!do_save) begin md_in <= md_snap; md_set <= 1; end
             unfreeze_cnt <= 8'd0;
             align_timeout <= 22'd0;
             state <= ST_UNFREEZE;

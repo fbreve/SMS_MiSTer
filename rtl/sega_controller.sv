@@ -3,7 +3,7 @@
 // Extra button inputs are active-high; B/C are the existing SMS Fire 1/2.
 module sega_controller #(
 	// Nominal 1.5 ms at clk_sys = 53.693175 MHz. External pad time does not
-	// depend on ce_cpu, turbo, or savestate freeze. Real RC timers vary.
+	// depend on ce_cpu or turbo. Savestate transport suspends emulated time.
 	parameter integer TIMEOUT_CYCLES = 80540
 )(
 	input        clk,
@@ -12,7 +12,12 @@ module sega_controller #(
 	input  [5:0] sms_pins,
 	input        th,
 	input        md_a, md_start, md_x, md_y, md_z, md_mode,
-	output reg [5:0] pins
+	output reg [5:0] pins,
+	input        ss_freeze,
+	input        ss_set,
+	input        ss_valid,
+	input  [((TIMEOUT_CYCLES < 2) ? 1 : $clog2(TIMEOUT_CYCLES))+5:0] ss_in,
+	output [((TIMEOUT_CYCLES < 2) ? 1 : $clog2(TIMEOUT_CYCLES))+5:0] ss_out
 );
 
 localparam integer TIMER_BITS = (TIMEOUT_CYCLES < 2) ? 1 : $clog2(TIMEOUT_CYCLES);
@@ -20,21 +25,35 @@ reg [TIMER_BITS-1:0] timer = 0;
 reg [2:0] rises = 0;
 reg th_prev = 1'b1;
 reg [1:0] type_prev = 0;
+assign ss_out = {type_prev, th_prev, rises, timer};
 
 always @(posedge clk) begin
-	th_prev <= th;
-	type_prev <= controller_type;
-	if (reset || controller_type != 2'd2 || type_prev != controller_type) begin
-		timer <= 0;
-		rises <= 0;
-	end else if (th && !th_prev) begin
-		timer <= 0;
-		// After the fourth rise, stay in ordinary MD3 responses until timeout.
-		if (rises < 4) rises <= rises + 1'b1;
-	end else if (timer == TIMEOUT_CYCLES - 1) begin
-		rises <= 0;
-	end else begin
-		timer <= timer + 1'b1;
+	if (ss_set) begin
+		if (ss_valid) begin
+			{type_prev, th_prev, rises, timer} <= ss_in;
+		end else begin
+			// Legacy snapshots have no protocol history. Sample TH only after
+			// IO restoration has settled, so release cannot invent a TH edge.
+			timer <= 0;
+			rises <= 0;
+			th_prev <= th;
+			type_prev <= controller_type;
+		end
+	end else if (!ss_freeze || reset) begin
+		th_prev <= th;
+		type_prev <= controller_type;
+		if (reset || controller_type != 2'd2 || type_prev != controller_type) begin
+			timer <= 0;
+			rises <= 0;
+		end else if (th && !th_prev) begin
+			timer <= 0;
+			// After the fourth rise, stay in ordinary MD3 responses until timeout.
+			if (rises < 4) rises <= rises + 1'b1;
+		end else if (timer == TIMEOUT_CYCLES - 1) begin
+			rises <= 0;
+		end else begin
+			timer <= timer + 1'b1;
+		end
 	end
 end
 

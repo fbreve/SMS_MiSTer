@@ -878,6 +878,8 @@ wire         ss_evolution_set;
 wire         ss_mapper_set;
 wire [127:0] ss_gg_out, ss_gg_in;
 wire ss_gg_set;
+wire [45:0] ss_md_out, ss_md_in;
+wire ss_md_set, ss_md_valid;
 wire [31:0]  ss_io_out, ss_io_in;
 wire         ss_io_set;
 wire [63:0]  eeprom_ss_out, eeprom_ss_in;
@@ -1267,6 +1269,10 @@ savestates savestates_inst (
 	.gg_out          (ss_gg_out),
 	.gg_in           (ss_gg_in),
 	.gg_set          (ss_gg_set),
+	.md_out          (ss_md_out),
+	.md_in           (ss_md_in),
+	.md_set          (ss_md_set),
+	.md_valid        (ss_md_valid),
 	.io_out          (ss_io_out),
 	.io_in           (ss_io_in),
 	.io_set          (ss_io_set),
@@ -1401,7 +1407,9 @@ sega_controller controller_p1
 	.sms_pins(joya[5:0]), .th(joya_th_out),
 	.md_a(p1_joy[10]), .md_start(p1_joy[11]),
 	.md_x(p1_joy[13]), .md_y(p1_joy[14]), .md_z(p1_joy[15]), .md_mode(p1_joy[16]),
-	.pins(joya_pins)
+	.pins(joya_pins),
+	.ss_freeze(ss_freeze), .ss_set(ss_md_set), .ss_valid(ss_md_valid),
+	.ss_in(ss_md_in[22:0]), .ss_out(ss_md_out[22:0])
 );
 sega_controller controller_p2
 (
@@ -1410,7 +1418,9 @@ sega_controller controller_p2
 	.sms_pins(joyb[5:0]), .th(joyb_th_out),
 	.md_a(p2_joy[10]), .md_start(p2_joy[11]),
 	.md_x(p2_joy[13]), .md_y(p2_joy[14]), .md_z(p2_joy[15]), .md_mode(p2_joy[16]),
-	.pins(joyb_pins)
+	.pins(joyb_pins),
+	.ss_freeze(ss_freeze), .ss_set(ss_md_set), .ss_valid(ss_md_valid),
+	.ss_in(ss_md_in[45:23]), .ss_out(ss_md_out[45:23])
 );
 
 wire has_pedal = SYSMODE[0][3];
