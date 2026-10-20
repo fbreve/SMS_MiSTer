@@ -34,6 +34,10 @@ entity cart_eeprom is
         nvram_di : out std_logic_vector(7 downto 0);
         nvram_do : in  std_logic_vector(7 downto 0);
         nvram_we : out std_logic;
+        ss_ext_out : out std_logic_vector(127 downto 0);
+        ss_ext_in : in std_logic_vector(127 downto 0) := (others => '0');
+        ss_full : in std_logic := '0';
+        ss_freeze : in std_logic := '0';
         -- Save-state passthrough
         ss_out   : out std_logic_vector(63 downto 0);
         ss_in    : in  std_logic_vector(63 downto 0) := (others => '0');
@@ -71,6 +75,10 @@ begin
             nvram_we   => nv_we,
             ss_out     => eep_ss_out,
             ss_in      => ss_in,
+            ss_ext_out => ss_ext_out,
+            ss_ext_in => ss_ext_in,
+            ss_full => ss_full,
+            ss_freeze => ss_freeze,
             ss_set     => ss_set
         );
 
@@ -102,7 +110,7 @@ begin
                 eep_di           <= ss_in(3);
                 fffc_window_en   <= ss_in(2);
                 eep_lines        <= ss_in(10 downto 6) & ss_in(5) & ss_in(4) & ss_in(3);
-            elsif mapper_eeprom = '1' then
+            elsif mapper_eeprom = '1' and ss_freeze = '0' then
                 if WR_n = '0' and MREQ_n = '0' then
                     if A = x"8000" then
                         eep_cs        <= D_in(2);  -- bit 2 = CS

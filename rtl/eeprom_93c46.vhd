@@ -24,7 +24,11 @@ entity eeprom_93c46 is
         nvram_di : out std_logic_vector(7 downto 0);
         nvram_do : in  std_logic_vector(7 downto 0);
         nvram_we : out std_logic;
-        -- Save-state (64-bit packed)
+        ss_ext_out : out std_logic_vector(127 downto 0);
+        ss_ext_in : in std_logic_vector(127 downto 0) := (others => '0');
+        ss_full : in std_logic := '0';
+        ss_freeze : in std_logic := '0';
+        -- Legacy 64-bit state; complete protocol extension is separate.
         ss_out   : out std_logic_vector(63 downto 0);
         ss_in    : in  std_logic_vector(63 downto 0) := (others => '0');
         ss_set   : in  std_logic := '0'
@@ -72,6 +76,21 @@ begin
     ss_out(17 downto 2)  <= (others => '0');
     ss_out(1 downto 0)   <= we_r & data_o;
 
+    ss_ext_out(3 downto 0) <= std_logic_vector(to_unsigned(t_state'pos(state),4));
+    ss_ext_out(4) <= clk_r;
+    ss_ext_out(12 downto 5) <= opcode;
+    ss_ext_out(28 downto 13) <= data_buf;
+    ss_ext_out(33 downto 29) <= std_logic_vector(cycles);
+    ss_ext_out(34) <= nv_we_r;
+    ss_ext_out(41 downto 35) <= nv_a_r;
+    ss_ext_out(49 downto 42) <= nv_di_r;
+    ss_ext_out(51 downto 50) <= std_logic_vector(to_unsigned(wr_phase,2));
+    ss_ext_out(52) <= wr_all;
+    ss_ext_out(58 downto 53) <= std_logic_vector(all_cnt);
+    ss_ext_out(64 downto 59) <= pending_waddr;
+    ss_ext_out(80 downto 65) <= pending_wdata;
+    ss_ext_out(127 downto 81) <= (others => '0');
+
     process(clk_sys)
         variable nxt       : std_logic_vector(7 downto 0);
         variable op2       : std_logic_vector(1 downto 0);
@@ -80,6 +99,43 @@ begin
         variable full_word : std_logic_vector(15 downto 0);
     begin
         if rising_edge(clk_sys) then
+            if ss_set = '1' then
+                we_r <= ss_in(1);
+                data_o <= ss_in(0);
+                read_count <= unsigned(ss_in(63 downto 56));
+                read_word0 <= ss_in(55 downto 40);
+                read_word0_addr <= ss_in(39 downto 34);
+                last_read_data <= ss_in(33 downto 18);
+                if ss_full = '1' then
+                    state <= t_state'val(to_integer(unsigned(ss_ext_in(3 downto 0))));
+                    clk_r <= ss_ext_in(4);
+                    opcode <= ss_ext_in(12 downto 5);
+                    data_buf <= ss_ext_in(28 downto 13);
+                    cycles <= unsigned(ss_ext_in(33 downto 29));
+                    nv_we_r <= ss_ext_in(34);
+                    nv_a_r <= ss_ext_in(41 downto 35);
+                    nv_di_r <= ss_ext_in(49 downto 42);
+                    wr_phase <= to_integer(unsigned(ss_ext_in(51 downto 50)));
+                    wr_all <= ss_ext_in(52);
+                    all_cnt <= unsigned(ss_ext_in(58 downto 53));
+                    pending_waddr <= ss_ext_in(64 downto 59);
+                    pending_wdata <= ss_ext_in(80 downto 65);
+                else
+                    state <= WAIT_START;
+                    clk_r <= ss_in(4); -- restored wrapper SK, no invented edge
+                    opcode <= (others => '0');
+                    data_buf <= (others => '0');
+                    cycles <= (others => '0');
+                    nv_we_r <= '0';
+                    nv_a_r <= (others => '0');
+                    nv_di_r <= (others => '0');
+                    wr_phase <= 0; wr_all <= '0';
+                    all_cnt <= (others => '0');
+                    pending_waddr <= (others => '0');
+                    pending_wdata <= (others => '0');
+                end if;
+            elsif ss_freeze = '0' then
+            -- Hold the pending RAM write too: the shared RAM port belongs to DMA.
             nv_we_r <= '0';
 
             -- Synchronous 2-byte SPRAM write sequence (runs at 53.6MHz clk_sys)
@@ -115,13 +171,7 @@ begin
                 end if;
             end if;
 
-            if ss_set = '1' then
-                we_r     <= ss_in(1);
-                data_o   <= ss_in(0);
-                state    <= WAIT_START;
-                wr_phase <= 0;
-
-            elsif reset_n = '0' then
+            if reset_n = '0' then
                 state    <= WAIT_START;
                 data_o   <= '1';
                 clk_r    <= '0';
@@ -290,6 +340,7 @@ begin
                     clk_r <= clk_in;
                 end if;
             end if;
+            end if; -- not savestate frozen
         end if;
     end process;
 end rtl;

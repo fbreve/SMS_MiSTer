@@ -180,6 +180,9 @@ entity system is
 		evolution_ss_out : out STD_LOGIC_VECTOR(159 downto 0);
 		evolution_ss_in  : in  STD_LOGIC_VECTOR(95 downto 0) := (others => '0');
 		evolution_ss_set : in  STD_LOGIC := '0';
+		eeprom_ext_out : out STD_LOGIC_VECTOR(127 downto 0);
+		eeprom_ext_in : in STD_LOGIC_VECTOR(127 downto 0) := (others => '0');
+		eeprom_full : in STD_LOGIC := '0';
 		eeprom_ss_out : out STD_LOGIC_VECTOR(63 downto 0);
 		eeprom_ss_in  : in  STD_LOGIC_VECTOR(63 downto 0) := (others => '0');
 		eeprom_ss_set : in  STD_LOGIC := '0';
@@ -1144,6 +1147,10 @@ port map(
 			nvram_di   => eeprom_nvram_di,
 			nvram_do   => nvram_q,
 			nvram_we   => eeprom_nvram_we,
+			ss_freeze => ss_freeze,
+			ss_ext_out => eeprom_ext_out,
+			ss_ext_in => eeprom_ext_in,
+			ss_full => eeprom_full,
 			ss_out     => eeprom_ss_out_i,
 			ss_in      => eeprom_ss_in,
 			ss_set     => eeprom_ss_set

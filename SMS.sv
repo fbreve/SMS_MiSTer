@@ -884,6 +884,8 @@ wire [31:0]  ss_io_out, ss_io_in;
 wire         ss_io_set;
 wire [63:0]  eeprom_ss_out, eeprom_ss_in;
 wire         eeprom_ss_set;
+wire [127:0] eeprom_ext_out, eeprom_ext_in;
+wire eeprom_full, ss_nvram_refill, ss_busy;
 reg [1:0] restored_vdp_enables;
 reg [1:0] restored_psg_enables;
 reg       has_restored_enables = 0;
@@ -1078,6 +1080,9 @@ system #(63) system
 	.evolution_gg_active(evolution_gg_mode),
 	.evolution_active(evolution_mode),
 	.mapper_eeprom_out(mapper_eeprom),
+	.eeprom_ext_out(eeprom_ext_out),
+	.eeprom_ext_in(eeprom_ext_in),
+	.eeprom_full(eeprom_full),
 	.eeprom_ss_out(eeprom_ss_out),
 	.eeprom_ss_in (eeprom_ss_in),
 	.eeprom_ss_set(eeprom_ss_set),
@@ -1263,6 +1268,13 @@ savestates savestates_inst (
 	.evolution_in    (ss_evolution_in),
 	.evolution_set   (ss_evolution_set),
 	// EEPROM
+	.storage_busy    (bk_state | sd_ack | sd_rd | sd_wr),
+	.ss_busy         (ss_busy),
+	.nvram_refill    (ss_nvram_refill),
+	.eeprom_present  (eeprom_active),
+	.eeprom_ext_out  (eeprom_ext_out),
+	.eeprom_ext_in   (eeprom_ext_in),
+	.eeprom_full     (eeprom_full),
 	.eeprom_out      (eeprom_ss_out),
 	.eeprom_in       (eeprom_ss_in),
 	.eeprom_set      (eeprom_ss_set),
@@ -1645,12 +1657,14 @@ video_mixer #(.HALF_DEPTH(1), .LINE_LENGTH(300), .GAMMA(1)) video_mixer
 
 
 /////////////////////////  STATE SAVE/LOAD  /////////////////////////////
-wire bk_save_write = nvram_we;
+wire bk_save_write = nvram_we & ~ss_freeze;
 reg bk_pending;
 
 always @(posedge clk_sys) begin
 	if (~old_downloading & downloading)
 		bk_pending <= 1'b0;
+	else if (eeprom_active && ss_freeze && eeprom_ss_set && eeprom_full)
+		bk_pending <= 1'b1;
 	else if (bk_ena && ~OSD_STATUS && bk_save_write)
 		bk_pending <= 1'b1;
 	else if (bk_state)
@@ -1666,7 +1680,7 @@ reg bk_ena = 0;
 dpram #(.widthad_a(15), .init_file("rtl/nvram_ff.mif")) nvram_inst
 (
 	.clock_a     (clk_sys),
-	.address_a   (ss_freeze ? (ss_nvram_WE ? ss_nvram_WA : ss_nvram_A) : nvram_a),
+	.address_a   (ss_freeze ? (ss_nvram_WE ? ss_nvram_WA : (ss_nvram_refill ? nvram_a : ss_nvram_A)) : nvram_a),
 	.wren_a      (ss_freeze ? ss_nvram_WE : nvram_we),
 	.data_a      (ss_freeze ? ss_nvram_WD : nvram_d),
 	.q_a         (nvram_q),
@@ -1693,6 +1707,9 @@ wire bk_load    = status[6];
 wire bk_save    = status[7] | (bk_pending & OSD_STATUS && status[25]);
 reg  bk_loading = 0;
 reg  bk_state   = 0;
+reg  bk_load_wait = 0, bk_save_wait = 0;
+wire bk_queued_load = bk_load_wait & ~reset_active;
+wire bk_queued_save = bk_save_wait & ~reset_active;
 
 reg osd_btn = 0;
 always @(posedge clk_sys) begin
@@ -1714,17 +1731,26 @@ always @(posedge clk_sys) begin
 
 	old_load <= bk_load & bk_ena;
 	old_save <= bk_save & bk_ena;
+	if (reset_active) begin
+		bk_load_wait <= 0;
+		bk_save_wait <= 0;
+	end else if (ss_busy) begin
+		if (~old_load & bk_load & bk_ena) bk_load_wait <= 1;
+		if (~old_save & bk_save & bk_ena) bk_save_wait <= 1;
+	end
 	old_ack  <= sd_ack;
 
 	if(~old_ack & sd_ack) {sd_rd, sd_wr} <= 0;
 
-	if(!bk_state) begin
-		if((~old_load & bk_load) | (~old_save & bk_save)) begin
+	if(!bk_state && !ss_busy) begin
+		if(bk_queued_load | bk_queued_save | (~old_load & bk_load) | (~old_save & bk_save)) begin
 			bk_state <= 1;
-			bk_loading <= bk_load;
+			bk_loading <= bk_queued_load | bk_load;
 			sd_lba <= 0;
-			sd_rd <=  bk_load;
-			sd_wr <= ~bk_load;
+			sd_rd <=  bk_queued_load | bk_load;
+			sd_wr <= ~(bk_queued_load | bk_load);
+			bk_load_wait <= 0;
+			bk_save_wait <= 0;
 		end
 		if(old_downloading & ~downloading & |img_size & bk_ena) begin
 			bk_state <= 1;
@@ -1733,7 +1759,7 @@ always @(posedge clk_sys) begin
 			sd_rd <= 1;
 			sd_wr <= 0;
 		end 
-	end else begin
+	end else if (bk_state) begin
 		if(old_ack & ~sd_ack) begin
 			if(&sd_lba[5:0]) begin
 				bk_loading <= 0;
