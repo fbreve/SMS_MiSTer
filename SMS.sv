@@ -886,6 +886,7 @@ wire [63:0]  eeprom_ss_out, eeprom_ss_in;
 wire         eeprom_ss_set;
 wire [127:0] eeprom_ext_out, eeprom_ext_in;
 wire eeprom_full, ss_nvram_refill, ss_busy;
+wire ss_sc_ram_restored;
 reg [1:0] restored_vdp_enables;
 reg [1:0] restored_psg_enables;
 reg       has_restored_enables = 0;
@@ -1271,6 +1272,8 @@ savestates savestates_inst (
 	.storage_busy    (bk_state | sd_ack | sd_rd | sd_wr),
 	.ss_busy         (ss_busy),
 	.nvram_refill    (ss_nvram_refill),
+	.sc_ram_size     (sc3000_en && !systeme && !eeprom_active && !evolution_mode ? sc_cart_ram : 2'd0),
+	.sc_ram_restored (ss_sc_ram_restored),
 	.eeprom_present  (eeprom_active),
 	.eeprom_ext_out  (eeprom_ext_out),
 	.eeprom_ext_in   (eeprom_ext_in),
@@ -1664,6 +1667,8 @@ always @(posedge clk_sys) begin
 	if (~old_downloading & downloading)
 		bk_pending <= 1'b0;
 	else if (eeprom_active && ss_freeze && eeprom_ss_set && eeprom_full)
+		bk_pending <= 1'b1;
+	else if (bk_ena && ss_sc_ram_restored)
 		bk_pending <= 1'b1;
 	else if (bk_ena && ~OSD_STATUS && bk_save_write)
 		bk_pending <= 1'b1;

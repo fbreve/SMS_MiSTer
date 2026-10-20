@@ -119,6 +119,8 @@ module savestates (
     output reg [127:0] eeprom_ext_in,
     output reg        eeprom_full,
     output reg        nvram_refill,
+    input       [1:0] sc_ram_size, // 00 absent, 01 2 KiB, 10 16 KiB, 11 32 KiB
+    output reg        sc_ram_restored,
     input      [63:0] eeprom_out,
     output reg [63:0] eeprom_in,
     output reg        eeprom_set,
@@ -292,7 +294,13 @@ localparam ST_SAVE_EE_DESC=7'd77, ST_SAVE_EE_EXT=7'd78,
            ST_LOAD_EE_DESC=7'd79, ST_LOAD_EE_EXT=7'd80;
 reg [127:0] eeprom_ext_snap;
 reg eeprom_exists_snap, has_eeprom_tag, eeprom_ext_word;
+localparam [23:0] SC_EXT_MAGIC = 24'h484305;
+localparam ST_SAVE_SC_DESC=7'd81, ST_LOAD_SC_DESC=7'd82;
+reg [1:0] sc_size_snap;
+reg has_sc_tag, sc_ram_full;
+wire [63:0] sc_descriptor = {30'd0,sc_size_snap,32'h53435235}; // SCR5
 reg do_save;
+wire transfer_sc = do_save ? sc_size_snap != 0 : sc_ram_full;
 wire transfer_eeprom = do_save ? eeprom_exists_snap : eeprom_full;
 wire [28:0] nvram_ddr_base = transfer_eeprom ? 29'h040 : 29'h0D01;
 
@@ -326,7 +334,10 @@ wire has_nvram_16k = !evolution_state && mapper_snap[50];                    // 
 wire has_nvram_32k = !evolution_state && (mapper_snap[51] | mapper_snap[52] | mapper_snap[61]); // nvram_ex / nvram_p / The Castle
 wire has_nvram     = has_nvram_8k | has_nvram_16k | has_nvram_32k;
 
+// SC configuration selects its own backing independently of Sega flags.
+wire transfer_ram = transfer_sc || (sc_size_snap == 0 && has_nvram);
 wire [14:0] nvram_size_minus_1 = transfer_eeprom ? 15'd127 :
+                                 transfer_sc ? (sc_size_snap == 1 ? 15'd2047 : sc_size_snap == 2 ? 15'd16383 : 15'd32767) :
                                  has_nvram_32k ? 15'd32767 :
                                  has_nvram_16k ? 15'd16383 :
                                                  15'd8191;
@@ -372,9 +383,11 @@ reg  [21:0] video_snap;
 reg  [63:0] eeprom_snap;
 // Version 3 retains v1/v2 fields and adds word 01e after the two GG words.
 // Version 4 retains that base payload and describes EEPROM at 01f/030/040.
+// Version 5 retains all fields and adds validated SC size at 025 (SCR5).
+// SC payload shares 0d01..1d00, never the System E or EEPROM regions.
 // 01e: [22:0] P1, [45:23] P2, [63:46] zero. Per port:
 // [16:0] timer, [19:17] rises, [20] TH history, [22:21] type history.
-wire [63:0] video_word = {EEPROM_EXT_MAGIC, 2'd3,
+wire [63:0] video_word = {SC_EXT_MAGIC, 2'd3,
                          systeme ? vdp2_snap[135:128] : 8'd0,
                          vdp_snap[135:128], video_snap};
 
@@ -486,7 +499,7 @@ always @(*) begin
     ddram_cmd_rd = 0; ddram_cmd_we = 0;
     ddram_cmd_addr = 0; ddram_cmd_data = 0; ddram_cmd_be = 0;
     case (state)
-        ST_WAIT_RESTORE_BOUNDARY: if (! DDRAM_BUSY) if (is_old_format ? mapper_snap [ 48 ] : (has_nvram || transfer_eeprom)) ddram_cmd_read ( base_addr + nvram_ddr_base ) ;
+        ST_WAIT_RESTORE_BOUNDARY: if (! DDRAM_BUSY) if (is_old_format ? (sc_size_snap == 0 && mapper_snap [ 48 ]) : (transfer_ram || transfer_eeprom)) ddram_cmd_read ( base_addr + nvram_ddr_base ) ;
         ST_SAVE_HDR: if (! DDRAM_BUSY) ddram_cmd_write ( base_addr + 29'd1 , { cur_game_id , cur_magic } , 8'hFF ) ;
         ST_SAVE_CPU0: begin
             if (! DDRAM_BUSY) begin
@@ -535,9 +548,12 @@ always @(*) begin
             if (!eeprom_ext_word) ddram_cmd_read(base_addr + 29'h031);
             else ddram_cmd_read(base_addr + 29'h01b);
         end
+        ST_SAVE_SC_DESC: if (!DDRAM_BUSY) ddram_cmd_write(base_addr + 29'h025, sc_descriptor, 8'hFF);
+        ST_LOAD_SC_DESC: if (!(DDRAM_DOUT_READY && dout_expected) && !dout_expected && !DDRAM_BUSY) ddram_cmd_read(base_addr + 29'h01f);
         ST_SAVE_MD: if (!DDRAM_BUSY) ddram_cmd_write(base_addr + 29'h01e, {18'd0,md_snap}, 8'hFF);
         ST_LOAD_MD: if (!(DDRAM_DOUT_READY && dout_expected) && !dout_expected && !DDRAM_BUSY) begin
-            if (has_eeprom_tag) ddram_cmd_read(base_addr + 29'h01f);
+            if (has_sc_tag) ddram_cmd_read(base_addr + 29'h025);
+            else if (has_eeprom_tag) ddram_cmd_read(base_addr + 29'h01f);
             else ddram_cmd_read(base_addr + 29'h01b);
         end
         ST_LOAD_GG: if (!(DDRAM_DOUT_READY && dout_expected) && !dout_expected && !DDRAM_BUSY) begin
@@ -672,7 +688,7 @@ always @(*) begin
         ST_LOAD_IO: if (!(DDRAM_DOUT_READY && dout_expected)) if (! dout_expected && ! DDRAM_BUSY) ddram_cmd_read ( base_addr + 29'h01a ) ;
         ST_LOAD_VIDEO: if (!(DDRAM_DOUT_READY && dout_expected) && !dout_expected && !DDRAM_BUSY) begin
             if ((dout_latch[63:40] == IO_EXT_MAGIC && dout_latch[39:38] == 2'd2) ||
-                    ((dout_latch[63:40] == MD_EXT_MAGIC || dout_latch[63:40] == EEPROM_EXT_MAGIC) && dout_latch[39:38] == 2'd3)) ddram_cmd_read(base_addr + 29'h01c);
+                    ((dout_latch[63:40] == MD_EXT_MAGIC || dout_latch[63:40] == EEPROM_EXT_MAGIC || dout_latch[63:40] == SC_EXT_MAGIC) && dout_latch[39:38] == 2'd3)) ddram_cmd_read(base_addr + 29'h01c);
             else ddram_cmd_read(base_addr + 29'h01b);
         end
         ST_LOAD_EEPROM: begin
@@ -828,6 +844,7 @@ always @(posedge clk or negedge reset_n) begin
         md_in <= 0; md_snap <= 0; md_set <= 0; md_valid <= 0; has_md_ext <= 0;
         eeprom_ext_in <= 0; eeprom_ext_snap <= 0; eeprom_full <= 0;
         eeprom_exists_snap <= 0; has_eeprom_tag <= 0; eeprom_ext_word <= 0; nvram_refill <= 0;
+        sc_size_snap <= 0; has_sc_tag <= 0; sc_ram_full <= 0; sc_ram_restored <= 0;
         io_set          <= 0;
         io_snap         <= 32'd0;
         video_state_in  <= 22'd0;
@@ -859,6 +876,7 @@ always @(posedge clk or negedge reset_n) begin
         mapper_set   <= 0;
         evolution_set <= 0;
         eeprom_set   <= 0;
+        sc_ram_restored <= 0;
         vram_WE      <= 0;
         wram_WE      <= 0;
         nvram_WE     <= 0;
@@ -943,6 +961,8 @@ always @(posedge clk or negedge reset_n) begin
             cram_snap   <= cram_out;
             psg_snap    <= psg_out;
             mapper_snap <= mapper_out;
+            sc_size_snap <= sc_ram_size;
+            sc_ram_full <= 0; has_sc_tag <= 0;
             evolution_snap <= evolution_out;
             if (systeme) begin
                 vdp2_snap   <= vdp2_regs;
@@ -1017,7 +1037,7 @@ always @(posedge clk or negedge reset_n) begin
                 // Old format only ever wrote NVRAM for Dahjee-A (mapper_snap[48]);
                 // reading the broadened has_nvram region for other mappers would
                 // DMA an unwritten slot area over live cartridge SRAM.
-                if (is_old_format ? mapper_snap[48] : (has_nvram || transfer_eeprom)) begin
+                if (is_old_format ? (sc_size_snap == 0 && mapper_snap[48]) : (transfer_ram || transfer_eeprom)) begin
                     nvram_load_addr   <= 0;
                     nvram_byte_cnt    <= 0;
                     nvram_load_active <= 0;
@@ -1133,6 +1153,13 @@ always @(posedge clk or negedge reset_n) begin
         ST_SAVE_MD: begin
             if (!DDRAM_BUSY) begin
                 ddram_write(base_addr + 29'h01e, {18'd0,md_snap}, 8'hFF);
+                state <= ST_SAVE_SC_DESC;
+            end
+        end
+
+        ST_SAVE_SC_DESC: begin
+            if (!DDRAM_BUSY) begin
+                ddram_write(base_addr + 29'h025, sc_descriptor, 8'hFF);
                 state <= ST_SAVE_EE_DESC;
             end
         end
@@ -1365,7 +1392,7 @@ always @(posedge clk or negedge reset_n) begin
                             word_cnt       <= 0;
                             vram_d_latched <= 0;
                             state          <= ST_SAVE_VRAM2;
-                        end else if (has_nvram || transfer_eeprom) begin
+                        end else if (transfer_ram || transfer_eeprom) begin
                             // Save NVRAM (up to 32KB)
                             nvram_save_addr <= 0;
                             nvram_byte_cnt  <= 0;
@@ -1726,11 +1753,12 @@ always @(posedge clk or negedge reset_n) begin
                 dout_latch    <= DDRAM_DOUT;
             end else if (!dout_expected && !DDRAM_BUSY) begin
                 video_snap       <= dout_latch[21:0];
-                has_eeprom_tag <= dout_latch[63:40] == EEPROM_EXT_MAGIC && dout_latch[39:38] == 2'd3;
-                has_md_ext <= (dout_latch[63:40] == MD_EXT_MAGIC || dout_latch[63:40] == EEPROM_EXT_MAGIC) && dout_latch[39:38] == 2'd3;
+                has_sc_tag <= dout_latch[63:40] == SC_EXT_MAGIC && dout_latch[39:38] == 2'd3;
+                has_eeprom_tag <= (dout_latch[63:40] == EEPROM_EXT_MAGIC || dout_latch[63:40] == SC_EXT_MAGIC) && dout_latch[39:38] == 2'd3;
+                has_md_ext <= (dout_latch[63:40] == MD_EXT_MAGIC || dout_latch[63:40] == EEPROM_EXT_MAGIC || dout_latch[63:40] == SC_EXT_MAGIC) && dout_latch[39:38] == 2'd3;
                 if ((dout_latch[63:40] == HCOUNTER_MAGIC && dout_latch[39:38] == 2'd0) ||
                     (dout_latch[63:40] == IO_EXT_MAGIC && dout_latch[39:38] == 2'd2) ||
-                    ((dout_latch[63:40] == MD_EXT_MAGIC || dout_latch[63:40] == EEPROM_EXT_MAGIC) && dout_latch[39:38] == 2'd3)) begin
+                    ((dout_latch[63:40] == MD_EXT_MAGIC || dout_latch[63:40] == EEPROM_EXT_MAGIC || dout_latch[63:40] == SC_EXT_MAGIC) && dout_latch[39:38] == 2'd3)) begin
                     vdp_snap[135:128] <= dout_latch[29:22];
                     vdp2_snap[135:128] <= systeme ? dout_latch[37:30] : 8'd0;
                 end else begin
@@ -1738,7 +1766,7 @@ always @(posedge clk or negedge reset_n) begin
                     vdp2_snap[135:128] <= 8'd0;
                 end
                 if ((dout_latch[63:40] == IO_EXT_MAGIC && dout_latch[39:38] == 2'd2) ||
-                    ((dout_latch[63:40] == MD_EXT_MAGIC || dout_latch[63:40] == EEPROM_EXT_MAGIC) && dout_latch[39:38] == 2'd3)) begin
+                    ((dout_latch[63:40] == MD_EXT_MAGIC || dout_latch[63:40] == EEPROM_EXT_MAGIC || dout_latch[63:40] == SC_EXT_MAGIC) && dout_latch[39:38] == 2'd3)) begin
                     gg_word <= 0;
                     ddram_read(base_addr + 29'h01c);
                     state <= ST_LOAD_GG;
@@ -1783,13 +1811,26 @@ always @(posedge clk or negedge reset_n) begin
                             dout_latch[16:0] < 80540 && dout_latch[39:23] < 80540 &&
                             dout_latch[19:17] <= 4 && dout_latch[42:40] <= 4;
                 md_snap <= dout_latch[45:0];
-                if (has_eeprom_tag) begin
+                if (has_sc_tag) begin
+                    ddram_read(base_addr + 29'h025);
+                    state <= ST_LOAD_SC_DESC;
+                end else if (has_eeprom_tag) begin
                     ddram_read(base_addr + 29'h01f);
                     state <= ST_LOAD_EE_DESC;
                 end else begin
                     ddram_read(base_addr + 29'h01b);
                     state <= ST_LOAD_EEPROM;
                 end
+            end
+        end
+
+        ST_LOAD_SC_DESC: begin
+            if (DDRAM_DOUT_READY && dout_expected) begin
+                dout_expected <= 0; dout_latch <= DDRAM_DOUT;
+            end else if (!dout_expected && !DDRAM_BUSY) begin
+                // Exact descriptor match validates owner, size and all reserved bits.
+                sc_ram_full <= sc_size_snap != 0 && dout_latch == sc_descriptor;
+                ddram_read(base_addr + 29'h01f); state <= ST_LOAD_EE_DESC;
             end
         end
 
@@ -2136,6 +2177,7 @@ always @(posedge clk or negedge reset_n) begin
         ST_PRE_UNFREEZE: begin
             // Refill shared synchronous RAM from the restored engine address.
             nvram_refill <= eeprom_present;
+            sc_ram_restored <= !do_save && sc_ram_full;
             if (!do_save) begin
                 eeprom_in <= eeprom_snap; eeprom_ext_in <= eeprom_ext_snap;
                 eeprom_set <= 1;
