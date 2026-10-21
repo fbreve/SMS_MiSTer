@@ -175,6 +175,8 @@ entity system is
 		audio_quiescent, audio_phase_out : out STD_LOGIC;
 		audio_phase_in, audio_phase_set, audio_ext_set : in STD_LOGIC := '0';
 		mapper_out   : out STD_LOGIC_VECTOR(63 downto 0);
+		mapper_history_out : out STD_LOGIC_VECTOR(17 downto 0);
+		mapper_history_in : in STD_LOGIC_VECTOR(17 downto 0) := "001111111111111111";
 		mapper_in    : in  STD_LOGIC_VECTOR(63 downto 0) := (others => '0');
 		mapper_set   : in  STD_LOGIC := '0';
 		evolution_ss_out : out STD_LOGIC_VECTOR(159 downto 0);
@@ -510,6 +512,8 @@ begin
 			mapper_codies => mapper_codies,
 			mapper_set => mapper_set,
 			mapper_in => mapper_in,
+			mapper_history_in => mapper_history_in,
+			mapper_history_out => mapper_history_out,
 			evolution_ss_in => evolution_ss_in,
 			mapper_manual_force_o => mapper_manual_force,
 			sega_mapper_write_seen_o => sega_mapper_write_seen,

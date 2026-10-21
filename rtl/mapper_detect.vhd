@@ -32,6 +32,8 @@ entity mapper_detect is
 		mapper_codies : in std_logic;
 		mapper_set : in std_logic;
 		mapper_in : in std_logic_vector(63 downto 0);
+		mapper_history_in : in std_logic_vector(17 downto 0) := "001111111111111111";
+		mapper_history_out : out std_logic_vector(17 downto 0);
 		evolution_ss_in : in std_logic_vector(95 downto 0);
 		-- Existing guards consumed by the 4-PAK banking process in system.vhd.
 		mapper_manual_force_o : out std_logic;
@@ -144,6 +146,7 @@ begin
 
 	mapper_manual_force_o <= mapper_manual_force;
 	sega_mapper_write_seen_o <= sega_mapper_write_seen;
+	mapper_history_out <= sega_mapper_write_seen & bank_write_seen & std_logic_vector(mapper_detect_ticks);
 	rom_size_pages_o <= rom_size_pages;
 	rom_crc32_o <= rom_crc32;
 	detect_zemina_static_o <= detect_zemina_static;
@@ -299,9 +302,9 @@ begin
 					detect_dahjee_a    <= mapper_in(48);
 					detect_sega_locked <= mapper_in(49);
 				end if;
-				mapper_detect_ticks <= to_unsigned(65535, 16);
-				bank_write_seen <= '0';
-				sega_mapper_write_seen <= '0';
+				mapper_detect_ticks <= unsigned(mapper_history_in(15 downto 0));
+				bank_write_seen <= mapper_history_in(16);
+				sega_mapper_write_seen <= mapper_history_in(17);
 				wonderkid_write_count <= 0;
 			else
 				if bootloader_n = '0' then

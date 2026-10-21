@@ -89,6 +89,9 @@ architecture rtl of mapper_ctrl is
 	signal mapper_wonderkid_prev : std_logic := '0';
 	signal reset_n_prev : std_logic := '0';
 	signal bootloader_n_prev : std_logic := '0';
+	-- Restored detection/boot flags settle after mapper_set. Track those new
+	-- values for one clock without replaying their bank-initialization edges.
+	signal mapper_restore_pending : std_logic := '0';
 	signal eeprom_soft_reset : std_logic := '0';
 	signal last_read_addr : std_logic_vector(15 downto 0);
 begin
@@ -147,9 +150,11 @@ begin
 			mapper_wonderkid_prev <= '0';
 			reset_n_prev <= '0';
 			bootloader_n_prev <= '0';
+			mapper_restore_pending <= '0';
 
 		else
 			if rising_edge(clk_sys) then
+				mapper_restore_pending <= mapper_set;
 				eeprom_soft_reset <= '0';
 				-- The Evolution launcher stores data in the top bytes of RAM,
 				-- which alias the standard SMS mapper registers in this core.
@@ -221,7 +226,7 @@ begin
 				-- BIOS handoff: restore standard cartridge startup banks.
 				-- BIOS bank writes can leave bank0/1/2 in non-default states, which
 				-- breaks static Codemasters detection and forced Codemasters start.
-				if bootloader_n = '1' and bootloader_n_prev = '0' then
+				if bootloader_n = '1' and bootloader_n_prev = '0' and mapper_restore_pending = '0' then
 					bank0 <= "00000000";
 					bank1 <= "00000001";
 					bank2 <= "00000010";
@@ -288,7 +293,7 @@ begin
 					-- detection window initialization is handled by the detection process
 				end if;
 				-- Auto-detected Wonder Kid becomes active after reset; apply init once.
-				if mapper_wonderkid = '1' and mapper_wonderkid_prev = '0' then
+				if mapper_wonderkid = '1' and mapper_wonderkid_prev = '0' and mapper_restore_pending = '0' then
 					bank1         <= "00000000";
 					bank2         <= "00000000";
 					lock_mapper_B <= '1';

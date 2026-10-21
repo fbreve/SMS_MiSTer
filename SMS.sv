@@ -881,6 +881,7 @@ wire ss_audio_quiescent,ss_audio_phase_out,ss_audio_phase_in,ss_audio_phase_set,
 wire [55:0]  ss_psg_out, ss_psg_in;
 wire         ss_psg_set;
 wire [63:0]  ss_mapper_out, ss_mapper_in;
+wire [17:0] ss_mapper_history_out, ss_mapper_history_in;
 wire [95:0]  ss_evolution_out, ss_evolution_in;
 wire         ss_evolution_set;
 wire         ss_mapper_set;
@@ -1164,6 +1165,8 @@ system #(63) system
 	.psg_in      (ss_psg_in),
 	.psg_set     (ss_psg_set),
 	.mapper_out  (ss_mapper_out),
+	.mapper_history_out(ss_mapper_history_out),
+	.mapper_history_in(ss_mapper_history_in),
 	.mapper_in   (ss_mapper_in),
 	.mapper_set  (ss_mapper_set),
 	.evolution_ss_out(ss_evolution_out),
@@ -1278,6 +1281,8 @@ savestates savestates_inst (
 	.psg_set         (ss_psg_set),
 	// Mapper
 	.mapper_out      (ss_mapper_out),
+	.mapper_history_out(ss_mapper_history_out),
+	.mapper_history_in(ss_mapper_history_in),
 	.mapper_in       (ss_mapper_in),
 	.mapper_set      (ss_mapper_set),
 	.evolution_out   (ss_evolution_out),
