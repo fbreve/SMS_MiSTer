@@ -39,6 +39,7 @@ assign BUTTONS   = osd_btn;
 assign VGA_SCALER= 0;
 assign VGA_DISABLE = 0;
 wire ss_freeze;
+wire ss_capture_progress;
 reg  ss_freeze_r;
 always @(posedge clk_sys) begin
 	ss_freeze_r <= ss_freeze;
@@ -53,17 +54,23 @@ reg        se_pause_pending;    // waiting for VBlank fall (y=0) to freeze CPU
 reg        se_unpause_pending;  // waiting for VBlank rising edge to release CPU
 reg        VBlank_r;            // one-cycle delay for VBlank edge detection
 wire       se_pause_gate = systeme & se_paused;
+// Capture may advance a stopped non-M1 CPU to the next safe boundary.
+// Keep the host/UI pause phase (and dimming) independent of this override.
+wire       se_pause_exec_gate = se_pause_gate & ~ss_capture_progress;
 assign HDMI_FREEZE   = 1'b0;
 assign HDMI_BLACKOUT = 0;
 
 always @(posedge clk_sys) begin
+	// Current host input is sampled even during transport. Edges inside that
+	// interval are consumed without queuing a toggle; a new post-release edge
+	// is accepted normally. Pending toggles belong to the current UI phase.
 	joy8_r   <= joy8_sig;
 	VBlank_r <= VBlank;
-	if (raw_reset | ~systeme | ss_freeze | ss_unfreeze) begin
+	if (raw_reset | ~systeme) begin
 		se_paused          <= 0;
 		se_pause_pending   <= 0;
 		se_unpause_pending <= 0;
-	end else begin
+	end else if (~ss_freeze) begin
 		// Rising edge of pause button (not during savestates, not already pending)
 		if (~joy8_r & joy8_sig & ~ss_freeze & ~se_unpause_pending & ~se_pause_pending) begin
 			if (se_paused)
@@ -76,13 +83,14 @@ always @(posedge clk_sys) begin
 				// tile/sprite corruption from a partially-updated VDP state.
 				se_pause_pending <= 1;
 		end
+		// Ignore transport-only beam edges, including the release handoff.
 		// VBlank fall (y=0): apply the deferred pause
-		if (se_pause_pending & VBlank_r & ~VBlank) begin
+		if (~ss_unfreeze & se_pause_pending & VBlank_r & ~VBlank) begin
 			se_paused        <= 1;
 			se_pause_pending <= 0;
 		end
 		// VBlank rising edge: release the deferred unpause
-		if (se_unpause_pending & ~VBlank_r & VBlank) begin
+		if (~ss_unfreeze & se_unpause_pending & ~VBlank_r & VBlank) begin
 			se_paused          <= 0;
 			se_unpause_pending <= 0;
 		end
@@ -984,7 +992,7 @@ system #(63) system
 (
 	.clk_sys(clk_sys),
 	.ss_freeze(ss_freeze),
-	.ce_cpu(ss_freeze ? 1'b0 : (ce_cpu & ~se_pause_gate)),
+	.ce_cpu(ss_freeze ? 1'b0 : (ce_cpu & ~se_pause_exec_gate)),
 	.ce_vdp(ss_freeze ? 1'b0 : ce_vdp),
 	.ce_pix(ss_freeze ? 1'b0 : ce_pix),
 	.ce_sp(ss_freeze ? 1'b0 : ce_sp),
@@ -1033,7 +1041,7 @@ system #(63) system
 	.j2_tr(joyb_pins[5]),
 	.j2_th(joyb_th),
 	.pause(systeme ? 1'b1 : (joya[6]&joyb[6])),
-	.se_pause(se_pause_gate),
+	.se_pause(se_pause_exec_gate),
 	.soft_reset(soft_reset_btn),
 	.j2_start(swap ? joy_0[6] : joy_1[6]),
 	.j2_coin(swap ? joy_0[7] : joy_1[7]),
@@ -1221,6 +1229,7 @@ savestates savestates_inst (
 	.ss_bios_mode    (ss_bios_mode),
 	.ss_game_id      (ss_game_id),
 	.ss_freeze       (ss_freeze),
+	.ss_capture_progress(ss_capture_progress),
 	.vblank          (VBlank),
 	.x               (x),
 	// Z80

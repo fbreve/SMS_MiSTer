@@ -114,6 +114,7 @@ module savestates (
     // ---- EEPROM snapshot / restore ----
     input             storage_busy,
     output            ss_busy,
+    output            ss_capture_progress,
     input             eeprom_present,
     input     [127:0] eeprom_ext_out,
     output reg [127:0] eeprom_ext_in,
@@ -372,6 +373,13 @@ wire [14:0] nvram_size_minus_1 = transfer_eeprom ? 15'd127 :
 
 reg [6:0]  state;
 assign ss_busy = state != ST_IDLE;
+// A System E UI pause may hold the CPU outside an opcode-fetch boundary.
+// Permit only the progress needed to reach that boundary in a capture window.
+// Drop the override as soon as the bus qualifies, before accepted capture;
+// an already qualifying paused bus needs no extra CPU or PSG execution.
+assign ss_capture_progress = systeme && state == ST_WAIT_BOUNDARY &&
+                             !storage_busy && vblank && x < 9'd256 &&
+                             (z80_m1_n || z80_mreq_n || z80_iset != 2'b00);
 // do_save is declared with EEPROM transfer selection above.
 reg [1:0]  cur_slot;
 reg [28:0] base_addr;
