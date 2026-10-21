@@ -882,6 +882,8 @@ wire [45:0] ss_md_out, ss_md_in;
 wire ss_md_set, ss_md_valid;
 wire [18:0] ss_tap_out, ss_tap_in;
 wire ss_tap_set, ss_tap_valid;
+wire [45:0] ss_gun_out, ss_gun_in;
+wire ss_gun_set, ss_gun_valid;
 wire [31:0] ss_paddle_out, ss_paddle_in;
 wire ss_paddle_set, ss_paddle_valid;
 wire [31:0]  ss_io_out, ss_io_in;
@@ -1288,6 +1290,10 @@ savestates savestates_inst (
 	.gg_out          (ss_gg_out),
 	.gg_in           (ss_gg_in),
 	.gg_set          (ss_gg_set),
+	.gun_out         (ss_gun_out),
+	.gun_in          (ss_gun_in),
+	.gun_set         (ss_gun_set),
+	.gun_valid       (ss_gun_valid),
 	.paddle_out      (ss_paddle_out),
 	.paddle_in       (ss_paddle_in),
 	.paddle_set      (ss_paddle_set),
@@ -1814,6 +1820,11 @@ wire [1:0] gun_crosshair = status[23:22];
 lightgun lightgun
 (
 	.CLK(clk_sys),
+	.SS_FREEZE(ss_freeze),
+	.SS_STATE_OUT(ss_gun_out),
+	.SS_STATE_IN(ss_gun_in),
+	.SS_STATE_SET(ss_gun_set),
+	.SS_STATE_VALID(ss_gun_valid),
 	.RESET(reset_active),
 
 	.MOUSE(ps2_mouse),

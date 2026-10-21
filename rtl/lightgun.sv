@@ -3,6 +3,11 @@ module lightgun
 (
 	input        CLK,
 	input        RESET,
+	input        SS_FREEZE,
+	input [45:0] SS_STATE_IN,
+	input        SS_STATE_SET,
+	input        SS_STATE_VALID,
+	output [45:0] SS_STATE_OUT,
 
 	input [24:0] MOUSE,
 	input        MOUSE_XY,
@@ -36,17 +41,23 @@ wire [8:0] j_x = {~JOY_X[7], JOY_X[6:0]};
 wire [8:0] j_y = {~JOY_Y[7], JOY_Y[6:0]};
 
 reg offscreen = 0, draw = 0;
+// Guest beam history; host cursor, buttons and crosshair remain external.
+reg old_hde, old_vde;
+reg [8:0] hcnt, vcnt, vtotal;
+reg [15:0] hde_d;
+reg sensor_pend;
+reg [7:0] sensor_time;
+// At accepted VBlank, hcnt re-synchronizes during blanking; old_vde and
+// frame-latched x/y refresh before the next active hit window. Preserve the
+// delayed HDE/vertical history: it determines when vtotal (and host Y scaling)
+// changes, plus the sensor pulse already in flight.
+assign SS_STATE_OUT = {vcnt, vtotal, hde_d, old_hde,
+                      offscreen, sensor_pend, sensor_time, SENSOR};
 always @(posedge CLK) begin
-	reg old_pix, old_hde, old_vde, old_ms;
-	reg [8:0] hcnt;
-	reg [8:0] vcnt;
-	reg [8:0] vtotal;
-	reg [15:0] hde_d;
+	reg old_pix, old_ms;
 	reg [8:0] xm,xp;
 	reg [8:0] ym,yp;
 	reg [8:0] cross_sz;
-	reg sensor_pend;
-	reg [7:0] sensor_time;
 	reg [17:0] jy_scaled;
 	
 	TRIGGER <= BTN_MODE ? MOUSE[0] : (JOY[4]|JOY[9]);
@@ -84,7 +95,7 @@ always @(posedge CLK) begin
 			lg_y <= 0;
 	end
 
-	if(CE_PIX) begin
+	if(!SS_FREEZE && CE_PIX) begin
 		hde_d <= {hde_d[14:0],HDE};
 		old_hde <= hde_d[15];
 		if(~&hcnt) hcnt <= hcnt + 1'd1;
@@ -120,9 +131,15 @@ always @(posedge CLK) begin
 		else if(sensor_time > 64) SENSOR <= 1'b0;
 	end
 
-	if(HDE && VDE && (x == hcnt) && (y <= vcnt) && (y > vcnt - 8)) begin
+	if(!SS_FREEZE && HDE && VDE && (x == hcnt) && (y <= vcnt) && (y > vcnt - 8)) begin
 		sensor_pend <= 1'b1;
 		sensor_time <= 8'd0;
+	end
+	// Restore before the VDP latch restore; no transport-time sensor edge survives.
+	if(SS_STATE_SET) begin
+		{vcnt, vtotal, hde_d, old_hde,
+		 offscreen, sensor_pend, sensor_time, SENSOR} <=
+		 SS_STATE_VALID ? SS_STATE_IN : {36'd1, 1'b0, 8'hff, 1'b0};
 	end
 	
 	draw <= (((SIZE[1] || ($signed(hcnt) >= $signed(xm) && hcnt <= xp)) && y == vcnt) || 
