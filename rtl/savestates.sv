@@ -107,10 +107,10 @@ module savestates (
     output reg        mapper_set,
 
     // ---- Master System Evolution extra mapper snapshot / restore ----
-    // Stored in otherwise-unused IO word bits and the EEPROM word. This keeps
-    // the established save/load FSM path unchanged for every other mapper.
-    input       [95:0] evolution_out,
-    output reg  [95:0] evolution_in,
+    // Low 96 bits retain the IO/EEPROM word layout. v10 stores the additional
+    // 57 selector/history bits at 02c, validated by the descriptor at 02d.
+    input      [159:0] evolution_out,
+    output reg [159:0] evolution_in,
     output reg         evolution_set,
 
     // ---- EEPROM snapshot / restore ----
@@ -339,6 +339,16 @@ localparam ST_SAVE_HISTORY0=7'd91, ST_SAVE_HISTORY1=7'd92,
            ST_LOAD_HISTORY0=7'd93, ST_LOAD_HISTORY1=7'd94;
 reg [17:0] mapper_history_snap;
 reg has_mapper_history;
+// v10: 02c contains exact Evolution selector/history [56:0], zero [63:57].
+// 02d validates width57 and owner "EV10". Legacy Evolution cannot reconstruct
+// this state and is rejected before any restore writes; other mappers retain
+// their v1-v9 compatibility paths. Pending Evolution operation state is F15.
+localparam [23:0] EVOLUTION_HISTORY_MAGIC = 24'h48430a;
+localparam [63:0] EVOLUTION_HISTORY_DESC = 64'h0000003945563130;
+localparam ST_SAVE_EVOLUTION0=7'd95, ST_SAVE_EVOLUTION1=7'd96,
+           ST_LOAD_EVOLUTION0=7'd97, ST_LOAD_EVOLUTION1=7'd98;
+reg has_evolution_history, evolution_history_valid;
+wire live_evolution = evolution_out[31:16] == 16'hE132;
 reg do_save;
 wire transfer_sc = do_save ? sc_size_snap != 0 : sc_ram_full;
 wire transfer_eeprom = do_save ? eeprom_exists_snap : eeprom_full;
@@ -414,7 +424,7 @@ reg [135:0] vdp_snap;
 reg [383:0] cram_snap;
 reg  [55:0] psg_snap;
 reg  [63:0] mapper_snap;
-reg  [95:0] evolution_snap;
+reg [159:0] evolution_snap;
 // System E latching buffers
 reg [135:0] vdp2_snap;
 // Video word extension v1: previously-written zero padding is never latch data
@@ -436,7 +446,7 @@ reg  [63:0] eeprom_snap;
 // SC payload shares 0d01..1d00, never the System E or EEPROM regions.
 // 01e: [22:0] P1, [45:23] P2, [63:46] zero. Per port:
 // [16:0] timer, [19:17] rises, [20] TH history, [22:21] type history.
-wire [63:0] video_word = {MAPPER_HISTORY_MAGIC, 2'd3,
+wire [63:0] video_word = {EVOLUTION_HISTORY_MAGIC, 2'd3,
                          systeme ? vdp2_snap[135:128] : 8'd0,
                          vdp_snap[135:128], video_snap};
 
@@ -606,7 +616,12 @@ always @(*) begin
         ST_SAVE_HISTORY0: if (!DDRAM_BUSY) ddram_cmd_write(base_addr + 29'h02a, {46'd0,mapper_history_snap}, 8'hFF);
         ST_SAVE_HISTORY1: if (!DDRAM_BUSY) ddram_cmd_write(base_addr + 29'h02b, MAPPER_HISTORY_DESC, 8'hFF);
         ST_LOAD_HISTORY0: if (!(DDRAM_DOUT_READY && dout_expected) && !dout_expected && !DDRAM_BUSY) ddram_cmd_read(base_addr + 29'h02b);
-        ST_LOAD_HISTORY1: if (!(DDRAM_DOUT_READY && dout_expected) && !dout_expected && !DDRAM_BUSY) ddram_cmd_read(base_addr + 29'h01f);
+        ST_LOAD_HISTORY1: if (!(DDRAM_DOUT_READY && dout_expected) && !dout_expected && !DDRAM_BUSY) ddram_cmd_read(base_addr + (has_evolution_history ? 29'h02c : 29'h01f));
+        ST_SAVE_EVOLUTION0: if (!DDRAM_BUSY) ddram_cmd_write(base_addr + 29'h02c, {7'd0,evolution_snap[152:96]}, 8'hFF);
+        ST_SAVE_EVOLUTION1: if (!DDRAM_BUSY) ddram_cmd_write(base_addr + 29'h02d, EVOLUTION_HISTORY_DESC, 8'hFF);
+        ST_LOAD_EVOLUTION0: if (!(DDRAM_DOUT_READY && dout_expected) && !dout_expected && !DDRAM_BUSY) ddram_cmd_read(base_addr + 29'h02d);
+        ST_LOAD_EVOLUTION1: if (!(DDRAM_DOUT_READY && dout_expected) && !dout_expected && !DDRAM_BUSY)
+            if (!((live_evolution || evolution_state) && (!evolution_state || !evolution_history_valid || dout_latch != EVOLUTION_HISTORY_DESC))) ddram_cmd_read(base_addr + 29'h01f);
         ST_SAVE_GUN0: if (!DDRAM_BUSY) ddram_cmd_write(base_addr + 29'h028, {18'd0,gun_snap}, 8'hFF);
         ST_SAVE_GUN1: if (!DDRAM_BUSY) ddram_cmd_write(base_addr + 29'h029, GUN_DESC, 8'hFF);
         ST_LOAD_GUN0: if (!(DDRAM_DOUT_READY && dout_expected) && !dout_expected && !DDRAM_BUSY) ddram_cmd_read(base_addr + 29'h029);
@@ -738,9 +753,9 @@ always @(*) begin
         ST_LOAD_MAPPER: begin
             if (!(DDRAM_DOUT_READY && dout_expected)) begin
                 if (! dout_expected && ! DDRAM_BUSY) begin
-                    if (is_old_format) begin
+                    if (is_old_format && !live_evolution) begin
                         ddram_cmd_read ( base_addr + 29'h101 ) ;
-                    end else begin
+                    end else if (!is_old_format) begin
                         ddram_cmd_read ( base_addr + 29'h019 ) ;
                     end
                 end
@@ -748,9 +763,11 @@ always @(*) begin
         end
         ST_LOAD_IO: if (!(DDRAM_DOUT_READY && dout_expected)) if (! dout_expected && ! DDRAM_BUSY) ddram_cmd_read ( base_addr + 29'h01a ) ;
         ST_LOAD_VIDEO: if (!(DDRAM_DOUT_READY && dout_expected) && !dout_expected && !DDRAM_BUSY) begin
+            if (!((live_evolution || evolution_state) && (!evolution_state || dout_latch[63:40] != EVOLUTION_HISTORY_MAGIC || dout_latch[39:38] != 2'd3))) begin
             if ((dout_latch[63:40] == IO_EXT_MAGIC && dout_latch[39:38] == 2'd2) ||
-                    ((dout_latch[63:40] == MD_EXT_MAGIC || dout_latch[63:40] == EEPROM_EXT_MAGIC || dout_latch[63:40] == SC_EXT_MAGIC || dout_latch[63:40] == TAP_EXT_MAGIC || dout_latch[63:40] == PADDLE_EXT_MAGIC || (dout_latch[63:40] == GUN_EXT_MAGIC || dout_latch[63:40] == MAPPER_HISTORY_MAGIC)) && dout_latch[39:38] == 2'd3)) ddram_cmd_read(base_addr + 29'h01c);
+                    ((dout_latch[63:40] == MD_EXT_MAGIC || dout_latch[63:40] == EEPROM_EXT_MAGIC || dout_latch[63:40] == SC_EXT_MAGIC || dout_latch[63:40] == TAP_EXT_MAGIC || dout_latch[63:40] == PADDLE_EXT_MAGIC || (dout_latch[63:40] == GUN_EXT_MAGIC || (dout_latch[63:40] == MAPPER_HISTORY_MAGIC || dout_latch[63:40] == EVOLUTION_HISTORY_MAGIC))) && dout_latch[39:38] == 2'd3)) ddram_cmd_read(base_addr + 29'h01c);
             else ddram_cmd_read(base_addr + 29'h01b);
+            end
         end
         ST_LOAD_EEPROM: begin
             if (!(DDRAM_DOUT_READY && dout_expected)) begin
@@ -885,7 +902,7 @@ always @(posedge clk or negedge reset_n) begin
         psg_set         <= 0;
         mapper_set      <= 0;
         evolution_set   <= 0;
-        evolution_in    <= 96'd0;
+        evolution_in    <= 160'd0;
         eeprom_set      <= 0;
         vram_en         <= 0;
         vram_WE         <= 0;
@@ -907,6 +924,7 @@ always @(posedge clk or negedge reset_n) begin
         eeprom_exists_snap <= 0; has_eeprom_tag <= 0; eeprom_ext_word <= 0; nvram_refill <= 0;
         sc_size_snap <= 0; has_sc_tag <= 0; sc_ram_full <= 0; sc_ram_restored <= 0;
         mapper_history_snap <= MAPPER_HISTORY_LEGACY; mapper_history_in <= MAPPER_HISTORY_LEGACY; has_mapper_history <= 0;
+        has_evolution_history <= 0; evolution_history_valid <= 0;
         gun_snap <= 0; gun_in <= 0; gun_set <= 0; gun_valid <= 0; has_gun_tag <= 0;
         paddle_snap <= 0; paddle_in <= 0; paddle_set <= 0; paddle_valid <= 0; has_paddle_tag <= 0;
         tap_snap <= 0; tap_in <= 0; tap_set <= 0; tap_valid <= 0; has_tap_tag <= 0;
@@ -1276,6 +1294,18 @@ always @(posedge clk or negedge reset_n) begin
         ST_SAVE_HISTORY1: begin
             if (!DDRAM_BUSY) begin
                 ddram_write(base_addr + 29'h02b, MAPPER_HISTORY_DESC, 8'hFF);
+                state <= ST_SAVE_EVOLUTION0;
+            end
+        end
+        ST_SAVE_EVOLUTION0: begin
+            if (!DDRAM_BUSY) begin
+                ddram_write(base_addr + 29'h02c, {7'd0,evolution_snap[152:96]}, 8'hFF);
+                state <= ST_SAVE_EVOLUTION1;
+            end
+        end
+        ST_SAVE_EVOLUTION1: begin
+            if (!DDRAM_BUSY) begin
+                ddram_write(base_addr + 29'h02d, EVOLUTION_HISTORY_DESC, 8'hFF);
                 state <= ST_SAVE_EE_DESC;
             end
         end
@@ -1653,6 +1683,7 @@ always @(posedge clk or negedge reset_n) begin
                 gg_snap <= GG_RESET;
                 md_snap <= 0; md_valid <= 0; has_md_ext <= 0;
                 mapper_history_snap <= MAPPER_HISTORY_LEGACY; has_mapper_history <= 0;
+                evolution_snap[159:96] <= 0; has_evolution_history <= 0; evolution_history_valid <= 0;
                 gun_snap <= 0; gun_valid <= 0; has_gun_tag <= 0;
                 paddle_snap <= 0; paddle_valid <= 0; has_paddle_tag <= 0;
                 tap_snap <= 0; tap_valid <= 0; has_tap_tag <= 0;
@@ -1684,7 +1715,13 @@ always @(posedge clk or negedge reset_n) begin
                     (is_old_format || dout_latch[63:32] == cur_game_id)) begin
                     // No historical lightgun state exists before v8. Clear stale events
                     // early; a validated v8 payload replaces this before VDP restore.
-                    gun_in <= 0; gun_valid <= 0; gun_set <= 1;
+                    // Evolution compatibility is not known until its v10
+                    // descriptor is checked. Do not mutate a live peripheral
+                    // on a LOAD that may be rejected; valid v10 reaches the
+                    // ordinary lightgun restore in ST_LOAD_EE_DESC below.
+                    if (!live_evolution) begin
+                        gun_in <= 0; gun_valid <= 0; gun_set <= 1;
+                    end
                     // Old format stored no game_id in word 1, so skip that check.
                     // Read Z80 words
                     ddram_read(base_addr + 29'd2);
@@ -1843,13 +1880,16 @@ always @(posedge clk or negedge reset_n) begin
             end else if (!dout_expected && !DDRAM_BUSY) begin
                 mapper_snap      <= dout_latch;
                 if (is_old_format) begin
-                    evolution_snap <= 96'd0;
+                    evolution_snap <= 160'd0;
                     vram_load_addr   <= 0;
                     vram_byte_cnt    <= 0;
                     vram_load_active <= 0;
                     word_cnt         <= 0;
-                    ddram_read(base_addr + 29'h101);
-                    state <= ST_LOAD_VRAM;
+                    if (live_evolution) state <= ST_ERROR;
+                    else begin
+                        ddram_read(base_addr + 29'h101);
+                        state <= ST_LOAD_VRAM;
+                    end
                 end else begin
                     ddram_read(base_addr + 29'h019);
                     state            <= ST_LOAD_IO;
@@ -1874,17 +1914,21 @@ always @(posedge clk or negedge reset_n) begin
                 dout_expected <= 0;
                 dout_latch    <= DDRAM_DOUT;
             end else if (!dout_expected && !DDRAM_BUSY) begin
+                has_evolution_history <= dout_latch[63:40] == EVOLUTION_HISTORY_MAGIC && dout_latch[39:38] == 2'd3;
+                if ((live_evolution || evolution_state) && (!evolution_state || dout_latch[63:40] != EVOLUTION_HISTORY_MAGIC || dout_latch[39:38] != 2'd3)) begin
+                    state <= ST_ERROR;
+                end else begin
                 video_snap       <= dout_latch[21:0];
-                has_mapper_history <= dout_latch[63:40] == MAPPER_HISTORY_MAGIC && dout_latch[39:38] == 2'd3;
-                has_gun_tag <= (dout_latch[63:40] == GUN_EXT_MAGIC || dout_latch[63:40] == MAPPER_HISTORY_MAGIC) && dout_latch[39:38] == 2'd3;
-                has_paddle_tag <= (dout_latch[63:40] == PADDLE_EXT_MAGIC || (dout_latch[63:40] == GUN_EXT_MAGIC || dout_latch[63:40] == MAPPER_HISTORY_MAGIC)) && dout_latch[39:38] == 2'd3;
-                has_tap_tag <= (dout_latch[63:40] == TAP_EXT_MAGIC || dout_latch[63:40] == PADDLE_EXT_MAGIC || (dout_latch[63:40] == GUN_EXT_MAGIC || dout_latch[63:40] == MAPPER_HISTORY_MAGIC)) && dout_latch[39:38] == 2'd3;
-                has_sc_tag <= (dout_latch[63:40] == SC_EXT_MAGIC || dout_latch[63:40] == TAP_EXT_MAGIC || dout_latch[63:40] == PADDLE_EXT_MAGIC || (dout_latch[63:40] == GUN_EXT_MAGIC || dout_latch[63:40] == MAPPER_HISTORY_MAGIC)) && dout_latch[39:38] == 2'd3;
-                has_eeprom_tag <= (dout_latch[63:40] == EEPROM_EXT_MAGIC || dout_latch[63:40] == SC_EXT_MAGIC || dout_latch[63:40] == TAP_EXT_MAGIC || dout_latch[63:40] == PADDLE_EXT_MAGIC || (dout_latch[63:40] == GUN_EXT_MAGIC || dout_latch[63:40] == MAPPER_HISTORY_MAGIC)) && dout_latch[39:38] == 2'd3;
-                has_md_ext <= (dout_latch[63:40] == MD_EXT_MAGIC || dout_latch[63:40] == EEPROM_EXT_MAGIC || dout_latch[63:40] == SC_EXT_MAGIC || dout_latch[63:40] == TAP_EXT_MAGIC || dout_latch[63:40] == PADDLE_EXT_MAGIC || (dout_latch[63:40] == GUN_EXT_MAGIC || dout_latch[63:40] == MAPPER_HISTORY_MAGIC)) && dout_latch[39:38] == 2'd3;
+                has_mapper_history <= (dout_latch[63:40] == MAPPER_HISTORY_MAGIC || dout_latch[63:40] == EVOLUTION_HISTORY_MAGIC) && dout_latch[39:38] == 2'd3;
+                has_gun_tag <= (dout_latch[63:40] == GUN_EXT_MAGIC || (dout_latch[63:40] == MAPPER_HISTORY_MAGIC || dout_latch[63:40] == EVOLUTION_HISTORY_MAGIC)) && dout_latch[39:38] == 2'd3;
+                has_paddle_tag <= (dout_latch[63:40] == PADDLE_EXT_MAGIC || (dout_latch[63:40] == GUN_EXT_MAGIC || (dout_latch[63:40] == MAPPER_HISTORY_MAGIC || dout_latch[63:40] == EVOLUTION_HISTORY_MAGIC))) && dout_latch[39:38] == 2'd3;
+                has_tap_tag <= (dout_latch[63:40] == TAP_EXT_MAGIC || dout_latch[63:40] == PADDLE_EXT_MAGIC || (dout_latch[63:40] == GUN_EXT_MAGIC || (dout_latch[63:40] == MAPPER_HISTORY_MAGIC || dout_latch[63:40] == EVOLUTION_HISTORY_MAGIC))) && dout_latch[39:38] == 2'd3;
+                has_sc_tag <= (dout_latch[63:40] == SC_EXT_MAGIC || dout_latch[63:40] == TAP_EXT_MAGIC || dout_latch[63:40] == PADDLE_EXT_MAGIC || (dout_latch[63:40] == GUN_EXT_MAGIC || (dout_latch[63:40] == MAPPER_HISTORY_MAGIC || dout_latch[63:40] == EVOLUTION_HISTORY_MAGIC))) && dout_latch[39:38] == 2'd3;
+                has_eeprom_tag <= (dout_latch[63:40] == EEPROM_EXT_MAGIC || dout_latch[63:40] == SC_EXT_MAGIC || dout_latch[63:40] == TAP_EXT_MAGIC || dout_latch[63:40] == PADDLE_EXT_MAGIC || (dout_latch[63:40] == GUN_EXT_MAGIC || (dout_latch[63:40] == MAPPER_HISTORY_MAGIC || dout_latch[63:40] == EVOLUTION_HISTORY_MAGIC))) && dout_latch[39:38] == 2'd3;
+                has_md_ext <= (dout_latch[63:40] == MD_EXT_MAGIC || dout_latch[63:40] == EEPROM_EXT_MAGIC || dout_latch[63:40] == SC_EXT_MAGIC || dout_latch[63:40] == TAP_EXT_MAGIC || dout_latch[63:40] == PADDLE_EXT_MAGIC || (dout_latch[63:40] == GUN_EXT_MAGIC || (dout_latch[63:40] == MAPPER_HISTORY_MAGIC || dout_latch[63:40] == EVOLUTION_HISTORY_MAGIC))) && dout_latch[39:38] == 2'd3;
                 if ((dout_latch[63:40] == HCOUNTER_MAGIC && dout_latch[39:38] == 2'd0) ||
                     (dout_latch[63:40] == IO_EXT_MAGIC && dout_latch[39:38] == 2'd2) ||
-                    ((dout_latch[63:40] == MD_EXT_MAGIC || dout_latch[63:40] == EEPROM_EXT_MAGIC || dout_latch[63:40] == SC_EXT_MAGIC || dout_latch[63:40] == TAP_EXT_MAGIC || dout_latch[63:40] == PADDLE_EXT_MAGIC || (dout_latch[63:40] == GUN_EXT_MAGIC || dout_latch[63:40] == MAPPER_HISTORY_MAGIC)) && dout_latch[39:38] == 2'd3)) begin
+                    ((dout_latch[63:40] == MD_EXT_MAGIC || dout_latch[63:40] == EEPROM_EXT_MAGIC || dout_latch[63:40] == SC_EXT_MAGIC || dout_latch[63:40] == TAP_EXT_MAGIC || dout_latch[63:40] == PADDLE_EXT_MAGIC || (dout_latch[63:40] == GUN_EXT_MAGIC || (dout_latch[63:40] == MAPPER_HISTORY_MAGIC || dout_latch[63:40] == EVOLUTION_HISTORY_MAGIC))) && dout_latch[39:38] == 2'd3)) begin
                     vdp_snap[135:128] <= dout_latch[29:22];
                     vdp2_snap[135:128] <= systeme ? dout_latch[37:30] : 8'd0;
                 end else begin
@@ -1892,13 +1936,14 @@ always @(posedge clk or negedge reset_n) begin
                     vdp2_snap[135:128] <= 8'd0;
                 end
                 if ((dout_latch[63:40] == IO_EXT_MAGIC && dout_latch[39:38] == 2'd2) ||
-                    ((dout_latch[63:40] == MD_EXT_MAGIC || dout_latch[63:40] == EEPROM_EXT_MAGIC || dout_latch[63:40] == SC_EXT_MAGIC || dout_latch[63:40] == TAP_EXT_MAGIC || dout_latch[63:40] == PADDLE_EXT_MAGIC || (dout_latch[63:40] == GUN_EXT_MAGIC || dout_latch[63:40] == MAPPER_HISTORY_MAGIC)) && dout_latch[39:38] == 2'd3)) begin
+                    ((dout_latch[63:40] == MD_EXT_MAGIC || dout_latch[63:40] == EEPROM_EXT_MAGIC || dout_latch[63:40] == SC_EXT_MAGIC || dout_latch[63:40] == TAP_EXT_MAGIC || dout_latch[63:40] == PADDLE_EXT_MAGIC || (dout_latch[63:40] == GUN_EXT_MAGIC || (dout_latch[63:40] == MAPPER_HISTORY_MAGIC || dout_latch[63:40] == EVOLUTION_HISTORY_MAGIC))) && dout_latch[39:38] == 2'd3)) begin
                     gg_word <= 0;
                     ddram_read(base_addr + 29'h01c);
                     state <= ST_LOAD_GG;
                 end else begin
                     ddram_read(base_addr + 29'h01b);
                     state <= ST_LOAD_EEPROM;
+                end
                 end
             end
         end
@@ -2015,7 +2060,31 @@ always @(posedge clk or negedge reset_n) begin
                 dout_expected <= 0; dout_latch <= DDRAM_DOUT;
             end else if (!dout_expected && !DDRAM_BUSY) begin
                 if (dout_latch != MAPPER_HISTORY_DESC) mapper_history_snap <= MAPPER_HISTORY_LEGACY;
-                ddram_read(base_addr + 29'h01f); state <= ST_LOAD_EE_DESC;
+                ddram_read(base_addr + (has_evolution_history ? 29'h02c : 29'h01f));
+                state <= has_evolution_history ? ST_LOAD_EVOLUTION0 : ST_LOAD_EE_DESC;
+            end
+        end
+        ST_LOAD_EVOLUTION0: begin
+            if (DDRAM_DOUT_READY && dout_expected) begin
+                dout_expected <= 0; dout_latch <= DDRAM_DOUT;
+            end else if (!dout_expected && !DDRAM_BUSY) begin
+                evolution_snap[159:96] <= {7'd0,dout_latch[56:0]};
+                evolution_history_valid <= dout_latch[63:57] == 0;
+                ddram_read(base_addr + 29'h02d); state <= ST_LOAD_EVOLUTION1;
+            end
+        end
+        ST_LOAD_EVOLUTION1: begin
+            if (DDRAM_DOUT_READY && dout_expected) begin
+                dout_expected <= 0; dout_latch <= DDRAM_DOUT;
+            end else if (!dout_expected && !DDRAM_BUSY) begin
+                if (!evolution_state || !evolution_history_valid || dout_latch != EVOLUTION_HISTORY_DESC)
+                    evolution_snap[159:96] <= 0;
+                if ((live_evolution || evolution_state) &&
+                    (!evolution_state || !evolution_history_valid || dout_latch != EVOLUTION_HISTORY_DESC)) begin
+                    state <= ST_ERROR;
+                end else begin
+                    ddram_read(base_addr + 29'h01f); state <= ST_LOAD_EE_DESC;
+                end
             end
         end
         ST_LOAD_EE_DESC: begin

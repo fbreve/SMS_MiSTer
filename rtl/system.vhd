@@ -180,7 +180,7 @@ entity system is
 		mapper_in    : in  STD_LOGIC_VECTOR(63 downto 0) := (others => '0');
 		mapper_set   : in  STD_LOGIC := '0';
 		evolution_ss_out : out STD_LOGIC_VECTOR(159 downto 0);
-		evolution_ss_in  : in  STD_LOGIC_VECTOR(95 downto 0) := (others => '0');
+		evolution_ss_in  : in  STD_LOGIC_VECTOR(159 downto 0) := (others => '0');
 		evolution_ss_set : in  STD_LOGIC := '0';
 		eeprom_ext_out : out STD_LOGIC_VECTOR(127 downto 0);
 		eeprom_ext_in : in STD_LOGIC_VECTOR(127 downto 0) := (others => '0');
@@ -514,7 +514,7 @@ begin
 			mapper_in => mapper_in,
 			mapper_history_in => mapper_history_in,
 			mapper_history_out => mapper_history_out,
-			evolution_ss_in => evolution_ss_in,
+			evolution_ss_in => evolution_ss_in(95 downto 0),
 			mapper_manual_force_o => mapper_manual_force,
 			sega_mapper_write_seen_o => sega_mapper_write_seen,
 			rom_size_pages_o => rom_size_pages,

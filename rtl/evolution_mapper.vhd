@@ -46,7 +46,7 @@ entity evolution_mapper is
         launch_fetch_addr : out std_logic_vector(15 downto 0);
         game_launch : out std_logic;
         ss_out      : out std_logic_vector(159 downto 0);
-        ss_in       : in  std_logic_vector(95 downto 0) := (others => '0');
+        ss_in       : in  std_logic_vector(159 downto 0) := (others => '0');
         ss_mapper_in: in  std_logic_vector(63 downto 0) := (others => '0');
         ss_set      : in  std_logic := '0'
     );
@@ -118,14 +118,14 @@ begin
                 launch_fetch_addr_r        <= ss_mapper_in(63 downto 48);
                 bank61_r                   <= ss_in(15 downto 8);
                 bank62_r                   <= ss_in(7 downto 0);
-                game_bank61_r              <= ss_in(15 downto 8);
-                game_bank62_r              <= ss_in(7 downto 0);
-                prev_game_bank61_r         <= (others => '0');
-                prev_game_bank62_r         <= (others => '0');
-                candidate_bank61_r         <= ss_in(15 downto 8);
+                game_bank61_r              <= ss_in(103 downto 96);
+                game_bank62_r              <= ss_in(111 downto 104);
+                prev_game_bank61_r         <= ss_in(119 downto 112);
+                prev_game_bank62_r         <= ss_in(127 downto 120);
+                candidate_bank61_r         <= ss_in(135 downto 128);
                 candidate_bank62_r         <= ss_in(7 downto 0);
-                prior_candidate_bank61_r   <= (others => '0');
-                prior_candidate_bank62_r   <= (others => '0');
+                prior_candidate_bank61_r   <= ss_in(143 downto 136);
+                prior_candidate_bank62_r   <= ss_in(151 downto 144);
                 reg3ffe_r                  <= ss_mapper_in(15 downto 8);
                 reg3ffe_pending            <= ss_in(95 downto 88);
                 reg8c_r                    <= ss_in(39 downto 32);
@@ -138,7 +138,7 @@ begin
                 old_m1_n                  <= m1_n;
                 switch_pending            <= '0';
                 switch_armed              <= '0';
-                game_started              <= ss_mapper_in(15) or ss_mapper_in(14);
+                game_started              <= ss_in(152);
                 record_read_pending_r      <= '0';
                 menu_launch_armed_r        <= '0';
             elsif enable = '1' then
@@ -254,9 +254,14 @@ begin
     -- The extra Evolution state is stored in unused header bits and in the
     -- EEPROM word (Evolution has no cartridge EEPROM). The generic mapper
     -- word carries the launch record, normal Sega banks and active $3FFE mode.
-    -- The upper 64 bits are reserved; operational restore state remains in
-    -- the established low 96-bit layout.
-    ss_out <= x"0000000000000000" & reg3ffe_pending & reg8f_r & reg8e_r & reg8d_r & reg88_r &
+    -- v10 preserves 57 selector/history bits above the unchanged low 96 bits.
+    -- Candidate62 equals bank62 at reset and after every port62 write, so its
+    -- saved value is reconstructed from the existing low-byte port62 field.
+    -- Pending-operation phases remain outside this extension (F15).
+    ss_out <= "0000000" & game_started & prior_candidate_bank62_r &
+              prior_candidate_bank61_r & candidate_bank61_r &
+              prev_game_bank62_r & prev_game_bank61_r & game_bank62_r & game_bank61_r &
+              reg3ffe_pending & reg8f_r & reg8e_r & reg8d_r & reg88_r &
               reg63_r & regcd_r & reg8c_r & x"E132" & bank61_r & bank62_r
               when enable = '1' else
               (others => '0');

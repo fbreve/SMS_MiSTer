@@ -882,7 +882,7 @@ wire [55:0]  ss_psg_out, ss_psg_in;
 wire         ss_psg_set;
 wire [63:0]  ss_mapper_out, ss_mapper_in;
 wire [17:0] ss_mapper_history_out, ss_mapper_history_in;
-wire [95:0]  ss_evolution_out, ss_evolution_in;
+wire [159:0] ss_evolution_out, ss_evolution_in;
 wire         ss_evolution_set;
 wire         ss_mapper_set;
 wire [127:0] ss_gg_out, ss_gg_in;
