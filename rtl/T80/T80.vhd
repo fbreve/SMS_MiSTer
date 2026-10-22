@@ -126,6 +126,10 @@ entity T80 is
         NMISet     : in std_logic := '0';
         NMILegacy  : in std_logic := '0';
         NMIHold    : in std_logic := '0';
+        -- Pre-fetch semantic context: ordinary, CB, ED, DD, FD, EI.
+        RestartContext : out std_logic_vector(2 downto 0);
+        RestartDIR     : in std_logic_vector(2 downto 0) := "000";
+        RestartValid   : in std_logic := '0';
 		DIRSet     : in  std_logic := '0';
 		DIR        : in  std_logic_vector(229 downto 0) := (others => '0'); -- Halt_FF, Alternate, WZ, IFF2, IFF1, IM, IY, HL', DE', BC', IX, HL, DE, BC, PC, SP, R, I, F', A', F, A
 		-- Prefix/instruction-set state: '00'=no prefix (clean save point)
@@ -271,6 +275,14 @@ begin
 	ISet_out <= ISet;
 
     NMIState <= (NMI_s or (OldNMI_n and not NMI_n)) & NMICycle & NMI_n;
+    -- Only consumed at the accepted ISet=00, MC1/T2 boundary. T1 has
+    -- drained general writeback; T2 still consumes the preceding IR's
+    -- prefix selection and EI action before installing the fetched opcode.
+    RestartContext <= "001" when IR=x"CB" else
+                      "010" when IR=x"ED" else
+                      "011" when IR=x"DD" else
+                      "100" when IR=x"FD" else
+                      "101" when IR=x"FB" else "000";
 	REG <= Halt_FF & Alternate & WZ & IntE_FF2 & IntE_FF1 & IStatus & DOR & std_logic_vector(PC) & std_logic_vector(SP) & std_logic_vector(R) & I & Fp & Ap & F & ACC when Alternate = '0'
 			 else Halt_FF & Alternate & WZ & IntE_FF2 & IntE_FF1 & IStatus & DOR(127 downto 112) & DOR(47 downto 0) & DOR(63 downto 48) & DOR(111 downto 64) &
 						std_logic_vector(PC) & std_logic_vector(SP) & std_logic_vector(R) & I & Fp & Ap & F & ACC;
@@ -443,7 +455,19 @@ begin
 				XY_State <= "00";
 				XY_Ind <= '0';
 				Alternate <= DIR(228);
-				IR <= "00000000";
+                -- Seed the predecessor class for historical T2. Legacy files
+                -- have no such history and retain ordinary normalization.
+                IR <= x"00";
+                if RestartValid='1' then
+                    case RestartDIR is
+                        when "001" => IR <= x"CB";
+                        when "010" => IR <= x"ED";
+                        when "011" => IR <= x"DD";
+                        when "100" => IR <= x"FD";
+                        when "101" => IR <= x"FB";
+                        when others => null;
+                    end case;
+                end if;
 				MCycles <= "001";
 				DO <= "00000000";
 				Read_To_Reg_r <= "00000";

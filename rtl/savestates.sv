@@ -5,7 +5,8 @@
 //   Word 0x000: MiSTer SS control word [31:0]=change_det, [63:32]=size_in_32b_words
 //   Word 0x001: [31:0]=magic ("SMS1"/"SMSB"), [63:32]=game signature
 //   Word 0x002-0x005: Z80 REG[229:0]; v12 word5[40:38]=NMI pending/entry/Old,
-//                   word5[63:41]=zero. v12 tag=48430c, subtype=3 at word01a.
+//                   v13 word5[43:41]=pre-T2 decoder class; [63:44]=zero.
+//                   v13 tag=48430d, subtype=3 at word01a. v12 has zero [63:41].
 //   Word 0x006-0x007: VDP regs [127:0] (2 × 64-bit words)
 //   Word 0x008-0x00D: CRAM [383:0]     (6 × 64-bit words)
 //   Word 0x00E:       PSG  [55:0]      (1 × 64-bit word, upper 8 bits unused)
@@ -44,6 +45,9 @@ module savestates (
     input       [8:0] x,
 
     // ---- Z80 snapshot / restore ----
+    input       [2:0] z80_restart,     // pre-T2 decoder class, not the new opcode
+    output      [2:0] z80_restart_dir,
+    output            z80_restart_valid,
     input       [2:0] z80_nmi,         // normalized post-sample history at accepted MC1/T2
     output      [2:0] z80_nmi_dir,
     output            z80_nmi_valid,
@@ -427,6 +431,11 @@ reg  [21:0] align_timeout;
 // Latching buffers for multi-word state
 reg [229:0] z80_snap;
 reg [2:0] nmi_snap;
+reg [2:0] restart_snap;
+reg has_restart_context, restart_padding_ok;
+localparam [23:0] CPU_RESTART_MAGIC = 24'h48430d;
+assign z80_restart_dir = restart_snap;
+assign z80_restart_valid = has_restart_context;
 reg has_nmi_history, nmi_padding_ok;
 localparam [23:0] NMI_HISTORY_MAGIC = 24'h48430c;
 assign z80_nmi_dir = nmi_snap;
@@ -457,7 +466,7 @@ reg  [63:0] eeprom_snap;
 // SC payload shares 0d01..1d00, never the System E or EEPROM regions.
 // 01e: [22:0] P1, [45:23] P2, [63:46] zero. Per port:
 // [16:0] timer, [19:17] rises, [20] TH history, [22:21] type history.
-wire [63:0] video_word = {NMI_HISTORY_MAGIC, 2'd3,
+wire [63:0] video_word = {CPU_RESTART_MAGIC, 2'd3,
                          systeme ? vdp2_snap[135:128] : 8'd0,
                          vdp_snap[135:128], video_snap};
 
@@ -496,10 +505,12 @@ reg         nvram_d_latched;
 
 // Shared latch for DDRAM read data (LOAD path)
 reg [63:0]  dout_latch;
-// v12 inherits every v11 extension location and meaning.
-wire [23:0] load_ext_magic = dout_latch[63:40] == NMI_HISTORY_MAGIC ? EVOLUTION_PENDING_MAGIC : dout_latch[63:40];
-wire invalid_nmi_header = dout_latch[63:40] == NMI_HISTORY_MAGIC &&
-                          (dout_latch[39:38] != 2'd3 || !nmi_padding_ok);
+// v13 inherits v12 NMI and every v11 extension location and meaning.
+wire modern_nmi_tag = dout_latch[63:40] == NMI_HISTORY_MAGIC || dout_latch[63:40] == CPU_RESTART_MAGIC;
+wire [23:0] load_ext_magic = modern_nmi_tag ? EVOLUTION_PENDING_MAGIC : dout_latch[63:40];
+wire invalid_nmi_header = modern_nmi_tag &&
+                          (dout_latch[39:38] != 2'd3 ||
+                           (dout_latch[63:40] == CPU_RESTART_MAGIC ? !restart_padding_ok : !nmi_padding_ok));
 
 // Guard flag: set when a ddram_read is issued, cleared when DOUT_READY is consumed.
 // Prevents stale DOUT_READY pulses (from pre-freeze scaler reads) from
@@ -581,7 +592,7 @@ always @(*) begin
                     3'd0: ddram_cmd_write ( base_addr + 29'd2 , z80_snap [ 63 : 0 ] , 8'hFF ) ;
                     3'd1: ddram_cmd_write ( base_addr + 29'd3 , z80_snap [ 127 : 64 ] , 8'hFF ) ;
                     3'd2: ddram_cmd_write ( base_addr + 29'd4 , z80_snap [ 191 : 128 ] , 8'hFF ) ;
-                    3'd3: ddram_cmd_write ( base_addr + 29'd5 , { 23'd0, nmi_snap, z80_snap [ 229 : 192 ] } , 8'hFF ) ;
+                    3'd3: ddram_cmd_write ( base_addr + 29'd5 , {20'd0, restart_snap, nmi_snap, z80_snap[229:192]} , 8'hFF ) ;
                     default: begin end
                 endcase
             end
@@ -908,6 +919,7 @@ always @(posedge clk or negedge reset_n) begin
         state           <= ST_IDLE;
         ss_freeze       <= 0;
         z80_nmi_hold <= 0; nmi_snap <= 3'b001; has_nmi_history <= 0; nmi_padding_ok <= 1;
+        has_restart_context <= 0; restart_snap <= 0; restart_padding_ok <= 1;
         ss_change_det   <= 0;
         cur_magic       <= MAGIC;
         cur_game_id     <= 0;
@@ -1033,7 +1045,8 @@ always @(posedge clk or negedge reset_n) begin
             // raster-timing inconsistencies.
             //   - M1_n low  : opcode-fetch machine cycle
             //   - MREQ_n low: normal memory read (not interrupt acknowledge)
-            //   - ISet=00   : no prefix active (not mid-way through CB/DD/ED/FD sequence)
+            //   - ISet=00   : eligible fetch; previous IR may still carry a pending
+            //                  prefix/EI class, captured separately in v13.
             //   - cpu_ce     : only act on an actual CPU tick, not on held bus
             //                  levels between ticks.
             if (!storage_busy && cpu_ce && !z80_m1_n && !z80_mreq_n && z80_iset == 2'b00 && vblank && x < 9'd256) begin
@@ -1047,6 +1060,7 @@ always @(posedge clk or negedge reset_n) begin
                 // incremented), creating non-deterministic loads that skip an instruction.
                 z80_snap    <= z80_reg;
                 nmi_snap <= z80_nmi;
+                restart_snap <= z80_restart;
                 if (!do_save) z80_nmi_hold <= 1;
                 state       <= ST_ARM_FREEZE;
             end
@@ -1183,7 +1197,7 @@ always @(posedge clk or negedge reset_n) begin
                     3'd0: ddram_write(base_addr + 29'd2, z80_snap[63:0],    8'hFF);
                     3'd1: ddram_write(base_addr + 29'd3, z80_snap[127:64],  8'hFF);
                     3'd2: ddram_write(base_addr + 29'd4, z80_snap[191:128], 8'hFF);
-                    3'd3: ddram_write(base_addr + 29'd5, {23'd0, nmi_snap, z80_snap[229:192]}, 8'hFF);
+                    3'd3: ddram_write(base_addr + 29'd5, {20'd0, restart_snap, nmi_snap, z80_snap[229:192]}, 8'hFF);
                 endcase
                 if (cpu_idx == 3) begin
                     state   <= ST_SAVE_VDP0;
@@ -1696,6 +1710,7 @@ always @(posedge clk or negedge reset_n) begin
         ST_LOAD_HDR_RD: begin
             if (!DDRAM_BUSY) begin
                 has_nmi_history <= 0; nmi_snap <= 3'b001; nmi_padding_ok <= 1;
+                has_restart_context <= 0; restart_snap <= 0; restart_padding_ok <= 1;
                 // Old 64KB files bypass ST_LOAD_VIDEO entirely.
                 vdp_snap[135:128] <= 8'd0;
                 vdp2_snap[135:128] <= 8'd0;
@@ -1764,6 +1779,8 @@ always @(posedge clk or negedge reset_n) begin
                     3'd2: begin z80_snap[191:128] <= dout_latch; ddram_read(base_addr + 29'd5); end
                     3'd3: begin
                         nmi_snap <= dout_latch[40:38];
+                        restart_snap <= dout_latch[43:41];
+                        restart_padding_ok <= dout_latch[63:44] == 0 && dout_latch[43:41] <= 3'd5;
                         nmi_padding_ok <= dout_latch[63:41] == 0;
                         if (is_old_format) begin
                             z80_snap[211:192] <= dout_latch[19:0];
@@ -1932,7 +1949,8 @@ always @(posedge clk or negedge reset_n) begin
                 dout_expected <= 0;
                 dout_latch    <= DDRAM_DOUT;
             end else if (!dout_expected && !DDRAM_BUSY) begin
-                has_nmi_history <= dout_latch[63:40] == NMI_HISTORY_MAGIC;
+                has_nmi_history <= modern_nmi_tag;
+                has_restart_context <= dout_latch[63:40] == CPU_RESTART_MAGIC;
                 has_evolution_history <= (load_ext_magic == EVOLUTION_HISTORY_MAGIC || load_ext_magic == EVOLUTION_PENDING_MAGIC) && dout_latch[39:38] == 2'd3;
                 if (invalid_nmi_header || (live_evolution || evolution_state) && (!evolution_state || load_ext_magic != EVOLUTION_PENDING_MAGIC || dout_latch[39:38] != 2'd3)) begin
                     state <= ST_ERROR;

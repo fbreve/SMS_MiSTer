@@ -149,6 +149,9 @@ entity system is
 		-- Save-state interface
 		z80_reg_out  : out STD_LOGIC_VECTOR(229 downto 0);
 		z80_dir      : in  STD_LOGIC_VECTOR(229 downto 0) := (others => '0');
+        z80_restart_out : out STD_LOGIC_VECTOR(2 downto 0);
+        z80_restart_dir : in STD_LOGIC_VECTOR(2 downto 0) := "000";
+        z80_restart_valid : in STD_LOGIC := '0';
         z80_nmi_out : out STD_LOGIC_VECTOR(2 downto 0);
         z80_nmi_dir : in STD_LOGIC_VECTOR(2 downto 0) := "001";
         z80_nmi_valid : in STD_LOGIC := '0';
@@ -632,6 +635,8 @@ begin
 		DI			=> GENIE_DI,
 		DO			=> D_in,
 		REG    => z80_reg_out,
+        RestartContext => z80_restart_out, RestartDIR => z80_restart_dir,
+        RestartValid => z80_restart_valid,
 		NMIState => z80_nmi_out, NMIDIR => z80_nmi_dir, NMIValid => z80_nmi_valid,
         NMIEnable => '1', NMIHold => z80_nmi_hold, NMIReplay => nmi_replay_hold,
         DIRSet => z80_set,

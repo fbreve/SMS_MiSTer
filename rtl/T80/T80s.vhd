@@ -104,6 +104,10 @@ entity T80s is
         NMIEnable  : in std_logic := '0';
         NMIHold    : in std_logic := '0';
         NMIReplay  : out std_logic;
+        -- Pre-fetch semantic context: ordinary, CB, ED, DD, FD, EI.
+        RestartContext : out std_logic_vector(2 downto 0);
+        RestartDIR     : in std_logic_vector(2 downto 0) := "000";
+        RestartValid   : in std_logic := '0';
 		DIRSet     : in  std_logic := '0';
 		DIR        : in  std_logic_vector(229 downto 0) := (others => '0');
 		-- Prefix/instruction-set state forwarded from T80
@@ -173,7 +177,9 @@ begin
 			REG => REG,
 			NMIState => NMIState, NMIDIR => NMIDIR, NMISet => nmi_apply,
             NMILegacy => not NMIValid, NMIHold => nmi_hold_i,
-            DIRSet => DIRSet,
+            RestartContext => RestartContext, RestartDIR => RestartDIR,
+            RestartValid => RestartValid,
+			DIRSet => DIRSet,
 			DIR => DIR,
 			ISet_out => ISet_out
 		);

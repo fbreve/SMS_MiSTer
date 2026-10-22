@@ -860,12 +860,14 @@ wire [7:0]  ss_ddram_be;
 wire        ss_ddram_we;
 wire        ss_ddram_rd;
 wire [229:0] ss_z80_reg, ss_z80_dir;
+wire [2:0] ss_z80_restart, ss_z80_restart_dir;
+wire ss_z80_restart_valid;
 wire [2:0] ss_z80_nmi, ss_z80_nmi_dir;
 wire ss_z80_nmi_valid, ss_z80_nmi_hold;
 wire         ss_z80_set;
 wire         ss_z80_m1_n;
 wire         ss_z80_mreq_n;   // low = normal opcode fetch, high = interrupt ack
-wire   [1:0] ss_z80_iset;     // "00" = clean instruction boundary (no prefix)
+wire   [1:0] ss_z80_iset;     // "00" = eligible fetch; pending decoder context is saved separately
 wire [135:0] ss_vdp_regs, ss_vdp_regs_in;
 wire         ss_vdp_regs_set;
 wire [383:0] ss_vdp_cram;
@@ -1135,6 +1137,8 @@ system #(63) system
 
 	// Save-state interface
 	.z80_reg_out (ss_z80_reg),
+    .z80_restart_out(ss_z80_restart), .z80_restart_dir(ss_z80_restart_dir),
+    .z80_restart_valid(ss_z80_restart_valid),
     .z80_nmi_out(ss_z80_nmi), .z80_nmi_dir(ss_z80_nmi_dir),
     .z80_nmi_valid(ss_z80_nmi_valid), .z80_nmi_hold(ss_z80_nmi_hold),
 	.z80_dir     (ss_z80_dir),
@@ -1241,6 +1245,8 @@ savestates savestates_inst (
 	.x               (x),
 	// Z80
 	.z80_reg         (ss_z80_reg),
+    .z80_restart(ss_z80_restart), .z80_restart_dir(ss_z80_restart_dir),
+    .z80_restart_valid(ss_z80_restart_valid),
     .z80_nmi(ss_z80_nmi), .z80_nmi_dir(ss_z80_nmi_dir),
     .z80_nmi_valid(ss_z80_nmi_valid), .z80_nmi_hold(ss_z80_nmi_hold),
 	.z80_dir         (ss_z80_dir),
