@@ -583,6 +583,7 @@ begin
 		ss_out      => evolution_ss_out,
 		ss_in       => evolution_ss_in,
 		ss_mapper_in=> mapper_in,
+		ss_freeze   => ss_freeze,
 		ss_set      => evolution_ss_set
 	);
 

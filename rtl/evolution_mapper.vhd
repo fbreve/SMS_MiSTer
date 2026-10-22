@@ -48,6 +48,7 @@ entity evolution_mapper is
         ss_out      : out std_logic_vector(159 downto 0);
         ss_in       : in  std_logic_vector(159 downto 0) := (others => '0');
         ss_mapper_in: in  std_logic_vector(63 downto 0) := (others => '0');
+        ss_freeze   : in  std_logic := '0';
         ss_set      : in  std_logic := '0'
     );
 end entity;
@@ -135,13 +136,15 @@ begin
                 reg8d_r                    <= ss_in(71 downto 64);
                 reg8e_r                    <= ss_in(79 downto 72);
                 reg8f_r                    <= ss_in(87 downto 80);
-                old_m1_n                  <= m1_n;
+                -- CPU DIR restore restarts the saved opcode fetch with M1 low.
+                -- Do not mistake that restart for the next guest fetch.
+                old_m1_n                  <= '0';
                 switch_pending            <= '0';
-                switch_armed              <= '0';
+                switch_armed              <= ss_in(153);
                 game_started              <= ss_in(152);
-                record_read_pending_r      <= '0';
-                menu_launch_armed_r        <= '0';
-            elsif enable = '1' then
+                record_read_pending_r      <= ss_in(154);
+                menu_launch_armed_r        <= ss_in(155);
+            elsif enable = '1' and ss_freeze = '0' then
                 old_m1_n <= m1_n;
 
                 -- Delayed mode switch state machine:
@@ -257,8 +260,11 @@ begin
     -- v10 preserves 57 selector/history bits above the unchanged low 96 bits.
     -- Candidate62 equals bank62 at reset and after every port62 write, so its
     -- saved value is reconstructed from the existing low-byte port62 field.
-    -- Pending-operation phases remain outside this extension (F15).
-    ss_out <= "0000000" & game_started & prior_candidate_bank62_r &
+    -- v11 adds the three protocol flags that survive an accepted M1 capture.
+    -- switch_pending has drained before that boundary; the M1 sampler is
+    -- reconstructed from the held bus and launch is an already-consumed pulse.
+    ss_out <= "0000" & menu_launch_armed_r & record_read_pending_r &
+              switch_armed & game_started & prior_candidate_bank62_r &
               prior_candidate_bank61_r & candidate_bank61_r &
               prev_game_bank62_r & prev_game_bank61_r & game_bank62_r & game_bank61_r &
               reg3ffe_pending & reg8f_r & reg8e_r & reg8d_r & reg88_r &
