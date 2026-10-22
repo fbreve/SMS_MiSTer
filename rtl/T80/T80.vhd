@@ -120,6 +120,12 @@ entity T80 is
 		out0       : in  std_logic := '0';  -- 0 => OUT(C),0, 1 => OUT(C),255
 		REG        : out std_logic_vector(229 downto 0); -- Halt_FF, Alternate, WZ, IFF2, IFF1, IM, IY, HL', DE', BC', IX, HL, DE, BC, PC, SP, R, I, F', A', F, A
 
+		-- Normalized capture: pending, selected entry, sampled Old.
+        NMIState   : out std_logic_vector(2 downto 0);
+        NMIDIR     : in std_logic_vector(2 downto 0) := "001";
+        NMISet     : in std_logic := '0';
+        NMILegacy  : in std_logic := '0';
+        NMIHold    : in std_logic := '0';
 		DIRSet     : in  std_logic := '0';
 		DIR        : in  std_logic_vector(229 downto 0) := (others => '0'); -- Halt_FF, Alternate, WZ, IFF2, IFF1, IM, IY, HL', DE', BC', IX, HL, DE, BC, PC, SP, R, I, F', A', F, A
 		-- Prefix/instruction-set state: '00'=no prefix (clean save point)
@@ -176,6 +182,7 @@ architecture rtl of T80 is
 	signal BusAck               : std_logic;
 	signal ClkEn                : std_logic;
 	signal NMI_s                : std_logic;
+    signal OldNMI_n             : std_logic; -- Retains the original no-reset history semantics.
 	signal IStatus              : std_logic_vector(1 downto 0);
 
 	signal DI_Reg               : std_logic_vector(7 downto 0);
@@ -263,6 +270,7 @@ begin
 
 	ISet_out <= ISet;
 
+    NMIState <= (NMI_s or (OldNMI_n and not NMI_n)) & NMICycle & NMI_n;
 	REG <= Halt_FF & Alternate & WZ & IntE_FF2 & IntE_FF1 & IStatus & DOR & std_logic_vector(PC) & std_logic_vector(SP) & std_logic_vector(R) & I & Fp & Ap & F & ACC when Alternate = '0'
 			 else Halt_FF & Alternate & WZ & IntE_FF2 & IntE_FF1 & IStatus & DOR(127 downto 112) & DOR(47 downto 0) & DOR(63 downto 48) & DOR(111 downto 64) &
 						std_logic_vector(PC) & std_logic_vector(SP) & std_logic_vector(R) & I & Fp & Ap & F & ACC;
@@ -1087,7 +1095,7 @@ begin
 --
 -------------------------------------------------------------------------
 	process (RESET_n, CLK_n)
-		variable OldNMI_n : std_logic;
+
 	begin
 		if RESET_n = '0' then
 			MCycle <= "001";
@@ -1127,10 +1135,17 @@ begin
 				BusReq_s <= '0';
 				NMI_s <= '0';
 			else
-				if NMI_n = '0' and OldNMI_n = '1' then
-					NMI_s <= '1';
-				end if;
-				OldNMI_n := NMI_n;
+                -- DIRSet above always wins. Apply T-time history only afterwards,
+                -- with CEN stopped by the wrapper's restart protocol.
+                if NMISet = '1' then
+                    NMI_s <= NMIDIR(2); NMICycle <= NMIDIR(1); OldNMI_n <= NMIDIR(0);
+                    if NMILegacy = '1' then
+                        NMI_s <= '0'; NMICycle <= '0'; OldNMI_n <= NMI_n;
+                    end if;
+                elsif NMIHold = '0' then
+                    if NMI_n = '0' and OldNMI_n = '1' then NMI_s <= '1'; end if;
+                    OldNMI_n <= NMI_n;
+                end if;
 
 				if CEN = '1' then
 					BusReq_s <= not BUSRQ_n;

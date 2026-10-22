@@ -98,6 +98,12 @@ entity T80s is
 		-- Save state: snapshot of all Z80 registers
 		-- WZ,IFF2,IFF1,IM,IY,HL',DE',BC',IX,HL,DE,BC,PC,SP,R,I,F',A',F,A
 		REG        : out std_logic_vector(229 downto 0);
+        NMIState   : out std_logic_vector(2 downto 0);
+        NMIDIR     : in std_logic_vector(2 downto 0) := "001";
+        NMIValid   : in std_logic := '0';
+        NMIEnable  : in std_logic := '0';
+        NMIHold    : in std_logic := '0';
+        NMIReplay  : out std_logic;
 		DIRSet     : in  std_logic := '0';
 		DIR        : in  std_logic_vector(229 downto 0) := (others => '0');
 		-- Prefix/instruction-set state forwarded from T80
@@ -106,6 +112,10 @@ entity T80s is
 end T80s;
 
 architecture rtl of T80s is
+    -- 00 live; 01 install history with CPU stopped; 10 T1; 11 historical T2.
+    signal nmi_restart : std_logic_vector(1 downto 0) := "00";
+    signal nmi_apply, nmi_hold_i, cen_i : std_logic;
+
 
 	signal IntCycle_n	: std_logic;
 	signal NoRead		: std_logic;
@@ -117,12 +127,28 @@ architecture rtl of T80s is
 
 begin
 
+    nmi_apply <= '1' when nmi_restart="01" and DIRSet='0' and NMIHold='0' else '0';
+    nmi_hold_i <= '1' when NMIHold='1' or nmi_restart/="00" else '0';
+    cen_i <= CEN when nmi_restart/="01" else '0';
+    NMIReplay <= '1' when nmi_restart/="00" else '0';
+    process (RESET_n, CLK)
+    begin
+        if RESET_n='0' then nmi_restart <= "00";
+        elsif rising_edge(CLK) then
+            if DIRSet='1' and NMIEnable='1' then nmi_restart <= "01";
+            elsif nmi_apply='1' then nmi_restart <= "10";
+            elsif CEN='1' and nmi_restart="10" then nmi_restart <= "11";
+            elsif CEN='1' and nmi_restart="11" then nmi_restart <= "00";
+            end if;
+        end if;
+    end process;
+
 	u0 : work.T80
 		generic map(
 			Mode => Mode,
 			IOWait => IOWait)
 		port map(
-			CEN => CEN,
+			CEN => cen_i,
 			M1_n => M1_n,
 			IORQ => IORQ,
 			NoRead => NoRead,
@@ -145,7 +171,9 @@ begin
 			OUT0 => OUT0,
 			IntCycle_n => IntCycle_n,
 			REG => REG,
-			DIRSet => DIRSet,
+			NMIState => NMIState, NMIDIR => NMIDIR, NMISet => nmi_apply,
+            NMILegacy => not NMIValid, NMIHold => nmi_hold_i,
+            DIRSet => DIRSet,
 			DIR => DIR,
 			ISet_out => ISet_out
 		);
@@ -164,7 +192,7 @@ begin
 				WR_n <= '1';
 				IORQ_n <= '1';
 				MREQ_n <= '1';
-			elsif CEN = '1' then
+			elsif cen_i = '1' then
 				RD_n <= '1';
 				WR_n <= '1';
 				IORQ_n <= '1';

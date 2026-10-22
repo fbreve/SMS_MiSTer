@@ -860,6 +860,8 @@ wire [7:0]  ss_ddram_be;
 wire        ss_ddram_we;
 wire        ss_ddram_rd;
 wire [229:0] ss_z80_reg, ss_z80_dir;
+wire [2:0] ss_z80_nmi, ss_z80_nmi_dir;
+wire ss_z80_nmi_valid, ss_z80_nmi_hold;
 wire         ss_z80_set;
 wire         ss_z80_m1_n;
 wire         ss_z80_mreq_n;   // low = normal opcode fetch, high = interrupt ack
@@ -1133,6 +1135,8 @@ system #(63) system
 
 	// Save-state interface
 	.z80_reg_out (ss_z80_reg),
+    .z80_nmi_out(ss_z80_nmi), .z80_nmi_dir(ss_z80_nmi_dir),
+    .z80_nmi_valid(ss_z80_nmi_valid), .z80_nmi_hold(ss_z80_nmi_hold),
 	.z80_dir     (ss_z80_dir),
 	.z80_set     (ss_z80_set),
 	.vdp_regs_out(ss_vdp_regs),
@@ -1237,6 +1241,8 @@ savestates savestates_inst (
 	.x               (x),
 	// Z80
 	.z80_reg         (ss_z80_reg),
+    .z80_nmi(ss_z80_nmi), .z80_nmi_dir(ss_z80_nmi_dir),
+    .z80_nmi_valid(ss_z80_nmi_valid), .z80_nmi_hold(ss_z80_nmi_hold),
 	.z80_dir         (ss_z80_dir),
 	.z80_set         (ss_z80_set),
 	.z80_m1_n        (ss_z80_m1_n),

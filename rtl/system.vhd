@@ -149,6 +149,10 @@ entity system is
 		-- Save-state interface
 		z80_reg_out  : out STD_LOGIC_VECTOR(229 downto 0);
 		z80_dir      : in  STD_LOGIC_VECTOR(229 downto 0) := (others => '0');
+        z80_nmi_out : out STD_LOGIC_VECTOR(2 downto 0);
+        z80_nmi_dir : in STD_LOGIC_VECTOR(2 downto 0) := "001";
+        z80_nmi_valid : in STD_LOGIC := '0';
+        z80_nmi_hold : in STD_LOGIC := '0';
 		z80_set      : in  STD_LOGIC := '0';
 		vdp_regs_out : out STD_LOGIC_VECTOR(135 downto 0);
 		vdp_regs_in  : in  STD_LOGIC_VECTOR(135 downto 0) := (others => '0');
@@ -237,6 +241,7 @@ architecture Behavioral of system is
 	signal IORQ_n:				std_logic;
 	signal M1_n:				std_logic;
 	signal MREQ_n:				std_logic;
+	signal nmi_replay_hold : std_logic;
 	signal z80_iset_int:		std_logic_vector(1 downto 0);
 	signal A:					std_logic_vector(15 downto 0);
 	signal D_in:				std_logic_vector(7 downto 0);
@@ -627,7 +632,9 @@ begin
 		DI			=> GENIE_DI,
 		DO			=> D_in,
 		REG    => z80_reg_out,
-		DIRSet => z80_set,
+		NMIState => z80_nmi_out, NMIDIR => z80_nmi_dir, NMIValid => z80_nmi_valid,
+        NMIEnable => '1', NMIHold => z80_nmi_hold, NMIReplay => nmi_replay_hold,
+        DIRSet => z80_set,
 		DIR    => z80_dir,
 		ISet_out => z80_iset_int
 	);
@@ -958,7 +965,7 @@ port map(
 		evolution_reg8d => evolution_8d,
 		evolution_reg8e => evolution_8e,
 		evolution_reg8f => evolution_8f,
-		ss_freeze     => ss_freeze,
+		ss_freeze     => ss_freeze or nmi_replay_hold,
 		RESET_n	=> RESET_n
 	);
 	
