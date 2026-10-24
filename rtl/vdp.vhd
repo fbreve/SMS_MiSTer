@@ -89,6 +89,9 @@ entity vdp is
 		--  [127:120]      bg_scroll_x_latched
 		--  [135:128]      latched_x (versioned extension in the video word)
 		-- Low 128 bits retain their established two-word layout.
+ ss_bg_out: out std_logic_vector(138 downto 0);
+ ss_bg_in: in std_logic_vector(138 downto 0) := (others=>'0');
+ ss_bg_valid: in std_logic := '0';
  ss_sprite_out: out std_logic_vector(74*(MAX_SPPL+1)+41 downto 0);
  ss_sprite_in: in std_logic_vector(74*(MAX_SPPL+1)+41 downto 0) := (others=>'0');
  ss_sprite_valid: in std_logic := '0';ss_freeze:in std_logic := '0';
@@ -228,6 +231,7 @@ begin
 				
 		x					=> x,
 		y					=> y,
+        ss_bg_out=>ss_bg_out,ss_bg_in=>ss_bg_in,ss_bg_valid=>ss_bg_valid,
         ss_sprite_out=>ss_sprite_out(74*(MAX_SPPL+1)+27 downto 0),
         ss_sprite_in=>ss_sprite_in(74*(MAX_SPPL+1)+27 downto 0),ss_sprite_valid=>ss_sprite_valid,
 		ss_regs_set		    => ss_regs_set,

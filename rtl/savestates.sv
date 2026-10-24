@@ -7,6 +7,8 @@
 //   Word 0x002-0x005: Z80 REG[229:0]; v12 word5[40:38]=NMI pending/entry/Old,
 //                   v13 word5[43:41]=pre-T2 decoder class; [63:44]=zero.
 //                   v13 tag=48430d, subtype=3 at word01a. v12 has zero [63:41].
+//   v15 tag=48430f adds139-bit background records, retaining v14 restart.
+//   Word032: width139/version15/G5B1; words033..038: two padded records.
 //   v14 tag=48430e, subtype3, retaining the v13 CPU word layout.
 //   Word 0x02e: sprite descriptor (width4778, version14, owner G6R1).
 //   Word 0x02f: [1:0] capture phase0/10/20/25, [2] System E,
@@ -52,6 +54,10 @@ module savestates (
     output      [1:0] clock_phase_in,
     output reg        clock_phase_set,
     input             clock_phase_ready,
+    // v15 minimal live background history, independently owned per VDP.
+    input [138:0] bg_out, bg2_out,
+    output [138:0] bg_in, bg2_in,
+    output bg_valid,
     input [4777:0] sprite_out, sprite2_out,
     output [4777:0] sprite_in, sprite2_in,
     output sprite_valid,
@@ -421,6 +427,23 @@ wire [14:0] nvram_size_minus_1 = transfer_eeprom ? 15'd127 :
 
 // v14: 02e descriptor, 02f phase/owner, 2901..2996 two sprite records.
 localparam [23:0] RESTART_MAGIC = 24'h48430e;
+localparam [23:0] BACKGROUND_MAGIC = 24'h48430f;
+localparam [63:0] BACKGROUND_DESC = {16'd139,8'd15,8'd0,32'h47354231};
+localparam ST_SAVE_BG_DESC=7'd107, ST_SAVE_BG=7'd108,
+           ST_LOAD_BG_DESC=7'd109, ST_LOAD_BG=7'd110;
+reg [138:0] bg_snap,bg2_snap;
+reg [1:0] bg_word;
+reg bg_second,has_background;
+assign bg_in=bg_snap;
+assign bg2_in=bg2_snap;
+assign bg_valid=has_background;
+wire [28:0] bg_address=29'h033+(bg_second?29'd3:29'd0)+{27'd0,bg_word};
+// Three sequential transfers over139 useful bits: rotate64/64/11 on SAVE,
+// shift64/64/11 on LOAD. No padded register bank or indexed wide crossbar.
+wire [63:0] bg_write_word=bg_second ?
+    (bg_word==2?{53'd0,bg2_snap[10:0]}:bg2_snap[63:0]) :
+    (bg_word==2?{53'd0,bg_snap[10:0]}:bg_snap[63:0]);
+
 localparam [63:0] SPRITE_DESC = {16'd4778,8'd14,8'd0,32'h47365231};
 localparam ST_SAVE_SPRITE_DESC=7'd99, ST_SAVE_PHASE=7'd100, ST_SAVE_SPRITE=7'd101,
            ST_LOAD_SPRITE_DESC=7'd102, ST_LOAD_PHASE=7'd103, ST_LOAD_SPRITE=7'd104,
@@ -502,7 +525,7 @@ reg  [63:0] eeprom_snap;
 // SC payload shares 0d01..1d00, never the System E or EEPROM regions.
 // 01e: [22:0] P1, [45:23] P2, [63:46] zero. Per port:
 // [16:0] timer, [19:17] rises, [20] TH history, [22:21] type history.
-wire [63:0] video_word = {RESTART_MAGIC, 2'd3,
+wire [63:0] video_word = {BACKGROUND_MAGIC, 2'd3,
                          systeme ? vdp2_snap[135:128] : 8'd0,
                          vdp_snap[135:128], video_snap};
 
@@ -541,8 +564,11 @@ reg         nvram_d_latched;
 
 // Shared latch for DDRAM read data (LOAD path)
 reg [63:0]  dout_latch;
+wire bg_word_invalid=(bg_word==2 && dout_latch[63:11]!=0) ||
+    (bg_word==0 && dout_latch[22:15]>=8'd240) ||
+    (bg_second && !systeme && dout_latch!=0);
 // v13 inherits v12 NMI and every v11 extension location and meaning.
-wire modern_restart_tag = dout_latch[63:40] == CPU_RESTART_MAGIC || dout_latch[63:40] == RESTART_MAGIC;
+wire modern_restart_tag = dout_latch[63:40] == CPU_RESTART_MAGIC || dout_latch[63:40] == RESTART_MAGIC || dout_latch[63:40] == BACKGROUND_MAGIC;
 wire modern_nmi_tag = dout_latch[63:40] == NMI_HISTORY_MAGIC || modern_restart_tag;
 wire [23:0] load_ext_magic = modern_nmi_tag ? EVOLUTION_PENDING_MAGIC : dout_latch[63:40];
 wire invalid_nmi_header = modern_nmi_tag &&
@@ -689,7 +715,12 @@ always @(*) begin
         ST_LOAD_PHASE: if (!dout_expected && !DDRAM_BUSY && dout_latch[63:4]==0 && dout_latch[2]==systeme) ddram_cmd_read(base_addr+29'h2901);
         ST_LOAD_SPRITE: if (!dout_expected && !DDRAM_BUSY &&
             !(sprite_word==74 && dout_latch[63:42]!=0) && !(sprite_second && !systeme && dout_latch!=0))
-            ddram_cmd_read(base_addr+((sprite_second && sprite_word==74)?29'h01f:sprite_address+29'd1));
+            ddram_cmd_read(base_addr+((sprite_second && sprite_word==74)?(has_background?29'h032:29'h01f):sprite_address+29'd1));
+        ST_SAVE_BG_DESC: if (!DDRAM_BUSY) ddram_cmd_write(base_addr+29'h032,BACKGROUND_DESC,8'hff);
+        ST_SAVE_BG: if (!DDRAM_BUSY) ddram_cmd_write(base_addr+bg_address,bg_write_word,8'hff);
+        ST_LOAD_BG_DESC: if (!dout_expected && !DDRAM_BUSY && dout_latch==BACKGROUND_DESC) ddram_cmd_read(base_addr+29'h033);
+        ST_LOAD_BG: if (!dout_expected && !DDRAM_BUSY && !bg_word_invalid)
+            ddram_cmd_read(base_addr+((bg_second && bg_word==2)?29'h01f:bg_address+29'd1));
         ST_SAVE_EVOLUTION1: if (!DDRAM_BUSY) ddram_cmd_write(base_addr + 29'h02d, EVOLUTION_HISTORY_DESC, 8'hFF);
         ST_LOAD_EVOLUTION0: if (!(DDRAM_DOUT_READY && dout_expected) && !dout_expected && !DDRAM_BUSY) ddram_cmd_read(base_addr + 29'h02d);
         ST_LOAD_EVOLUTION1: if (!(DDRAM_DOUT_READY && dout_expected) && !dout_expected && !DDRAM_BUSY)
@@ -969,6 +1000,7 @@ always @(posedge clk or negedge reset_n) begin
         z80_nmi_hold <= 0; nmi_snap <= 3'b001; has_nmi_history <= 0; nmi_padding_ok <= 1;
         has_restart_context <= 0; restart_snap <= 0; restart_padding_ok <= 1;
         has_restart <= 0; phase_snap <= 0; sprite_snap <= 0; sprite2_snap <= 0;
+        has_background<=0;bg_snap<=0;bg2_snap<=0;bg_word<=0;bg_second<=0;
         ss_change_det   <= 0;
         cur_magic       <= MAGIC;
         cur_game_id     <= 0;
@@ -1121,6 +1153,8 @@ always @(posedge clk or negedge reset_n) begin
             nvram_refill <= 0;
             // Guest hold was asserted at accepted T. Collect post-T device
             // state here, before any subsequent guest enable is admitted.
+            bg_snap<=bg_out;bg2_snap<=systeme?bg2_out:139'd0;
+            has_background<=1;
             sprite_snap <= {22'd0,sprite_out};
             sprite2_snap <= systeme ? {22'd0,sprite2_out} : 4800'd0;
             vdp_snap    <= vdp_regs;
@@ -1397,7 +1431,7 @@ always @(posedge clk or negedge reset_n) begin
             else sprite_snap <= {sprite_snap[63:0],sprite_snap[4799:64]};
             if (sprite_word==74) begin
                 sprite_word<=0;sprite_second<=1;
-                if (sprite_second) state<=ST_SAVE_EE_DESC;
+                if (sprite_second) state<=ST_SAVE_BG_DESC;
             end else sprite_word<=sprite_word+7'd1;
         end
         ST_LOAD_SPRITE_DESC, ST_LOAD_PHASE, ST_LOAD_SPRITE: begin
@@ -1418,7 +1452,8 @@ always @(posedge clk or negedge reset_n) begin
                         if (sprite_second) sprite2_snap <= {dout_latch,sprite2_snap[4799:64]};
                         else sprite_snap <= {dout_latch,sprite_snap[4799:64]};
                         if (sprite_second && sprite_word==74) begin
-                            ddram_read(base_addr+29'h01f);state<=ST_LOAD_EE_DESC;
+                            ddram_read(base_addr+(has_background?29'h032:29'h01f));
+                            state<=has_background?ST_LOAD_BG_DESC:ST_LOAD_EE_DESC;
                         end else begin
                             ddram_read(base_addr+sprite_address+29'd1);
                             if (sprite_word==74) begin sprite_word<=0;sprite_second<=1;end
@@ -1426,6 +1461,49 @@ always @(posedge clk or negedge reset_n) begin
                         end
                     end
                 endcase
+            end
+        end
+        ST_SAVE_BG_DESC: if (!DDRAM_BUSY) begin
+            ddram_write(base_addr+29'h032,BACKGROUND_DESC,8'hff);
+            bg_word<=0;bg_second<=0;state<=ST_SAVE_BG;
+        end
+        ST_SAVE_BG: if (!DDRAM_BUSY) begin
+            ddram_write(base_addr+bg_address,bg_write_word,8'hff);
+            if (bg_second) begin
+                if (bg_word==2) bg2_snap<={bg2_snap[10:0],bg2_snap[138:11]};
+                else bg2_snap<={bg2_snap[63:0],bg2_snap[138:64]};
+            end else begin
+                if (bg_word==2) bg_snap<={bg_snap[10:0],bg_snap[138:11]};
+                else bg_snap<={bg_snap[63:0],bg_snap[138:64]};
+            end
+            if (bg_word==2) begin
+                bg_word<=0;bg_second<=1;
+                if (bg_second) state<=ST_SAVE_EE_DESC;
+            end else bg_word<=bg_word+2'd1;
+        end
+        ST_LOAD_BG_DESC,ST_LOAD_BG: begin
+            if (DDRAM_DOUT_READY && dout_expected) begin
+                dout_expected<=0;dout_latch<=DDRAM_DOUT;
+            end else if (!dout_expected && !DDRAM_BUSY) begin
+                if (state==ST_LOAD_BG_DESC) begin
+                    if (dout_latch!=BACKGROUND_DESC) state<=ST_ERROR;
+                    else begin bg_word<=0;bg_second<=0;ddram_read(base_addr+29'h033);state<=ST_LOAD_BG;end
+                end else if (bg_word_invalid) state<=ST_ERROR;
+                else begin
+                    if (bg_second) begin
+                        if (bg_word==2) bg2_snap<={dout_latch[10:0],bg2_snap[138:11]};
+                        else bg2_snap<={dout_latch,bg2_snap[138:64]};
+                    end else begin
+                        if (bg_word==2) bg_snap<={dout_latch[10:0],bg_snap[138:11]};
+                        else bg_snap<={dout_latch,bg_snap[138:64]};
+                    end
+                    if (bg_second && bg_word==2) begin ddram_read(base_addr+29'h01f);state<=ST_LOAD_EE_DESC;end
+                    else begin
+                        ddram_read(base_addr+bg_address+29'd1);
+                        if (bg_word==2) begin bg_word<=0;bg_second<=1;end
+                        else bg_word<=bg_word+2'd1;
+                    end
+                end
             end
         end
         ST_SAVE_EVOLUTION1: begin
@@ -1804,6 +1882,7 @@ always @(posedge clk or negedge reset_n) begin
                 has_nmi_history <= 0; nmi_snap <= 3'b001; nmi_padding_ok <= 1;
                 has_restart_context <= 0; restart_snap <= 0; restart_padding_ok <= 1;
         has_restart <= 0; phase_snap <= 0; sprite_snap <= 0; sprite2_snap <= 0;
+        has_background<=0;bg_snap<=0;bg2_snap<=0;bg_word<=0;bg_second<=0;
                 // Old 64KB files have no beam history: use a deterministic origin.
                 video_snap <= 0;
                 // Old 64KB files bypass ST_LOAD_VIDEO entirely.
@@ -2045,7 +2124,8 @@ always @(posedge clk or negedge reset_n) begin
             end else if (!dout_expected && !DDRAM_BUSY) begin
                 has_nmi_history <= modern_nmi_tag;
                 has_restart_context <= modern_restart_tag;
-                has_restart <= dout_latch[63:40] == RESTART_MAGIC;
+                has_restart <= dout_latch[63:40] == RESTART_MAGIC || dout_latch[63:40] == BACKGROUND_MAGIC;
+                has_background <= dout_latch[63:40] == BACKGROUND_MAGIC;
                 has_evolution_history <= (load_ext_magic == EVOLUTION_HISTORY_MAGIC || load_ext_magic == EVOLUTION_PENDING_MAGIC) && dout_latch[39:38] == 2'd3;
                 if (invalid_nmi_header || (live_evolution || evolution_state) && (!evolution_state || load_ext_magic != EVOLUTION_PENDING_MAGIC || dout_latch[39:38] != 2'd3)) begin
                     state <= ST_ERROR;

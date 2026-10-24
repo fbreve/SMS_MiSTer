@@ -5,6 +5,9 @@ use IEEE.STD_LOGIC_UNSIGNED.ALL;
 
 entity vdp_background is
 port (
+ ss_bg_out: out std_logic_vector(138 downto 0);
+ ss_bg_in: in std_logic_vector(138 downto 0) := (others=>'0');
+ ss_bg_valid: in std_logic := '0';
 	clk_sys:			in  STD_LOGIC;
 	ce_pix:				in  STD_LOGIC;
 	reset:				in  std_logic;
@@ -37,6 +40,9 @@ port (
 end entity;
 
 architecture rtl of vdp_background is
+ signal bg_vram_address: std_logic_vector(13 downto 0);
+ signal bg_priority: std_logic;
+ signal text_position: std_logic_vector(7 downto 0);
 
 	signal tile_index		: std_logic_vector (8 downto 0);
 	signal x				: std_logic_vector (7 downto 0);
@@ -72,7 +78,10 @@ architecture rtl of vdp_background is
 	signal gfx1_mode		: std_logic;
 
 begin
-
+ vram_A <= bg_vram_address;
+ priority <= bg_priority;
+ text_position <= conv_std_logic_vector(conv_integer(text_column)*6+conv_integer(text_phase),8);
+ ss_bg_out <= tile_index & x & tile_y & palette & palette_shift & priority_latch & flip_x & datac & data0 & data1 & data2 & data3 & shift0 & shift1 & shift2 & shift3 & text_shift & text_tile_index & text_pattern(7 downto 2) & text_position & bg_vram_address & bg_priority;
 	text_mode <= '1' when smode_M4='0' and mode_M1_raw='1' and mode_M2_raw='0' and mode_M3_raw='0' else '0';
 	gfx1_mode <= '1' when smode_M4='0' and mode_M1_raw='0' and mode_M2_raw='0' and mode_M3_raw='0' else '0';
 
@@ -82,14 +91,9 @@ begin
 	process (clk_sys) begin
 		if rising_edge(clk_sys) then
 			if ss_restore = '1' then
-				if smode_M4='0' then
-					x <= "11110000" ; -- 240
-				elsif disable_hscroll='0' or screen_y>=16 then
-					x <= 232-scroll_x_latched;
-				else
-					x <= "11101000"; -- 256-24=232
-				end if;
-			elsif ce_pix = '1' then
+                if ss_bg_valid='1' then x <= ss_bg_in(129 downto 122);
+                else x <= (others=>'0'); end if;
+            elsif ce_pix = '1' then
 				if (reset='1') then
 					if smode_M4='0' then
 						x <= "11110000" ; -- 240
@@ -118,8 +122,12 @@ begin
 	process (clk_sys) begin
 		if rising_edge(clk_sys) then
 			if ss_restore = '1' then
-				text_phase  <= (others=>'0');
-				text_column <= (others=>'0');
+				if ss_bg_valid='1' then
+                    text_phase <= conv_std_logic_vector(conv_integer(ss_bg_in(22 downto 15)) mod 6,3);
+                    text_column <= conv_std_logic_vector(conv_integer(ss_bg_in(22 downto 15)) / 6,6);
+                else
+                    text_phase <= (others=>'0'); text_column <= (others=>'0');
+                end if;
 			elsif ce_pix = '1' then
 				if reset='1' or text_mode='0' then
 					text_phase  <= (others=>'0');
@@ -153,17 +161,20 @@ begin
 		variable text_name		: integer;
 	begin
 		if rising_edge(clk_sys) then
-			if ce_pix = '1' then
-				sx := conv_integer(screen_x);
+			if ss_restore='1' then
+                if ss_bg_valid='1' then bg_vram_address <= ss_bg_in(14 downto 1);
+                else bg_vram_address <= (others=>'0'); end if;
+            elsif ce_pix = '1' then
+                sx := conv_integer(screen_x);
 
 				if text_mode='1' then
 					text_row := conv_integer(y(7 downto 3));
 					if sx < 8 then
 						case sx is
 						when 0 =>
-							vram_A <= table_address & conv_std_logic_vector(text_row * 40, 10);
+							bg_vram_address <= table_address & conv_std_logic_vector(text_row * 40, 10);
 						when 2 =>
-							vram_A <= pt_address & text_tile_index & y(2 downto 0);
+							bg_vram_address <= pt_address & text_tile_index & y(2 downto 0);
 						when others =>
 							null;
 						end case;
@@ -172,11 +183,11 @@ begin
 						when "000" =>
 							if text_column < "100111" then
 								text_name := (text_row * 40) + conv_integer(text_column) + 1;
-								vram_A <= table_address & conv_std_logic_vector(text_name, 10);
+								bg_vram_address <= table_address & conv_std_logic_vector(text_name, 10);
 							end if;
 						when "010" =>
 							if text_column < "100111" then
-								vram_A <= pt_address & text_tile_index & y(2 downto 0);
+								bg_vram_address <= pt_address & text_tile_index & y(2 downto 0);
 							end if;
 						when others =>
 							null;
@@ -202,12 +213,12 @@ begin
 					data_address              := tile_index & tile_y;
 
 					case x(2 downto 0) is
-					when "000" => vram_A <= char_address & "0";
-					when "001" => vram_A <= char_address & "1";
-					when "011" => vram_A <= data_address & "00";
-					when "100" => vram_A <= data_address & "01";
-					when "101" => vram_A <= data_address & "10";
-					when "110" => vram_A <= data_address & "11";
+					when "000" => bg_vram_address <= char_address & "0";
+					when "001" => bg_vram_address <= char_address & "1";
+					when "011" => bg_vram_address <= data_address & "00";
+					when "100" => bg_vram_address <= data_address & "01";
+					when "101" => bg_vram_address <= data_address & "10";
+					when "110" => bg_vram_address <= data_address & "11";
 					when others =>
 					end case;
 
@@ -218,23 +229,23 @@ begin
 					--   "010" -> pattern table (pattern byte captured at "011" into datac)
 					--   "011" -> color table  (color byte available on vram_D at "100")
 					case x(2 downto 0) is
-					when "000" => vram_A <= table_address & y(7 downto 3) & x(7 downto 3);
+					when "000" => bg_vram_address <= table_address & y(7 downto 3) & x(7 downto 3);
 					when "010" =>
 						if gfx1_mode='1' then
 							-- Graphics I: flat pattern table
-							vram_A <= pt_address & tile_index(7 downto 0) & y(2 downto 0);
+							bg_vram_address <= pt_address & tile_index(7 downto 0) & y(2 downto 0);
 						else
 							-- Graphics II (Mode 2): banked pattern table
-							vram_A <= pt_address(13) & (y(7 downto 6) and pt_address(12 downto 11)) &
+							bg_vram_address <= pt_address(13) & (y(7 downto 6) and pt_address(12 downto 11)) &
 									  tile_index(7 downto 0) & y(2 downto 0);
 						end if;
 					when "011" =>
 						if gfx1_mode='1' then
 							-- Graphics I: flat color table (one byte per 8 tiles)
-							vram_A <= ct_address(13 downto 6) & '0' & tile_index(7 downto 3);
+							bg_vram_address <= ct_address(13 downto 6) & '0' & tile_index(7 downto 3);
 						else
 							-- Graphics II (Mode 2): banked color table
-							vram_A <= ct_address(13) &
+							bg_vram_address <= ct_address(13) &
 									  ((y(7 downto 6) & tile_index(7 downto 3)) and ct_address(12 downto 6)) &
 									  tile_index(2 downto 0) & y(2 downto 0);
 						end if;
@@ -251,19 +262,34 @@ begin
 	process (clk_sys) begin
 		if rising_edge(clk_sys) then
 			if ss_restore = '1' then
-				text_tile_index <= (others => '0');
-				text_pattern    <= (others => '0');
-				tile_index      <= (others => '0');
-				flip_x          <= '0';
-				tile_y          <= (others => '0');
-				palette         <= '0';
-				priority_latch  <= '0';
-				data0           <= (others => '0');
-				data1           <= (others => '0');
-				data2           <= (others => '0');
-				data3           <= (others => '0');
-				datac           <= (others => '0');
-			elsif ce_pix = '1' then
+                if ss_bg_valid='1' then
+                    text_tile_index <= ss_bg_in(36 downto 29);
+                    tile_index <= ss_bg_in(138 downto 130);
+                    flip_x <= ss_bg_in(115);
+                    tile_y <= ss_bg_in(121 downto 119);
+                    palette <= ss_bg_in(118);
+                    priority_latch <= ss_bg_in(116);
+                    data0 <= ss_bg_in(106 downto 99);
+                    data1 <= ss_bg_in(98 downto 91);
+                    data2 <= ss_bg_in(90 downto 83);
+                    data3 <= ss_bg_in(82 downto 75);
+                    datac <= ss_bg_in(114 downto 107);
+                    text_pattern <= ss_bg_in(28 downto 23) & "00";
+                else
+                    text_tile_index <= (others=>'0');
+                    tile_index <= (others=>'0');
+                    flip_x <= '0';
+                    tile_y <= (others=>'0');
+                    palette <= '0';
+                    priority_latch <= '0';
+                    data0 <= (others=>'0');
+                    data1 <= (others=>'0');
+                    data2 <= (others=>'0');
+                    data3 <= (others=>'0');
+                    datac <= (others=>'0');
+                    text_pattern <= (others=>'0');
+                end if;
+            elsif ce_pix = '1' then
 				if text_mode='1' then
 					if conv_integer(screen_x)=1 then
 						text_tile_index <= vram_D;
@@ -347,29 +373,39 @@ begin
 	process (clk_sys) begin
 		if rising_edge(clk_sys) then
 			if ss_restore = '1' then
-				text_shift    <= (others => '0');
-				shift0        <= (others => '0');
-				shift1        <= (others => '0');
-				shift2        <= (others => '0');
-				shift3        <= (others => '0');
-				palette_shift <= '0';
-				priority      <= '0';
-			elsif ce_pix = '1' then
+                if ss_bg_valid='1' then
+                    text_shift <= ss_bg_in(42 downto 37);
+                    shift0 <= ss_bg_in(74 downto 67);
+                    shift1 <= ss_bg_in(66 downto 59);
+                    shift2 <= ss_bg_in(58 downto 51);
+                    shift3 <= ss_bg_in(50 downto 43);
+                    palette_shift <= ss_bg_in(117);
+                    bg_priority <= ss_bg_in(0);
+                else
+                    text_shift <= (others=>'0');
+                    shift0 <= (others=>'0');
+                    shift1 <= (others=>'0');
+                    shift2 <= (others=>'0');
+                    shift3 <= (others=>'0');
+                    palette_shift <= '0';
+                    bg_priority <= '0';
+                end if;
+            elsif ce_pix = '1' then
 				if text_mode='1' then
 					if conv_integer(screen_x)=7 then
 						text_shift <= text_pattern(7 downto 2);
-						priority   <= '0';
+						bg_priority <= '0';
 					elsif conv_integer(screen_x)>=8 and conv_integer(screen_x)<248 then
 						if text_phase="101" then
 							text_shift <= text_pattern(7 downto 2);
-							priority   <= '0';
+							bg_priority <= '0';
 						else
 							text_shift(5 downto 1) <= text_shift(4 downto 0);
 							text_shift(0)          <= '0';
 						end if;
 					else
 						text_shift <= (others=>'0');
-						priority   <= '0';
+						bg_priority <= '0';
 					end if;
 				else
 					case x(2 downto 0) is
@@ -390,7 +426,7 @@ begin
 							shift3 <= vram_D(0)&vram_D(1)&vram_D(2)&vram_D(3)&vram_D(4)&vram_D(5)&vram_D(6)&vram_D(7);
 						end if;
 						palette_shift <= palette;
-						priority      <= priority_latch;
+						bg_priority <= priority_latch;
 					when others =>
 						shift0(7 downto 1) <= shift0(6 downto 0);
 						shift1(7 downto 1) <= shift1(6 downto 0);

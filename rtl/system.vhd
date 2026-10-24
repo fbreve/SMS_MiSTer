@@ -235,6 +235,9 @@ entity system is
         z80_replay_out : out std_logic;
         z80_tick_out : out std_logic;
         z80_replay_t2 : in std_logic := '1';
+        ss_bg_out, ss_bg2_out : out std_logic_vector(138 downto 0);
+        ss_bg_in, ss_bg2_in : in std_logic_vector(138 downto 0) := (others=>'0');
+        ss_bg_valid : in std_logic := '0';
         ss_sprite_out, ss_sprite2_out : out std_logic_vector(74*(MAX_SPPL+1)+41 downto 0);
         ss_sprite_in, ss_sprite2_in : in std_logic_vector(74*(MAX_SPPL+1)+41 downto 0) := (others=>'0');
         ss_sprite_valid : in std_logic := '0';
@@ -703,6 +706,7 @@ begin
 		smode_M4	=> smode_M4,
 		ysj_quirk	=> ysj_quirk,
 		reset_n  => RESET_n,
+		ss_bg_out=>ss_bg_out,ss_bg_in=>ss_bg_in,ss_bg_valid=>ss_bg_valid,
 		ss_sprite_out=>ss_sprite_out,ss_sprite_in=>ss_sprite_in,ss_sprite_valid=>ss_sprite_valid,ss_freeze=>ss_freeze,
 		ss_regs_out => vdp_regs_out,
 		ss_regs_in  => vdp_regs_in,
@@ -760,6 +764,7 @@ begin
 		smode_M4	=> open,
 		ysj_quirk	=> ysj_quirk,
 		reset_n  => RESET_n,
+		ss_bg_out=>ss_bg2_out,ss_bg_in=>ss_bg2_in,ss_bg_valid=>ss_bg_valid,
 		ss_sprite_out=>ss_sprite2_out,ss_sprite_in=>ss_sprite2_in,ss_sprite_valid=>ss_sprite_valid,ss_freeze=>ss_freeze,
 		ss_regs_out => vdp2_regs_out_i,
 		ss_regs_in  => vdp2_regs_in,

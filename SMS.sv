@@ -45,6 +45,8 @@ wire [1:0] ss_phase_in;
 wire [1:0] ss_phase_out;
 wire [4777:0] ss_sprite_out,ss_sprite2_out,ss_sprite_in,ss_sprite2_in;
 wire ss_sprite_valid;
+wire [138:0] ss_bg_out,ss_bg2_out,ss_bg_in,ss_bg2_in;
+wire ss_bg_valid;
 wire ss_capture_progress;
 reg  ss_freeze_r;
 always @(posedge clk_sys) begin
@@ -1006,6 +1008,7 @@ system #(63) system
 	.ss_freeze(ss_freeze),
     .ss_cpu_prepare(ss_cpu_prepare),.ss_prepare_ce(ce_cpu),.z80_replay_out(ss_z80_replay),
     .z80_tick_out(ss_z80_tick),.z80_replay_t2(ss_replay_t2),
+    .ss_bg_out(ss_bg_out),.ss_bg2_out(ss_bg2_out),.ss_bg_in(ss_bg_in),.ss_bg2_in(ss_bg2_in),.ss_bg_valid(ss_bg_valid),
     .ss_sprite_out(ss_sprite_out),.ss_sprite2_out(ss_sprite2_out),
     .ss_sprite_in(ss_sprite_in),.ss_sprite2_in(ss_sprite2_in),.ss_sprite_valid(ss_sprite_valid),
 	.ce_cpu(ss_freeze ? 1'b0 : (ce_cpu & ~se_pause_exec_gate)),
@@ -1246,6 +1249,7 @@ savestates savestates_inst (
 	.ss_cpu_prepare(ss_cpu_prepare),.z80_replay(ss_z80_replay),
     .z80_tick_active(ss_z80_tick),.z80_replay_t2(ss_replay_t2),
     .clock_phase(ss_phase_out),.clock_phase_in(ss_phase_in),.clock_phase_set(ss_phase_set),.clock_phase_ready(ss_phase_ready),
+    .bg_out(ss_bg_out),.bg2_out(ss_bg2_out),.bg_in(ss_bg_in),.bg2_in(ss_bg2_in),.bg_valid(ss_bg_valid),
     .sprite_out(ss_sprite_out),.sprite2_out(ss_sprite2_out),.sprite_in(ss_sprite_in),.sprite2_in(ss_sprite2_in),.sprite_valid(ss_sprite_valid),
     .clk             (clk_sys),
 	.reset_n         (~reset_active),

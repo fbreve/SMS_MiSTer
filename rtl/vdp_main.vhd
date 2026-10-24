@@ -56,7 +56,10 @@ entity vdp_main is
 		spr_collide:		out std_logic;
 		spr_overflow:		out std_logic;
 		-- Save-state: passed through to sprite scanner reset
-		ss_sprite_out: out std_logic_vector(74*(MAX_SPPL+1)+27 downto 0);
+		ss_bg_out: out std_logic_vector(138 downto 0);
+ ss_bg_in: in std_logic_vector(138 downto 0) := (others=>'0');
+ ss_bg_valid: in std_logic := '0';
+ ss_sprite_out: out std_logic_vector(74*(MAX_SPPL+1)+27 downto 0);
  ss_sprite_in: in std_logic_vector(74*(MAX_SPPL+1)+27 downto 0) := (others=>'0');
  ss_sprite_valid: in std_logic := '0';
  ss_regs_set:		in STD_LOGIC := '0');
@@ -127,6 +130,7 @@ begin
 		legacy_ext_nt	=> legacy_ext_nt,
 		text_fg_color	=> text_fg_color,
 		overscan			=> overscan,
+        ss_bg_out=>ss_bg_out,ss_bg_in=>ss_bg_in,ss_bg_valid=>ss_bg_valid,
 		ss_restore			=> ss_regs_set,
 		priority			=> bg_priority);
 		
