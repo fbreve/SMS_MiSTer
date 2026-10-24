@@ -230,6 +230,14 @@ entity system is
 		-- System E hardware pause: gates Z80 clock independently of ce_pix
 		-- (ce_pix keeps running so VDP scanout and sync are unaffected)
 		se_pause      : in  STD_LOGIC := '0';
+        ss_cpu_prepare : in std_logic := '0';
+        ss_prepare_ce : in std_logic := '0';
+        z80_replay_out : out std_logic;
+        z80_tick_out : out std_logic;
+        z80_replay_t2 : in std_logic := '1';
+        ss_sprite_out, ss_sprite2_out : out std_logic_vector(74*(MAX_SPPL+1)+41 downto 0);
+        ss_sprite_in, ss_sprite2_in : in std_logic_vector(74*(MAX_SPPL+1)+41 downto 0) := (others=>'0');
+        ss_sprite_valid : in std_logic := '0';
 		ss_freeze     : in  STD_LOGIC := '0'
 	);
 end system;
@@ -638,7 +646,7 @@ begin
         RestartContext => z80_restart_out, RestartDIR => z80_restart_dir,
         RestartValid => z80_restart_valid,
 		NMIState => z80_nmi_out, NMIDIR => z80_nmi_dir, NMIValid => z80_nmi_valid,
-        NMIEnable => '1', NMIHold => z80_nmi_hold, NMIReplay => nmi_replay_hold,
+        NMIEnable => '1', NMIHold => z80_nmi_hold, RestoreHold => ss_freeze, ReplayT2=>z80_replay_t2, NMIReplay => nmi_replay_hold,
         DIRSet => z80_set,
 		DIR    => z80_dir,
 		ISet_out => z80_iset_int
@@ -695,6 +703,7 @@ begin
 		smode_M4	=> smode_M4,
 		ysj_quirk	=> ysj_quirk,
 		reset_n  => RESET_n,
+		ss_sprite_out=>ss_sprite_out,ss_sprite_in=>ss_sprite_in,ss_sprite_valid=>ss_sprite_valid,ss_freeze=>ss_freeze,
 		ss_regs_out => vdp_regs_out,
 		ss_regs_in  => vdp_regs_in,
 		ss_regs_set => vdp_regs_set,
@@ -751,6 +760,7 @@ begin
 		smode_M4	=> open,
 		ysj_quirk	=> ysj_quirk,
 		reset_n  => RESET_n,
+		ss_sprite_out=>ss_sprite2_out,ss_sprite_in=>ss_sprite2_in,ss_sprite_valid=>ss_sprite_valid,ss_freeze=>ss_freeze,
 		ss_regs_out => vdp2_regs_out_i,
 		ss_regs_in  => vdp2_regs_in,
 		ss_regs_set => vdp2_regs_set,
@@ -974,7 +984,10 @@ port map(
 		RESET_n	=> RESET_n
 	);
 	
-	ce_z80 <= '0' when se_pause='1' else
+    z80_replay_out <= nmi_replay_hold;
+    z80_tick_out <= ce_z80;
+	ce_z80 <= ss_prepare_ce and nmi_replay_hold when ss_cpu_prepare='1' else
+              '0' when se_pause='1' else
 	          ce_pix when (systeme = '1' or turbo='1') else ce_cpu;
 	io_cycle <= '1' when IORQ_n='0' and M1_n='1' else '0';
 	-- Only ports demonstrated by the menu ROM and implemented by the

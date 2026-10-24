@@ -20,7 +20,10 @@ Port(
 	spr_d3: in  std_logic_vector (7 downto 0);
 	color : out std_logic_vector (3 downto 0);
 	active: out std_logic;
-	ss_regs_set: in std_logic := '0'
+	ss_sprite_out: out std_logic_vector(32 downto 0);
+ ss_sprite_in: in std_logic_vector(32 downto 0) := (others=>'0');
+ ss_sprite_valid: in std_logic := '0';
+ ss_regs_set: in std_logic := '0'
 );
 end vpd_sprite_shifter;
 
@@ -32,15 +35,22 @@ architecture Behavioral of vpd_sprite_shifter is
 	signal shift3	: std_logic_vector (7 downto 0) := (others=>'0');
 
 begin
+ ss_sprite_out <= '1' & shift3 & shift2 & shift1 & shift0 when wideclock else '0' & shift3 & shift2 & shift1 & shift0;
 
 	process (clk_sys)	begin
 		if rising_edge(clk_sys) then
 			if ss_regs_set = '1' then
+            if ss_sprite_valid='1' then
+              shift0<=ss_sprite_in(7 downto 0);shift1<=ss_sprite_in(15 downto 8);
+              shift2<=ss_sprite_in(23 downto 16);shift3<=ss_sprite_in(31 downto 24);
+              wideclock<=ss_sprite_in(32)='1';
+            else
 				shift0 <= (others => '0');
 				shift1 <= (others => '0');
 				shift2 <= (others => '0');
 				shift3 <= (others => '0');
 				wideclock <= false;
+            end if;
 			elsif ce_pix = '1' then
 				-- In shifted mode, spr_x=x+8 is an 8-bit comparison.
 				-- spr_x=0xFF corresponds to a sprite with VDP X=0, which

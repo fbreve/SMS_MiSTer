@@ -89,6 +89,9 @@ entity vdp is
 		--  [127:120]      bg_scroll_x_latched
 		--  [135:128]      latched_x (versioned extension in the video word)
 		-- Low 128 bits retain their established two-word layout.
+ ss_sprite_out: out std_logic_vector(74*(MAX_SPPL+1)+41 downto 0);
+ ss_sprite_in: in std_logic_vector(74*(MAX_SPPL+1)+41 downto 0) := (others=>'0');
+ ss_sprite_valid: in std_logic := '0';ss_freeze:in std_logic := '0';
 		ss_regs_out    : out STD_LOGIC_VECTOR(135 downto 0);
 		-- Restore: load all VDP control registers at once (held one cycle while ss_regs_set='1')
 		ss_regs_in     : in  STD_LOGIC_VECTOR(135 downto 0) := (others => '0');
@@ -199,6 +202,7 @@ architecture Behavioral of vdp is
 	signal xmode_M4:			std_logic;
 	
 begin
+ ss_sprite_out(74*(MAX_SPPL+1)+41 downto 74*(MAX_SPPL+1)+28)<=xspr_collide_shift;
 	
 	mask_column <= mask_column0;
 	xmode_M1<= mode_M1 and mode_M2 ;
@@ -224,6 +228,8 @@ begin
 				
 		x					=> x,
 		y					=> y,
+        ss_sprite_out=>ss_sprite_out(74*(MAX_SPPL+1)+27 downto 0),
+        ss_sprite_in=>ss_sprite_in(74*(MAX_SPPL+1)+27 downto 0),ss_sprite_valid=>ss_sprite_valid,
 		ss_regs_set		    => ss_regs_set,
 
 		color				=> color,
@@ -623,7 +629,8 @@ begin
 				collide_flag  <= ss_regs_in(117);
 				overflow_flag <= ss_regs_in(118);
 				line_overflow <= ss_regs_in(119);
-				xspr_collide_shift <= (others => '0');
+				if ss_sprite_valid='1' then xspr_collide_shift<=ss_sprite_in(74*(MAX_SPPL+1)+41 downto 74*(MAX_SPPL+1)+28);
+                else xspr_collide_shift <= (others => '0');end if;
 				-- Immediately restore IRQ_n level corresponding to the restored snapshot state
 				if ((ss_regs_in(115) = '1' and ss_regs_in(8) = '1') or
 				    (ss_regs_in(116) = '1' and ss_regs_in(3) = '1' and mask_line_irq = '0')) then
@@ -638,7 +645,7 @@ begin
 			else
 				-- using the other phase of ce_vdp permits to please VDPTEST ovr HCounter
 				-- very tight condition;
-				if ce_vdp = '0' then
+				if ce_vdp = '0' and ss_freeze='0' then
 					if (x<256 or x>485) and (y<234 or y>=496) then
 						if spr_overflow='1' and line_overflow='0' then
 							overflow_flag <= '1';

@@ -56,7 +56,10 @@ entity vdp_main is
 		spr_collide:		out std_logic;
 		spr_overflow:		out std_logic;
 		-- Save-state: passed through to sprite scanner reset
-		ss_regs_set:		in  STD_LOGIC := '0');
+		ss_sprite_out: out std_logic_vector(74*(MAX_SPPL+1)+27 downto 0);
+ ss_sprite_in: in std_logic_vector(74*(MAX_SPPL+1)+27 downto 0) := (others=>'0');
+ ss_sprite_valid: in std_logic := '0';
+ ss_regs_set:		in STD_LOGIC := '0');
 end vdp_main;
 
 architecture Behavioral of vdp_main is
@@ -152,6 +155,7 @@ begin
 		vram_A			=> spr_vram_A,
 		vram_D			=> vram_D,		
 		color				=> spr_color,
+        ss_sprite_out=>ss_sprite_out,ss_sprite_in=>ss_sprite_in,ss_sprite_valid=>ss_sprite_valid,
 		ss_regs_set		=> ss_regs_set);
 
 	process (x, y, mask_column0, bg_priority, spr_color, bg_color, overscan, display_on, ggres, smode_M1, smode_M3, text_mode)

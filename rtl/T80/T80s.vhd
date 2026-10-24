@@ -103,6 +103,8 @@ entity T80s is
         NMIValid   : in std_logic := '0';
         NMIEnable  : in std_logic := '0';
         NMIHold    : in std_logic := '0';
+        RestoreHold: in std_logic := '0';
+        ReplayT2: in std_logic := '1';
         NMIReplay  : out std_logic;
         -- Pre-fetch semantic context: ordinary, CB, ED, DD, FD, EI.
         RestartContext : out std_logic_vector(2 downto 0);
@@ -132,7 +134,7 @@ architecture rtl of T80s is
 begin
 
     nmi_apply <= '1' when nmi_restart="01" and DIRSet='0' and NMIHold='0' else '0';
-    nmi_hold_i <= '1' when NMIHold='1' or nmi_restart/="00" else '0';
+    nmi_hold_i <= '1' when NMIHold='1' or RestoreHold='1' or nmi_restart/="00" else '0';
     cen_i <= CEN when nmi_restart/="01" else '0';
     NMIReplay <= '1' when nmi_restart/="00" else '0';
     process (RESET_n, CLK)
@@ -141,7 +143,8 @@ begin
         elsif rising_edge(CLK) then
             if DIRSet='1' and NMIEnable='1' then nmi_restart <= "01";
             elsif nmi_apply='1' then nmi_restart <= "10";
-            elsif CEN='1' and nmi_restart="10" then nmi_restart <= "11";
+            elsif CEN='1' and nmi_restart="10" then
+                if ReplayT2='1' then nmi_restart <= "11";else nmi_restart <= "00";end if;
             elsif CEN='1' and nmi_restart="11" then nmi_restart <= "00";
             end if;
         end if;

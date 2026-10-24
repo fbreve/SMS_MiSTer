@@ -29,10 +29,15 @@ port (
 	overflow			: out std_logic;
 	color				: out STD_LOGIC_VECTOR (3 downto 0);
 	-- Save-state: reset scanner to clean state when '1' (held one cycle)
-	ss_regs_set		: in  STD_LOGIC := '0');
+	ss_sprite_out: out std_logic_vector(74*(MAX_SPPL+1)+27 downto 0);
+ ss_sprite_in: in std_logic_vector(74*(MAX_SPPL+1)+27 downto 0) := (others=>'0');
+ ss_sprite_valid: in std_logic := '0';
+ ss_regs_set		: in STD_LOGIC := '0');
 end vdp_sprites;
 
 architecture Behavioral of vdp_sprites is
+	signal color_reg : std_logic_vector(3 downto 0);
+	signal collide_reg, overflow_reg : std_logic;
 
 	constant WAITING:	std_logic_vector := "000";
 	constant COMPARE:	std_logic_vector := "001";
@@ -65,9 +70,20 @@ architecture Behavioral of vdp_sprites is
 	signal spr_active:	std_logic_vector(0 to MAX_SPPL);
 	
 begin
+ color <= color_reg;
+ collide <= collide_reg;
+ overflow <= overflow_reg;
+ ss_sprite_out(74*(MAX_SPPL+1)+13 downto 74*(MAX_SPPL+1)+0)<=data_address;
+ ss_sprite_out(74*(MAX_SPPL+1)+21 downto 74*(MAX_SPPL+1)+14)<=m2_flags;
+ ss_sprite_out(74*(MAX_SPPL+1)+25 downto 74*(MAX_SPPL+1)+22)<=color_reg;
+ ss_sprite_out(74*(MAX_SPPL+1)+26)<=collide_reg;
+ ss_sprite_out(74*(MAX_SPPL+1)+27)<=overflow_reg;
 	shifters:
 	for i in 0 to MAX_SPPL generate
 	begin
+        ss_sprite_out(74*i)<='1' when enable(i) else '0';
+        ss_sprite_out(74*i+8 downto 74*i+1)<=spr_x(i);
+        ss_sprite_out(74*i+40 downto 74*i+9)<=spr_d3(i)&spr_d2(i)&spr_d1(i)&spr_d0(i);
 		shifter: entity work.vpd_sprite_shifter
 		port map(
 			clk_sys=> clk_sys,
@@ -91,6 +107,8 @@ begin
 			spr_d3=> spr_d3(i),
 			color => spr_color(i),
 			active=> spr_active(i),
+            ss_sprite_out=>ss_sprite_out(74*i+73 downto 74*i+41),
+            ss_sprite_in=>ss_sprite_in(74*i+73 downto 74*i+41),ss_sprite_valid=>ss_sprite_valid,
 			ss_regs_set => ss_regs_set
 		);
 
@@ -125,11 +143,26 @@ begin
 			-- Save-state restore: reset scanner fully so first frame after load
 			-- uses correct sprite data for y=0 (no stale phantom sprites/state).
 			if ss_regs_set = '1' then
+              if ss_sprite_valid='1' then
+                state <= WAITING;
+                count <= 0;
+                index <= (others=>'0');
+                data_address<=ss_sprite_in(74*(MAX_SPPL+1)+13 downto 74*(MAX_SPPL+1)+0);
+                m2_flags<=ss_sprite_in(74*(MAX_SPPL+1)+21 downto 74*(MAX_SPPL+1)+14);
+                overflow_reg<=ss_sprite_in(74*(MAX_SPPL+1)+27);
+                for i in 0 to MAX_SPPL loop
+                  enable(i)<=ss_sprite_in(74*i)='1';spr_x(i)<=ss_sprite_in(74*i+8 downto 74*i+1);
+                  spr_d0(i)<=ss_sprite_in(74*i+16 downto 74*i+9);spr_d1(i)<=ss_sprite_in(74*i+24 downto 74*i+17);
+                  spr_d2(i)<=ss_sprite_in(74*i+32 downto 74*i+25);spr_d3(i)<=ss_sprite_in(74*i+40 downto 74*i+33);
+                end loop;
+              else
 				count    <= 0;
 				enable   <= (others => false);
 				state    <= WAITING;
 				index    <= (others => '0');
-				overflow <= '0';
+				overflow_reg <= '0';
+                data_address <= (others=>'0');
+                m2_flags <= (others=>'0');
 				for i in 0 to MAX_SPPL loop
 					spr_x(i)  <= (others => '0');
 					spr_d0(i) <= (others => '0');
@@ -137,6 +170,7 @@ begin
 					spr_d2(i) <= (others => '0');
 					spr_d3(i) <= (others => '0');
 				end loop;
+              end if;
 			elsif ce_spload='1' then
 			
 				if x=257 then  -- we need step 256 to display the very last sprite pixel
@@ -146,7 +180,7 @@ begin
 					enable <= (others=>false);
 					state <= COMPARE;
 					index <= (others=>'0');
-					overflow <= '0';
+					overflow_reg <= '0';
 				
 				elsif x=496 then  --match vdp_main.vhd (384)
 					state <= WAITING;
@@ -174,7 +208,7 @@ begin
 								data_address(5 downto 2) <= delta(3 downto 0);
 							end if;
 							if (count>=8 and ( y<192 or (y<224 and smode_M1='1') or (y<240 and smode_M3='1') ) ) then
-								overflow <= '1';
+								overflow_reg <= '1';
 							end if;
 							if ((count<MAX_SPPL+1) and (count<8 or sp64='1')) then
 								state <= LOAD_N;
@@ -301,28 +335,33 @@ begin
 		variable collision 	: std_logic_vector(7 downto 0);
 	begin
 		if rising_edge(clk_sys) then
-			if ce_pix='1' then  -- ce_vdp?? 
-				color <= (others=>'0');
+			if ss_regs_set='1' then
+             if ss_sprite_valid='1' then
+              color_reg<=ss_sprite_in(74*(MAX_SPPL+1)+25 downto 74*(MAX_SPPL+1)+22);
+              collide_reg<=ss_sprite_in(74*(MAX_SPPL+1)+26);
+             else color_reg<=(others=>'0');collide_reg<='0';end if;
+            elsif ce_pix='1' then
+				color_reg <= (others=>'0');
 				collision := (others=>'0');
 				for i in MAX_SPPL downto 8 loop
 					if enable(i) and spr_active(i)='1' then -- and not (spr_color(i)="0000") then
-						color <= spr_color(i);
+						color_reg <= spr_color(i);
 					end if;
 				end loop;
 				for i in 7 downto 0 loop
 					if enable(i) and spr_active(i)='1' then -- and not (spr_color(i)="0000") then
 						collision(i) := '1';
-						color <= spr_color(i);
+						color_reg <= spr_color(i);
 					end if;
 				end loop;
 				case collision is
 				when x"00" | x"01" | x"02" | x"04" | x"08" | x"10" | x"20" | x"40" | x"80" =>
-					collide <= '0';	
+					collide_reg <= '0';
 				when others =>
 					if ( y<192 or (y<224 and smode_M1='1') or (y<240 and smode_M3='1') or y(8) = '1' ) then
-						collide <= '1';
+						collide_reg <= '1';
 					else
-						collide <= '0';
+						collide_reg <= '0';
 					end if;
 				end case;
 			end if;

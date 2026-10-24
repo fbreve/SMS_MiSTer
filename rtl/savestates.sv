@@ -7,6 +7,11 @@
 //   Word 0x002-0x005: Z80 REG[229:0]; v12 word5[40:38]=NMI pending/entry/Old,
 //                   v13 word5[43:41]=pre-T2 decoder class; [63:44]=zero.
 //                   v13 tag=48430d, subtype=3 at word01a. v12 has zero [63:41].
+//   v14 tag=48430e, subtype3, retaining the v13 CPU word layout.
+//   Word 0x02e: sprite descriptor (width4778, version14, owner G6R1).
+//   Word 0x02f: [1:0] capture phase0/10/20/25, [2] System E,
+//               [3] CPU consumed capture enable, [63:4] zero.
+//   Words 0x2901-0x2996: two padded4778-bit sprite records (75 words each).
 //   Word 0x006-0x007: VDP regs [127:0] (2 × 64-bit words)
 //   Word 0x008-0x00D: CRAM [383:0]     (6 × 64-bit words)
 //   Word 0x00E:       PSG  [55:0]      (1 × 64-bit word, upper 8 bits unused)
@@ -38,6 +43,18 @@ module savestates (
 
     // Freeze: hold '1' to pause CPU + VDP clock enables
     output reg        ss_freeze,
+    // Private CPU historical-T1/T2 reconstruction. All guest domains stay held.
+    output reg        ss_cpu_prepare,
+    input             z80_replay,
+    input             z80_tick_active,
+    output            z80_replay_t2,
+    input       [1:0] clock_phase,
+    output      [1:0] clock_phase_in,
+    output reg        clock_phase_set,
+    input             clock_phase_ready,
+    input [4777:0] sprite_out, sprite2_out,
+    output [4777:0] sprite_in, sprite2_in,
+    output sprite_valid,
 
     // VBlank level from video.vhd (not gated by ss_freeze)
     // Used to capture save/load at a clean instruction boundary during VBlank
@@ -402,6 +419,26 @@ wire [14:0] nvram_size_minus_1 = transfer_eeprom ? 15'd127 :
                                  has_nvram_16k ? 15'd16383 :
                                                  15'd8191;
 
+// v14: 02e descriptor, 02f phase/owner, 2901..2996 two sprite records.
+localparam [23:0] RESTART_MAGIC = 24'h48430e;
+localparam [63:0] SPRITE_DESC = {16'd4778,8'd14,8'd0,32'h47365231};
+localparam ST_SAVE_SPRITE_DESC=7'd99, ST_SAVE_PHASE=7'd100, ST_SAVE_SPRITE=7'd101,
+           ST_LOAD_SPRITE_DESC=7'd102, ST_LOAD_PHASE=7'd103, ST_LOAD_SPRITE=7'd104,
+           ST_CPU_PREPARE=7'd105, ST_PHASE_COMMIT=7'd106;
+reg [4799:0] sprite_snap, sprite2_snap;
+reg [6:0] sprite_word;
+reg sprite_second, has_restart;
+reg [1:0] phase_snap;
+reg capture_tick_snap;
+assign sprite_in=sprite_snap[4777:0];
+assign sprite2_in=sprite2_snap[4777:0];
+assign sprite_valid=has_restart;
+assign clock_phase_in=phase_snap;
+assign z80_replay_t2=has_restart?capture_tick_snap:1'b1;
+wire [28:0] sprite_address=29'h2901+(sprite_second?29'd75:29'd0)+{22'd0,sprite_word};
+// A 75-word ring avoids a wide indexed read/write crossbar. SAVE rotates
+// back to the original record; LOAD shifts each incoming word into place.
+wire [63:0] sprite_write_word=sprite_second?sprite2_snap[63:0]:sprite_snap[63:0];
 reg [6:0]  state;
 assign ss_busy = state != ST_IDLE;
 // A System E UI pause may hold the CPU outside an opcode-fetch boundary.
@@ -427,7 +464,6 @@ reg  [2:0] cpu_idx;     // 0..3 for CPU words
 reg  [2:0] vdp_idx;     // 0..1 for VDP reg words
 reg  [19:0] flush_cnt;  // expanded to 20 bits for 900000 cycles
 reg  [7:0] unfreeze_cnt; // expanded to 8 bits for 255 cycles
-reg  [21:0] align_timeout;
 // Latching buffers for multi-word state
 reg [229:0] z80_snap;
 reg [2:0] nmi_snap;
@@ -466,7 +502,7 @@ reg  [63:0] eeprom_snap;
 // SC payload shares 0d01..1d00, never the System E or EEPROM regions.
 // 01e: [22:0] P1, [45:23] P2, [63:46] zero. Per port:
 // [16:0] timer, [19:17] rises, [20] TH history, [22:21] type history.
-wire [63:0] video_word = {CPU_RESTART_MAGIC, 2'd3,
+wire [63:0] video_word = {RESTART_MAGIC, 2'd3,
                          systeme ? vdp2_snap[135:128] : 8'd0,
                          vdp_snap[135:128], video_snap};
 
@@ -506,11 +542,12 @@ reg         nvram_d_latched;
 // Shared latch for DDRAM read data (LOAD path)
 reg [63:0]  dout_latch;
 // v13 inherits v12 NMI and every v11 extension location and meaning.
-wire modern_nmi_tag = dout_latch[63:40] == NMI_HISTORY_MAGIC || dout_latch[63:40] == CPU_RESTART_MAGIC;
+wire modern_restart_tag = dout_latch[63:40] == CPU_RESTART_MAGIC || dout_latch[63:40] == RESTART_MAGIC;
+wire modern_nmi_tag = dout_latch[63:40] == NMI_HISTORY_MAGIC || modern_restart_tag;
 wire [23:0] load_ext_magic = modern_nmi_tag ? EVOLUTION_PENDING_MAGIC : dout_latch[63:40];
 wire invalid_nmi_header = modern_nmi_tag &&
                           (dout_latch[39:38] != 2'd3 ||
-                           (dout_latch[63:40] == CPU_RESTART_MAGIC ? !restart_padding_ok : !nmi_padding_ok));
+                           (modern_restart_tag ? !restart_padding_ok : !nmi_padding_ok));
 
 // Guard flag: set when a ddram_read is issued, cleared when DOUT_READY is consumed.
 // Prevents stale DOUT_READY pulses (from pre-freeze scaler reads) from
@@ -644,10 +681,19 @@ always @(*) begin
         ST_LOAD_HISTORY0: if (!(DDRAM_DOUT_READY && dout_expected) && !dout_expected && !DDRAM_BUSY) ddram_cmd_read(base_addr + 29'h02b);
         ST_LOAD_HISTORY1: if (!(DDRAM_DOUT_READY && dout_expected) && !dout_expected && !DDRAM_BUSY) ddram_cmd_read(base_addr + (has_evolution_history ? 29'h02c : 29'h01f));
         ST_SAVE_EVOLUTION0: if (!DDRAM_BUSY) ddram_cmd_write(base_addr + 29'h02c, {4'd0,evolution_snap[155:96]}, 8'hFF);
+
+        ST_SAVE_SPRITE_DESC: if (!DDRAM_BUSY) ddram_cmd_write(base_addr+29'h02e,SPRITE_DESC,8'hff);
+        ST_SAVE_PHASE: if (!DDRAM_BUSY) ddram_cmd_write(base_addr+29'h02f,{60'd0,capture_tick_snap,systeme,phase_snap},8'hff);
+        ST_SAVE_SPRITE: if (!DDRAM_BUSY) ddram_cmd_write(base_addr+sprite_address,sprite_write_word,8'hff);
+        ST_LOAD_SPRITE_DESC: if (!dout_expected && !DDRAM_BUSY && dout_latch==SPRITE_DESC) ddram_cmd_read(base_addr+29'h02f);
+        ST_LOAD_PHASE: if (!dout_expected && !DDRAM_BUSY && dout_latch[63:4]==0 && dout_latch[2]==systeme) ddram_cmd_read(base_addr+29'h2901);
+        ST_LOAD_SPRITE: if (!dout_expected && !DDRAM_BUSY &&
+            !(sprite_word==74 && dout_latch[63:42]!=0) && !(sprite_second && !systeme && dout_latch!=0))
+            ddram_cmd_read(base_addr+((sprite_second && sprite_word==74)?29'h01f:sprite_address+29'd1));
         ST_SAVE_EVOLUTION1: if (!DDRAM_BUSY) ddram_cmd_write(base_addr + 29'h02d, EVOLUTION_HISTORY_DESC, 8'hFF);
         ST_LOAD_EVOLUTION0: if (!(DDRAM_DOUT_READY && dout_expected) && !dout_expected && !DDRAM_BUSY) ddram_cmd_read(base_addr + 29'h02d);
         ST_LOAD_EVOLUTION1: if (!(DDRAM_DOUT_READY && dout_expected) && !dout_expected && !DDRAM_BUSY)
-            if (!invalid_nmi_header && !((live_evolution || evolution_state) && (!evolution_state || !evolution_history_valid || dout_latch != EVOLUTION_HISTORY_DESC))) ddram_cmd_read(base_addr + 29'h01f);
+            if (!invalid_nmi_header && !((live_evolution || evolution_state) && (!evolution_state || !evolution_history_valid || dout_latch != EVOLUTION_HISTORY_DESC))) ddram_cmd_read(base_addr + (has_restart ? 29'h02e : 29'h01f));
         ST_SAVE_GUN0: if (!DDRAM_BUSY) ddram_cmd_write(base_addr + 29'h028, {18'd0,gun_snap}, 8'hFF);
         ST_SAVE_GUN1: if (!DDRAM_BUSY) ddram_cmd_write(base_addr + 29'h029, GUN_DESC, 8'hFF);
         ST_LOAD_GUN0: if (!(DDRAM_DOUT_READY && dout_expected) && !dout_expected && !DDRAM_BUSY) ddram_cmd_read(base_addr + 29'h029);
@@ -918,8 +964,11 @@ always @(posedge clk or negedge reset_n) begin
     if (!reset_n) begin
         state           <= ST_IDLE;
         ss_freeze       <= 0;
+        capture_tick_snap<=1;
+        ss_cpu_prepare <= 0; clock_phase_set <= 0; sprite_word <= 0; sprite_second <= 0;
         z80_nmi_hold <= 0; nmi_snap <= 3'b001; has_nmi_history <= 0; nmi_padding_ok <= 1;
         has_restart_context <= 0; restart_snap <= 0; restart_padding_ok <= 1;
+        has_restart <= 0; phase_snap <= 0; sprite_snap <= 0; sprite2_snap <= 0;
         ss_change_det   <= 0;
         cur_magic       <= MAGIC;
         cur_game_id     <= 0;
@@ -974,7 +1023,6 @@ always @(posedge clk or negedge reset_n) begin
         audio_word <= 0;
         flush_cnt       <= 0;
         unfreeze_cnt    <= 0;
-        align_timeout   <= 0;
         DDRAM_WE        <= 0;
         DDRAM_RD        <= 0;
         DDRAM_BURSTCNT  <= 8'd1;
@@ -1058,6 +1106,8 @@ always @(posedge clk or negedge reset_n) begin
                 // Z80 snapshot MUST be captured in the same cycle the boundary is detected.
                 // Capturing one cycle later grabs the post-tick state (where PC is already
                 // incremented), creating non-deterministic loads that skip an instruction.
+                ss_freeze <= 1; // accepted host T finishes; T+1 is held
+                if (do_save) begin phase_snap <= clock_phase;capture_tick_snap<=z80_tick_active;end
                 z80_snap    <= z80_reg;
                 nmi_snap <= z80_nmi;
                 restart_snap <= z80_restart;
@@ -1069,12 +1119,10 @@ always @(posedge clk or negedge reset_n) begin
         // ---------------------------------------------------------------
         ST_ARM_FREEZE: begin
             nvram_refill <= 0;
-            // Freeze is asserted one clk_sys cycle after boundary detection so
-            // it is guaranteed active before the next CPU/VDP CE pulse.
-            // We capture VDP/PSG snapshots here (one cycle late) so they reflect
-            // the post-tick state. This ensures they are perfectly synchronized
-            // with the internal x/y counters (which also advanced on the boundary tick
-            // and are not saved/restored, but merely frozen).
+            // Guest hold was asserted at accepted T. Collect post-T device
+            // state here, before any subsequent guest enable is admitted.
+            sprite_snap <= {22'd0,sprite_out};
+            sprite2_snap <= systeme ? {22'd0,sprite2_out} : 4800'd0;
             vdp_snap    <= vdp_regs;
             cram_snap   <= cram_out;
             psg_snap    <= psg_out;
@@ -1335,10 +1383,55 @@ always @(posedge clk or negedge reset_n) begin
                 state <= ST_SAVE_EVOLUTION1;
             end
         end
+
+        ST_SAVE_SPRITE_DESC: if (!DDRAM_BUSY) begin
+            ddram_write(base_addr+29'h02e,SPRITE_DESC,8'hff);state<=ST_SAVE_PHASE;
+        end
+        ST_SAVE_PHASE: if (!DDRAM_BUSY) begin
+            ddram_write(base_addr+29'h02f,{60'd0,capture_tick_snap,systeme,phase_snap},8'hff);
+            sprite_word<=0;sprite_second<=0;state<=ST_SAVE_SPRITE;
+        end
+        ST_SAVE_SPRITE: if (!DDRAM_BUSY) begin
+            ddram_write(base_addr+sprite_address,sprite_write_word,8'hff);
+            if (sprite_second) sprite2_snap <= {sprite2_snap[63:0],sprite2_snap[4799:64]};
+            else sprite_snap <= {sprite_snap[63:0],sprite_snap[4799:64]};
+            if (sprite_word==74) begin
+                sprite_word<=0;sprite_second<=1;
+                if (sprite_second) state<=ST_SAVE_EE_DESC;
+            end else sprite_word<=sprite_word+7'd1;
+        end
+        ST_LOAD_SPRITE_DESC, ST_LOAD_PHASE, ST_LOAD_SPRITE: begin
+            if (DDRAM_DOUT_READY && dout_expected) begin
+                dout_expected<=0;dout_latch<=DDRAM_DOUT;
+            end else if (!dout_expected && !DDRAM_BUSY) begin
+                case(state)
+                ST_LOAD_SPRITE_DESC: if (dout_latch!=SPRITE_DESC) state<=ST_ERROR;
+                    else begin ddram_read(base_addr+29'h02f);state<=ST_LOAD_PHASE;end
+                ST_LOAD_PHASE: if (dout_latch[63:4]!=0 || dout_latch[2]!=systeme) state<=ST_ERROR;
+                    else begin
+                        phase_snap<=dout_latch[1:0];capture_tick_snap<=dout_latch[3];sprite_word<=0;sprite_second<=0;
+                        ddram_read(base_addr+29'h2901);state<=ST_LOAD_SPRITE;
+                    end
+                ST_LOAD_SPRITE: if ((sprite_word==74 && dout_latch[63:42]!=0) ||
+                                   (sprite_second && !systeme && dout_latch!=0)) state<=ST_ERROR;
+                    else begin
+                        if (sprite_second) sprite2_snap <= {dout_latch,sprite2_snap[4799:64]};
+                        else sprite_snap <= {dout_latch,sprite_snap[4799:64]};
+                        if (sprite_second && sprite_word==74) begin
+                            ddram_read(base_addr+29'h01f);state<=ST_LOAD_EE_DESC;
+                        end else begin
+                            ddram_read(base_addr+sprite_address+29'd1);
+                            if (sprite_word==74) begin sprite_word<=0;sprite_second<=1;end
+                            else sprite_word<=sprite_word+7'd1;
+                        end
+                    end
+                endcase
+            end
+        end
         ST_SAVE_EVOLUTION1: begin
             if (!DDRAM_BUSY) begin
                 ddram_write(base_addr + 29'h02d, EVOLUTION_HISTORY_DESC, 8'hFF);
-                state <= ST_SAVE_EE_DESC;
+                state <= ST_SAVE_SPRITE_DESC;
             end
         end
         ST_SAVE_EE_DESC: begin
@@ -1697,7 +1790,6 @@ always @(posedge clk or negedge reset_n) begin
                 freeze_drain_cnt <= 0;
             else if (freeze_drain_cnt == 6'd31) begin
                 unfreeze_cnt <= 8'd0;
-                align_timeout <= 22'd0;
                 state <= ST_UNFREEZE;
             end else
                 freeze_drain_cnt <= freeze_drain_cnt + 6'd1;
@@ -1711,6 +1803,9 @@ always @(posedge clk or negedge reset_n) begin
             if (!DDRAM_BUSY) begin
                 has_nmi_history <= 0; nmi_snap <= 3'b001; nmi_padding_ok <= 1;
                 has_restart_context <= 0; restart_snap <= 0; restart_padding_ok <= 1;
+        has_restart <= 0; phase_snap <= 0; sprite_snap <= 0; sprite2_snap <= 0;
+                // Old 64KB files have no beam history: use a deterministic origin.
+                video_snap <= 0;
                 // Old 64KB files bypass ST_LOAD_VIDEO entirely.
                 vdp_snap[135:128] <= 8'd0;
                 vdp2_snap[135:128] <= 8'd0;
@@ -1761,7 +1856,6 @@ always @(posedge clk or negedge reset_n) begin
                 end else begin
                     // Invalid magic: abort
                     unfreeze_cnt <= 8'd0;
-                    align_timeout <= 22'd0;
                     is_old_format <= 1; // bypass coordinate alignment
                     state <= ST_UNFREEZE;
                 end
@@ -1950,7 +2044,8 @@ always @(posedge clk or negedge reset_n) begin
                 dout_latch    <= DDRAM_DOUT;
             end else if (!dout_expected && !DDRAM_BUSY) begin
                 has_nmi_history <= modern_nmi_tag;
-                has_restart_context <= dout_latch[63:40] == CPU_RESTART_MAGIC;
+                has_restart_context <= modern_restart_tag;
+                has_restart <= dout_latch[63:40] == RESTART_MAGIC;
                 has_evolution_history <= (load_ext_magic == EVOLUTION_HISTORY_MAGIC || load_ext_magic == EVOLUTION_PENDING_MAGIC) && dout_latch[39:38] == 2'd3;
                 if (invalid_nmi_header || (live_evolution || evolution_state) && (!evolution_state || load_ext_magic != EVOLUTION_PENDING_MAGIC || dout_latch[39:38] != 2'd3)) begin
                     state <= ST_ERROR;
@@ -2120,7 +2215,7 @@ always @(posedge clk or negedge reset_n) begin
                     (!evolution_state || !evolution_history_valid || dout_latch != EVOLUTION_HISTORY_DESC)) begin
                     state <= ST_ERROR;
                 end else begin
-                    ddram_read(base_addr + 29'h01f); state <= ST_LOAD_EE_DESC;
+                    ddram_read(base_addr + (has_restart ? 29'h02e : 29'h01f)); state <= has_restart ? ST_LOAD_SPRITE_DESC : ST_LOAD_EE_DESC;
                 end
             end
         end
@@ -2489,34 +2584,37 @@ always @(posedge clk or negedge reset_n) begin
                 tap_in <= tap_snap; tap_set <= 1;
             end
             unfreeze_cnt <= 8'd0;
-            align_timeout <= 22'd0;
             state <= ST_UNFREEZE;
         end
 
         // ---------------------------------------------------------------
         ST_UNFREEZE: begin
-            // Release freeze only on a quiet CE phase to avoid resuming exactly
-            // on a CPU/VDP enable pulse edge, which can cause rare load-time
-            // glitches or resets in timing-sensitive games.
-            align_timeout <= align_timeout + 22'd1;
-            if (unfreeze_cnt < 8'd255) begin
-                unfreeze_cnt <= unfreeze_cnt + 8'd1;
-                ss_freeze <= 1;
-            end else if (is_old_format || (video_state_out[21:4] == video_snap[21:4]) || (align_timeout >= 22'd2200000)) begin
-                if (!cpu_ce && !vdp_ce && !pix_ce && !sp_ce) begin
-                    ss_freeze    <= 0;
-                    z80_nmi_hold <= 0;
-                    if (!do_save && has_audio_ext) begin
-                        audio_phase_in <= audio_phase_snap;
-                        audio_phase_set <= 1;
-                    end
-                    unfreeze_cnt <= 8'd0;
-                    state        <= ST_UNFREEZE_SETTLE;
-                end else begin
-                    ss_freeze <= 1;
+            if (unfreeze_cnt<8'd255) unfreeze_cnt<=unfreeze_cnt+8'd1;
+            else begin
+                z80_nmi_hold<=0;
+                ss_cpu_prepare<=!do_save;
+                state<=ST_CPU_PREPARE;
+            end
+        end
+        ST_CPU_PREPARE: begin
+            // Replay-complete is semantic: no ordinary instruction may execute.
+            if (do_save || !z80_replay) begin
+                ss_cpu_prepare<=0;
+                clock_phase_set<=1;
+                video_state_in<=video_snap;video_state_set<=1;
+                state<=ST_PHASE_COMMIT;
+            end
+        end
+        ST_PHASE_COMMIT: begin
+            // The falling-edge divider acknowledges phase installation with
+            // all enables zero. This edge installs the post-T beam and releases.
+            video_state_in<=video_snap;video_state_set<=1;
+            if (clock_phase_ready) begin
+                clock_phase_set<=0;video_state_set<=0;ss_freeze<=0;unfreeze_cnt<=0;
+                if (!do_save && has_audio_ext) begin
+                    audio_phase_in<=audio_phase_snap;audio_phase_set<=1;
                 end
-            end else begin
-                ss_freeze <= 1;
+                state<=ST_UNFREEZE_SETTLE;
             end
         end
 
@@ -2532,6 +2630,7 @@ always @(posedge clk or negedge reset_n) begin
         end
         // ---------------------------------------------------------------
         ST_ERROR: begin
+            ss_cpu_prepare <= 0; clock_phase_set <= 0;
             // Handle load error - unfreeze and return to idle
             ss_freeze <= 0;
             z80_nmi_hold <= 0;

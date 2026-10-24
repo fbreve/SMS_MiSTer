@@ -39,12 +39,19 @@ assign BUTTONS   = osd_btn;
 assign VGA_SCALER= 0;
 assign VGA_DISABLE = 0;
 wire ss_freeze;
+wire ss_cpu_prepare, ss_z80_replay,ss_z80_tick,ss_replay_t2;
+wire ss_phase_set;reg ss_phase_ready=0;
+wire [1:0] ss_phase_in;
+wire [1:0] ss_phase_out;
+wire [4777:0] ss_sprite_out,ss_sprite2_out,ss_sprite_in,ss_sprite2_in;
+wire ss_sprite_valid;
 wire ss_capture_progress;
 reg  ss_freeze_r;
 always @(posedge clk_sys) begin
 	ss_freeze_r <= ss_freeze;
 end
 reg  [4:0] clkd;
+assign ss_phase_out=clkd==25?2'd3:clkd==20?2'd2:clkd==10?2'd1:2'd0;
 wire ss_unfreeze = ss_freeze_r & ~ss_freeze;
 // System E toggle-pause: joy[8] = Pause button (position 5 in J1 layout)
 wire       joy8_sig = swap ? joy_1[8] : joy_0[8];
@@ -997,6 +1004,10 @@ system #(63) system
 (
 	.clk_sys(clk_sys),
 	.ss_freeze(ss_freeze),
+    .ss_cpu_prepare(ss_cpu_prepare),.ss_prepare_ce(ce_cpu),.z80_replay_out(ss_z80_replay),
+    .z80_tick_out(ss_z80_tick),.z80_replay_t2(ss_replay_t2),
+    .ss_sprite_out(ss_sprite_out),.ss_sprite2_out(ss_sprite2_out),
+    .ss_sprite_in(ss_sprite_in),.ss_sprite2_in(ss_sprite2_in),.ss_sprite_valid(ss_sprite_valid),
 	.ce_cpu(ss_freeze ? 1'b0 : (ce_cpu & ~se_pause_exec_gate)),
 	.ce_vdp(ss_freeze ? 1'b0 : ce_vdp),
 	.ce_pix(ss_freeze ? 1'b0 : ce_pix),
@@ -1232,7 +1243,11 @@ savestate_ui savestate_ui_inst (
 wire clkref_cpu = (systeme | turbo) ? ce_pix : ce_cpu;
 
 savestates savestates_inst (
-	.clk             (clk_sys),
+	.ss_cpu_prepare(ss_cpu_prepare),.z80_replay(ss_z80_replay),
+    .z80_tick_active(ss_z80_tick),.z80_replay_t2(ss_replay_t2),
+    .clock_phase(ss_phase_out),.clock_phase_in(ss_phase_in),.clock_phase_set(ss_phase_set),.clock_phase_ready(ss_phase_ready),
+    .sprite_out(ss_sprite_out),.sprite2_out(ss_sprite2_out),.sprite_in(ss_sprite_in),.sprite2_in(ss_sprite2_in),.sprite_valid(ss_sprite_valid),
+    .clk             (clk_sys),
 	.reset_n         (~reset_active),
 	.ss_save         (ss_save),
 	.ss_load         (ss_load),
@@ -1592,7 +1607,7 @@ end
 spram #(.widthad_a(14)) ram_inst
 (
 	.clock     (clk_sys),
-	.address   (ss_freeze ? (ss_wram_WE ? ss_wram_WA : ss_wram_A) :
+	.address   ((ss_freeze && !ss_cpu_prepare) ? (ss_wram_WE ? ss_wram_WA : ss_wram_A) :
 	             (ram_clr_run ? ram_clr_addr : (systeme ? ram_a : {1'b0,ram_a[12:0]}))),
 	.wren      (ss_freeze ? ss_wram_WE : (ram_clr_run | ram_we)),
 	.data      (ss_freeze ? ss_wram_WD : (ram_clr_run ? 8'h00 : ram_d)),
@@ -1656,6 +1671,13 @@ reg ce_vdp;
 reg ce_pix;
 reg ce_sp;
 always @(negedge clk_sys) begin
+    ss_phase_ready<=ss_phase_set;
+    if (ss_phase_set) begin
+        case(ss_phase_in)
+        2'd0:clkd<=0;2'd1:clkd<=10;2'd2:clkd<=20;2'd3:clkd<=25;
+        endcase
+        ce_cpu<=0;ce_vdp<=0;ce_pix<=0;ce_sp<=0;
+    end else begin
 	ce_sp <= clkd[0];
 	ce_vdp <= 0;//div5
 	ce_pix <= 0;//div10
@@ -1680,6 +1702,7 @@ always @(negedge clk_sys) begin
 	end else if (clkd==4) begin
 		ce_vdp <= 1;
 	end
+end
 end
 
 wire HS, VS;
@@ -1741,7 +1764,7 @@ reg bk_ena = 0;
 dpram #(.widthad_a(15), .init_file("rtl/nvram_ff.mif")) nvram_inst
 (
 	.clock_a     (clk_sys),
-	.address_a   (ss_freeze ? (ss_nvram_WE ? ss_nvram_WA : (ss_nvram_refill ? nvram_a : ss_nvram_A)) : nvram_a),
+	.address_a   ((ss_freeze && !ss_cpu_prepare) ? (ss_nvram_WE ? ss_nvram_WA : (ss_nvram_refill ? nvram_a : ss_nvram_A)) : nvram_a),
 	.wren_a      (ss_freeze ? ss_nvram_WE : nvram_we),
 	.data_a      (ss_freeze ? ss_nvram_WD : nvram_d),
 	.q_a         (nvram_q),
