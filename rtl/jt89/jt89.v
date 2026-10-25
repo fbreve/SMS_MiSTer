@@ -48,6 +48,7 @@ module jt89(
     output [95:0]  ss_ext_out,
     input  [95:0]  ss_ext_in,
     input          ss_ext_set,
+    input          ss_pending_tick, // resume only: deferred capture-edge /16 event
     output [3:0]   ss_div_out,
     input  [3:0]   ss_div_in,
     output         ss_quiescent
@@ -82,6 +83,8 @@ reg [3:0] clk_div;
 
 always @(negedge clk )
     if( rst ) begin
+        cen_16 <= 1'b1;
+    end else if (ss_pending_tick) begin
         cen_16 <= 1'b1;
     end else begin
         cen_16 <= !ss_ext_set && clk_en & (&clk_div);

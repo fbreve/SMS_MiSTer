@@ -890,6 +890,7 @@ wire         ss_vram_WE;
 wire [95:0] ss_psg_ext_out,ss_psg2_ext_out,ss_psg_ext_in,ss_psg2_ext_in;
 wire [3:0] ss_psg_div_out,ss_psg_div_in;
 wire [10:0] ss_audio_control_out,ss_audio_control_in;
+wire ss_audio_pending_tick;
 wire ss_audio_quiescent,ss_audio_phase_out,ss_audio_phase_in,ss_audio_phase_set,ss_audio_ext_set;
 wire [55:0]  ss_psg_out, ss_psg_in;
 wire         ss_psg_set;
@@ -1182,6 +1183,7 @@ system #(63) system
 	.audio_phase_out(ss_audio_phase_out),
 	.audio_phase_in(ss_audio_phase_in),
 	.audio_phase_set(ss_audio_phase_set),
+    .audio_pending_tick(ss_audio_pending_tick),
 	.audio_ext_set(ss_audio_ext_set),
 	.psg_out     (ss_psg_out),
 	.psg_in      (ss_psg_in),
@@ -1306,6 +1308,7 @@ savestates savestates_inst (
 	.audio_phase_out(ss_audio_phase_out),
 	.audio_phase_in(ss_audio_phase_in),
 	.audio_phase_set(ss_audio_phase_set),
+    .audio_pending_tick(ss_audio_pending_tick),
 	.audio_ext_set(ss_audio_ext_set),
 	.psg_out         (ss_psg_out),
 	.psg_in          (ss_psg_in),

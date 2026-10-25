@@ -181,6 +181,7 @@ entity system is
 		audio_control_in : in STD_LOGIC_VECTOR(10 downto 0) := (others => '0');
 		audio_quiescent, audio_phase_out : out STD_LOGIC;
 		audio_phase_in, audio_phase_set, audio_ext_set : in STD_LOGIC := '0';
+        audio_pending_tick : in STD_LOGIC := '0';
 		mapper_out   : out STD_LOGIC_VECTOR(63 downto 0);
 		mapper_history_out : out STD_LOGIC_VECTOR(17 downto 0);
 		mapper_history_in : in STD_LOGIC_VECTOR(17 downto 0) := "001111111111111111";
@@ -798,7 +799,7 @@ begin
 		ss_set => psg_set,
 		ss_in  => psg_in,
         ss_ext_out => psg_ext_out, ss_ext_in => psg_ext_in,
-        ss_ext_set => audio_ext_set, ss_div_out => psg_div1,
+        ss_pending_tick => audio_pending_tick, ss_ext_set => audio_ext_set, ss_div_out => psg_div1,
         ss_div_in => psg_div_in, ss_quiescent => psg_quiet1
 	);
 	
@@ -819,7 +820,7 @@ begin
 		ss_set => psg2_set,
 		ss_in  => psg2_in,
         ss_ext_out => psg2_ext_out, ss_ext_in => psg2_ext_in,
-        ss_ext_set => audio_ext_set and systeme, ss_div_out => psg_div2,
+        ss_pending_tick => audio_pending_tick and systeme, ss_ext_set => audio_ext_set and systeme, ss_div_out => psg_div2,
         ss_div_in => psg_div_in, ss_quiescent => psg_quiet2
 	);
 	

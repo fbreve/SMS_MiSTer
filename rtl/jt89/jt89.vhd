@@ -22,6 +22,7 @@ port
     ss_ext_out : out std_logic_vector(95 downto 0);
     ss_ext_in  : in std_logic_vector(95 downto 0) := (others => '0');
     ss_ext_set : in std_logic := '0';
+    ss_pending_tick : in std_logic := '0';
     ss_div_out : out std_logic_vector(3 downto 0);
     ss_div_in  : in std_logic_vector(3 downto 0) := (others => '0');
     ss_quiescent : out std_logic

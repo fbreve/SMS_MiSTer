@@ -8,6 +8,7 @@
 //                   v13 word5[43:41]=pre-T2 decoder class; [63:44]=zero.
 //                   v13 tag=48430d, subtype=3 at word01a. v12 has zero [63:41].
 //   v15 tag=48430f adds139-bit background records, retaining v14 restart.
+//   v16 tag=484310 records post-T AudioMix phase and restores it for SAVE/LOAD.
 //   Word032: width139/version15/G5B1; words033..038: two padded records.
 //   v14 tag=48430e, subtype3, retaining the v13 CPU word layout.
 //   Word 0x02e: sprite descriptor (width4778, version14, owner G6R1).
@@ -130,6 +131,7 @@ module savestates (
     output reg audio_phase_in,
     output reg audio_ext_set,
     output reg audio_phase_set,
+    output audio_pending_tick,
 
     // ---- Mapper snapshot / restore ----
     input      [63:0] mapper_out,
@@ -428,6 +430,7 @@ wire [14:0] nvram_size_minus_1 = transfer_eeprom ? 15'd127 :
 // v14: 02e descriptor, 02f phase/owner, 2901..2996 two sprite records.
 localparam [23:0] RESTART_MAGIC = 24'h48430e;
 localparam [23:0] BACKGROUND_MAGIC = 24'h48430f;
+localparam [23:0] MIXER_MAGIC = 24'h484310;
 localparam [63:0] BACKGROUND_DESC = {16'd139,8'd15,8'd0,32'h47354231};
 localparam ST_SAVE_BG_DESC=7'd107, ST_SAVE_BG=7'd108,
            ST_LOAD_BG_DESC=7'd109, ST_LOAD_BG=7'd110;
@@ -457,6 +460,12 @@ assign sprite_in=sprite_snap[4777:0];
 assign sprite2_in=sprite2_snap[4777:0];
 assign sprite_valid=has_restart;
 assign clock_phase_in=phase_snap;
+// T consumed a raw PSG enable only at divider phase10/25. Post-T div15
+// means its falling-edge /16 event belongs to logical T+1. Transport held
+// that event; replay it on the falling edge before the first resumed clock.
+assign audio_pending_tick = audio_phase_set && capture_tick_snap &&
+                            (phase_snap==2'd1 || phase_snap==2'd3) &&
+                            audio_div_snap==4'd15;
 assign z80_replay_t2=has_restart?capture_tick_snap:1'b1;
 wire [28:0] sprite_address=29'h2901+(sprite_second?29'd75:29'd0)+{22'd0,sprite_word};
 // A 75-word ring avoids a wide indexed read/write crossbar. SAVE rotates
@@ -525,7 +534,7 @@ reg  [63:0] eeprom_snap;
 // SC payload shares 0d01..1d00, never the System E or EEPROM regions.
 // 01e: [22:0] P1, [45:23] P2, [63:46] zero. Per port:
 // [16:0] timer, [19:17] rises, [20] TH history, [22:21] type history.
-wire [63:0] video_word = {BACKGROUND_MAGIC, 2'd3,
+wire [63:0] video_word = {MIXER_MAGIC, 2'd3,
                          systeme ? vdp2_snap[135:128] : 8'd0,
                          vdp_snap[135:128], video_snap};
 
@@ -568,10 +577,10 @@ wire bg_word_invalid=(bg_word==2 && dout_latch[63:11]!=0) ||
     (bg_word==0 && dout_latch[22:15]>=8'd240) ||
     (bg_second && !systeme && dout_latch!=0);
 // v13 inherits v12 NMI and every v11 extension location and meaning.
-wire modern_restart_tag = dout_latch[63:40] == CPU_RESTART_MAGIC || dout_latch[63:40] == RESTART_MAGIC || dout_latch[63:40] == BACKGROUND_MAGIC;
+wire modern_restart_tag = dout_latch[63:40] == CPU_RESTART_MAGIC || dout_latch[63:40] == RESTART_MAGIC || (dout_latch[63:40] == BACKGROUND_MAGIC || dout_latch[63:40] == MIXER_MAGIC);
 wire modern_nmi_tag = dout_latch[63:40] == NMI_HISTORY_MAGIC || modern_restart_tag;
 wire [23:0] load_ext_magic = modern_nmi_tag ? EVOLUTION_PENDING_MAGIC : dout_latch[63:40];
-wire invalid_nmi_header = modern_nmi_tag &&
+wire invalid_nmi_header = (dout_latch[63:40] == MIXER_MAGIC && !has_audio_ext) || modern_nmi_tag &&
                           (dout_latch[39:38] != 2'd3 ||
                            (modern_restart_tag ? !restart_padding_ok : !nmi_padding_ok));
 
@@ -1104,6 +1113,7 @@ always @(posedge clk or negedge reset_n) begin
             ss_freeze   <= 0;
             is_old_format <= 0;
             has_audio_ext <= 0;
+            audio_phase_snap <= 0;
              if (op_cooldown != 0)
                  op_cooldown <= op_cooldown - 28'd1;
             else if (ss_save) begin
@@ -1153,6 +1163,7 @@ always @(posedge clk or negedge reset_n) begin
             nvram_refill <= 0;
             // Guest hold was asserted at accepted T. Collect post-T device
             // state here, before any subsequent guest enable is admitted.
+            audio_phase_snap<=do_save ? audio_phase_out : 1'b0; // post-T next channel, not transport phase
             bg_snap<=bg_out;bg2_snap<=systeme?bg2_out:139'd0;
             has_background<=1;
             sprite_snap <= {22'd0,sprite_out};
@@ -1224,7 +1235,7 @@ always @(posedge clk or negedge reset_n) begin
                 psg2_ext_snap <= psg2_ext_out;
                 audio_div_snap <= psg_div_out;
                 audio_control_snap <= audio_control_out;
-                audio_phase_snap <= audio_phase_out;
+                // Audio phase was captured at ARM, before transport advanced.
                 audio_word <= 0;
                 state <= ST_SAVE_AUDIO_INVALID;
             end
@@ -2122,10 +2133,12 @@ always @(posedge clk or negedge reset_n) begin
                 dout_expected <= 0;
                 dout_latch    <= DDRAM_DOUT;
             end else if (!dout_expected && !DDRAM_BUSY) begin
+                // v15 and older recorded transport phase, not historical T+1.
+                if (dout_latch[63:40] != MIXER_MAGIC) audio_phase_snap<=0;
                 has_nmi_history <= modern_nmi_tag;
                 has_restart_context <= modern_restart_tag;
-                has_restart <= dout_latch[63:40] == RESTART_MAGIC || dout_latch[63:40] == BACKGROUND_MAGIC;
-                has_background <= dout_latch[63:40] == BACKGROUND_MAGIC;
+                has_restart <= dout_latch[63:40] == RESTART_MAGIC || (dout_latch[63:40] == BACKGROUND_MAGIC || dout_latch[63:40] == MIXER_MAGIC);
+                has_background <= (dout_latch[63:40] == BACKGROUND_MAGIC || dout_latch[63:40] == MIXER_MAGIC);
                 has_evolution_history <= (load_ext_magic == EVOLUTION_HISTORY_MAGIC || load_ext_magic == EVOLUTION_PENDING_MAGIC) && dout_latch[39:38] == 2'd3;
                 if (invalid_nmi_header || (live_evolution || evolution_state) && (!evolution_state || load_ext_magic != EVOLUTION_PENDING_MAGIC || dout_latch[39:38] != 2'd3)) begin
                     state <= ST_ERROR;
@@ -2691,9 +2704,7 @@ always @(posedge clk or negedge reset_n) begin
             video_state_in<=video_snap;video_state_set<=1;
             if (clock_phase_ready) begin
                 clock_phase_set<=0;video_state_set<=0;ss_freeze<=0;unfreeze_cnt<=0;
-                if (!do_save && has_audio_ext) begin
-                    audio_phase_in<=audio_phase_snap;audio_phase_set<=1;
-                end
+                audio_phase_in<=audio_phase_snap;audio_phase_set<=1;
                 state<=ST_UNFREEZE_SETTLE;
             end
         end
