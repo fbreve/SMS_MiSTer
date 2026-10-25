@@ -608,7 +608,9 @@ sdram ram
 
 	.init(~locked),
 	.clk(clk_sys),
-	.clkref(systeme ? ce_pix : turbo ? ce_pix : ce_cpu),
+	// Private CPU replay uses /15 even in System E/turbo. Align the ROM
+	// acceptance slot with its T1 so the restored read completes before T2.
+	.clkref((ss_cpu_prepare || !(systeme || turbo)) ? ce_cpu : ce_pix),
 
 	.waddr(romwr_a),
 	.din(ioctl_dout),
