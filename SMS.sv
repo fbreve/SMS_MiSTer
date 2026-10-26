@@ -39,6 +39,9 @@ assign BUTTONS   = osd_btn;
 assign VGA_SCALER= 0;
 assign VGA_DISABLE = 0;
 wire ss_freeze;
+wire [7:0] ss_fm_addr;
+wire [31:0] ss_fm_rdata,ss_fm_wdata;
+wire ss_fm_read,ss_fm_write,ss_fm_initialized,ss_fm_legacy_reset,ss_fm_initialization_run;
 wire ss_cpu_prepare, ss_z80_replay,ss_z80_tick,ss_replay_t2;
 wire ss_phase_set;reg ss_phase_ready=0;
 wire [1:0] ss_phase_in;
@@ -1008,7 +1011,10 @@ wire  [7:0] ss_nvram_WD;   // DMA write data
 system #(63) system
 (
 	.clk_sys(clk_sys),
-	.ss_freeze(ss_freeze),
+	.fm_state_addr(ss_fm_addr), .fm_state_read(ss_fm_read), .fm_state_write(ss_fm_write),
+    .fm_state_wdata(ss_fm_wdata), .fm_state_rdata(ss_fm_rdata), .fm_initialized(ss_fm_initialized),
+    .fm_legacy_reset(ss_fm_legacy_reset), .fm_initialization_run(ss_fm_initialization_run),
+.ss_freeze(ss_freeze),
     .ss_cpu_prepare(ss_cpu_prepare),.ss_prepare_ce(ce_cpu),.z80_replay_out(ss_z80_replay),
     .z80_tick_out(ss_z80_tick),.z80_replay_t2(ss_replay_t2),
     .ss_bg_out(ss_bg_out),.ss_bg2_out(ss_bg2_out),.ss_bg_in(ss_bg_in),.ss_bg2_in(ss_bg2_in),.ss_bg_valid(ss_bg_valid),
@@ -1262,7 +1268,10 @@ savestates savestates_inst (
 	.ss_slot         (ss_slot),
 	.ss_bios_mode    (ss_bios_mode),
 	.ss_game_id      (ss_game_id),
-	.ss_freeze       (ss_freeze),
+	.fm_state_addr(ss_fm_addr), .fm_state_read(ss_fm_read), .fm_state_write(ss_fm_write),
+    .fm_state_wdata(ss_fm_wdata), .fm_state_rdata(ss_fm_rdata), .fm_initialized(ss_fm_initialized),
+    .fm_legacy_reset(ss_fm_legacy_reset), .fm_initialization_run(ss_fm_initialization_run),
+.ss_freeze       (ss_freeze),
 	.ss_capture_progress(ss_capture_progress),
 	.vblank          (VBlank),
 	.x               (x),
