@@ -18,7 +18,9 @@ port
 	audio_r : out signed(15 downto 0);
 	ss_phase_out : out std_logic;
 	ss_phase_in : in std_logic := '0';
-	ss_phase_set : in std_logic := '0'
+	ss_phase_set : in std_logic := '0';
+    ss_last_sample : in signed(15 downto 0) := (others=>'0');
+    ss_last_valid : in std_logic := '0'
 );
 end entity;
 
@@ -54,8 +56,10 @@ begin
 	if rising_edge(clk) then
 		if phase='0' then
 			audio_l<=clipped(15 downto 0);
+            if ss_phase_set='1' and ss_last_valid='1' then audio_r<=ss_last_sample; end if;
 		else
 			audio_r<=clipped(15 downto 0);
+            if ss_phase_set='1' and ss_last_valid='1' then audio_l<=ss_last_sample; end if;
 		end if;
 		toggle<=not phase;
 	end if;

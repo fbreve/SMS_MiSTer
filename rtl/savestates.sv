@@ -134,6 +134,9 @@ module savestates (
     output reg [10:0] audio_control_in,
     input audio_quiescent,
     input audio_phase_out,
+    input [15:0] audio_last_out,
+    output [15:0] audio_last_in,
+    output audio_last_valid,
     output reg audio_phase_in,
     output reg audio_ext_set,
     output reg audio_phase_set,
@@ -403,7 +406,8 @@ localparam [19:0] FLUSH_MAX       = 20'd900000;    // ≈16.8ms @ 53.7MHz
 // PSG extension v1: 020 descriptor, 021/022 PSG1, 023/024 PSG2.
 // Descriptor: [31:0] "PSGX", [39:32] version, [40] PSG2,
 // [44:41] divider, [45] AudioMix phase, [48:46] payload words,
-// [63:49] reserved zero. Payload high words have [63:32] zero.
+// [63:49] reserved zero. Audio v2 stores the last mixed channel in
+// word022[47:32]; word022[63:48] and word024[63:32] remain zero.
 localparam [31:0] AUDIO_MAGIC = 32'h50534758;
 localparam ST_SAVE_AUDIO_INVALID = 7'd66, ST_SAVE_AUDIO_PAYLOAD = 7'd67,
            ST_SAVE_AUDIO_DESC = 7'd68, ST_SAVE_AUDIO_COMMIT = 7'd69,
@@ -413,10 +417,14 @@ reg [95:0] psg_ext_snap, psg2_ext_snap;
 reg [3:0] audio_div_snap;
 reg [10:0] audio_control_snap;
 reg audio_phase_snap, has_audio_ext;
+reg [15:0] audio_last_snap;
+reg has_audio_last;
+assign audio_last_in = audio_last_snap;
+assign audio_last_valid = has_audio_last;
 reg [2:0] audio_word;
 wire [2:0] audio_words = systeme ? 3'd4 : 3'd2;
 wire [63:0] audio_descriptor = {15'd0, audio_words, audio_phase_snap,
-                               audio_div_snap, systeme, 8'd1, AUDIO_MAGIC};
+                               audio_div_snap, systeme, 8'd2, AUDIO_MAGIC};
 
 
 // NVRAM size calculation helpers
@@ -446,6 +454,8 @@ localparam [23:0] FM_MAGIC = 24'h484311;
 // v18: complete 32 KiB SRAM at 0xD01..0x1D00 in the ordinary SRAM mode.
 // The tag is the completeness marker; v17 and older retain their old footprint.
 localparam [23:0] SRAM_MAGIC = 24'h484312;
+// v19: exact last mixed channel at accepted T, audio extension version2.
+localparam [23:0] AUDIO_LAST_MAGIC = 24'h484313;
 // Explicit owner, version17, 104 private32-bit rows. Free tail of96KiB slot.
 localparam [63:0] FM_DESC = {16'd104,8'd17,8'd1,32'h464d5331};
 localparam ST_FM_CAPTURE=7'd111, ST_FM_SAVE_FETCH=7'd112, ST_FM_SAVE_WAIT=7'd113,
@@ -675,7 +685,7 @@ reg  [63:0] eeprom_snap;
 // SC payload shares 0d01..1d00, never the System E or EEPROM regions.
 // 01e: [22:0] P1, [45:23] P2, [63:46] zero. Per port:
 // [16:0] timer, [19:17] rises, [20] TH history, [22:21] type history.
-wire [63:0] video_word = {SRAM_MAGIC, 2'd3,
+wire [63:0] video_word = {AUDIO_LAST_MAGIC, 2'd3,
                          systeme ? vdp2_snap[135:128] : 8'd0,
                          vdp_snap[135:128], video_snap};
 
@@ -718,7 +728,7 @@ wire bg_word_invalid=(bg_word==2 && dout_latch[63:11]!=0) ||
     (bg_word==0 && dout_latch[22:15]>=8'd240) ||
     (bg_second && !systeme && dout_latch!=0);
 // v13 inherits v12 NMI and every v11 extension location and meaning.
-wire fm_tag = dout_latch[63:40] == FM_MAGIC || dout_latch[63:40] == SRAM_MAGIC;
+wire fm_tag = dout_latch[63:40] == FM_MAGIC || dout_latch[63:40] == SRAM_MAGIC || dout_latch[63:40] == AUDIO_LAST_MAGIC;
 wire modern_restart_tag = dout_latch[63:40] == CPU_RESTART_MAGIC || dout_latch[63:40] == RESTART_MAGIC || (dout_latch[63:40] == BACKGROUND_MAGIC || (dout_latch[63:40] == MIXER_MAGIC || fm_tag));
 wire modern_nmi_tag = dout_latch[63:40] == NMI_HISTORY_MAGIC || modern_restart_tag;
 wire [23:0] load_ext_magic = modern_nmi_tag ? EVOLUTION_PENDING_MAGIC : dout_latch[63:40];
@@ -742,6 +752,12 @@ reg [5:0]   freeze_drain_cnt;
 
 reg [27:0]  op_cooldown;
 reg         is_old_format;
+wire audio_desc_valid = !is_old_format && dout_latch[31:0] == AUDIO_MAGIC &&
+    (dout_latch[39:32] == 8'd1 || dout_latch[39:32] == 8'd2) &&
+    dout_latch[40] == systeme && dout_latch[48:46] == audio_words && dout_latch[63:49] == 0;
+wire audio_payload_invalid = audio_word[0] &&
+    ((audio_word == 1 && has_audio_last) ? dout_latch[63:48] != 0 : dout_latch[63:32] != 0);
+
 
 // VRAM transfer routing: state-derived only; no additional registered state.
 wire vram_second_port = state == ST_SAVE_VRAM2 || state == ST_SAVE_VRAM2_PASSIVE ||
@@ -926,7 +942,7 @@ always @(*) begin
             if (! DDRAM_BUSY) begin
                 case (audio_word)
                     0: ddram_cmd_write ( base_addr + 29'h021 , psg_ext_snap [ 63 : 0 ] , 8'hFF ) ;
-                    1: ddram_cmd_write ( base_addr + 29'h022 , { 32'd0 , psg_ext_snap [ 95 : 64 ] } , 8'hFF ) ;
+                    1: ddram_cmd_write ( base_addr + 29'h022 , { 16'd0 , audio_last_snap , psg_ext_snap [ 95 : 64 ] } , 8'hFF ) ;
                     2: ddram_cmd_write ( base_addr + 29'h023 , psg2_ext_snap [ 63 : 0 ] , 8'hFF ) ;
                     3: ddram_cmd_write ( base_addr + 29'h024 , { 32'd0 , psg2_ext_snap [ 95 : 64 ] } , 8'hFF ) ;
                     default: begin end
@@ -994,11 +1010,11 @@ always @(*) begin
                 end
             end
         end
-        ST_LOAD_AUDIO_DESC: if (!(DDRAM_DOUT_READY && dout_expected)) if (! dout_expected && ! DDRAM_BUSY) if (! is_old_format && dout_latch [ 31 : 0 ] == AUDIO_MAGIC && dout_latch [ 39 : 32 ] == 8'd1 && dout_latch [ 40 ] == systeme && dout_latch [ 48 : 46 ] == audio_words && dout_latch [ 63 : 49 ] == 0) ddram_cmd_read ( base_addr + 29'h021 ) ;
+        ST_LOAD_AUDIO_DESC: if (!(DDRAM_DOUT_READY && dout_expected)) if (! dout_expected && ! DDRAM_BUSY) if (audio_desc_valid) ddram_cmd_read ( base_addr + 29'h021 ) ;
         ST_LOAD_AUDIO_PAYLOAD: begin
             if (!(DDRAM_DOUT_READY && dout_expected)) begin
                 if (! dout_expected && ! DDRAM_BUSY) begin
-                    if (!(audio_word [ 0 ] && ( dout_latch [ 63 : 32 ] != 0 ))) begin
+                    if (!(audio_payload_invalid)) begin
                         if (audio_word == audio_words - 1) begin
                             ddram_cmd_read ( base_addr + 29'h00f ) ;
                         end else begin
@@ -1203,7 +1219,7 @@ always @(posedge clk or negedge reset_n) begin
         freeze_drain_cnt <= 0;
         op_cooldown    <= 0;
         is_old_format   <= 0;
-        has_audio_ext <= 0;
+        has_audio_ext <= 0; has_audio_last <= 0; audio_last_snap <= 0;
         audio_ext_set <= 0;
         audio_phase_set <= 0;
         psg_ext_in <= 0; psg2_ext_in <= 0; psg_div_in <= 0;
@@ -1260,7 +1276,7 @@ always @(posedge clk or negedge reset_n) begin
         ST_IDLE: begin
             ss_freeze   <= 0;
             is_old_format <= 0;has_fm<=0;has_full_sram<=0;
-            has_audio_ext <= 0;
+            has_audio_ext <= 0; has_audio_last <= 0; audio_last_snap <= 0;
             audio_phase_snap <= 0;
              if (op_cooldown != 0)
                  op_cooldown <= op_cooldown - 28'd1;
@@ -1311,7 +1327,9 @@ always @(posedge clk or negedge reset_n) begin
             nvram_refill <= 0;
             // Guest hold was asserted at accepted T. Collect post-T device
             // state here, before any subsequent guest enable is admitted.
-            audio_phase_snap<=do_save ? audio_phase_out : 1'b0; // post-T next channel, not transport phase
+            audio_phase_snap<=do_save ? audio_phase_out : 1'b0;
+            audio_last_snap <= do_save ? audio_last_out : 16'd0;
+            has_audio_last <= do_save; // post-T next channel, not transport phase
             bg_snap<=bg_out;bg2_snap<=systeme?bg2_out:139'd0;
             has_background<=1;
             sprite_snap <= {22'd0,sprite_out};
@@ -1999,7 +2017,7 @@ always @(posedge clk or negedge reset_n) begin
             if (!DDRAM_BUSY) begin
                 case (audio_word)
                     0: ddram_write(base_addr + 29'h021, psg_ext_snap[63:0], 8'hFF);
-                    1: ddram_write(base_addr + 29'h022, {32'd0,psg_ext_snap[95:64]}, 8'hFF);
+                    1: ddram_write(base_addr + 29'h022, {16'd0,audio_last_snap,psg_ext_snap[95:64]}, 8'hFF);
                     2: ddram_write(base_addr + 29'h023, psg2_ext_snap[63:0], 8'hFF);
                     3: ddram_write(base_addr + 29'h024, {32'd0,psg2_ext_snap[95:64]}, 8'hFF);
                 endcase
@@ -2231,9 +2249,8 @@ always @(posedge clk or negedge reset_n) begin
                 dout_expected <= 0;
                 dout_latch <= DDRAM_DOUT;
             end else if (!dout_expected && !DDRAM_BUSY) begin
-                if (!is_old_format && dout_latch[31:0] == AUDIO_MAGIC &&
-                    dout_latch[39:32] == 8'd1 && dout_latch[40] == systeme &&
-                    dout_latch[48:46] == audio_words && dout_latch[63:49] == 0) begin
+                if (audio_desc_valid) begin
+                    has_audio_last <= dout_latch[39:32] == 8'd2;
                     audio_div_snap <= dout_latch[44:41];
                     audio_phase_snap <= dout_latch[45];
                     audio_word <= 0;
@@ -2250,12 +2267,13 @@ always @(posedge clk or negedge reset_n) begin
                 dout_expected <= 0;
                 dout_latch <= DDRAM_DOUT;
             end else if (!dout_expected && !DDRAM_BUSY) begin
-                if (audio_word[0] && (dout_latch[63:32] != 0)) begin
+                if (audio_payload_invalid) begin
                     state <= ST_ERROR;
                 end else begin
                     case (audio_word)
                         0: psg_ext_snap[63:0] <= dout_latch;
-                        1: psg_ext_snap[95:64] <= dout_latch[31:0];
+                        1: begin psg_ext_snap[95:64] <= dout_latch[31:0];
+                                 if (has_audio_last) audio_last_snap <= dout_latch[47:32]; end
                         2: psg2_ext_snap[63:0] <= dout_latch;
                         3: psg2_ext_snap[95:64] <= dout_latch[31:0];
                     endcase
@@ -2315,13 +2333,13 @@ always @(posedge clk or negedge reset_n) begin
                 // v15 and older recorded transport phase, not historical T+1.
                 if ((dout_latch[63:40] != MIXER_MAGIC && !fm_tag)) audio_phase_snap<=0;
                 has_fm <= fm_tag;
-                has_full_sram <= dout_latch[63:40] == SRAM_MAGIC;
+                has_full_sram <= dout_latch[63:40] == SRAM_MAGIC || dout_latch[63:40] == AUDIO_LAST_MAGIC;
                 has_nmi_history <= modern_nmi_tag;
                 has_restart_context <= modern_restart_tag;
                 has_restart <= dout_latch[63:40] == RESTART_MAGIC || (dout_latch[63:40] == BACKGROUND_MAGIC || (dout_latch[63:40] == MIXER_MAGIC || fm_tag));
                 has_background <= (dout_latch[63:40] == BACKGROUND_MAGIC || (dout_latch[63:40] == MIXER_MAGIC || fm_tag));
                 has_evolution_history <= (load_ext_magic == EVOLUTION_HISTORY_MAGIC || load_ext_magic == EVOLUTION_PENDING_MAGIC) && dout_latch[39:38] == 2'd3;
-                if (invalid_nmi_header || (live_evolution || evolution_state) && (!evolution_state || load_ext_magic != EVOLUTION_PENDING_MAGIC || dout_latch[39:38] != 2'd3)) begin
+                if ((has_audio_last != (dout_latch[63:40] == AUDIO_LAST_MAGIC)) || invalid_nmi_header || (live_evolution || evolution_state) && (!evolution_state || load_ext_magic != EVOLUTION_PENDING_MAGIC || dout_latch[39:38] != 2'd3)) begin
                     state <= ST_ERROR;
                 end else begin
                 video_snap       <= dout_latch[21:0];

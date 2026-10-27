@@ -182,6 +182,8 @@ entity system is
 		audio_quiescent, audio_phase_out : out STD_LOGIC;
 		audio_phase_in, audio_phase_set, audio_ext_set : in STD_LOGIC := '0';
         audio_pending_tick : in STD_LOGIC := '0';
+        audio_last_in : in STD_LOGIC_VECTOR(15 downto 0) := (others=>'0');
+        audio_last_valid : in STD_LOGIC := '0';
 		mapper_out   : out STD_LOGIC_VECTOR(63 downto 0);
 		mapper_history_out : out STD_LOGIC_VECTOR(17 downto 0);
 		mapper_history_in : in STD_LOGIC_VECTOR(17 downto 0) := "001111111111111111";
@@ -908,6 +910,7 @@ mix : entity work.AudioMix
 port map(
 	clk => clk_sys,
     ss_phase_out => audio_phase_out, ss_phase_in => audio_phase_in, ss_phase_set => audio_phase_set,
+    ss_last_sample => signed(audio_last_in), ss_last_valid => audio_last_valid,
 	audio_in_l1 => signed(mix_inL & "000"),
 	audio_in_l2 => signed(mix2_inL & "000"),
 	audio_in_r1 => signed(mix_inR & "000"),

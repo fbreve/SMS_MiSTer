@@ -897,6 +897,8 @@ wire [3:0] ss_psg_div_out,ss_psg_div_in;
 wire [10:0] ss_audio_control_out,ss_audio_control_in;
 wire ss_audio_pending_tick;
 wire ss_audio_quiescent,ss_audio_phase_out,ss_audio_phase_in,ss_audio_phase_set,ss_audio_ext_set;
+wire [15:0] ss_audio_last_in;
+wire ss_audio_last_valid;
 wire [55:0]  ss_psg_out, ss_psg_in;
 wire         ss_psg_set;
 wire [63:0]  ss_mapper_out, ss_mapper_in;
@@ -1189,6 +1191,7 @@ system #(63) system
 	.audio_control_in(ss_audio_control_in),
 	.audio_quiescent(ss_audio_quiescent),
 	.audio_phase_out(ss_audio_phase_out),
+    .audio_last_in(ss_audio_last_in), .audio_last_valid(ss_audio_last_valid),
 	.audio_phase_in(ss_audio_phase_in),
 	.audio_phase_set(ss_audio_phase_set),
     .audio_pending_tick(ss_audio_pending_tick),
@@ -1255,7 +1258,8 @@ savestate_ui savestate_ui_inst (
 
 wire clkref_cpu = (systeme | turbo) ? ce_pix : ce_cpu;
 
-savestates savestates_inst (
+savestates savestates_inst(
+    .audio_last_out(ss_audio_phase_out ? audio_l : audio_r),
 	.ss_cpu_prepare(ss_cpu_prepare),.z80_replay(ss_z80_replay),
     .z80_tick_active(ss_z80_tick),.z80_replay_t2(ss_replay_t2),
     .clock_phase(ss_phase_out),.clock_phase_in(ss_phase_in),.clock_phase_set(ss_phase_set),.clock_phase_ready(ss_phase_ready),
@@ -1317,6 +1321,7 @@ savestates savestates_inst (
 	.audio_control_in(ss_audio_control_in),
 	.audio_quiescent(ss_audio_quiescent),
 	.audio_phase_out(ss_audio_phase_out),
+    .audio_last_in(ss_audio_last_in), .audio_last_valid(ss_audio_last_valid),
 	.audio_phase_in(ss_audio_phase_in),
 	.audio_phase_set(ss_audio_phase_set),
     .audio_pending_tick(ss_audio_pending_tick),
