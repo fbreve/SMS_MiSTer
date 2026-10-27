@@ -355,6 +355,7 @@ localparam [23:0] SC_EXT_MAGIC = 24'h484305;
 localparam ST_SAVE_SC_DESC=7'd81, ST_LOAD_SC_DESC=7'd82;
 reg [1:0] sc_size_snap;
 reg has_sc_tag, sc_ram_full;
+reg has_full_sram;
 wire [63:0] sc_descriptor = {30'd0,sc_size_snap,32'h53435235}; // SCR5
 localparam [23:0] TAP_EXT_MAGIC = 24'h484306;
 localparam ST_SAVE_TAP=7'd83, ST_LOAD_TAP=7'd84;
@@ -425,11 +426,15 @@ wire has_nvram_16k = !evolution_state && mapper_snap[50];                    // 
 wire has_nvram_32k = !evolution_state && (mapper_snap[51] | mapper_snap[52] | mapper_snap[61]); // nvram_ex / nvram_p / The Castle
 wire has_nvram     = has_nvram_8k | has_nvram_16k | has_nvram_32k;
 
-// SC configuration selects its own backing independently of Sega flags.
-wire transfer_ram = transfer_sc || (sc_size_snap == 0 && has_nvram);
+// v18 preserves the complete physical SRAM backing, independently of current
+// visibility/bank flags. SC and EEPROM retain their established own footprints;
+// System E uses the overlapping DDR region for its additional video memories.
+wire transfer_full_sram = (do_save || has_full_sram) && !systeme &&
+                          sc_size_snap == 0 && !eeprom_present;
+wire transfer_ram = transfer_sc || transfer_full_sram || (sc_size_snap == 0 && has_nvram);
 wire [14:0] nvram_size_minus_1 = transfer_eeprom ? 15'd127 :
                                  transfer_sc ? (sc_size_snap == 1 ? 15'd2047 : sc_size_snap == 2 ? 15'd16383 : 15'd32767) :
-                                 has_nvram_32k ? 15'd32767 :
+                                 (transfer_full_sram || has_nvram_32k) ? 15'd32767 :
                                  has_nvram_16k ? 15'd16383 :
                                                  15'd8191;
 
@@ -438,6 +443,9 @@ localparam [23:0] RESTART_MAGIC = 24'h48430e;
 localparam [23:0] BACKGROUND_MAGIC = 24'h48430f;
 localparam [23:0] MIXER_MAGIC = 24'h484310;
 localparam [23:0] FM_MAGIC = 24'h484311;
+// v18: complete 32 KiB SRAM at 0xD01..0x1D00 in the ordinary SRAM mode.
+// The tag is the completeness marker; v17 and older retain their old footprint.
+localparam [23:0] SRAM_MAGIC = 24'h484312;
 // Explicit owner, version17, 104 private32-bit rows. Free tail of96KiB slot.
 localparam [63:0] FM_DESC = {16'd104,8'd17,8'd1,32'h464d5331};
 localparam ST_FM_CAPTURE=7'd111, ST_FM_SAVE_FETCH=7'd112, ST_FM_SAVE_WAIT=7'd113,
@@ -667,7 +675,7 @@ reg  [63:0] eeprom_snap;
 // SC payload shares 0d01..1d00, never the System E or EEPROM regions.
 // 01e: [22:0] P1, [45:23] P2, [63:46] zero. Per port:
 // [16:0] timer, [19:17] rises, [20] TH history, [22:21] type history.
-wire [63:0] video_word = {FM_MAGIC, 2'd3,
+wire [63:0] video_word = {SRAM_MAGIC, 2'd3,
                          systeme ? vdp2_snap[135:128] : 8'd0,
                          vdp_snap[135:128], video_snap};
 
@@ -710,10 +718,11 @@ wire bg_word_invalid=(bg_word==2 && dout_latch[63:11]!=0) ||
     (bg_word==0 && dout_latch[22:15]>=8'd240) ||
     (bg_second && !systeme && dout_latch!=0);
 // v13 inherits v12 NMI and every v11 extension location and meaning.
-wire modern_restart_tag = dout_latch[63:40] == CPU_RESTART_MAGIC || dout_latch[63:40] == RESTART_MAGIC || (dout_latch[63:40] == BACKGROUND_MAGIC || (dout_latch[63:40] == MIXER_MAGIC || dout_latch[63:40] == FM_MAGIC));
+wire fm_tag = dout_latch[63:40] == FM_MAGIC || dout_latch[63:40] == SRAM_MAGIC;
+wire modern_restart_tag = dout_latch[63:40] == CPU_RESTART_MAGIC || dout_latch[63:40] == RESTART_MAGIC || (dout_latch[63:40] == BACKGROUND_MAGIC || (dout_latch[63:40] == MIXER_MAGIC || fm_tag));
 wire modern_nmi_tag = dout_latch[63:40] == NMI_HISTORY_MAGIC || modern_restart_tag;
 wire [23:0] load_ext_magic = modern_nmi_tag ? EVOLUTION_PENDING_MAGIC : dout_latch[63:40];
-wire invalid_nmi_header = ((dout_latch[63:40] == MIXER_MAGIC || dout_latch[63:40] == FM_MAGIC) && !has_audio_ext) || modern_nmi_tag &&
+wire invalid_nmi_header = ((dout_latch[63:40] == MIXER_MAGIC || fm_tag) && !has_audio_ext) || modern_nmi_tag &&
                           (dout_latch[39:38] != 2'd3 ||
                            (modern_restart_tag ? !restart_padding_ok : !nmi_padding_ok));
 
@@ -1139,7 +1148,7 @@ endtask
 // -----------------------------------------------------------------------
 always @(posedge clk or negedge reset_n) begin
     if (!reset_n) begin
-        fm_capture<=0;fm_apply<=0;fm_legacy<=0;fm_bulk_read<=0;fm_bulk_write<=0;has_fm<=0;fm_word<=0;
+        fm_capture<=0;fm_apply<=0;fm_legacy<=0;fm_bulk_read<=0;fm_bulk_write<=0;has_fm<=0;fm_word<=0;has_full_sram<=0;
         state           <= ST_IDLE;
         ss_freeze       <= 0;
         capture_tick_snap<=1;
@@ -1250,7 +1259,7 @@ always @(posedge clk or negedge reset_n) begin
         // ---------------------------------------------------------------
         ST_IDLE: begin
             ss_freeze   <= 0;
-            is_old_format <= 0;has_fm<=0;
+            is_old_format <= 0;has_fm<=0;has_full_sram<=0;
             has_audio_ext <= 0;
             audio_phase_snap <= 0;
              if (op_cooldown != 0)
@@ -2304,12 +2313,13 @@ always @(posedge clk or negedge reset_n) begin
                 dout_latch    <= DDRAM_DOUT;
             end else if (!dout_expected && !DDRAM_BUSY) begin
                 // v15 and older recorded transport phase, not historical T+1.
-                if ((dout_latch[63:40] != MIXER_MAGIC && dout_latch[63:40] != FM_MAGIC)) audio_phase_snap<=0;
-                has_fm <= dout_latch[63:40] == FM_MAGIC;
+                if ((dout_latch[63:40] != MIXER_MAGIC && !fm_tag)) audio_phase_snap<=0;
+                has_fm <= fm_tag;
+                has_full_sram <= dout_latch[63:40] == SRAM_MAGIC;
                 has_nmi_history <= modern_nmi_tag;
                 has_restart_context <= modern_restart_tag;
-                has_restart <= dout_latch[63:40] == RESTART_MAGIC || (dout_latch[63:40] == BACKGROUND_MAGIC || (dout_latch[63:40] == MIXER_MAGIC || dout_latch[63:40] == FM_MAGIC));
-                has_background <= (dout_latch[63:40] == BACKGROUND_MAGIC || (dout_latch[63:40] == MIXER_MAGIC || dout_latch[63:40] == FM_MAGIC));
+                has_restart <= dout_latch[63:40] == RESTART_MAGIC || (dout_latch[63:40] == BACKGROUND_MAGIC || (dout_latch[63:40] == MIXER_MAGIC || fm_tag));
+                has_background <= (dout_latch[63:40] == BACKGROUND_MAGIC || (dout_latch[63:40] == MIXER_MAGIC || fm_tag));
                 has_evolution_history <= (load_ext_magic == EVOLUTION_HISTORY_MAGIC || load_ext_magic == EVOLUTION_PENDING_MAGIC) && dout_latch[39:38] == 2'd3;
                 if (invalid_nmi_header || (live_evolution || evolution_state) && (!evolution_state || load_ext_magic != EVOLUTION_PENDING_MAGIC || dout_latch[39:38] != 2'd3)) begin
                     state <= ST_ERROR;
