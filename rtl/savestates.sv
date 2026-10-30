@@ -336,7 +336,7 @@ reg  [2:0]  vram_pipe;
 reg [14:0]  vram_save_addr;  // current byte address being saved
 reg [14:0]  vram_load_addr;  // current byte address being loaded
 reg  [2:0]  vram_byte_cnt;   // 0..7 bytes within 64-bit DDRAM word
-reg [63:0]  save_word_buf;   // accumulate 8 bytes → 1 DDRAM write
+reg [63:0]  save_word_buf;   // shared accumulator for VRAM, WRAM and NVRAM saves
 reg         vram_load_active; // 1 while writing 8 bytes from dout_latch
 // Byte-7 latch: when DDRAM_BUSY stalls a word write, the SPRAM/DPRAM pipeline
 // still advances on the next cycle so vram_D would have wrong data on retry.
@@ -348,7 +348,6 @@ reg         vram_d_latched;  // 1 = latch holds a valid stalled byte-7 value
 reg [13:0]  wram_save_addr;
 reg [13:0]  wram_load_addr;
 reg  [2:0]  wram_byte_cnt;
-reg [63:0]  save_word_buf;
 reg  [1:0]  wram_pipe;
 reg         wram_load_active; // 1 while writing 8 bytes from dout_latch
 reg  [7:0]  wram_d_latch;
