@@ -79,10 +79,11 @@ architecture Behavioral of mapper_detect is
 	signal dahjee_count_23, dahjee_count_def : integer range 0 to 16383 := 0;
 	signal dahjee_region_ff : std_logic := '0';
 
+	-- Capture only the Codemasters header predicates, not the full bytes.
 	-- Static Codemasters header detection (mirrors MAME get_cart_type)
 	-- Checks: ROM[0x7FE0] & 0x0F <= 9, ROM[0x7FE3] in {0x93, 0x94, 0x95}, ROM[0x7FEF] = 0x00
-	signal codies_byte_fe0      : std_logic_vector(7 downto 0) := (others => '1');
-	signal codies_byte_fe3      : std_logic_vector(7 downto 0) := (others => '1');
+	signal codies_fe0_valid     : std_logic := '0';
+	signal codies_fe3_valid     : std_logic := '0';
 	signal detect_codies_static : std_logic := '0';
 	-- The Castle raw-ROM signature: "ASCII 1986" at $1CC3-$1CCC.
 	type castle_signature_t is array (0 to 9) of std_logic_vector(7 downto 0);
@@ -574,19 +575,27 @@ begin
 		if rising_edge(clk_sys) then
 			if ROMEN = '1' then
 				if unsigned(ROMAD) = 0 then
-					codies_byte_fe0      <= (others => '1');
-					codies_byte_fe3      <= (others => '1');
+					codies_fe0_valid     <= '0';
+					codies_fe3_valid     <= '0';
 					detect_codies_static <= '0';
 				end if;
 				if unsigned(ROMAD) = to_unsigned(16#7FE0#, ROMAD'length) then
-					codies_byte_fe0 <= ROMDT;
+					if unsigned(ROMDT(3 downto 0)) <= 9 then
+						codies_fe0_valid <= '1';
+					else
+						codies_fe0_valid <= '0';
+					end if;
 				end if;
 				if unsigned(ROMAD) = to_unsigned(16#7FE3#, ROMAD'length) then
-					codies_byte_fe3 <= ROMDT;
+					if ROMDT = x"93" or ROMDT = x"94" or ROMDT = x"95" then
+						codies_fe3_valid <= '1';
+					else
+						codies_fe3_valid <= '0';
+					end if;
 				end if;
 				if unsigned(ROMAD) = to_unsigned(16#7FEF#, ROMAD'length) then
-					if (unsigned(codies_byte_fe0(3 downto 0)) <= 9) and
-					   (codies_byte_fe3 = x"93" or codies_byte_fe3 = x"94" or codies_byte_fe3 = x"95") and
+					if codies_fe0_valid = '1' and
+					   codies_fe3_valid = '1' and
 					   (ROMDT = x"00") and mapper_eeprom = '0' then
 						detect_codies_static <= '1';
 					end if;
