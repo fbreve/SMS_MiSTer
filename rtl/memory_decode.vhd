@@ -135,34 +135,22 @@ begin
 			when others =>
 				rom_a_i(21 downto 13) <= "000000" & A(15 downto 13);
 			end case;
-		elsif mapper_4pak = '1' then
-			-- 4-PAK All Action: full 16KB banking for all three slots.
-			-- NO "first 1KB always from bank 0" exception here: the sub-games
-			-- have their own interrupt vectors (NMI at $0066, IM1 at $0038) in
-			-- their first bank (bank_base), NOT in physical bank 0 (the menu).
-			rom_a_i(13) <= A(13);
-			case A(15 downto 14) is
-			when "00"   => rom_a_i(21 downto 14) <= bank0;
-			when "01"   => rom_a_i(21 downto 14) <= bank1;
-			when others => rom_a_i(21 downto 14) <= bank2;
-			end case;
 		else
+			-- Standard Sega and 4-PAK share the same 16KB bank selector.
+			-- Only standard Sega mapping fixes the first 1KB to bank zero;
+			-- 4-PAK must retain its own interrupt vectors in the selected bank.
 			rom_a_i(13) <= A(13);
 			case A(15 downto 14) is
 			when "00" =>
-				-- first kilobyte is always from bank 0
-				if A(13 downto 10)="0000" and mapper_codies='0' then
-					rom_a_i(21 downto 14) <= (others=>'0');
+				if mapper_4pak = '0' and mapper_codies = '0' and A(13 downto 10) = "0000" then
+					rom_a_i(21 downto 14) <= (others => '0');
 				else
 					rom_a_i(21 downto 14) <= bank0;
 				end if;
-
 			when "01" =>
 				rom_a_i(21 downto 14) <= bank1;
-			
 			when others =>
 				rom_a_i(21 downto 14) <= bank2;
-
 			end case;
 		end if;
 	end process;
