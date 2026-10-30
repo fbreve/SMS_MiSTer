@@ -336,7 +336,7 @@ reg  [2:0]  vram_pipe;
 reg [14:0]  vram_save_addr;  // current byte address being saved
 reg [14:0]  vram_load_addr;  // current byte address being loaded
 reg  [2:0]  vram_byte_cnt;   // 0..7 bytes within 64-bit DDRAM word
-reg [63:0]  vram_word_buf;   // accumulate 8 bytes → 1 DDRAM write
+reg [63:0]  save_word_buf;   // accumulate 8 bytes → 1 DDRAM write
 reg         vram_load_active; // 1 while writing 8 bytes from dout_latch
 // Byte-7 latch: when DDRAM_BUSY stalls a word write, the SPRAM/DPRAM pipeline
 // still advances on the next cycle so vram_D would have wrong data on retry.
@@ -348,7 +348,7 @@ reg         vram_d_latched;  // 1 = latch holds a valid stalled byte-7 value
 reg [13:0]  wram_save_addr;
 reg [13:0]  wram_load_addr;
 reg  [2:0]  wram_byte_cnt;
-reg [63:0]  wram_word_buf;
+reg [63:0]  save_word_buf;
 reg  [1:0]  wram_pipe;
 reg         wram_load_active; // 1 while writing 8 bytes from dout_latch
 reg  [7:0]  wram_d_latch;
@@ -358,7 +358,7 @@ reg         wram_d_latched;
 reg [14:0]  nvram_save_addr;
 reg [14:0]  nvram_load_addr;
 reg  [2:0]  nvram_byte_cnt;
-reg [63:0]  nvram_word_buf;
+reg [63:0]  nsave_word_buf;
 reg  [1:0]  nvram_pipe;
 reg         nvram_load_active;
 reg  [7:0]  nvram_d_latch;
@@ -500,9 +500,9 @@ always @(*) begin
             end
         end
         ST_SAVE_PSG2: if (! DDRAM_BUSY) ddram_cmd_write ( base_addr + 29'h18 , { 8'h0 , psg2_snap } , 8'h7F ) ;
-        ST_SAVE_VRAM , ST_SAVE_VRAM1_PASSIVE , ST_SAVE_VRAM2 , ST_SAVE_VRAM2_PASSIVE: if (!(vram_pipe < 3'd2)) if (vram_byte_cnt < 7 || ! DDRAM_BUSY) if (vram_byte_cnt == 7) ddram_cmd_write ( base_addr + vram_ddr_offset + { 17'd0 , word_cnt } , { vram_d_latched ? vram_d_latch : vram_save_data , vram_word_buf [ 63 : 8 ] } , 8'hFF ) ;
-        ST_SAVE_WRAM: if (!(wram_pipe < 2'd2)) if (wram_byte_cnt < 7 || ! DDRAM_BUSY) if (wram_byte_cnt == 7) ddram_cmd_write ( base_addr + 29'h901 + { 17'd0 , word_cnt } , { wram_d_latched ? wram_d_latch : wram_D , wram_word_buf [ 63 : 8 ] } , 8'hFF ) ;
-        ST_SAVE_NVRAM: if (!(nvram_pipe < 2'd2)) if (nvram_byte_cnt < 7 || ! DDRAM_BUSY) if (nvram_byte_cnt == 7) ddram_cmd_write ( base_addr + 29'h0D01 + { 17'd0 , word_cnt } , { nvram_d_latched ? nvram_d_latch : nvram_D , nvram_word_buf [ 63 : 8 ] } , 8'hFF ) ;
+        ST_SAVE_VRAM , ST_SAVE_VRAM1_PASSIVE , ST_SAVE_VRAM2 , ST_SAVE_VRAM2_PASSIVE: if (!(vram_pipe < 3'd2)) if (vram_byte_cnt < 7 || ! DDRAM_BUSY) if (vram_byte_cnt == 7) ddram_cmd_write ( base_addr + vram_ddr_offset + { 17'd0 , word_cnt } , { vram_d_latched ? vram_d_latch : vram_save_data , save_word_buf [ 63 : 8 ] } , 8'hFF ) ;
+        ST_SAVE_WRAM: if (!(wram_pipe < 2'd2)) if (wram_byte_cnt < 7 || ! DDRAM_BUSY) if (wram_byte_cnt == 7) ddram_cmd_write ( base_addr + 29'h901 + { 17'd0 , word_cnt } , { wram_d_latched ? wram_d_latch : wram_D , save_word_buf [ 63 : 8 ] } , 8'hFF ) ;
+        ST_SAVE_NVRAM: if (!(nvram_pipe < 2'd2)) if (nvram_byte_cnt < 7 || ! DDRAM_BUSY) if (nvram_byte_cnt == 7) ddram_cmd_write ( base_addr + 29'h0D01 + { 17'd0 , word_cnt } , { nvram_d_latched ? nvram_d_latch : nvram_D , nsave_word_buf [ 63 : 8 ] } , 8'hFF ) ;
         ST_SAVE_AUDIO_INVALID: if (! DDRAM_BUSY) ddram_cmd_write ( base_addr + 29'h00e , { 12'd0 , psg_snap [ 51 : 0 ] } , 8'hFF ) ;
         ST_SAVE_AUDIO_PAYLOAD: begin
             if (! DDRAM_BUSY) begin
@@ -1052,7 +1052,7 @@ always @(posedge clk or negedge reset_n) begin
                     // DDRAM offset 0x100 words from base
                     vram_save_addr <= 0;
                     vram_byte_cnt  <= 0;
-                    vram_word_buf  <= 0;
+                    save_word_buf  <= 0;
                     vram_pipe      <= 0;
                     vram_en        <= 1;
                     vram_A         <= 0;
@@ -1104,7 +1104,7 @@ always @(posedge clk or negedge reset_n) begin
                 // Now start VRAM1 DMA from VDP1's active se_bank half
                 vram_save_addr <= {mapper_snap[7], 14'b0};
                 vram_byte_cnt  <= 0;
-                vram_word_buf  <= 0;
+                save_word_buf  <= 0;
                 vram_pipe      <= 0;
                 vram_en        <= 1;
                 vram_A         <= {mapper_snap[7], 14'b0};
@@ -1128,14 +1128,14 @@ always @(posedge clk or negedge reset_n) begin
             end else begin
                 if (vram_byte_cnt < 7 || !DDRAM_BUSY) begin
                     vram_d_latched <= 0;
-                    vram_word_buf <= {(vram_byte_cnt == 7 && vram_d_latched) ? vram_d_latch : vram_save_data,
-                                      vram_word_buf[63:8]};
+                    save_word_buf <= {(vram_byte_cnt == 7 && vram_d_latched) ? vram_d_latch : vram_save_data,
+                                      save_word_buf[63:8]};
                     vram_byte_cnt <= vram_byte_cnt + 3'd1;
                     if (vram_byte_cnt == 7) begin
                         // Use byte 7 directly with the OLD buffer contents.
                         ddram_write(base_addr + vram_ddr_offset + {17'd0, word_cnt},
                                     {vram_d_latched ? vram_d_latch : vram_save_data,
-                                     vram_word_buf[63:8]}, 8'hFF);
+                                     save_word_buf[63:8]}, 8'hFF);
                         word_cnt <= word_cnt + 12'd1;
                     end
                     if (vram_save_addr[13:0] < 14'h3FFF) begin
@@ -1149,7 +1149,7 @@ always @(posedge clk or negedge reset_n) begin
                                     // System E: save VDP1 passive bank before WRAM
                                     vram_save_addr <= {~mapper_snap[7], 14'b0};
                                     vram_byte_cnt  <= 0;
-                                    vram_word_buf  <= 0;
+                                    save_word_buf  <= 0;
                                     vram_pipe      <= 0;
                                     vram_A         <= {~mapper_snap[7], 14'b0};
                                     word_cnt       <= 0;
@@ -1161,7 +1161,7 @@ always @(posedge clk or negedge reset_n) begin
                                     // Start WRAM DMA
                                     wram_save_addr <= 0;
                                     wram_byte_cnt  <= 0;
-                                    wram_word_buf  <= 0;
+                                    save_word_buf  <= 0;
                                     wram_pipe      <= 0;
                                     wram_A         <= 0;
                                     word_cnt       <= 0;
@@ -1174,7 +1174,7 @@ always @(posedge clk or negedge reset_n) begin
                                 // Continue to WRAM save
                                 wram_save_addr <= 0;
                                 wram_byte_cnt  <= 0;
-                                wram_word_buf  <= 0;
+                                save_word_buf  <= 0;
                                 wram_pipe      <= 0;
                                 wram_A         <= 0;
                                 word_cnt       <= 0;
@@ -1185,7 +1185,7 @@ always @(posedge clk or negedge reset_n) begin
                                 // Save VDP2 passive bank before ending (ST_SAVE_VRAM2 is System E only)
                                 vram_save_addr <= {~mapper_snap[6], 14'b0};
                                 vram_byte_cnt  <= 0;
-                                vram_word_buf  <= 0;
+                                save_word_buf  <= 0;
                                 vram_pipe      <= 0;
                                 vram2_A        <= {~mapper_snap[6], 14'b0};
                                 word_cnt       <= 0;
@@ -1221,13 +1221,13 @@ always @(posedge clk or negedge reset_n) begin
                 // Stall at 8-byte boundary if DDRAM is busy (same pattern as VRAM)
                 if (wram_byte_cnt < 7 || !DDRAM_BUSY) begin
                     wram_d_latched <= 0;
-                    wram_word_buf <= {(wram_byte_cnt == 7 && wram_d_latched) ? wram_d_latch : wram_D,
-                                      wram_word_buf[63:8]};
+                    save_word_buf <= {(wram_byte_cnt == 7 && wram_d_latched) ? wram_d_latch : wram_D,
+                                      save_word_buf[63:8]};
                     wram_byte_cnt <= wram_byte_cnt + 3'd1;
                     if (wram_byte_cnt == 7) begin
                         ddram_write(base_addr + 29'h901 + {17'd0, word_cnt},
                                     {wram_d_latched ? wram_d_latch : wram_D,
-                                     wram_word_buf[63:8]}, 8'hFF);
+                                     save_word_buf[63:8]}, 8'hFF);
                         word_cnt <= word_cnt + 12'd1;
                     end
                     if (wram_save_addr < (systeme ? 14'd16383 : 14'd8191)) begin
@@ -1238,7 +1238,7 @@ always @(posedge clk or negedge reset_n) begin
                             // System E: save second VRAM (16KB) at 0x1101, from VDP2's active se_bank
                             vram_save_addr <= {mapper_snap[6], 14'b0};
                             vram_byte_cnt  <= 0;
-                            vram_word_buf  <= 0;
+                            save_word_buf  <= 0;
                             vram_pipe      <= 0;
                             vram2_en       <= 1;
                             vram2_A        <= {mapper_snap[6], 14'b0};
@@ -1249,7 +1249,7 @@ always @(posedge clk or negedge reset_n) begin
                             // Save NVRAM (up to 32KB)
                             nvram_save_addr <= 0;
                             nvram_byte_cnt  <= 0;
-                            nvram_word_buf  <= 0;
+                            nsave_word_buf  <= 0;
                             nvram_pipe      <= 0;
                             nvram_A         <= 0;
                             word_cnt        <= 0;
@@ -1277,13 +1277,13 @@ always @(posedge clk or negedge reset_n) begin
                 // Stall at 8-byte boundary if DDRAM is busy (same pattern as VRAM/WRAM)
                 if (nvram_byte_cnt < 7 || !DDRAM_BUSY) begin
                     nvram_d_latched <= 0;
-                    nvram_word_buf <= {(nvram_byte_cnt == 7 && nvram_d_latched) ? nvram_d_latch : nvram_D,
-                                       nvram_word_buf[63:8]};
+                    nsave_word_buf <= {(nvram_byte_cnt == 7 && nvram_d_latched) ? nvram_d_latch : nvram_D,
+                                       nsave_word_buf[63:8]};
                     nvram_byte_cnt <= nvram_byte_cnt + 3'd1;
                     if (nvram_byte_cnt == 7) begin
                         ddram_write(base_addr + 29'h0D01 + {17'd0, word_cnt},
                                     {nvram_d_latched ? nvram_d_latch : nvram_D,
-                                     nvram_word_buf[63:8]}, 8'hFF);
+                                     nsave_word_buf[63:8]}, 8'hFF);
                         word_cnt <= word_cnt + 12'd1;
                     end
                     if (nvram_save_addr < nvram_size_minus_1) begin
