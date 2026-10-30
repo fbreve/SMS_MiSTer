@@ -121,23 +121,35 @@ architecture Behavioral of mapper_detect is
 
 	-- CRC16-CCITT one-byte update: poly=0x1021, init=0xFFFF, MSB-first, no reflection.
 	-- Equivalent to Python: binascii.crc_hqx(bytes([byte_in]), crc_in)
+	-- Parallel CRC16-CCITT byte update (poly 0x1021, MSB first).
+	-- Factor the shared upper-CRC/input XOR terms to avoid an 8-stage
+	-- conditional feedback chain. Keep the same ROMCL cycle latency.
 	function crc16_ccitt_byte(
 		crc_in  : std_logic_vector(15 downto 0);
 		byte_in : std_logic_vector(7 downto 0)
 	) return std_logic_vector is
-		variable crc : std_logic_vector(15 downto 0);
+		variable mix : std_logic_vector(7 downto 0);
+		variable result_crc : std_logic_vector(15 downto 0);
 	begin
-		crc := crc_in;
-		for i in 7 downto 0 loop
-			if (crc(15) xor byte_in(i)) = '1' then
-				crc := (crc(14 downto 0) & '0') xor x"1021";
-			else
-				crc := crc(14 downto 0) & '0';
-			end if;
-		end loop;
-		return crc;
+		mix := crc_in(15 downto 8) xor byte_in;
+		result_crc(0) := mix(0) xor mix(4);
+		result_crc(1) := mix(1) xor mix(5);
+		result_crc(2) := mix(2) xor mix(6);
+		result_crc(3) := mix(3) xor mix(7);
+		result_crc(4) := mix(4);
+		result_crc(5) := mix(0) xor mix(4) xor mix(5);
+		result_crc(6) := mix(1) xor mix(5) xor mix(6);
+		result_crc(7) := mix(2) xor mix(6) xor mix(7);
+		result_crc(8) := crc_in(0) xor mix(3) xor mix(7);
+		result_crc(9) := crc_in(1) xor mix(4);
+		result_crc(10) := crc_in(2) xor mix(5);
+		result_crc(11) := crc_in(3) xor mix(6);
+		result_crc(12) := crc_in(4) xor mix(0) xor mix(4) xor mix(7);
+		result_crc(13) := crc_in(5) xor mix(1) xor mix(5);
+		result_crc(14) := crc_in(6) xor mix(2) xor mix(6);
+		result_crc(15) := crc_in(7) xor mix(3) xor mix(7);
+		return result_crc;
 	end function;
-
 
 begin
 
