@@ -1,5 +1,7 @@
 # Auditoria funcional do PR #3 — buffer compartilhado
 
+A avaliação física posterior recomenda descartar a otimização para integração: [resultados das duas seeds](physical/review.md). A conclusão funcional abaixo permanece válida nos cenários testados.
+
 Branch: `experiment/shared-savestate-word-buffer`. Original: `ab09fdf41221c9e3e77eee87264a125ba43021fe`; candidato: `28ead01f7f8709ddda5dc4a63206b9921cb757e0`. O GitHub confirmou PR aberto, draft, três commits e apenas `rtl/savestates.sv` alterado. A master permaneceu no mesmo hash. Esta etapa funcional precede a comparação física documentada separadamente; nenhum merge foi realizado.
 
 ## Resultado

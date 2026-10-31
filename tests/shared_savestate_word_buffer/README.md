@@ -4,6 +4,8 @@ Scope: [fbreve/SMS_MiSTer PR #3](https://github.com/fbreve/SMS_MiSTer/pull/3).
 The original RTL is pinned to `ab09fdf41221c9e3e77eee87264a125ba43021fe` and the shared-buffer RTL to `28ead01f7f8709ddda5dc4a63206b9921cb757e0`.
 Later commits add only this test/documentation directory. No other optimization is part of the comparison.
 
+The two-seed physical comparison recommends **discarding this optimization for integration**: placed ALMs increase by 61/84 and setup slack falls by 0.141/0.239 ns, despite saving registers. See [physical results and recommendation](physical/review.md). The experimental RTL is preserved for review; master is unchanged.
+
 ## Functional reproduction
 
 Requirements: Git, Node.js (18+), Windows PowerShell and ModelSim Intel FPGA Starter 10.5b with its bundled libraries available. Use a normal clone with both pinned commits present. The scripts work from any working directory and do not read other untracked test directories.
@@ -31,6 +33,8 @@ node tests/shared_savestate_word_buffer/prepare_physical.js
 # Set QUARTUS_BIN to the installed Quartus 17.0.2 bin64 directory.
 powershell -NoProfile -ExecutionPolicy Bypass -File tests/shared_savestate_word_buffer/build_physical.ps1
 node tests/shared_savestate_word_buffer/collect_physical.js
+node tests/shared_savestate_word_buffer/write_physical_report.js
+node tests/shared_savestate_word_buffer/verify_evidence.js
 ```
 
 `prepare_physical.js` refuses existing build trees. To rerun, use a fresh clone/directory; preserve previous attempts. The build script temporarily maps each seed directory to an unused Z: drive, so both seeds use the same `Z:/baseline` and `Z:/candidate` layout as the earlier PhaseMemory comparison. It never replaces an existing mapping and removes its mapping on exit. Direct map/fit/asm/sta stages bypass only the date-generating preflow. The generated build identifier and JTAG chain are deterministic. No programming step is run.
@@ -38,3 +42,5 @@ node tests/shared_savestate_word_buffer/collect_physical.js
 `physical/input_manifest.json` binds every source blob/hash and both QSF seed settings. `physical/tool_identity.json` records executable hashes; `physical/pr224_reference.json` records the prior configuration and expected historical candidate metrics solely as reproduction controls. The new baseline has exactly the same 203 source files as that prior candidate.
 
 `collect_physical.js` validates source hashes, stage completion, seeds and tools, and preserves compressed full reports/stage logs under `physical/evidence/`. Local implementation databases and bitstreams remain ignored in `physical/runs/`. Positive reported slack does not remove inherited unconstrained timing paths. The final physical report discusses area, timing, warnings and the recommendation.
+
+`verify_evidence.js` verifies the preserved functional logs, source-script hashes and all compressed physical reports without requiring generated HDL, simulator libraries or Quartus databases. The report writer refuses an incomplete pair or changed result direction so that a new run cannot silently inherit an obsolete recommendation.
