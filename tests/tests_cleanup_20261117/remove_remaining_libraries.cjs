@@ -1,0 +1,5 @@
+const fs=require('fs'),path=require('path'),s=require('../artifact-store.cjs'),inventory=require('./inventory_after.json'),receipts=require('./deletions.json');
+const candidates=inventory.filter(f=>/\/(?:_lib\d+_\d+\.(?:qdb|qpg|qtl)|_info|_vmake)$/.test(f.path)&&!f.path.startsWith('tests/_artifacts/'));
+const approved=candidates.filter(f=>{const dir=path.dirname(s.safe(f.path));return fs.existsSync(path.join(dir,'_info'))||fs.existsSync(path.join(dir,'_vmake'));});
+for(const f of approved){if(!fs.existsSync(s.safe(f.path)))throw Error('Library changed');const sha256=s.hash(s.safe(f.path));fs.unlinkSync(s.safe(f.path));receipts.push({path:f.path,bytes:f.bytes,sha256,category:'compiled-modelsim',recovery:'ModelSim library identified by _info/_vmake and _lib*.qpg/qdb/qtl; HDL and compile scripts retained',deletedAt:new Date().toISOString()});}
+fs.writeFileSync(path.join(__dirname,'deletions.json'),JSON.stringify(receipts,null,2));console.log('Additional compiled library components removed:',approved.length,approved.reduce((n,f)=>n+f.bytes,0));

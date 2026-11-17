@@ -7,8 +7,8 @@ async function main(){
  const jobs=[];
  for(const seed of [2,3])for(const label of ['baseline','candidate']){
   const dir=path.join(out,`seed${seed}`,label);if(fs.existsSync(dir))throw Error('Refusing to overwrite '+dir);fs.mkdirSync(dir,{recursive:true});
-  cp.execFileSync('tar',['-xf',path.join(out,label+'.tar'),'-C',dir]);
-  const depdir=path.join(dir,'mist/mist-modules');fs.mkdirSync(depdir,{recursive:true});cp.execFileSync('tar',['-xf',path.join(out,'dependency_'+label+'.tar'),'-C',depdir]);
+  cp.execFileSync('tar',['--exclude=releases','-xf',path.join(out,label+'.tar'),'-C',dir]);
+  const depdir=path.join(dir,'mist/mist-modules');fs.mkdirSync(depdir,{recursive:true});cp.execFileSync('tar',['--exclude=releases','-xf',path.join(out,'dependency_'+label+'.tar'),'-C',depdir]);
   let qsf=fs.readFileSync(path.join(out,'seed1',label,'SMS.qsf'),'utf8');qsf=qsf.replace('set_global_assignment -name SEED 1','set_global_assignment -name SEED '+seed);fs.writeFileSync(path.join(dir,'SMS.qsf'),qsf);
   fs.copyFileSync(path.join(out,'seed1',label,'fixed_build_id.tcl'),path.join(dir,'fixed_build_id.tcl'));
   const files={};function walk(d){for(const e of fs.readdirSync(d,{withFileTypes:true})){const p=path.join(d,e.name);if(e.isDirectory())walk(p);else files[path.relative(dir,p).replaceAll('\\','/')]=hash(fs.readFileSync(p));}}walk(dir);

@@ -6,7 +6,7 @@ const m=JSON.parse(fs.readFileSync(p.join(un,'inputs.json'))),syn=JSON.parse(fs.
 for(const [name,h]of Object.entries(m.toolHashes))assert.equal(sha(fs.readFileSync('C:/intelFPGA_lite/17.0/quartus/bin64/'+name+'.exe')),h,'Tool '+name);
 fs.mkdirSync(d);
 const inputs={},diff=[];
-for(const [f,v]of Object.entries(m.builds.candidate.inputs)){
+for(const [f,v]of Object.entries(m.builds.candidate.inputs)){if(f.startsWith('releases/'))continue;
  let bytes=fs.readFileSync(p.join(un,'candidate',f));assert.equal(sha(bytes),v.SHA256,'Unguarded input '+f);
  if(/^(rtl\/|sys\/|SMS\.sv$|files\.qip$)/.test(f)){const w=fs.readFileSync(p.join(wt,f));if(norm(bytes)!==norm(w)){diff.push(f);bytes=w;}}
  if(f!=='SMS.qsf')assert.equal(sha(bytes),syn.builds.candidate.inputs[f].SHA256,'Synthesis-approved input '+f);

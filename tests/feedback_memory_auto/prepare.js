@@ -6,7 +6,7 @@ for(const [f,h]of Object.entries(files))assert.equal(hash(fs.readFileSync(p.join
 function protect(dir){for(const e of fs.readdirSync(p.join(root,dir),{withFileTypes:true})){const f=dir+'/'+e.name;if(e.isFile())files[f]=hash(fs.readFileSync(p.join(root,f)));else if(!['scratch','worktree'].includes(e.name)&&!e.name.endsWith('_work'))protect(f);}}
 protect('tests/register_memory_impl_control');
 fs.writeFileSync(p.join(d,'preservation_before.json'),JSON.stringify({files,refs:git('show-ref','--heads').toString(),status:git('status','--short').toString()},null,2)+'\n');
-const entries=git('ls-tree','-r',rev).toString().trim().split('\n').map(s=>s.match(/^(\d+) (\w+) (\w+)\t(.+)$/)).filter(m=>m[2]==='blob'),inputs={};
+const entries=git('ls-tree','-r',rev).toString().trim().split('\n').map(s=>s.match(/^(\d+) (\w+) (\w+)\t(.+)$/)).filter(m=>m[2]==='blob'&&!m[4].startsWith('releases/')),inputs={};
 for(const e of entries){const f=e[4],b=git('cat-file','blob',e[3]);inputs[f]={blob:e[3]};for(const v of ['baseline','candidate']){let bytes=b;if(v==='candidate'&&f==='rtl/VM2413/feedbackmemory.vhd'){bytes=Buffer.from(b.toString('latin1').replace(/^ +attribute ramstyle of data_array : signal is "logic";\r?\n/m,''),'latin1');assert(!bytes.equals(b));}const target=p.join(d,v,f);fs.mkdirSync(p.dirname(target),{recursive:true});fs.writeFileSync(target,bytes);inputs[f][v]=hash(bytes);}}
 assert.deepEqual(Object.keys(inputs).filter(f=>inputs[f].baseline!==inputs[f].candidate),['rtl/VM2413/feedbackmemory.vhd']);
 fs.copyFileSync(p.join(d,'candidate/rtl/VM2413/feedbackmemory.vhd'),p.join(d,'worktree/rtl/VM2413/feedbackmemory.vhd'));

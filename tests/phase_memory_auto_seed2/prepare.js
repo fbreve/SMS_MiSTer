@@ -16,7 +16,7 @@ for(const variant of ['baseline','candidate'])for(const f of files(p.join(prior,
 const refs=Object.fromEntries(['master','investigate/cram-memory-inference','investigate/synthesis-structure','experiment/phasememory-auto-inference'].map(x=>[x,git('rev-parse',x)]));
 write('preservation_before.json',{refs,files:preserved,productionPhaseSHA256:hash(p.join(root,'rtl/VM2413/phasememory.vhd')),initialStatus:git('status','--short'),initialDiff:git('diff','--','rtl/VM2413/phasememory.vhd')});
 const inputs={};
-for(const [file,h] of Object.entries(manifest.inputs)){
+for(const [file,h] of Object.entries(manifest.inputs)){if(file.startsWith('releases/'))continue;
  inputs[file]={};
  for(const variant of ['baseline','candidate']){
   const source=p.join(prior,variant,file);assert.equal(hash(source),h[variant],variant+'/'+file+' differs from qualified seed-1 source');

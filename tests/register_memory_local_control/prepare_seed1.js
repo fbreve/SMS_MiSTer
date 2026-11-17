@@ -7,7 +7,7 @@ assert(!fs.existsSync(p.join(d,'candidate_seed1')),'Never overwrite an attempted
 const m=JSON.parse(fs.readFileSync(p.join(prior,'input_manifest.json'))),inputs={};
 const qsfLine='\n# Localized RegisterMemory output register unpacking experiment (Seed 1)\nset_instance_assignment -name QII_AUTO_PACKED_REGISTERS OFF -to "emu:emu|system:system|opll:fm|controller:ct|RegisterMemory:u_register_memory"\n';
 
-for(const [f,h]of Object.entries(m.inputs)){
+for(const [f,h]of Object.entries(m.inputs)){if(f.startsWith('releases/'))continue;
   const source=p.join(prior,'candidate',f);
   assert.equal(hash(source),h.candidate,source);
   let bytes=fs.readFileSync(source);

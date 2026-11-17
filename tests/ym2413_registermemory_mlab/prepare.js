@@ -17,7 +17,7 @@ const ref=p.join(repo,'tests/ym2413_v19_fullstate/physical_seed2'),phys=p.join(d
 for(const [f,h]of Object.entries(r.reportHashes))assert.equal(hash(fs.readFileSync(p.join(ref,'candidate/output_files',f))),h);
 for(const [tool,h]of Object.entries(m.toolHashes))assert.equal(hash(fs.readFileSync('C:/intelFPGA_lite/17.0/quartus/bin64/'+tool+'.exe')),h);
 assert(!fs.existsSync(p.join(phys,'candidate')),'Do not overwrite frozen sources');fs.mkdirSync(phys,{recursive:true});const inputs={},equivalent=[];
-for(const [f,v]of Object.entries(m.builds.candidate.inputs)){
+for(const [f,v]of Object.entries(m.builds.candidate.inputs)){if(f.startsWith('releases/'))continue;
  let b=fs.readFileSync(p.join(ref,'candidate',f));assert.equal(hash(b),v.SHA256);
  if(/^(rtl\/|sys\/|SMS\.sv$|files\.qip$)/.test(f)){assert.equal(norm(b),norm(git(wt,'show',base+':'+f)),f);equivalent.push(f);}
  if(f===file)b=Buffer.from(b.toString('latin1').replace('attribute ramstyle of regs_array : signal is "logic";','attribute ramstyle of regs_array : signal is "MLAB";'),'latin1');

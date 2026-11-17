@@ -12,7 +12,7 @@ fs.mkdirSync(d);
 const list=git(repo,'worktree','list','--porcelain').toString().split(/\r?\n/).filter(x=>x.startsWith('worktree ')).map(x=>x.slice(9));
 fs.writeFileSync(p.join(d,'preservation_before.json'),JSON.stringify({master:git(repo,'rev-parse','master').toString().trim(),worktrees:Object.fromEntries(list.map(w=>[w,{HEAD:git(w,'rev-parse','HEAD').toString().trim(),diff:sha(git(w,'diff','--binary','HEAD')),status:git(w,'status','--porcelain','--untracked-files=no').toString()}]))},null,2));
 const inputs={},equivalent=[];
-for(const [f,v]of Object.entries(m.builds.candidate.inputs)){
+for(const [f,v]of Object.entries(m.builds.candidate.inputs)){if(f.startsWith('releases/'))continue;
  let bytes=fs.readFileSync(p.join(ref,'candidate',f));assert.equal(sha(bytes),v.SHA256,'Archived input '+f);
  if(/^(rtl\/|sys\/|SMS\.sv$|files\.qip$)/.test(f)){assert.equal(norm(bytes),norm(git(wt,'show',base+':'+f)),'Archived production vs commit '+f);equivalent.push(f);}
  if(f==='rtl/VM2413/registermemory.vhd')bytes=Buffer.from(bytes.toString('latin1').replace('attribute ramstyle of regs_array : signal is "logic";','attribute ramstyle of regs_array : signal is "AUTO";'),'latin1');

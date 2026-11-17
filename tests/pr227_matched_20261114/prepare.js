@@ -12,7 +12,7 @@ for(const p of fs.readdirSync(root).filter(p=>p.endsWith('.rbf')))protection[p]=
 fs.writeFileSync(path.join(out,'preservation_before.json'),JSON.stringify(protection,null,2));
 for(const [label,rev] of Object.entries(revisions)){
  const dir=path.join(out,'seed1',label);fs.mkdirSync(dir,{recursive:true});
- const archive=path.join(out,label+'.tar');git('archive','--format=tar','--output='+archive,rev);
+ const archive=path.join(out,label+'.tar');git('archive','--format=tar','--output='+archive,rev,'--','.',':(exclude)releases');
  cp.execFileSync('tar',['-xf',archive,'-C',dir]);
  const depdir=path.join(dir,'mist/mist-modules');fs.mkdirSync(depdir,{recursive:true});
  const deptar=path.join(out,'dependency_'+label+'.tar');cp.execFileSync('git',['archive','--format=tar','--output='+deptar,dep],{cwd:path.join(root,'mist/mist-modules')});cp.execFileSync('tar',['-xf',deptar,'-C',depdir]);

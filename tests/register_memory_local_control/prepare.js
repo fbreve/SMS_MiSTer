@@ -6,14 +6,14 @@ assert(!fs.existsSync(p.join(d,'candidate')),'Never overwrite an attempted exper
 
 // Verify prior test directories are untouched
 const old=JSON.parse(fs.readFileSync(p.join(root,'tests/register_memory_impl_control/preservation_before.json')));
-for(const [f,h]of Object.entries(old.files)){
+for(const [f,h]of Object.entries(old.files)){if(f.startsWith('releases/'))continue;
   if(f.startsWith('tests/'))assert.equal(hash(p.join(root,f)),h,'Prior test evidence changed '+f);
 }
 
 const m=JSON.parse(fs.readFileSync(p.join(prior,'input_manifest.json'))),inputs={};
 const qsfLine='\n# Localized RegisterMemory output register unpacking experiment (Seed 2)\nset_instance_assignment -name QII_AUTO_PACKED_REGISTERS OFF -to "emu:emu|system:system|opll:fm|controller:ct|RegisterMemory:u_register_memory"\n';
 
-for(const [f,h]of Object.entries(m.inputs)){
+for(const [f,h]of Object.entries(m.inputs)){if(f.startsWith('releases/'))continue;
   const source=p.join(prior,'candidate',f);
   assert.equal(hash(source),h.candidate,source);
   let bytes=fs.readFileSync(source);

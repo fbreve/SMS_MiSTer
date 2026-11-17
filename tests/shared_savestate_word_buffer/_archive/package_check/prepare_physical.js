@@ -13,7 +13,7 @@ assert(!fs.existsSync(p.join(out, 'runs')), 'Never overwrite a prepared build');
 fs.mkdirSync(out, { recursive: true });
 const manifest = { revisions, seeds: [1, 2], buildDate: '261014', sourceDifference: ['rtl/savestates.sv'], inputs: {} };
 for (const [variant, revision] of Object.entries(revisions)) {
-  const files = git('ls-tree', '-r', revision).toString().trim().split('\n').map(l => l.match(/^(\d+) (\w+) (\w+)\t(.+)$/)).filter(m => m[2] === 'blob');
+  const files = git('ls-tree', '-r', revision).toString().trim().split('\n').map(l => l.match(/^(\d+) (\w+) (\w+)\t(.+)$/)).filter(m => m[2] === 'blob' && !m[4].startsWith('releases/'));
   manifest.inputs[variant] = {};
   for (const m of files) {
     const rel = m[4], data = git('cat-file', 'blob', m[3]);

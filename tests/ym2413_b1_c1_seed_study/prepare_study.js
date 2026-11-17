@@ -40,7 +40,7 @@ for (const seed of [1, 2, 3]) {
 
   for (const [variant, wt] of [['b1', wtB1], ['c1', wtC1]]) {
     const varDir = p.join(seedDir, variant);
-    for (const [f, info] of Object.entries(original.builds.candidate.inputs)) {
+    for (const [f, info] of Object.entries(original.builds.candidate.inputs)) {if(f.startsWith('releases/'))continue;
       let bytes;
       if (changedFiles.has(f)) {
         bytes = fs.readFileSync(p.join(wt, f));

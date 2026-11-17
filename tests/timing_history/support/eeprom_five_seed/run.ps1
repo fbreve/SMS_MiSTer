@@ -12,11 +12,11 @@ git diff --check
 if($LASTEXITCODE){throw 'Diff check'}
 if(Test-Path -LiteralPath $root){throw 'Root already exists'}
 New-Item -ItemType Directory -Path $root | Out-Null
-$files=@(git ls-files --stage | Where-Object {$_ -match '^100'} | ForEach-Object {($_ -split "`t",2)[1]})
+$files=@(git ls-files --stage | Where-Object {$_ -match '^100' -and $_ -notmatch '\treleases/'} | ForEach-Object {($_ -split "`t",2)[1]})
 function Manifest($dir){$h=@{};foreach($f in $files){$h[$f]=(Get-FileHash -LiteralPath (Join-Path $dir $f)).Hash};return $h}
 $before=Manifest $repo
 $before | ConvertTo-Json | Set-Content (Join-Path $art 'workspace-before.json')
-git archive --format=tar -o (Join-Path $root 'baseline.tar') HEAD
+git archive --format=tar -o (Join-Path $root 'baseline.tar') HEAD -- . ':(exclude)releases'
 if($LASTEXITCODE){throw 'Archive failed'}
 foreach($seed in 1..5){
  $sa=Join-Path $art "seed$seed"; $sr=Join-Path $root "seed$seed"
@@ -25,7 +25,7 @@ foreach($seed in 1..5){
  $before | ConvertTo-Json | Set-Content (Join-Path $sa 'workspace-before.json')
  foreach($label in @('A','B')){
   $dir=Join-Path $sr $label;New-Item -ItemType Directory -Path $dir | Out-Null
-  tar -xf (Join-Path $root 'baseline.tar') -C $dir
+  tar --exclude=releases -xf (Join-Path $root 'baseline.tar') -C $dir
   if($LASTEXITCODE){throw 'Extract failed'}
   if($label -eq 'B'){Copy-Item (Join-Path $repo 'rtl/mapper_ctrl.vhd') (Join-Path $dir 'rtl/mapper_ctrl.vhd')}
   $p=Join-Path $dir 'sys/build_id.tcl';$s=[IO.File]::ReadAllText($p)

@@ -5,7 +5,7 @@ assert.equal(git('rev-parse','HEAD').toString().trim(),gate.head);
 for(const[f,h]of Object.entries(gate.productionHashes))assert.equal(sha(fs.readFileSync(p.join(root,f))),h,'gate source '+f);
 const old=JSON.parse(fs.readFileSync(p.join(prior,'build_inputs.json'))).inputs.candidate,tracked=new Set(git('ls-tree','-r','--name-only','HEAD').toString().trim().split(/\r?\n/)),dst=p.join(d,'quartus_'+name);assert(!fs.existsSync(dst),'fresh source-only database required');
 const inputs={},baseline={},changes=[];
-for(const[f,h]of Object.entries(old)){
+for(const[f,h]of Object.entries(old)){if(f.startsWith('releases/'))continue;
  const b=fs.readFileSync(p.join(prior,'quartus_candidate',f));assert.equal(sha(b),h,'baseline '+f);if(tracked.has(f))assert.equal(norm(b),norm(git('show','HEAD:'+f)),'committed baseline '+f);
  const next=tracked.has(f)?fs.readFileSync(p.join(root,f)):b;const out=p.join(dst,f);fs.mkdirSync(p.dirname(out),{recursive:true});fs.writeFileSync(out,next);inputs[f]=sha(next);baseline[f]=h;if(norm(next)!==norm(b))changes.push(f);
 }

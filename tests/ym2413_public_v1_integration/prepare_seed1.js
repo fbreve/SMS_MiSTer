@@ -8,7 +8,7 @@ assert(!fs.existsSync(seed),'Fresh build directory required');
 const original=JSON.parse(fs.readFileSync(p.join(root,'tests/ym2413_v19_fullstate/physical_seed1/inputs.json')));
 for(const [n,h]of Object.entries(original.toolHashes))assert.equal(hash(`C:/intelFPGA_lite/17.0/quartus/bin64/${n}.exe`),h,'Tool changed');
 const m=JSON.parse(fs.readFileSync(p.join(d,'candidate_manifest.json'))),inputs={};
-for(const [f,info]of Object.entries(manifest.builds.c1.inputs)){
+for(const [f,info]of Object.entries(manifest.builds.c1.inputs)){if(f.startsWith('releases/'))continue;
  const frozen=p.join(ref,'c1',f);assert.equal(hash(frozen),info.SHA256);
  const source=m.approvedProduction.includes(f)?p.join(wt,f):frozen;
  const bytes=fs.readFileSync(source);const target=p.join(seed,'v1',f);

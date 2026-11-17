@@ -19,7 +19,7 @@ for(const seed of [1,3]){
  assert.equal(sha(fs.readFileSync(p.join(ref,r.rbf.path))),r.rbf.SHA256);
  for(const [tool,h]of Object.entries(m.toolHashes))assert.equal(h,old.toolHashes[tool]);
  fs.mkdirSync(d);fs.writeFileSync(p.join(d,'preservation_before.json'),JSON.stringify(preservation,null,2)+'\n');
- const inputs={};for(const [f,v]of Object.entries(old.builds.candidate.inputs)){
+ const inputs={};for(const [f,v]of Object.entries(old.builds.candidate.inputs)){if(f.startsWith('releases/'))continue;
   let bytes=fs.readFileSync(p.join(src,'candidate',f));assert.equal(sha(bytes),v.SHA256);
   if(f==='SMS.qsf'){const text=bytes.toString('latin1');assert.equal((text.match(/-name SEED 2\b/g)||[]).length,1);bytes=Buffer.from(text.replace('-name SEED 2','-name SEED '+seed),'latin1');}
   const refBytes=fs.readFileSync(p.join(ref,'candidate',f));assert.equal(sha(refBytes),m.builds.candidate.inputs[f].SHA256);

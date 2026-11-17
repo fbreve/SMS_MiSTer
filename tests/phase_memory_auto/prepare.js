@@ -5,7 +5,7 @@ const hash=b=>crypto.createHash('sha256').update(b).digest('hex');
 const write=(f,v)=>fs.writeFileSync(p.join(out,f),JSON.stringify(v,null,2)+'\n');
 assert.equal(git('rev-parse','HEAD').toString().trim(),rev);
 assert(!fs.existsSync(p.join(out,'baseline')),'Do not overwrite experiment builds');
-const files=git('ls-tree','-r',rev).toString().trim().split('\n').map(s=>s.match(/^(\d+) (\w+) (\w+)\t(.+)$/)).filter(m=>m[2]==='blob');
+const files=git('ls-tree','-r',rev).toString().trim().split('\n').map(s=>s.match(/^(\d+) (\w+) (\w+)\t(.+)$/)).filter(m=>m[2]==='blob'&&!m[4].startsWith('releases/'));
 const previous=JSON.parse(fs.readFileSync(p.join(root,'tests/synthesis_structure/provenance.json')));
 const preservation={refs:Object.fromEntries(['master','investigate/cram-memory-inference','investigate/synthesis-structure'].map(r=>[r,git('rev-parse',r).toString().trim()])),files:{}};
 for(const x of previous.reports)preservation.files[x.file]=hash(fs.readFileSync(p.join(root,x.file)));

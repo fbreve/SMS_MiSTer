@@ -4,7 +4,7 @@ const hash=b=>crypto.createHash('sha256').update(b).digest('hex');
 for(const seed of [2,3]) {
  const dest=p.join(root,'physical_seed'+seed);assert(!fs.existsSync(dest),'Refuse existing seed directory');fs.mkdirSync(dest);
  const m=JSON.parse(JSON.stringify(original));m.seed=seed;m.seed1InputsSHA256=hash(fs.readFileSync(p.join(reference,'inputs.json')));m.seedStudyPolicy='Exact frozen Seed 1 inputs; sole input change is QSF SEED assignment. No RTL or test edits.';
- for(const v of ['baseline','candidate'])for(const [file,info]of Object.entries(m.builds[v].inputs)) {
+ for(const v of ['baseline','candidate'])for(const [file,info]of Object.entries(m.builds[v].inputs)) {if(file.startsWith('releases/'))continue;
   let bytes=fs.readFileSync(p.join(reference,v,file));assert.equal(hash(bytes),info.SHA256,'Seed 1 input changed: '+v+'/'+file);
   if(file==='SMS.qsf'){const text=bytes.toString();assert.equal((text.match(/set_global_assignment -name SEED 1/g)||[]).length,1);bytes=Buffer.from(text.replace('set_global_assignment -name SEED 1','set_global_assignment -name SEED '+seed));info.seed1SHA256=info.SHA256;info.SHA256=hash(bytes);info.seedOverride=seed;}
   const target=p.join(dest,v,file);fs.mkdirSync(p.dirname(target),{recursive:true});fs.writeFileSync(target,bytes);

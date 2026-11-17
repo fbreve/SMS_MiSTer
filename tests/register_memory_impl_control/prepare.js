@@ -10,7 +10,7 @@ for(const f of git('ls-files').toString().trim().split('\n'))if(fs.existsSync(p.
 const preserved={files,refs:git('show-ref','--heads').toString(),status:git('status','--short').toString()};
 fs.writeFileSync(p.join(d,'preservation_before.json'),JSON.stringify(preserved,null,2)+'\n');
 const m=JSON.parse(fs.readFileSync(p.join(prior,'input_manifest.json'))),inputs={};
-for(const [f,h]of Object.entries(m.inputs)){
+for(const [f,h]of Object.entries(m.inputs)){if(f.startsWith('releases/'))continue;
  inputs[f]={};for(const v of ['baseline','candidate']){
   const source=p.join(prior,v,f);assert.equal(hash(source),h[v],source);let bytes=fs.readFileSync(source);
   if(f==='SMS.qsf'){let s=bytes.toString();assert(!/^set_global_assignment -name PHYSICAL_SYNTHESIS_EFFORT\s/m.test(s));assert(/^set_global_assignment -name SEED 2\r?$/m.test(s));s+='\n# Isolated implementation-control experiment, both matched seed-2 variants.\nset_global_assignment -name PHYSICAL_SYNTHESIS_EFFORT EXTRA\n';bytes=Buffer.from(s);}

@@ -7,7 +7,7 @@ const git=(...a)=>cp.execFileSync('git',a,{cwd:r,maxBuffer:16*1024*1024}),sha=b=
 assert.equal(git('rev-parse','HEAD').toString().trim(),'8ffd15e2a7e530c0d77b07c6eeae3e8dc0aa0c8a');
 const tracked=new Set(git('ls-tree','-r','--name-only','HEAD').toString().trim().split(/\r?\n/));
 const manifest=JSON.parse(fs.readFileSync(p.resolve(old,'../build_sources.json'))),out={};let committed=0;
-for(const [f,h]of Object.entries(manifest)){
+for(const [f,h]of Object.entries(manifest)){if(f.startsWith('releases/'))continue;
  const b=fs.readFileSync(p.join(old,f));assert.equal(sha(b),h,'Retained baseline '+f);
  if(tracked.has(f)){assert.equal(b.toString().replace(/\r\n/g,'\n'),git('show','HEAD:'+f).toString().replace(/\r\n/g,'\n'));committed++;}
  const target=p.join(dest,f);fs.mkdirSync(p.dirname(target),{recursive:true});fs.writeFileSync(target,b);out[f]=h;

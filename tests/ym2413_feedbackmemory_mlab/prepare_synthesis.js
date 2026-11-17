@@ -5,7 +5,7 @@ cp.execFileSync('node',[p.join(d,'verify.js')],{stdio:'inherit'});assert(!fs.exi
 const m=JSON.parse(fs.readFileSync(p.join(ref,'inputs.json'))),r=JSON.parse(fs.readFileSync(p.join(ref,'results.json'))).builds.candidate;
 for(const [f,h]of Object.entries(r.reportHashes))assert.equal(sha(fs.readFileSync(p.join(ref,'candidate/output_files',f))),h);
 for(const [name,h]of Object.entries(m.toolHashes))assert.equal(sha(fs.readFileSync('C:/intelFPGA_lite/17.0/quartus/bin64/'+name+'.exe')),h);
-fs.mkdirSync(phys);const inputs={};for(const [f,v]of Object.entries(m.builds.candidate.inputs)){
+fs.mkdirSync(phys);const inputs={};for(const [f,v]of Object.entries(m.builds.candidate.inputs)){if(f.startsWith('releases/'))continue;
  let bytes=fs.readFileSync(p.join(ref,'candidate',f));assert.equal(sha(bytes),v.SHA256);
  if(/^(rtl\/|sys\/|SMS\.sv$|files\.qip$)/.test(f))assert.equal(norm(bytes),norm(cp.execFileSync('git',['show','9873761503510e4b2c7e06600bf5515344235c2f:'+f],{cwd:w})),f);
  if(f==='rtl/VM2413/feedbackmemory.vhd')bytes=Buffer.from(bytes.toString('latin1').replace('attribute ramstyle of data_array : signal is "logic";','attribute ramstyle of data_array : signal is "MLAB";'),'latin1');

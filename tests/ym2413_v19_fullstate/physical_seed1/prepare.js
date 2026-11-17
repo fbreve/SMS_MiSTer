@@ -9,7 +9,7 @@ assert.equal(approved.baseline,rev);assert.equal(results.status,'PASS');
 for(const [f,h]of Object.entries(approved.sha256))assert.equal(filehash(p.join(work,f)),h,'Reviewed production changed '+f);
 for(const log of results.logs)assert.equal(filehash(p.join(phaseDir,log.name)),log.sha256,'Functional log changed '+log.name);
 function blobs(cwd,at,prefix=''){
- const rows=txt(['ls-tree','-r',at],cwd).split('\n').map(x=>x.match(/^(\d+) (\w+) (\w+)\t(.+)$/)).filter(x=>x&&x[2]==='blob');
+ const rows=txt(['ls-tree','-r',at],cwd).split('\n').map(x=>x.match(/^(\d+) (\w+) (\w+)\t(.+)$/)).filter(x=>x&&x[2]==='blob'&&!x[4].startsWith('releases/'));
  const b=cp.execFileSync('git',['--no-optional-locks','cat-file','--batch'],{cwd,input:rows.map(x=>x[3]).join('\n')+'\n',maxBuffer:256*1024*1024});
  let pos=0,out={};for(const row of rows){const end=b.indexOf(10,pos),n=+b.subarray(pos,end).toString().split(' ')[2];pos=end+1;out[prefix+row[4]]={blob:row[3],bytes:b.subarray(pos,pos+n)};pos+=n+1;}return out;
 }
@@ -22,9 +22,9 @@ for(const n of ['quartus_sh','quartus_map','quartus_fit','quartus_asm','quartus_
 for(const variant of ['baseline','candidate']){
  const dest=p.join(d,variant);assert(!fs.existsSync(dest),'Output directory exists '+dest);const inputs={};
  const sources={...base};if(variant==='candidate')for(const f of approved.changedProduction)sources[f]={...sources[f],bytes:fs.readFileSync(p.join(work,f)),reviewedCandidate:true};
- for(const [f,item]of Object.entries(sources)){fs.mkdirSync(p.dirname(p.join(dest,f)),{recursive:true});fs.writeFileSync(p.join(dest,f),item.bytes);inputs[f]={SHA256:sha(item.bytes),blob:item.blob||null,reviewedCandidate:!!item.reviewedCandidate};}
+ for(const [f,item]of Object.entries(sources)){if(f.startsWith('releases/'))continue;fs.mkdirSync(p.dirname(p.join(dest,f)),{recursive:true});fs.writeFileSync(p.join(dest,f),item.bytes);inputs[f]={SHA256:sha(item.bytes),blob:item.blob||null,reviewedCandidate:!!item.reviewedCandidate};}
  const generated={'build_id.v':'`define BUILD_DATE "261104"\n','jtag.cdf':'JedecChain;\n\tFileRevision(JESD32A);\n\tDefaultMfr(6E);\n\n\tP ActionCode(Ign)\n\t\tDevice PartName(SOCVHPS) MfrSpec(OpMask(0));\n\tP ActionCode(Cfg)\n\t\tDevice PartName(5CSEBA6U23I7) Path("output_files/") File("SMS.sof") MfrSpec(OpMask(1));\nChainEnd;\n\nAlteraBegin;\n\tChainType(JTAG);\nAlteraEnd;\n'};
- for(const [f,s]of Object.entries(generated)){fs.writeFileSync(p.join(dest,f),s);inputs[f]={generated:true,SHA256:sha(s)};}
+ for(const [f,s]of Object.entries(generated)){if(f.startsWith('releases/'))continue;fs.writeFileSync(p.join(dest,f),s);inputs[f]={generated:true,SHA256:sha(s)};}
  for(const n of ['db','incremental_db','output_files','map.log','fit.log'])assert(!fs.existsSync(p.join(dest,n)),'Nonfresh '+variant+'/'+n);
  manifest.builds[variant]={inputs};
 }

@@ -10,7 +10,7 @@ for(const [seed,folder]of [[1,'register_memory_auto'],[2,'register_memory_auto_s
  const prior=p.join(root,'tests',folder),m=JSON.parse(fs.readFileSync(p.join(prior,'input_manifest.json')));
  for(const v of ['baseline','candidate']){
   const dest=p.join(d,'scratch','seed'+seed,v);fs.mkdirSync(dest,{recursive:true});
-  for(const [f,h]of Object.entries(m.inputs)){assert.equal(hash(p.join(prior,v,f)),h[v]);const target=p.join(dest,f);fs.mkdirSync(p.dirname(target),{recursive:true});fs.copyFileSync(p.join(prior,v,f),target);}
+  for(const [f,h]of Object.entries(m.inputs)){if(f.startsWith('releases/'))continue;assert.equal(hash(p.join(prior,v,f)),h[v]);const target=p.join(dest,f);fs.mkdirSync(p.dirname(target),{recursive:true});fs.copyFileSync(p.join(prior,v,f),target);}
   for(const f of ['build_id.v','jtag.cdf'])fs.copyFileSync(p.join(prior,v,f),p.join(dest,f));
   fs.cpSync(p.join(prior,v,'db'),p.join(dest,'db'),{recursive:true});fs.mkdirSync(p.join(dest,'output_files'));
   provenance.push({seed,variant:v,source:p.relative(root,p.join(prior,v)).replaceAll('\\','/'),copiedDatabase:true,sourceInputs:Object.keys(m.inputs).length});

@@ -7,7 +7,7 @@ assert.equal(git('rev-parse','HEAD').toString().trim(),'8ffd15e2a7e530c0d77b07c6
 if(fs.existsSync(dest))throw Error('Fresh source-only Quartus directory required; no database reuse');
 const manifest=JSON.parse(fs.readFileSync(p.join(old,'build_sources.json'))),tracked=new Set(git('ls-tree','-r','--name-only','HEAD').toString().trim().split(/\r?\n/));
 let verified=0;const external=[],sources={};
-for(const [file,expected]of Object.entries(manifest)){
+for(const [file,expected]of Object.entries(manifest)){if(file.startsWith('releases/'))continue;
  const prior=fs.readFileSync(p.join(old,'candidate',file));assert.equal(hash(prior),expected,'Retained baseline hash '+file);
  if(tracked.has(file)){assert.equal(prior.toString().replace(/\r\n/g,'\n'),git('show','HEAD:'+file).toString().replace(/\r\n/g,'\n'),'Post-G01 committed baseline '+file);verified++;}
  else external.push(file);

@@ -5,7 +5,7 @@ assert.equal(sha(fs.readFileSync(p.join(d,'candidate/rtl/savestates.sv'))),gate.
 if(name!=='candidate1')assert(require('./candidate1_results.json').physicalGate,'seed1 must be favorable before paired seed2');
 const seed=name.endsWith('2')?2:1,baseline=require('../savestate_g08_fm/build_early_inputs.json'),src=p.join(d,'../savestate_g08_fm/quartus_early'),dst=p.join(d,'quartus_'+name);assert(!fs.existsSync(dst),'fresh source-isolated build required');
 const inputs={},changes=[];
-for(const[f,h]of Object.entries(baseline.inputs)){
+for(const[f,h]of Object.entries(baseline.inputs)){if(f.startsWith('releases/'))continue;
  const b=fs.readFileSync(p.join(src,f));assert.equal(sha(b),h,f);let next=b;
  if(f==='rtl/savestates.sv'&&name!=='baseline2')next=fs.readFileSync(p.join(d,'candidate/rtl/savestates.sv'));
  if(f==='SMS.qsf'&&seed===2){assert(b.toString().includes('set_global_assignment -name SEED 1'));next=Buffer.from(b.toString().replace('set_global_assignment -name SEED 1','set_global_assignment -name SEED 2'));}

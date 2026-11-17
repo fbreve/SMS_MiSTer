@@ -10,7 +10,7 @@ if((git branch --show-current) -ne 'cleanup/mapper-eeprom-fallback'){throw 'Bran
 if((git status --short | Out-String).Trim() -ne 'M rtl/mapper_ctrl.vhd'){throw 'Unexpected status'}
 git diff --check
 if($LASTEXITCODE){throw 'Diff check'}
-$files=@(git ls-files --stage | Where-Object {$_ -match '^100'} | ForEach-Object {($_ -split "`t",2)[1]})
+$files=@(git ls-files --stage | Where-Object {$_ -match '^100' -and $_ -notmatch '\treleases/'} | ForEach-Object {($_ -split "`t",2)[1]})
 function Manifest($dir){$h=@{};foreach($f in $files){$h[$f]=(Get-FileHash -LiteralPath (Join-Path $dir $f)).Hash};return $h}
 $before=@{}
 $m=Get-Content (Join-Path $art 'workspace-before.json') -Raw | ConvertFrom-Json
@@ -24,7 +24,7 @@ foreach($seed in 3..5){
  $before | ConvertTo-Json | Set-Content (Join-Path $sa 'workspace-before.json')
  foreach($label in @('A','B')){
   $dir=Join-Path $sr $label;New-Item -ItemType Directory -Path $dir | Out-Null
-  tar -xf (Join-Path $root 'baseline.tar') -C $dir
+  tar --exclude=releases -xf (Join-Path $root 'baseline.tar') -C $dir
   if($LASTEXITCODE){throw 'Extract failed'}
   if($label -eq 'B'){Copy-Item (Join-Path $repo 'rtl/mapper_ctrl.vhd') (Join-Path $dir 'rtl/mapper_ctrl.vhd')}
   $p=Join-Path $dir 'sys/build_id.tcl';$s=[IO.File]::ReadAllText($p)

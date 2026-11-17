@@ -5,7 +5,7 @@ const changed=['SMS.sv','rtl/vdp_cram.vhd','rtl/vdp.vhd','rtl/savestates.sv','rt
 for(const f of changed)assert.equal(sha(fs.readFileSync(f)),gate.sourceHashes[f]);
 const old=require('../savestate_g08_fm/build_early_inputs.json'),src=p.join(d,'../savestate_g08_fm/quartus_early'),dst=p.join(d,'quartus_'+name);assert(!fs.existsSync(dst),'Fresh build required');
 const inputs={},changes=[];
-for(const[f,h]of Object.entries(old.inputs)){
+for(const[f,h]of Object.entries(old.inputs)){if(f.startsWith('releases/'))continue;
  const baseline=fs.readFileSync(p.join(src,f));
  // F06 retained a verified Quartus-expanded QSF after compilation.
  if(f==='SMS.qsf'&&sha(baseline)!==h){const proof=require('../savestate_g08_fm/qsf_export_verification.json');assert(proof.pass);assert.equal(proof.originalSHA,h);assert.equal(proof.expandedSHA,sha(baseline));}

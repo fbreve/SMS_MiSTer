@@ -5,7 +5,7 @@ const m=JSON.parse(fs.readFileSync(p.join(ref,'inputs.json'))),r=JSON.parse(fs.r
 for(const [f,h]of Object.entries(r.builds.candidate.reportHashes))assert.equal(hash(fs.readFileSync(p.join(ref,'candidate/output_files',f))),h,f);
 for(const [f,h]of Object.entries(m.toolHashes))assert.equal(hash(fs.readFileSync('C:/intelFPGA_lite/17.0/quartus/bin64/'+f+'.exe')),h,f);
 fs.mkdirSync(out);const inputs={},differences=[];
-for(const [f,v]of Object.entries(m.builds.candidate.inputs)){
+for(const [f,v]of Object.entries(m.builds.candidate.inputs)){if(f.startsWith('releases/'))continue;
  let bytes=fs.readFileSync(p.join(ref,'candidate',f));assert.equal(hash(bytes),v.SHA256,f);
  if(/^(rtl\/|sys\/|SMS\.sv$|files\.qip$)/.test(f)){
  const candidate=fs.readFileSync(p.join(w,f));if(norm(bytes)!==norm(candidate)){differences.push(f);bytes=candidate;}

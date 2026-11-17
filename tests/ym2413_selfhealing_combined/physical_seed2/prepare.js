@@ -10,7 +10,7 @@ new Function('require','__dirname',scope)(require,d);
 const preserved=()=>{const list=git(repo,'worktree','list','--porcelain').toString().split(/\r?\n/).filter(x=>x.startsWith('worktree ')).map(x=>x.slice(9));return {master:git(repo,'rev-parse','master').toString().trim(),worktrees:Object.fromEntries(list.map(w=>[w,{HEAD:git(w,'rev-parse','HEAD').toString().trim(),diff:sha(git(w,'diff','--binary','HEAD')),status:git(w,'status','--porcelain','--untracked-files=no').toString()}]))};};
 fs.writeFileSync(p.join(d,'preservation_before.json'),JSON.stringify(preserved(),null,2));
 const inputs={},equivalence=[],exceptions=[];
-for(const [f,info] of Object.entries(original.builds.candidate.inputs)){
+for(const [f,info] of Object.entries(original.builds.candidate.inputs)){if(f.startsWith('releases/'))continue;
  let bytes=fs.readFileSync(p.join(ref,'candidate',f));assert.equal(sha(bytes),info.SHA256,'Reference frozen input '+f);
  if(/^(rtl\/|sys\/|SMS\.sv$|files\.qip$)/.test(f)){
   assert.equal(norm(bytes),norm(git(wt,'show',base+':'+f)),'Reference versus committed baseline '+f);equivalence.push(f);

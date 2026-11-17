@@ -2,7 +2,7 @@ const fs=require('fs'),p=require('path'),cp=require('child_process'),crypto=requ
 const sha=b=>crypto.createHash('sha256').update(b).digest('hex');const name=process.argv[2]||'early',seed=name==='confirmation'?2:1;
 assert(['early','confirmation'].includes(name));const gate=require('./functional_gate.json');assert(gate.passed);const root=fs.readFileSync('rtl/savestates.sv');assert.equal(sha(root),gate.sourceSHA);
 const old=require('../savestate_f01_opll_fix/build_final_inputs.json'),src=p.join(d,'../savestate_f01_opll_fix/quartus_final'),dst=p.join(d,'quartus_'+name);assert(!fs.existsSync(dst),'Fresh build required');
-const inputs={},changes=[];for(const [f,h]of Object.entries(old.inputs)){
+const inputs={},changes=[];for(const [f,h]of Object.entries(old.inputs)){if(f.startsWith('releases/'))continue;
  const baseline=fs.readFileSync(p.join(src,f));assert.equal(sha(baseline),h);
  let next=f==='rtl/savestates.sv'?root:baseline;
  if(seed===2&&f==='SMS.qsf'){assert(next.toString().includes('set_global_assignment -name SEED 1'));next=Buffer.from(next.toString().replace('set_global_assignment -name SEED 1','set_global_assignment -name SEED 2'));}

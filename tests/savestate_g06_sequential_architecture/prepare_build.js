@@ -6,7 +6,7 @@ for(const[f,h]of Object.entries(baseline.hashes))assert.equal(sha(fs.readFileSyn
 for(const[f,h]of Object.entries(gate.candidateHashes))assert.equal(sha(fs.readFileSync(p.join(d,'candidate_A',f))),h,'proof-gated source '+f);
 const old=require('../savestate_f01_opll_fix/build_final_inputs.json'),src=p.join(d,'../savestate_f01_opll_fix/quartus_final'),dst=p.join(d,'quartus_'+name);assert(!fs.existsSync(dst),'fresh database required');
 const inputs={},changes=[];
-for(const[f,h]of Object.entries(old.inputs)){
+for(const[f,h]of Object.entries(old.inputs)){if(f.startsWith('releases/'))continue;
  const b=fs.readFileSync(p.join(src,f));assert.equal(sha(b),h,'exact retained F01 source '+f);
  let next=fs.existsSync(p.join(d,'candidate_A',f))?fs.readFileSync(p.join(d,'candidate_A',f)):b;
  if(seed!==1&&f==='SMS.qsf'){const q=next.toString();assert(/set_global_assignment -name SEED 1\b/.test(q));next=Buffer.from(q.replace(/set_global_assignment -name SEED 1\b/,'set_global_assignment -name SEED '+seed));}

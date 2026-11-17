@@ -13,7 +13,7 @@ for(const e of fs.readdirSync(prior,{withFileTypes:true})){if(e.isFile()){const 
 for(const [v,b] of Object.entries(r.builds))for(const f of Object.keys(b.reportHashes)){const rel='tests/register_memory_auto/'+v+'/output_files/'+f;before.files[rel]=hash(p.join(root,rel));}
 fs.writeFileSync(p.join(d,'preservation_before.json'),JSON.stringify(before,null,2)+'\n');
 const m=JSON.parse(fs.readFileSync(p.join(prior,'input_manifest.json'))),inputs={};
-for(const [f,h]of Object.entries(m.inputs)){
+for(const [f,h]of Object.entries(m.inputs)){if(f.startsWith('releases/'))continue;
  inputs[f]={};for(const v of ['baseline','candidate']){
   const source=p.join(prior,v,f);assert.equal(hash(source),h[v],source);let b=fs.readFileSync(source);
   if(f==='SMS.qsf'){let s=b.toString();assert.equal((s.match(/^set_global_assignment -name SEED 1\r?$/gm)||[]).length,1);b=Buffer.from(s.replace(/^set_global_assignment -name SEED 1(\r?)$/m,'set_global_assignment -name SEED 2$1'));}

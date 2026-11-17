@@ -30,7 +30,7 @@ const changedFiles = new Set([
 const builds = { b1: { inputs: {} }, c1: { inputs: {} } };
 
 for (const [variant, wt] of [['b1', wtB1], ['c1', wtC1]]) {
-  for (const [f, info] of Object.entries(original.builds.candidate.inputs)) {
+  for (const [f, info] of Object.entries(original.builds.candidate.inputs)) {if(f.startsWith('releases/'))continue;
     let bytes;
     if (changedFiles.has(f)) {
       bytes = fs.readFileSync(p.join(wt, f));

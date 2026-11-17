@@ -8,7 +8,7 @@ const old=JSON.parse(fs.readFileSync(p.join(prior,'input_manifest.json'))),funct
 const diff=git(['diff','--binary'],candidate);assert.equal(hash(diff),functional.candidates.C.diffSHA256,'Reviewed C patch changed');assert.equal(hash(fs.readFileSync(p.join(prior,'C.diff'))),hash(diff));
 const changed=text(['diff','--name-only'],candidate).trim().split('\n').sort();assert.deepEqual(changed,functional.candidates.C.changedFiles);assert.equal(text(['diff','--cached'],candidate),'');assert(!text(['status','--short'],candidate).includes('??'));
 for(const [f,h]of Object.entries(old.files))assert.equal(filehash(p.join(candidate,f)),h.CSHA256,'Reviewed manifest changed: '+f);
-const testResults={};for(const [f,result]of Object.entries(functional.tests)){const s=fs.readFileSync(p.join(prior,f),'utf8');assert.equal(hash(Buffer.from(s)),result.SHA256,f);assert(s.includes('PASS ')&&!/\*\* (?:Error|Fatal)|Errors: [1-9]/.test(s),f);testResults[f]={hash:result.SHA256,pass:result.pass};}
+const testResults={};for(const [f,result]of Object.entries(functional.tests)){if(f.startsWith('releases/'))continue;const s=fs.readFileSync(p.join(prior,f),'utf8');assert.equal(hash(Buffer.from(s)),result.SHA256,f);assert(s.includes('PASS ')&&!/\*\* (?:Error|Fatal)|Errors: [1-9]/.test(s),f);testResults[f]={hash:result.SHA256,pass:result.pass};}
 const token=s=>s.replace(/\/\*[\s\S]*?\*\//g,'').replace(/\/\/[^\n]*/g,'').replace(/\s+/g,'');
 for(const f of ['jt89.v','jt89_tone.v','jt89_noise.v','jt89_vol.v','jt89_mixer.v'])assert.equal(token(fs.readFileSync(p.join(candidate,'rtl/jt89',f),'utf8')),token(fs.readFileSync(p.join(prior,'sim_C',f),'utf8')),'Tested native source '+f);
 let controller=norm(fs.readFileSync(p.join(candidate,'rtl/savestates.sv'),'utf8'));for(const name of ['mapper_snap','evolution_snap']){const re=new RegExp('^reg\\s+\\[[^\\]]+\\]\\s+'+name+';\\n','m'),decl=controller.match(re)[0];controller=controller.replace(re,'').replace('// NVRAM size calculation helpers',decl+'// NVRAM size calculation helpers');}assert.equal(token(controller),token(fs.readFileSync(p.join(prior,'sim_C/controller.sv'),'utf8')));
@@ -19,7 +19,7 @@ const preservation={head:text(['rev-parse','HEAD']).trim(),branch:text(['branch'
 function walk(dir){for(const e of fs.readdirSync(p.join(root,dir),{withFileTypes:true})){const f=p.posix.join(dir,e.name);if(f==='tests/psg_c_physical'||f==='.git')continue;if(e.isDirectory())walk(f);else if(e.isFile()){const s=fs.statSync(p.join(root,f));preservation.files[f]={size:s.size,mtime:s.mtimeMs};if((/\.(md|json|js|ps1|sv|v|vhd|qsf|qip|qpf|sdc|do|csv|summary|diff|tcl|rpt|rbf|sof|log)$/.test(f)||e.name==='.git')&&!/(?:^|\/)(?:db|incremental_db|work|\w+_work|node_modules|\.git)(?:\/|$)/.test(f))preservation.contents[f]=filehash(p.join(root,f));}}}
 walk('');save('preservation_before.json',preservation);
 function blobs(cwd,at,prefix=''){
- const tree=text(['ls-tree','-r',at],cwd).trim().split('\n').map(s=>s.match(/^(\d+) (\w+) (\w+)\t(.+)$/)).filter(m=>m&&m[2]==='blob');
+ const tree=text(['ls-tree','-r',at],cwd).trim().split('\n').map(s=>s.match(/^(\d+) (\w+) (\w+)\t(.+)$/)).filter(m=>m&&m[2]==='blob'&&!m[4].startsWith('releases/'));
  const buf=cp.execFileSync('git',['--no-optional-locks','cat-file','--batch'],{cwd,input:tree.map(m=>m[3]).join('\n')+'\n',maxBuffer:256*1024*1024}),out={};let pos=0;
  for(const m of tree){const end=buf.indexOf(10,pos),size=+buf.subarray(pos,end).toString().split(' ')[2];pos=end+1;out[prefix+m[4]]={blob:m[3],bytes:buf.subarray(pos,pos+size)};pos+=size+1;}return out;
 }
@@ -29,9 +29,9 @@ assert(config.toolVersion.includes('17.0.2 Build 602')&&config.toolVersion.inclu
 for(const exe of ['quartus_sh','quartus_map','quartus_fit','quartus_asm','quartus_sta'])config.toolHashes[exe]=filehash('C:/intelFPGA_lite/17.0/quartus/bin64/'+exe+'.exe');
 for(const seed of [1,2])for(const variant of ['A','C']){
  const key=`seed${seed}/${variant}`,target=p.join(d,key);assert(!fs.existsSync(target),key);const inputs={};
- for(const [f,h]of Object.entries(sources)){let b=h.bytes;if(variant==='C'&&changed.includes(f))b=fs.readFileSync(p.join(candidate,f));if(f==='SMS.qsf'&&seed===2){const s=b.toString();assert.equal((s.match(/set_global_assignment -name SEED 1/g)||[]).length,1);b=Buffer.from(s.replace('set_global_assignment -name SEED 1','set_global_assignment -name SEED 2'));}const dest=p.join(target,f);fs.mkdirSync(p.dirname(dest),{recursive:true});fs.writeFileSync(dest,b);inputs[f]={blob:h.blob,SHA256:hash(b)};}
+ for(const [f,h]of Object.entries(sources)){if(f.startsWith('releases/'))continue;let b=h.bytes;if(variant==='C'&&changed.includes(f))b=fs.readFileSync(p.join(candidate,f));if(f==='SMS.qsf'&&seed===2){const s=b.toString();assert.equal((s.match(/set_global_assignment -name SEED 1/g)||[]).length,1);b=Buffer.from(s.replace('set_global_assignment -name SEED 1','set_global_assignment -name SEED 2'));}const dest=p.join(target,f);fs.mkdirSync(p.dirname(dest),{recursive:true});fs.writeFileSync(dest,b);inputs[f]={blob:h.blob,SHA256:hash(b)};}
  const generated={'build_id.v':'`define BUILD_DATE "261029"\n','jtag.cdf':'JedecChain;\n\tFileRevision(JESD32A);\n\tDefaultMfr(6E);\n\n\tP ActionCode(Ign)\n\t\tDevice PartName(SOCVHPS) MfrSpec(OpMask(0));\n\tP ActionCode(Cfg)\n\t\tDevice PartName(5CSEBA6U23I7) Path("output_files/") File("SMS.sof") MfrSpec(OpMask(1));\nChainEnd;\n\nAlteraBegin;\n\tChainType(JTAG);\nAlteraEnd;\n'};
- for(const[f,s]of Object.entries(generated)){fs.writeFileSync(p.join(target,f),s);inputs[f]={generated:true,SHA256:hash(Buffer.from(s))};}
+ for(const[f,s]of Object.entries(generated)){if(f.startsWith('releases/'))continue;fs.writeFileSync(p.join(target,f),s);inputs[f]={generated:true,SHA256:hash(Buffer.from(s))};}
  for(const forbidden of ['db','incremental_db','output_files','map.log','fit.log','sta.log'])assert(!fs.existsSync(p.join(target,forbidden)),'Must start fresh '+key+' '+forbidden);
  config.builds[key]={seed,variant,inputs};
 }
