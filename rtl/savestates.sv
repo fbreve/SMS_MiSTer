@@ -301,6 +301,8 @@ localparam ST_FM_CAPTURE=7'd111, ST_FM_SAVE_FETCH=7'd112, ST_FM_SAVE_WAIT=7'd113
  ST_FM_APPLY=7'd120, ST_FM_APPLY_WAIT=7'd121;
 reg fm_capture,fm_apply,fm_legacy,fm_bulk_read,fm_bulk_write,has_fm;
 reg [6:0] fm_word;
+// Word 100 may retain an output write only at the restored global stage 0.
+reg fm_saved_stage_zero;
 // Shared DDRAM response latch, declared before the FM transport connection.
 reg [63:0] dout_latch;
 wire [63:0] fm_bulk_rdata;
@@ -915,6 +917,7 @@ always @(posedge clk or negedge reset_n) begin
         psg_ext_in <= 0; psg2_ext_in <= 0; psg_div_in <= 0;
         audio_control_in <= 0; audio_phase_in <= 0;
         audio_word <= 0;
+        fm_saved_stage_zero <= 0;
         flush_cnt       <= 0;
         unfreeze_cnt    <= 0;
         align_timeout   <= 0;
@@ -1113,9 +1116,13 @@ always @(posedge clk or negedge reset_n) begin
             else if(!dout_expected&&!DDRAM_BUSY)begin
                 if(state==ST_FM_LOAD_DESC)begin
                     if(dout_latch!=FM_DESC)state<=ST_ERROR;
-                    else begin fm_word<=0;ddram_read(base_addr+FM_DATA_ADDR);state<=ST_FM_LOAD;end
+                    else begin fm_saved_stage_zero<=0;fm_word<=0;ddram_read(base_addr+FM_DATA_ADDR);state<=ST_FM_LOAD;end
                 end else if(!fm_word_valid({fm_word,1'b0},dout_latch[31:0])||!fm_word_valid({fm_word,1'b1},dout_latch[63:32]))state<=ST_ERROR;
-                else begin fm_bulk_write<=1;state<=ST_FM_LOAD_STORE;end
+                else if(fm_word==50 && dout_latch[1] && !fm_saved_stage_zero)state<=ST_ERROR;
+                else begin
+                    if(fm_word==39)fm_saved_stage_zero<=dout_latch[1:0]==2'b00;
+                    fm_bulk_write<=1;state<=ST_FM_LOAD_STORE;
+                end
             end
         end
         ST_FM_LOAD_STORE: if(fm_done)state<=ST_FM_LOAD_NEXT;
