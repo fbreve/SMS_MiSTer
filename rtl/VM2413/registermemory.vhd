@@ -63,7 +63,7 @@ architecture rtl of registermemory is
     type regs_array_type is array (0 to 8) of std_logic_vector( 23 downto 0 );
     signal regs_array : regs_array_type;
     attribute ramstyle : string;
-    attribute ramstyle of regs_array : signal is "logic";
+    attribute ramstyle of regs_array : signal is "MLAB";
 
     signal ss_local_data : std_logic_vector(31 downto 0) := (others=>'0');
     signal ss_mem_active : std_logic;
