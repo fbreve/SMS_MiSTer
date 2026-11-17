@@ -76,8 +76,6 @@ begin
 
 variable ss_v_mute : std_logic_vector(0 downto 0);
 variable ss_v_maddr : std_logic_vector(4 downto 0);
-variable ss_v_mix : std_logic_vector(13 downto 0);
-variable ss_v_mixout : std_logic_vector(13 downto 0);
 variable ss_response : std_logic_vector(31 downto 0);
 begin
 if reset='1' then
@@ -96,31 +94,21 @@ ss_response := (others=>'0');
 if ss_hold='1' and (ss_read='1' or ss_write='1') then
 ss_v_mute := (0 => mute);
 ss_v_maddr := maddr;
-ss_v_mix := mix;
-ss_v_mixout := mixout;
 
 if ss_read='1' then
 case conv_integer(ss_addr) is
-when 101 =>
-ss_response(0) := mute;
-ss_response(5 downto 1) := maddr(4 downto 0);
-ss_response(19 downto 6) := mix(13 downto 0);
-when 102 =>
-ss_response(13 downto 0) := mixout(13 downto 0);
+when 78 =>
+ss_response(7) := mute;
+ss_response(12 downto 8) := maddr(4 downto 0);
 when others => null; end case;
 end if;
 if ss_write='1' then
 case conv_integer(ss_addr) is
-when 101 =>
-ss_v_mute(0) := ss_wdata(0);
+when 78 =>
+ss_v_mute(0) := ss_wdata(7);
 mute <= ss_v_mute(0);
-ss_v_maddr(4 downto 0) := ss_wdata(5 downto 1);
+ss_v_maddr(4 downto 0) := ss_wdata(12 downto 8);
 maddr <= ss_v_maddr;
-ss_v_mix(13 downto 0) := ss_wdata(19 downto 6);
-mix <= ss_v_mix;
-when 102 =>
-ss_v_mixout(13 downto 0) := ss_wdata(13 downto 0);
-mixout <= ss_v_mixout;
 when others => null; end case;
 end if;
 end if;

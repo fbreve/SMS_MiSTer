@@ -216,7 +216,7 @@ ss_v_mo_wdata := CONV_SIGNED_LI_VECTOR(mo_wdata);
 
 if ss_read='1' then
 case conv_integer(ss_addr) is
-when 100 =>
+when 79 =>
 ss_response(0) := fb_wr;
 ss_response(1) := mo_wr;
 ss_response(5 downto 2) := ss_v_fb_addr(3 downto 0);
@@ -227,7 +227,7 @@ when others => null; end case;
 end if;
 if ss_write='1' then
 case conv_integer(ss_addr) is
-when 100 =>
+when 79 =>
 ss_v_fb_wr(0) := ss_wdata(0);
 fb_wr <= ss_v_fb_wr(0);
 ss_v_mo_wr(0) := ss_wdata(1);
