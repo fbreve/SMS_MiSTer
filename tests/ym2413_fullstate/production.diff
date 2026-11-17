@@ -1,0 +1,13 @@
+diff --git a/rtl/VM2413/temporalmixer.vhd b/rtl/VM2413/temporalmixer.vhd
+index 18574930..d701a9fc 100644
+--- a/rtl/VM2413/temporalmixer.vhd
++++ b/rtl/VM2413/temporalmixer.vhd
+@@ -117,7 +117,7 @@ mute <= ss_v_mute(0);
+ ss_v_maddr(4 downto 0) := ss_wdata(5 downto 1);
+ maddr <= ss_v_maddr;
+ ss_v_mix(13 downto 0) := ss_wdata(19 downto 6);
+-mix <= ss_v_mix;
++-- Accumulator-only experiment: mix is cleared by its normal end-of-cycle update.
+ when 102 =>
+ ss_v_mixout(13 downto 0) := ss_wdata(13 downto 0);
+ mixout <= ss_v_mixout;

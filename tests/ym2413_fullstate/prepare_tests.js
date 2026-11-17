@@ -1,5 +1,5 @@
 const fs=require('fs'),cp=require('child_process'),p=require('path');
-const d=__dirname,root=p.resolve(d,'../..'),ref='7fcd5e12847eedf9e97a44dc937c3dbac3205f7c';
+const d=__dirname,root=p.resolve(d,'../..'),ref='9873761503510e4b2c7e06600bf5515344235c2f',upstream='66f16d5c656fd8906d62570da4d258875bcee684';
 const git=(...a)=>cp.execFileSync('git',a,{cwd:root,encoding:'latin1'}),put=(n,s)=>fs.writeFileSync(p.join(d,n),s,'latin1');
 fs.mkdirSync(p.join(d,'reference'),{recursive:true});
 fs.mkdirSync(p.join(d,'candidate'),{recursive:true});
@@ -50,7 +50,7 @@ put('reference_wrapper.vhd',wrapper(git('show',ref+':rtl/system.vhd'),'reference
 let src=fs.readFileSync(p.join(root,'rtl/savestates.sv'),'latin1');
 for(const n of ['mapper_snap','evolution_snap','dout_latch']){const re=new RegExp('^reg\\s+\\[[^\\]]+\\]\\s+'+n+';\\r?\\n','m');const m=src.match(re);if(!m)throw Error(n);src=src.replace(re,'').replace('// Helpers',m[0]+'// Helpers');}
 put('savestates_sim.sv',src);
-let base=git('show','HEAD:rtl/savestates.sv');
+let base=git('show',upstream+':rtl/savestates.sv');
 for(const n of ['mapper_snap','evolution_snap']){const re=new RegExp('^reg\\s+\\[[^\\]]+\\]\\s+'+n+';\\r?\\n','m');const m=base.match(re);base=base.replace(re,'').replace('// NVRAM size calculation helpers',m[0]+'// NVRAM size calculation helpers');}
 put('master_savestates.sv',base.replace('module savestates (','module master_savestates ('));
 const ports=[];
@@ -72,7 +72,7 @@ vlog -sv -quiet -work test_work ../../rtl/opll_snapshot.sv savestates_sim.sv mas
 quit -code 0
 `);
 put('.gitignore','candidate_work/\nreference_work/\ntest_work/\nfast_work/\ntranscript\n*.wlf\nmodelsim.ini\nreference/\ncandidate/\n');
-put('source_identity.json',JSON.stringify({baseline:git('rev-parse','HEAD').trim(),reference:ref,names,wrapper:'extracted from production system.vhd including FM gating; ce_cpu gated as SMS.sv',simulationAdapters:['Release renamed to EG_Release','integer subtype range expanded to equivalent bounds','when others => null added for meta-valued case coverage','main process labeled for read-only internal variable access','fm: work.opll made an explicit entity instantiation','move mapper_snap/evolution_snap/dout_latch declarations for ModelSim'],fastOnly:'FLUSH_MAX reduced from900000 to90; native test keeps900000'},null,2));
+put('source_identity.json',JSON.stringify({baseline:ref,upstream,reference:ref,names,wrapper:'extracted from production system.vhd including FM gating; ce_cpu gated as SMS.sv',simulationAdapters:['Release renamed to EG_Release','integer subtype range expanded to equivalent bounds','when others => null added for meta-valued case coverage','main process labeled for read-only internal variable access','fm: work.opll made an explicit entity instantiation','move mapper_snap/evolution_snap/dout_latch declarations for ModelSim'],fastOnly:'FLUSH_MAX reduced from900000 to90; native test keeps900000'},null,2));
 put('savestates_fast.sv',src.replace("20'd900000","20'd90"));
 put('fast_compile.do',`onerror {quit -code 1}
 vlib fast_work
