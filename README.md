@@ -20,6 +20,9 @@ This core is a port of Ben's Sega Master System implementation for the Papilio. 
 * BIOS Loading Support
 * Savestates
 
+YM2413 FM savestates use [public format version 1](docs/ym2413-savestates-v1.md),
+with legacy non-FM savestate support.
+
 ## Where to Download
 
 * For MiSTer, go to [releases](https://github.com/MiSTer-devel/SMS_MISTer/tree/master/releases).
