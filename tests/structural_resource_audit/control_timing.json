@@ -1,0 +1,82 @@
+[
+  {
+    "source": "arm",
+    "from": "emu:emu|savestates:savestates_inst|state.ST_ARM_FREEZE",
+    "to": "emu:emu|savestates:savestates_inst|DDRAM_ADDR[13]",
+    "slack": 6.259,
+    "dataDelay": 11.718,
+    "logicLevels": 10,
+    "dataIC": "8.091",
+    "dataCell": "3.627"
+  },
+  {
+    "source": "restore",
+    "from": "emu:emu|savestates:savestates_inst|z80_set",
+    "to": "emu:emu|system:system|vdp:vdp_inst|vdp_main:vdp_main_inst|vdp_sprites:vdp_spr_inst|vpd_sprite_shifter:\\shifters:40:shifter|shift3[0]",
+    "slack": 8.589,
+    "dataDelay": 9.33,
+    "logicLevels": 3,
+    "dataIC": "7.727",
+    "dataCell": "1.603"
+  },
+  {
+    "source": "vdp2_restore",
+    "from": "emu:emu|savestates:savestates_inst|vdp2_regs_set",
+    "to": "emu:emu|system:system|vdp:vdp2_inst|vdp_main:vdp_main_inst|vdp_sprites:vdp_spr_inst|spr_d2[18][7]",
+    "slack": 4.996,
+    "dataDelay": 12.781,
+    "logicLevels": 2,
+    "dataIC": "11.353",
+    "dataCell": "1.428"
+  },
+  {
+    "source": "header",
+    "from": "emu:emu|savestates:savestates_inst|state.ST_LOAD_HDR_RD",
+    "to": "emu:emu|savestates:savestates_inst|DDRAM_DIN[29]",
+    "slack": 5.838,
+    "dataDelay": 12.342,
+    "logicLevels": 11,
+    "dataIC": "9.801",
+    "dataCell": "2.541"
+  },
+  {
+    "source": "legacy",
+    "from": "emu:emu|savestates:savestates_inst|has_restart",
+    "to": "emu:emu|system:system|vdp:vdp2_inst|vdp_main:vdp_main_inst|vdp_sprites:vdp_spr_inst|spr_d2[18][4]",
+    "slack": 6.363,
+    "dataDelay": 11.414,
+    "logicLevels": 2,
+    "dataIC": "10.444",
+    "dataCell": "0.970"
+  },
+  {
+    "source": "freeze",
+    "from": "emu:emu|savestates:savestates_inst|ss_freeze",
+    "to": "emu:emu|system:system|jt89:psg2_inst|cen_16",
+    "slack": 4.435,
+    "dataDelay": 3.814,
+    "logicLevels": 2,
+    "dataIC": "2.919",
+    "dataCell": "0.895"
+  },
+  {
+    "source": "cpu_enable",
+    "from": "emu:emu|ce_cpu~DUPLICATE",
+    "to": "emu:emu|savestates:savestates_inst|z80_snap[64]",
+    "slack": 1.704,
+    "dataDelay": 6.824,
+    "logicLevels": 2,
+    "dataIC": "5.500",
+    "dataCell": "1.324"
+  },
+  {
+    "source": "vdp_enable",
+    "from": "emu:emu|ce_vdp~DUPLICATE",
+    "to": "emu:emu|system:system|vdp:vdp_inst|vdp_main:vdp_main_inst|vdp_sprites:vdp_spr_inst|spr_d3[6][0]",
+    "slack": 1.698,
+    "dataDelay": 6.857,
+    "logicLevels": 2,
+    "dataIC": "5.536",
+    "dataCell": "1.321"
+  }
+]

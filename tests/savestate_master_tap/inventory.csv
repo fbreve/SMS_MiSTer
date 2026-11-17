@@ -1,0 +1,16 @@
+﻿item,bits,class,reason
+jcnt,2,A,selects one of four current player vectors
+old_th,1,A,determines next falling-edge recognition independently of current TH
+tmr,16,A,phase-advance eligibility and timeout; same register aliases raw-serial pause countdown
+joya/joyb,16,B,derived registered pin caches settle before unfreeze
+joyser/joyser_th,9,B,current physical input-derived caches; no independent historical protocol phase
+joya_th/joyb_th/USER_OUT,9,B,derived from current routing and physical pins
+selected player,0,B,derived directly from jcnt
+mode history,0,D,no separate register exists
+per-port Tap state,0,D,only one Tap phase path exists
+buttons/TH/physical pins,external,C,same future external inputs required
+status/swap/enable/controller types,external,C,session configuration retained; IO TH control itself already saved
+paddle/lightgun internal state,other,E,existing F10/F11 excluded and not modified
+Global clock/ce_cpu,core,C,clock-enable stimulus from unchanged core; local protocol equivalence uses identical future enable/TH samples
+Restored IO ctrl,32,B,already preserved by existing IO payload; TH outputs settle before late Tap restore
+MD6 protocol state,46,B,existing separate payload and two instances unchanged; Master Tap disables MD type routing

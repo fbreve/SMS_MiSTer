@@ -1,0 +1,3 @@
+const fs=require('fs'),path=require('path'),d=__dirname;let s=fs.readFileSync(path.join(d,'fixed_tb.sv'),'utf8').replace('module fixed_tb;','module stalled_tb;');
+s=s.replace('integer writes=0,reads=0;',"always @(negedge clk) DDRAM_BUSY=(cycle%97<7)||(cycle%71<3);\ninteger writes=0,reads=0;");s=s.replace('image_s%0d','stalled_image_s%0d');fs.writeFileSync(path.join(d,'stalled_tb.sv'),s);
+fs.writeFileSync(path.join(d,'stalled.do'),fs.readFileSync(path.join(d,'fixed.do'),'utf8').replaceAll('fixed_work','stalled_work').replace('machine.sv fixed_tb.sv','machine.sv stalled_tb.sv').replace('stalled_work.fixed_tb','stalled_work.stalled_tb'));

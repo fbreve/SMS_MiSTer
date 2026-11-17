@@ -1,0 +1,412 @@
+{
+  "scannedFiles": 152,
+  "scope": [
+    "tests/ym2413_c1_mixer_omission/worktree",
+    "tests/ym2413_c1_mixer_omission/verification_c1/tests/ym2413_fullstate",
+    "tests/ym2413_b1_c1_seed_study",
+    "tests/ym2413_c1_readiness_review"
+  ],
+  "policy": "Read-only dependency inventory; historical matches remain historical. No version replacement performed.",
+  "files": [
+    {
+      "path": "tests/ym2413_b1_c1_seed_study/HANDOFF.md",
+      "SHA256": "8d400b3f8d2e6d1f4c79640def4a549b7c0b58eec271e118523c627e13080aa0",
+      "hits": [
+        {
+          "line": 9,
+          "text": "  - **Format**: 100 words, 50 DDRAM transfers, private descriptor `v18` (`16'd18`)."
+        },
+        {
+          "line": 14,
+          "text": "  - **Format**: 100 words, 50 DDRAM transfers, private descriptor `v20` (`16'd20`)."
+        },
+        {
+          "line": 56,
+          "text": "Validated baseline (`master`) and full-state 104-word (`v17`) 3-seed Fitter results already exist in:"
+        },
+        {
+          "line": 71,
+          "text": "3. `collect_study.js`: Parses completed `seed1..3/{b1,c1}` reports alongside the reused baseline and `v17` results from `tests/ym2413_v19_fullstate/physical_seed1..3/results.json` into `study_results.json`."
+        }
+      ]
+    },
+    {
+      "path": "tests/ym2413_c1_mixer_omission/verification_c1/tests/ym2413_fullstate/collect_c1_campaign.js",
+      "SHA256": "5380776af5be3583a73a71808cda41790897ae926e9508d630c4ab170ddfa00e",
+      "hits": [
+        {
+          "line": 346,
+          "text": "    descriptorVersion: 20,"
+        }
+      ]
+    },
+    {
+      "path": "tests/ym2413_c1_mixer_omission/verification_c1/tests/ym2413_fullstate/validator_stream_tb.sv",
+      "SHA256": "0eb5b2d19942de516cf1f8ceb664a59edaeacca80d9d52075febe0d2c2c6bd17",
+      "hits": [
+        {
+          "line": 17,
+          "text": " dut.ss_freeze=1;dut.state=dut.ST_FM_LOAD_DESC;dut.dout_latch=dut.FM_DESC;dut.dout_expected=0;dut.base_addr=29'h07c00000;"
+        }
+      ]
+    },
+    {
+      "path": "tests/ym2413_c1_mixer_omission/verification_c1/tests/ym2413_fullstate/early_validator_stream_tb.sv",
+      "SHA256": "4b4bcb59245b2524efb4b75cdfca6249ccab35809176e64fdc5c49154551c560",
+      "hits": [
+        {
+          "line": 17,
+          "text": " dut.ss_freeze=1;dut.state=dut.ST_FM_LOAD_DESC;dut.dout_latch=dut.FM_DESC;dut.dout_expected=0;dut.base_addr=29'h07c00000;"
+        }
+      ]
+    },
+    {
+      "path": "tests/ym2413_c1_mixer_omission/verification_c1/tests/ym2413_fullstate/combined_tb.vhd",
+      "SHA256": "e223bfb6a74e7c711c0bb12bc7d325e7aeb8fa3da7463c59be4869f5cea13cb8",
+      "hits": [
+        {
+          "line": 623,
+          "text": "  for i in 0 to 77 loop assert c_image(i)=expected_words(i) report \"v18 candidate capture word 0..77 mismatch\" severity failure;end loop;"
+        },
+        {
+          "line": 624,
+          "text": "  assert c_image(78)=(x\"000000\" & '0' & expected_words(78)(6 downto 0)) report \"v20 C1 candidate capture word 78 mismatch\" severity failure;"
+        },
+        {
+          "line": 625,
+          "text": "  assert c_image(79)=expected_words(100) report \"v18 candidate capture moved word 79 mismatch\" severity failure;"
+        },
+        {
+          "line": 626,
+          "text": "  for i in 80 to 99 loop assert c_image(i)=expected_words(i) report \"v18 candidate capture word 80..99 mismatch\" severity failure;end loop;"
+        },
+        {
+          "line": 627,
+          "text": "  for i in 100 to 103 loop assert c_image(i)=x\"00000000\" report \"v18 candidate capture eliminated word 100..103 nonzero\" severity failure;end loop;"
+        },
+        {
+          "line": 668,
+          "text": "  for i in 0 to 99 loop assert c_recap(i)=c_image(i) report \"v18 candidate restore-and-recapture mismatch\" severity failure;end loop;"
+        },
+        {
+          "line": 669,
+          "text": "  for i in 100 to 103 loop assert c_recap(i)=x\"00000000\" report \"v18 candidate recapture eliminated word nonzero\" severity failure;end loop;"
+        }
+      ]
+    },
+    {
+      "path": "tests/ym2413_c1_mixer_omission/verification_c1/tests/ym2413_fullstate/guard_live_tb.sv",
+      "SHA256": "cf476e55f7572f00e96d10bef9aa33542ac23f8f39bf72bc8853f431a203b99e",
+      "hits": [
+        {
+          "line": 136,
+          "text": " // Counterexample A and B in word pair 39 (words 78 and 79) plus v17 descriptor rejection"
+        }
+      ]
+    },
+    {
+      "path": "tests/ym2413_c1_mixer_omission/verification_c1/tests/ym2413_fullstate/guard_protocol_tb.sv",
+      "SHA256": "199e59beaae67afdce38f556a7813c1bea38364ae921da0e6eb879878a42cdca",
+      "hits": [
+        {
+          "line": 52,
+          "text": " if(memory['h2997]!==64'h00641401464d5331)$fatal(1,\"FM descriptor not v20/100words: %016h\",memory['h2997]);"
+        },
+        {
+          "line": 56,
+          "text": " $display(\"PASS protocol startup guard, descriptor v20, full apply100, boundaries 78/79/98/99 verified\");"
+        },
+        {
+          "line": 69,
+          "text": " // Explicitly verify v17 and v18 descriptors are rejected"
+        },
+        {
+          "line": 70,
+          "text": " memory['h2997]=64'h00681101464d5331;reject(17);memory['h2997]=64'h00641201464d5331;reject(18);memory['h2997]=64'h00641401464d5331;"
+        }
+      ]
+    },
+    {
+      "path": "tests/ym2413_c1_mixer_omission/verification_c1/tests/ym2413_fullstate/oracle.tcl",
+      "SHA256": "8cf8ca7db99ced1be1ca80201a1f825fd710a445c7a4a391ea8cc47086bbadda",
+      "hits": [
+        {
+          "line": 80,
+          "text": " echo \"PASS independent internal oracle: $label words=100\""
+        }
+      ]
+    },
+    {
+      "path": "tests/ym2413_c1_mixer_omission/verification_c1/tests/ym2413_fullstate/protocol_tb.sv",
+      "SHA256": "bde22b03f3caf351d27eaafe0445fb5b39e2805c2db1c7d4aba5c63abbaedc65",
+      "hits": [
+        {
+          "line": 52,
+          "text": " if(memory['h2997]!==64'h00641401464d5331)$fatal(1,\"FM descriptor not v20/100words: %016h\",memory['h2997]);"
+        },
+        {
+          "line": 56,
+          "text": " $display(\"PASS protocol startup guard, descriptor v20, full apply100, boundaries 78/79/98/99 verified\");"
+        },
+        {
+          "line": 57,
+          "text": " // Explicitly verify v17 and v18 descriptors are rejected"
+        },
+        {
+          "line": 58,
+          "text": " memory['h2997]=64'h00681101464d5331;reject(17);memory['h2997]=64'h00641201464d5331;reject(18);memory['h2997]=64'h00641401464d5331;"
+        }
+      ]
+    },
+    {
+      "path": "tests/ym2413_c1_mixer_omission/verification_c1/tests/ym2413_fullstate/prepare_tests.js",
+      "SHA256": "3a0686f2cb84430588d17949d128eaba2277762d87c0d1ab46a0e258ffb67644",
+      "hits": [
+        {
+          "line": 75,
+          "text": "put('source_identity.json',JSON.stringify({baseline:ref,upstream,reference:ref,names,wrapper:'extracted from production system.vhd including FM gating; ce_cpu gated as SMS.sv',simulationAdapters:['Release renamed to EG_Release','integer subtype range expanded to equivalent bounds','when others => null added for meta-valued case coverage','main process labeled for read-only internal variable access','fm: work.opll made an explicit entity instantiation','move mapper_snap/evolution_snap/dout_latch declarations for ModelSim'],fastOnly:'FLUSH_MAX reduced from900000 to90; native test keeps900000'},null,2));"
+        }
+      ]
+    },
+    {
+      "path": "tests/ym2413_c1_mixer_omission/verification_c1/tests/ym2413_fullstate/savestates_fast.sv",
+      "SHA256": "f80ec941ca4238549831301ae2b1156e9f11de8132ae293ae7d3f5cf6677b7c9",
+      "hits": [
+        {
+          "line": 23,
+          "text": "//   FM v20: 0x2997 descriptor; 0x2998..0x29c9 = 100 private 32-bit words."
+        },
+        {
+          "line": 293,
+          "text": "// FM v20: dedicated free tail of the existing 96 KiB slot."
+        },
+        {
+          "line": 297,
+          "text": "localparam [28:0] FM_DESC_ADDR=29'h2997, FM_DATA_ADDR=29'h2998;"
+        },
+        {
+          "line": 299,
+          "text": "// Explicit owner, version20, 100 private32-bit rows. Free tail of96KiB slot."
+        },
+        {
+          "line": 300,
+          "text": "localparam [63:0] FM_DESC = {16'd100,8'd20,8'd1,32'h464d5331};"
+        },
+        {
+          "line": 581,
+          "text": "        ST_FM_SAVE_DESC: if(!DDRAM_BUSY) ddram_cmd_write(base_addr+FM_DESC_ADDR,FM_DESC,8'hff);"
+        },
+        {
+          "line": 582,
+          "text": "        ST_FM_LOAD_DESC: if(!DDRAM_DOUT_READY && !dout_expected && !DDRAM_BUSY && dout_latch==FM_DESC) ddram_cmd_read(base_addr+FM_DATA_ADDR);"
+        },
+        {
+          "line": 583,
+          "text": "        ST_FM_LOAD_NEXT: if(!DDRAM_BUSY) ddram_cmd_read(base_addr+(fm_word==49?29'h01b:FM_DATA_ADDR+fm_word+29'd1));"
+        },
+        {
+          "line": 749,
+          "text": "                ddram_cmd_read(base_addr+(dout_latch[63:40]==FM_MAGIC?FM_DESC_ADDR:29'h01b));"
+        },
+        {
+          "line": 1103,
+          "text": "            if(fm_word==49)state<=ST_FM_SAVE_DESC;"
+        },
+        {
+          "line": 1106,
+          "text": "        ST_FM_SAVE_DESC: if(!DDRAM_BUSY)begin ddram_write(base_addr+FM_DESC_ADDR,FM_DESC,8'hff);state<=ST_SAVE_EEPROM;end"
+        },
+        {
+          "line": 1111,
+          "text": "                    if(dout_latch!=FM_DESC)state<=ST_ERROR;"
+        },
+        {
+          "line": 1120,
+          "text": "            if(fm_word==49)begin ddram_read(base_addr+29'h01b);state<=ST_LOAD_EEPROM;end"
+        },
+        {
+          "line": 1779,
+          "text": "                    ddram_read(base_addr+(dout_latch[63:40]==FM_MAGIC?FM_DESC_ADDR:29'h01b));"
+        }
+      ]
+    },
+    {
+      "path": "tests/ym2413_c1_mixer_omission/verification_c1/tests/ym2413_fullstate/savestates_sim.sv",
+      "SHA256": "ad1170f3a768cc864e63d0bee8e9bceb4cab0c5f304098dc0f7f29c774f03129",
+      "hits": [
+        {
+          "line": 23,
+          "text": "//   FM v20: 0x2997 descriptor; 0x2998..0x29c9 = 100 private 32-bit words."
+        },
+        {
+          "line": 293,
+          "text": "// FM v20: dedicated free tail of the existing 96 KiB slot."
+        },
+        {
+          "line": 297,
+          "text": "localparam [28:0] FM_DESC_ADDR=29'h2997, FM_DATA_ADDR=29'h2998;"
+        },
+        {
+          "line": 299,
+          "text": "// Explicit owner, version20, 100 private32-bit rows. Free tail of96KiB slot."
+        },
+        {
+          "line": 300,
+          "text": "localparam [63:0] FM_DESC = {16'd100,8'd20,8'd1,32'h464d5331};"
+        },
+        {
+          "line": 581,
+          "text": "        ST_FM_SAVE_DESC: if(!DDRAM_BUSY) ddram_cmd_write(base_addr+FM_DESC_ADDR,FM_DESC,8'hff);"
+        },
+        {
+          "line": 582,
+          "text": "        ST_FM_LOAD_DESC: if(!DDRAM_DOUT_READY && !dout_expected && !DDRAM_BUSY && dout_latch==FM_DESC) ddram_cmd_read(base_addr+FM_DATA_ADDR);"
+        },
+        {
+          "line": 583,
+          "text": "        ST_FM_LOAD_NEXT: if(!DDRAM_BUSY) ddram_cmd_read(base_addr+(fm_word==49?29'h01b:FM_DATA_ADDR+fm_word+29'd1));"
+        },
+        {
+          "line": 749,
+          "text": "                ddram_cmd_read(base_addr+(dout_latch[63:40]==FM_MAGIC?FM_DESC_ADDR:29'h01b));"
+        },
+        {
+          "line": 1103,
+          "text": "            if(fm_word==49)state<=ST_FM_SAVE_DESC;"
+        },
+        {
+          "line": 1106,
+          "text": "        ST_FM_SAVE_DESC: if(!DDRAM_BUSY)begin ddram_write(base_addr+FM_DESC_ADDR,FM_DESC,8'hff);state<=ST_SAVE_EEPROM;end"
+        },
+        {
+          "line": 1111,
+          "text": "                    if(dout_latch!=FM_DESC)state<=ST_ERROR;"
+        },
+        {
+          "line": 1120,
+          "text": "            if(fm_word==49)begin ddram_read(base_addr+29'h01b);state<=ST_LOAD_EEPROM;end"
+        },
+        {
+          "line": 1779,
+          "text": "                    ddram_read(base_addr+(dout_latch[63:40]==FM_MAGIC?FM_DESC_ADDR:29'h01b));"
+        }
+      ]
+    },
+    {
+      "path": "tests/ym2413_c1_mixer_omission/worktree/rtl/savestates.sv",
+      "SHA256": "9595756ff5d74a7f0562fbb0b532125f439084a68749ca3cb6b7458a4f69e53e",
+      "hits": [
+        {
+          "line": 23,
+          "text": "//   FM v20: 0x2997 descriptor; 0x2998..0x29c9 = 100 private 32-bit words."
+        },
+        {
+          "line": 290,
+          "text": "// FM v20: dedicated free tail of the existing 96 KiB slot."
+        },
+        {
+          "line": 294,
+          "text": "localparam [28:0] FM_DESC_ADDR=29'h2997, FM_DATA_ADDR=29'h2998;"
+        },
+        {
+          "line": 296,
+          "text": "// Explicit owner, version20, 100 private32-bit rows. Free tail of96KiB slot."
+        },
+        {
+          "line": 297,
+          "text": "localparam [63:0] FM_DESC = {16'd100,8'd20,8'd1,32'h464d5331};"
+        },
+        {
+          "line": 581,
+          "text": "        ST_FM_SAVE_DESC: if(!DDRAM_BUSY) ddram_cmd_write(base_addr+FM_DESC_ADDR,FM_DESC,8'hff);"
+        },
+        {
+          "line": 582,
+          "text": "        ST_FM_LOAD_DESC: if(!DDRAM_DOUT_READY && !dout_expected && !DDRAM_BUSY && dout_latch==FM_DESC) ddram_cmd_read(base_addr+FM_DATA_ADDR);"
+        },
+        {
+          "line": 583,
+          "text": "        ST_FM_LOAD_NEXT: if(!DDRAM_BUSY) ddram_cmd_read(base_addr+(fm_word==49?29'h01b:FM_DATA_ADDR+fm_word+29'd1));"
+        },
+        {
+          "line": 749,
+          "text": "                ddram_cmd_read(base_addr+(dout_latch[63:40]==FM_MAGIC?FM_DESC_ADDR:29'h01b));"
+        },
+        {
+          "line": 1103,
+          "text": "            if(fm_word==49)state<=ST_FM_SAVE_DESC;"
+        },
+        {
+          "line": 1106,
+          "text": "        ST_FM_SAVE_DESC: if(!DDRAM_BUSY)begin ddram_write(base_addr+FM_DESC_ADDR,FM_DESC,8'hff);state<=ST_SAVE_EEPROM;end"
+        },
+        {
+          "line": 1111,
+          "text": "                    if(dout_latch!=FM_DESC)state<=ST_ERROR;"
+        },
+        {
+          "line": 1120,
+          "text": "            if(fm_word==49)begin ddram_read(base_addr+29'h01b);state<=ST_LOAD_EEPROM;end"
+        },
+        {
+          "line": 1779,
+          "text": "                    ddram_read(base_addr+(dout_latch[63:40]==FM_MAGIC?FM_DESC_ADDR:29'h01b));"
+        }
+      ]
+    },
+    {
+      "path": "tests/ym2413_c1_mixer_omission/worktree/rtl/opll_snapshot.sv",
+      "SHA256": "540e76442b624f8251de685a98d683ea6ac55f0658735abafeb5011d8335461d",
+      "hits": [
+        {
+          "line": 19,
+          "text": "    localparam WORDS=100;"
+        }
+      ]
+    },
+    {
+      "path": "tests/ym2413_c1_mixer_omission/worktree/tests/ym2413_fullstate/verify_scope.js",
+      "SHA256": "5e0247620e5761f30f80c6875f4ff06cab756ef5d4ec0907b6c960d522a4c147",
+      "hits": [
+        {
+          "line": 27,
+          "text": "const manifest={baseline:git('rev-parse','HEAD').trim(),reference:ref,branch:git('branch','--show-current').trim(),changedProduction:[...changed,'rtl/opll_snapshot.sv'],diffStat:git('diff','--stat'),ownership:{unit:'64-bit DDR words relative to slot base',existing,FM:{descriptor:0x2997,payloadFirst:0x2998,payloadLast:0x29cb,privateWords:104,descriptorVersion:17,slotWords:0x3000},note:'Existing mode-exclusive ranges overlap each other; no existing range overlaps FM.'},sha256:{}};"
+        }
+      ]
+    },
+    {
+      "path": "tests/ym2413_c1_mixer_omission/worktree/tests/ym2413_fullstate/protocol_tb.sv",
+      "SHA256": "3c0fabf965413480d90e0ade2323463eb3853957e193b720de0792bb9515b267",
+      "hits": [
+        {
+          "line": 38,
+          "text": " if(memory['h2997]!==64'h00681101464d5331)$fatal(1,\"FM descriptor changed\");"
+        },
+        {
+          "line": 41,
+          "text": " $display(\"PASS protocol startup guard, descriptor v17, full apply104\");"
+        }
+      ]
+    },
+    {
+      "path": "tests/ym2413_c1_mixer_omission/worktree/tests/ym2413_fullstate/prepare_tests.js",
+      "SHA256": "9379053ec89f9579517c13e51e6dc32a722b38863f812a28945fe1f627f2e41e",
+      "hits": [
+        {
+          "line": 75,
+          "text": "put('source_identity.json',JSON.stringify({baseline:git('rev-parse','HEAD').trim(),reference:ref,names,wrapper:'extracted from production system.vhd including FM gating; ce_cpu gated as SMS.sv',simulationAdapters:['Release renamed to EG_Release','integer subtype range expanded to equivalent bounds','when others => null added for meta-valued case coverage','main process labeled for read-only internal variable access','fm: work.opll made an explicit entity instantiation','move mapper_snap/evolution_snap/dout_latch declarations for ModelSim'],fastOnly:'FLUSH_MAX reduced from900000 to90; native test keeps900000'},null,2));"
+        }
+      ]
+    },
+    {
+      "path": "tests/ym2413_c1_mixer_omission/worktree/tests/ym2413_fullstate/oracle.tcl",
+      "SHA256": "c1ef7668c216b8a8453a3411e34966f279b8005aa91085e918eec2c334df7864",
+      "hits": [
+        {
+          "line": 82,
+          "text": " echo \"PASS independent internal oracle: $label words=104\""
+        }
+      ]
+    }
+  ]
+}

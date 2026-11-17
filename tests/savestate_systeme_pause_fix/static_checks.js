@@ -1,0 +1,12 @@
+const fs=require('fs'),path=require('path'),cp=require('child_process'),d=__dirname,r=path.resolve(d,'../..');
+const read=p=>fs.readFileSync(p,'utf8').replaceAll('\r','');
+const compact=s=>s.replace(/\/\/[^\n]*/g,'').replace(/\s+/g,'');
+const base=read(path.join(d,'baseline/savestates.sv')),ss=read(path.join(r,'rtl/savestates.sv')),sms=read(path.join(r,'SMS.sv'));
+const oldBody=ss.replace(/^\s*output\s+ss_capture_progress,\n/m,'').replace(/assign\s+ss_capture_progress\s*=[^;]+;/,'');
+if(compact(oldBody)!==compact(base))throw Error('Existing controller FSM/payload changed beyond the new non-payload output');
+const code=compact(sms);
+for(const binding of ["wirese_pause_exec_gate=se_pause_gate&~ss_capture_progress;",".ce_cpu(ss_freeze?1'b0:(ce_cpu&~se_pause_exec_gate))",'.se_pause(se_pause_exec_gate)','.ss_capture_progress(ss_capture_progress)'])if(!code.includes(binding))throw Error('Top-level capture/pause binding mismatch: '+binding);
+for(const color of ['r','g','b'])if(!new RegExp('wire\\[3:0\\]vid_'+color+'=se_pause_gate\\?').test(code))throw Error('Pause presentation no longer logical UI phase');
+const names=cp.execFileSync('git',['diff','--name-only'],{cwd:r,encoding:'utf8',stdio:['ignore','pipe','pipe']}).trim().split(/\r?\n/).filter(Boolean);
+if(names.length!==2||names.some(n=>!['SMS.sv','rtl/savestates.sv'].includes(n)))throw Error('Unexpected production scope');
+console.log('PASS STATIC: every existing controller/FSM/payload statement unchanged; CPU/PSG execution gates share progress; RGB uses logical pause; only two production files changed.');

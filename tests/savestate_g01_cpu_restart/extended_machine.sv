@@ -1,0 +1,448 @@
+`timescale 1ns/1ps
+module nmi_machine #(parameter SOURCE=0,PROGRAM=0,SYS=0,SIGNATURE=0)(
+ input clk,mrst,cpu_ce,ss_freeze,pause_n,input[1:0]qmode,input map_set,input[63:0]map_in,input[17:0]hist_in,output[63:0]map_out,output[17:0]hist_out,output[15:0]last_read,output[21:0]physical,input[6:0]link_pins,
+ input[229:0]cpu_dir,input cpu_set,input[2:0]nmi_dir,input nmi_valid,nmi_hold,
+ input[127:0]gg_in,input gg_set,input[31:0]io_in,input io_set,
+ input[13:0]wram_A,wram_WA,input[7:0]wram_WD,input wram_WE,output reg[7:0]wram_D,
+ output[63:0]ctx_view,output[229:0]cpu_reg,output[2:0]nmi_snap,output[12:0]nstate,output old_nmi,nmi_replay,ready,
+ output[127:0]gg_out,output[31:0]io_out,output[15:0]addr,output[7:0]data,di,output[1:0]iset,output m1,mreq,wr,rd,iq,nmi_n);
+ wire effective_gg=SOURCE==1;wire link_nmi;wire[7:0]io_data;
+ assign nmi_n=(pause_n|effective_gg)&link_nmi;
+ wire io_port=(addr[7:6]==0)&&(addr[0]||(effective_gg&&addr[5:3]==0));
+ wire io_wr=wr|iq|!io_port,io_rd=rd|iq|!io_port;
+ `include "io_instance.sv"
+ reg[7:0]ram[0:8191];initial for(integer i=0;i<8192;i=i+1)ram[i]=0;
+ reg[7:0]rom_q;
+ always @(posedge clk)begin
+  wram_D<=ram[wram_A[12:0]];
+  if(wram_WE)ram[wram_WA[12:0]]<=wram_WD;
+  if(!ss_freeze)rom_q<=addr==16'h8123 ? {2'd0,physical[21:14]} : addr==16'ha000 ? 8'd5 : addr==16'h9000 ? 8'd6 : rom(addr);
+  if(!mreq&&!wr&&!ss_freeze&&addr[15:14]==3)ram[addr[12:0]]<=data;
+ end
+ assign ready=!iq&&!wr&&addr[7:0]=='h7e;
+ function[7:0]rom(input[15:0]a);begin
+rom=0;case(a)
+0:rom=8'h41;
+1:rom=8'h42;
+2:rom=8'hc3;
+3:rom=8'h20;
+4:rom=8'h0;
+32:rom='hf3;
+33:rom='h31;
+34:rom='he0;
+35:rom='hdf;
+36:rom='haf;
+37:rom='h08;
+38:rom='haf;
+39:rom='h08;
+40:rom='h01;
+41:rom=0;
+42:rom=0;
+43:rom='h11;
+44:rom=0;
+45:rom=0;
+46:rom='h21;
+47:rom=0;
+48:rom=0;
+49:rom='hd9;
+50:rom='h01;
+51:rom=0;
+52:rom=0;
+53:rom='h11;
+54:rom=0;
+55:rom=0;
+56:rom='h21;
+57:rom=0;
+58:rom=0;
+59:rom='hd9;
+60:rom='hdd;
+61:rom='h21;
+62:rom=0;
+63:rom=0;
+64:rom='hfd;
+65:rom='h21;
+66:rom=0;
+67:rom=0;
+68:rom='hed;
+69:rom='h47;
+70:rom='hed;
+71:rom='h4f;
+72:rom='h32;
+73:rom=0;
+74:rom='hc1;
+75:rom='h32;
+76:rom=1;
+77:rom='hc1;
+78:rom='h32;
+79:rom=2;
+80:rom='hc1;
+81:rom='h21;
+82:rom=1;
+83:rom='hc1;
+84:rom='h3e;
+85:rom='h7f;
+86:rom=8'h16;
+87:rom=8'h2;
+88:rom=8'h6;
+89:rom=8'h0;
+90:rom=8'h10;
+91:rom=8'hfe;
+92:rom=8'h15;
+93:rom=8'h20;
+94:rom=8'hf9;
+95:rom=8'hd3;
+96:rom=8'h7e;
+97:rom=8'hc3;
+98:rom=8'h0;
+99:rom=8'h1;
+256:rom=8'hdb;
+257:rom=8'h7d;
+258:rom=8'hb7;
+259:rom=8'hca;
+260:rom=8'h20;
+261:rom=8'h1;
+262:rom=8'hfe;
+263:rom=8'h1;
+264:rom=8'hca;
+265:rom=8'h0;
+266:rom=8'h3;
+267:rom=8'hfe;
+268:rom=8'h2;
+269:rom=8'hca;
+270:rom=8'h0;
+271:rom=8'h4;
+272:rom=8'hc3;
+273:rom=8'h0;
+274:rom=8'h5;
+768:rom=8'h3e;
+769:rom=8'h0;
+770:rom=8'hd3;
+771:rom=8'h3e;
+772:rom=8'h3e;
+773:rom=8'h8;
+774:rom=8'hd3;
+775:rom=8'h3e;
+776:rom=8'h3e;
+777:rom=8'h8;
+778:rom=8'h32;
+779:rom=8'hfd;
+780:rom=8'hff;
+781:rom=8'h3e;
+782:rom=8'h9;
+783:rom=8'h32;
+784:rom=8'hff;
+785:rom=8'hff;
+786:rom=8'h3a;
+787:rom=8'h0;
+788:rom=8'ha0;
+789:rom=8'hc3;
+790:rom=8'h0;
+791:rom=8'h3;
+1024:rom=8'h3e;
+1025:rom=8'h0;
+1026:rom=8'hd3;
+1027:rom=8'h3e;
+1028:rom=8'h3e;
+1029:rom=8'h8;
+1030:rom=8'hd3;
+1031:rom=8'h3e;
+1032:rom=8'h3e;
+1033:rom=8'h9;
+1034:rom=8'h32;
+1035:rom=8'hfd;
+1036:rom=8'hff;
+1037:rom=8'h3e;
+1038:rom=8'ha;
+1039:rom=8'h32;
+1040:rom=8'hff;
+1041:rom=8'hff;
+1042:rom=8'h3a;
+1043:rom=8'h23;
+1044:rom=8'h81;
+1045:rom=8'hc3;
+1046:rom=8'h0;
+1047:rom=8'h4;
+1280:rom=8'h3e;
+1281:rom=8'h0;
+1282:rom=8'hd3;
+1283:rom=8'h3e;
+1284:rom=8'h3e;
+1285:rom=8'h8;
+1286:rom=8'hd3;
+1287:rom=8'h3e;
+1288:rom=8'h3e;
+1289:rom=8'h4;
+1290:rom=8'h32;
+1291:rom=8'h0;
+1292:rom=8'h80;
+1293:rom=8'h3e;
+1294:rom=8'hb;
+1295:rom=8'h32;
+1296:rom=8'hff;
+1297:rom=8'hff;
+1298:rom=8'h3a;
+1299:rom=8'h23;
+1300:rom=8'h81;
+1301:rom=8'hc3;
+1302:rom=8'h0;
+1303:rom=8'h5;
+  'h66:rom='hf5;'h67:rom='h3a;'h68:rom=0;'h69:rom='hc1;'h6a:rom='h3c;
+  'h6b:rom='h32;'h6c:rom=0;'h6d:rom='hc1;'h6e:rom='h3a;'h6f:rom=1;'h70:rom='hc1;
+  'h71:rom='h32;'h72:rom=2;'h73:rom='hc1;
+  'h74:rom='h3e;'h75:rom='hff;'h76:rom=effective_gg?'hd3:0;'h77:rom=effective_gg?2:0;
+  'h78:rom='h3e;'h79:rom='h7f;'h7a:rom=effective_gg?'hd3:0;'h7b:rom=effective_gg?2:0;
+  'h7c:rom='hf1;'h7d:rom='hed;'h7e:rom='h45;
+
+default:rom=0;endcase
+if(PROGRAM==0)case(a)
+288:rom=8'h3a;
+289:rom=8'h23;
+290:rom=8'h81;
+291:rom=8'h3e;
+292:rom=8'h3;
+293:rom=8'h32;
+294:rom=8'h0;
+295:rom=8'ha0;
+296:rom=8'h3a;
+297:rom=8'h23;
+298:rom=8'h81;
+299:rom=8'h32;
+300:rom=8'h10;
+301:rom=8'hc1;
+302:rom=8'hc3;
+303:rom=8'h0;
+304:rom=8'h1;
+default:begin end endcase
+if(PROGRAM==1)case(a)
+288:rom=8'h3a;
+289:rom=8'h0;
+290:rom=8'ha0;
+291:rom=8'h32;
+292:rom=8'h0;
+293:rom=8'ha0;
+294:rom=8'h3a;
+295:rom=8'h23;
+296:rom=8'h81;
+297:rom=8'h32;
+298:rom=8'h10;
+299:rom=8'hc1;
+300:rom=8'hc3;
+301:rom=8'h0;
+302:rom=8'h1;
+default:begin end endcase
+if(PROGRAM==2)case(a)
+288:rom=8'h3a;
+289:rom=8'h0;
+290:rom=8'h90;
+291:rom=8'h32;
+292:rom=8'h0;
+293:rom=8'ha0;
+294:rom=8'h3a;
+295:rom=8'h23;
+296:rom=8'h81;
+297:rom=8'h32;
+298:rom=8'h10;
+299:rom=8'hc1;
+300:rom=8'hc3;
+301:rom=8'h0;
+302:rom=8'h1;
+default:begin end endcase
+if(PROGRAM==3)case(a)
+288:rom=8'h3a;
+289:rom=8'h0;
+290:rom=8'ha0;
+291:rom=8'h3a;
+292:rom=8'h0;
+293:rom=8'h90;
+294:rom=8'h3a;
+295:rom=8'h0;
+296:rom=8'ha0;
+297:rom=8'h32;
+298:rom=8'h0;
+299:rom=8'ha0;
+300:rom=8'h3a;
+301:rom=8'h23;
+302:rom=8'h81;
+303:rom=8'h32;
+304:rom=8'h10;
+305:rom=8'hc1;
+306:rom=8'hc3;
+307:rom=8'h0;
+308:rom=8'h1;
+default:begin end endcase
+if(PROGRAM==4)case(a)
+288:rom=8'h21;
+289:rom=8'h0;
+290:rom=8'ha0;
+291:rom=8'h11;
+292:rom=8'h0;
+293:rom=8'ha0;
+294:rom=8'h1;
+295:rom=8'h2;
+296:rom=8'h0;
+297:rom=8'hed;
+298:rom=8'hb0;
+299:rom=8'h3a;
+300:rom=8'h23;
+301:rom=8'h81;
+302:rom=8'h32;
+303:rom=8'h10;
+304:rom=8'hc1;
+305:rom=8'hc3;
+306:rom=8'h0;
+307:rom=8'h1;
+default:begin end endcase
+if(PROGRAM==5)case(a)
+288:rom=8'h21;
+289:rom=8'h0;
+290:rom=8'h90;
+291:rom=8'h11;
+292:rom=8'h0;
+293:rom=8'ha0;
+294:rom=8'h1;
+295:rom=8'h2;
+296:rom=8'h0;
+297:rom=8'hed;
+298:rom=8'hb0;
+299:rom=8'h3a;
+300:rom=8'h23;
+301:rom=8'h81;
+302:rom=8'h32;
+303:rom=8'h10;
+304:rom=8'hc1;
+305:rom=8'hc3;
+306:rom=8'h0;
+307:rom=8'h1;
+default:begin end endcase
+if(PROGRAM==6)case(a)
+288:rom=8'h21;
+289:rom=8'h0;
+290:rom=8'h90;
+291:rom=8'h11;
+292:rom=8'h0;
+293:rom=8'ha0;
+294:rom=8'h1;
+295:rom=8'h1;
+296:rom=8'h0;
+297:rom=8'hed;
+298:rom=8'hb0;
+299:rom=8'h32;
+300:rom=8'h0;
+301:rom=8'ha0;
+302:rom=8'h3a;
+303:rom=8'h23;
+304:rom=8'h81;
+305:rom=8'h32;
+306:rom=8'h10;
+307:rom=8'hc1;
+308:rom=8'hc3;
+309:rom=8'h0;
+310:rom=8'h1;
+default:begin end endcase
+if(PROGRAM==7)case(a)
+288:rom=8'h3e;
+289:rom=8'h7;
+290:rom=8'h32;
+291:rom=8'hff;
+292:rom=8'hff;
+293:rom=8'h3a;
+294:rom=8'h0;
+295:rom=8'ha0;
+296:rom=8'h32;
+297:rom=8'h0;
+298:rom=8'ha0;
+299:rom=8'h3a;
+300:rom=8'h23;
+301:rom=8'h81;
+302:rom=8'h32;
+303:rom=8'h10;
+304:rom=8'hc1;
+305:rom=8'hc3;
+306:rom=8'h0;
+307:rom=8'h1;
+default:begin end endcase
+if(PROGRAM==8)case(a)
+288:rom=8'hdd;
+289:rom=8'h21;
+290:rom=8'h0;
+291:rom=8'ha0;
+292:rom=8'hdd;
+293:rom=8'h34;
+294:rom=8'h0;
+295:rom=8'h3a;
+296:rom=8'h23;
+297:rom=8'h81;
+298:rom=8'h32;
+299:rom=8'h10;
+300:rom=8'hc1;
+301:rom=8'hc3;
+302:rom=8'h0;
+303:rom=8'h1;
+default:begin end endcase
+if(PROGRAM==9)case(a)
+288:rom=8'h76;
+289:rom=8'h3e;
+290:rom=8'h9;
+291:rom=8'h32;
+292:rom=8'h0;
+293:rom=8'ha0;
+294:rom=8'h3a;
+295:rom=8'h23;
+296:rom=8'h81;
+297:rom=8'h32;
+298:rom=8'h10;
+299:rom=8'hc1;
+300:rom=8'hc3;
+301:rom=8'h0;
+302:rom=8'h1;
+default:begin end endcase
+if(SIGNATURE!=0&&PROGRAM==4)case(a)
+299:rom=8'h3a;
+300:rom=8'h2f;
+301:rom=8'hc1;
+302:rom=8'hb7;
+303:rom=8'hc2;
+304:rom=8'h43;
+305:rom=8'h1;
+306:rom=8'hed;
+307:rom=8'h43;
+308:rom=8'h20;
+309:rom=8'hc1;
+310:rom=8'hed;
+311:rom=8'h53;
+312:rom=8'h22;
+313:rom=8'hc1;
+314:rom=8'hed;
+315:rom=8'h63;
+316:rom=8'h24;
+317:rom=8'hc1;
+318:rom=8'h3e;
+319:rom=8'h1;
+320:rom=8'h32;
+321:rom=8'h2f;
+322:rom=8'hc1;
+323:rom=8'h3a;
+324:rom=8'h23;
+325:rom=8'h81;
+326:rom=8'h32;
+327:rom=8'h10;
+328:rom=8'hc1;
+329:rom=8'hc3;
+330:rom=8'h0;
+331:rom=8'h1;
+default:begin end endcase
+end endfunction
+
+ // CPU reads are unavailable while the savestate owns memory. T1 must occur
+ // after handoff and provide ordinary setup time for this registered ROM port.
+ assign di=ss_freeze?8'hff:!iq?(addr[7:0]==8'h7d ? {6'd0,qmode}:io_data):addr[15:14]==3?ram[addr[12:0]]:rom_q;
+
+ reg boot=1;always @(posedge clk)begin
+ if(!mrst)boot<=1;else if(map_set)boot<=map_in[54];else if(!ss_freeze&&!iq&&!wr&&addr[7:0]==8'h3e)boot<=data[3];
+ end
+ reg downloaded=0;reg[24:0]load_a=0;reg[7:0]load_d=0;reg load_en=0;
+ initial begin @(negedge clk);load_en=1;load_a=0;load_d=8'h41;@(negedge clk);load_a=1;load_d=8'h42;@(negedge clk);load_en=0;downloaded=1;end
+ wire[7:0]dummy;
+ mapping maps(.clk_sys(clk),.ROMCL(clk),.ROMAD(load_a),.ROMDT(load_d),.ROMEN(load_en),.RESET_n(mrst),.ss_freeze(ss_freeze),.bootloader_n(boot),.A(addr),.D_in(data),.WR_n(wr),.MREQ_n(mreq),.mapper_set(map_set),.ce_z80(cpu_ce&&!ss_freeze),.sys(SYS!=0),.mapper_in(map_in),.mapper_history_in(hist_in),.mapper_history_out(hist_out),.state_out(map_out),.rom_address(physical),.dahjee(),.sega_seen(),.read_data(dummy),.last_read(last_read));
+ T80s #(.T2Write(0)) cpu(.RESET_n(mrst),.CLK(clk),.CEN(cpu_ce&&!ss_freeze),.WAIT_n(1'b1),.INT_n(1'b1),.NMI_n(nmi_n),.BUSRQ_n(1'b1),.M1_n(m1),.MREQ_n(mreq),.IORQ_n(iq),.RD_n(rd),.WR_n(wr),.RFSH_n(),.HALT_n(),.BUSAK_n(),.OUT0(1'b0),.A(addr),.DI(di),.DO(data),.REG(cpu_reg),.DIRSet(cpu_set),.DIR(cpu_dir),.ISet_out(iset),.NMIState(nmi_snap),.NMIDIR(nmi_dir),.NMIValid(nmi_valid),.NMIEnable(1'b1),.NMIHold(nmi_hold),.NMIReplay(nmi_replay),.debug_ctx(ctx_view),.debug_nmi(nstate),.debug_old(old_nmi));
+endmodule

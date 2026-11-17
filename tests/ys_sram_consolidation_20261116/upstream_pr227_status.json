@@ -1,0 +1,42 @@
+{
+  "checkedDate": "2026-11-16",
+  "method": "Read-only GitHub connector get_pr_info",
+  "response": {
+    "url": "https://github.com/MiSTer-devel/SMS_MiSTer/pull/227",
+    "number": 227,
+    "state": "open",
+    "merged": false,
+    "mergeable": true,
+    "draft": false,
+    "body": "## Summary\n\nAdd savestate support for the YM2413 FM sound chip, preserving its internal synthesis state across save and load operations.\n\nThe implementation integrates FM state capture and restoration into the existing savestate infrastructure without changing the format of existing non-FM savestates.\n\n## Implementation\n\n- Capture and restore YM2413 registers, internal memories, counters, and synthesis state.\n- Store FM state in 100 32-bit words, transferred through 50 DDRAM transactions.\n- Use a versioned FM descriptor to identify and validate the stored state before restoration.\n- Preserve compatibility with existing savestates that do not contain FM state.\n- Use guarded MLAB storage for OutputMemory, retaining logic-based storage for RegisterMemory and FeedbackMemory to preserve correct restore behavior.\n- Omit transient TemporalMixer state from the snapshot, allowing it to converge after restoration.\n- Integrate the FM snapshot transport into the existing save/load state machine.\n\n## Validation\n\n- Passed differential simulation across all 72 FM clock phases, including save/load and state convergence checks.\n- Passed focused regression tests covering snapshot capture and restoration, descriptor validation, memory collision handling, and legacy compatibility.\n- Completed Quartus Prime 17.0.2 synthesis, fitting, and timing analysis for Cyclone V.\n- Achieved positive setup and hold timing margins, with zero timing violations.\n- Successfully tested FM savestate save/load operations on physical MiSTer hardware.\n\n## Compatibility and limitations\n\nExisting non-FM savestates remain supported. FM snapshots use a versioned descriptor to prevent incompatible state restoration.\n\nAs with the existing savestate implementation, a DDRAM transport failure during a load operation may interrupt restoration after some memory has already been written. FM descriptor validation occurs before applying live FM state changes.",
+    "title": "Add YM2413 FM sound savestate support",
+    "base": "master",
+    "base_sha": "66f16d5c656fd8906d62570da4d258875bcee684",
+    "head": "integration/ym2413-public-v1-upstream",
+    "head_sha": "8cd53ccc954c24970372ea6d8a3fb2336a14c46f",
+    "head_repo_id": 1200932978,
+    "head_repo_full_name": "fbreve/SMS_MiSTer",
+    "merge_commit_sha": "81427acada5b2b722c05cbc95bb378fe2cf1489c",
+    "user": {
+      "login": "fbreve",
+      "name": "fbreve",
+      "email": null,
+      "avatar_url": "https://avatars.githubusercontent.com/u/7475908?v=4",
+      "id": 7475908
+    },
+    "requested_reviewers": null,
+    "requested_team_reviewers": null,
+    "diff": null,
+    "comments": null,
+    "created_at": "2026-11-13T19:45:30Z",
+    "updated_at": "2026-11-15T01:43:54Z",
+    "closed_at": null,
+    "merged_at": null,
+    "commits": 1,
+    "changed_files": 24,
+    "additions": 1928,
+    "deletions": 435,
+    "display_url": "https://github.com/MiSTer-devel/SMS_MiSTer/pull/227",
+    "display_title": "Add YM2413 FM sound savestate support"
+  }
+}

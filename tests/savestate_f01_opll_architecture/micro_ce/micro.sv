@@ -1,0 +1,2 @@
+module micro(input clk,run,load,capture,shift,input[5:0]addr,input[31:0]bus,input[2047:0]din,input[2047:0]restore,output reg[2047:0]q,output[31:0]dout);
+always@(posedge clk)if(load||run)q<=load?restore:din;assign dout=q[31:0];endmodule

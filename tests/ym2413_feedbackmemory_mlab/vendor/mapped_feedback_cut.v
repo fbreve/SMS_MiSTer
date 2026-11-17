@@ -1,0 +1,810 @@
+`timescale 1ns/1ps
+module mapped_feedback_cut(input clk,we,out_en,input [3:0]wa,ra,input[9:0]data,output[9:0]q);
+wire ram_clr_run;
+wire raw_reset;
+wire raw_reset1;
+wire ss_mem_ready1;
+wire stateLEG_RESET;
+wire reset;
+wire index_1;
+wire index_0;
+wire stateAP_WRITE;
+wire state_addr;
+wire state_addr_4;
+wire comb;
+wire state_addr_0;
+wire LessThan1;
+wire Add1;
+wire state_addr_6;
+wire state_addr_2;
+wire state_addr_3;
+wire Mux56;
+wire state_addr_7;
+wire ss_mem_active;
+wire dataout_reg_0;
+wire dataout_reg_1;
+wire dataout_reg_2;
+wire dataout_reg_3;
+wire dataout_reg_4;
+wire dataout_reg_5;
+wire dataout_reg_6;
+wire dataout_reg_7;
+wire dataout_reg_8;
+wire dataout_reg_9;
+wire state_wdata_0;
+wire state_addr_1;
+wire Mux28;
+wire fb_wr;
+wire faddr_0;
+wire state_wdata_1;
+wire faddr_1;
+wire state_wdata_2;
+wire fb_addr_0;
+wire faddr_2;
+wire fb_addr_1;
+wire faddr_3;
+wire state_wdata_3;
+wire fb_addr_2;
+wire state_wdata_4;
+wire state_wdata_5;
+wire fb_addr_3;
+wire state_wdata_6;
+wire state_wdata_7;
+wire state_wdata_8;
+wire state_wdata_9;
+wire fb_wdatavalue_0;
+wire fb_wdatavalue_1;
+wire fb_wdatavalue_2;
+wire fb_wdatavalue_3;
+wire fb_wdatavalue_4;
+wire fb_wdatavalue_5;
+wire fb_wdatavalue_6;
+wire fb_wdatavalue_7;
+wire fb_wdatavalue_8;
+wire fb_wdatasign;
+wire devpor;
+wire devclrn;
+wire devoe;
+wire gnd;
+wire vcc;
+wire unknown;
+wire \data_array_rtl_0|auto_generated|lutrama0~PORTBDATAOUT1 ;
+wire \data_array_rtl_0|auto_generated|lutrama0~PORTBDATAOUT2 ;
+wire \data_array_rtl_0|auto_generated|lutrama0~PORTBDATAOUT3 ;
+wire \data_array_rtl_0|auto_generated|lutrama0~PORTBDATAOUT4 ;
+wire \data_array_rtl_0|auto_generated|lutrama0~PORTBDATAOUT5 ;
+wire \data_array_rtl_0|auto_generated|lutrama0~PORTBDATAOUT6 ;
+wire \data_array_rtl_0|auto_generated|lutrama0~PORTBDATAOUT7 ;
+wire \data_array_rtl_0|auto_generated|lutrama0~PORTBDATAOUT8 ;
+wire \data_array_rtl_0|auto_generated|lutrama0~PORTBDATAOUT9 ;
+wire \data_array_rtl_0|auto_generated|lutrama0~PORTBDATAOUT10 ;
+wire \data_array_rtl_0|auto_generated|lutrama0~PORTBDATAOUT11 ;
+wire \data_array_rtl_0|auto_generated|lutrama0~PORTBDATAOUT12 ;
+wire \data_array_rtl_0|auto_generated|lutrama0~PORTBDATAOUT13 ;
+wire \data_array_rtl_0|auto_generated|lutrama0~PORTBDATAOUT14 ;
+wire \data_array_rtl_0|auto_generated|lutrama0~PORTBDATAOUT15 ;
+wire \data_array_rtl_0|auto_generated|lutrama0~PORTBDATAOUT16 ;
+wire \data_array_rtl_0|auto_generated|lutrama0~PORTBDATAOUT17 ;
+wire \data_array_rtl_0|auto_generated|lutrama0~PORTBDATAOUT18 ;
+wire \data_array_rtl_0|auto_generated|lutrama0~PORTBDATAOUT19 ;
+wire \data_array_rtl_0|auto_generated|lutrama1~PORTBDATAOUT1 ;
+wire \data_array_rtl_0|auto_generated|lutrama1~PORTBDATAOUT2 ;
+wire \data_array_rtl_0|auto_generated|lutrama1~PORTBDATAOUT3 ;
+wire \data_array_rtl_0|auto_generated|lutrama1~PORTBDATAOUT4 ;
+wire \data_array_rtl_0|auto_generated|lutrama1~PORTBDATAOUT5 ;
+wire \data_array_rtl_0|auto_generated|lutrama1~PORTBDATAOUT6 ;
+wire \data_array_rtl_0|auto_generated|lutrama1~PORTBDATAOUT7 ;
+wire \data_array_rtl_0|auto_generated|lutrama1~PORTBDATAOUT8 ;
+wire \data_array_rtl_0|auto_generated|lutrama1~PORTBDATAOUT9 ;
+wire \data_array_rtl_0|auto_generated|lutrama1~PORTBDATAOUT10 ;
+wire \data_array_rtl_0|auto_generated|lutrama1~PORTBDATAOUT11 ;
+wire \data_array_rtl_0|auto_generated|lutrama1~PORTBDATAOUT12 ;
+wire \data_array_rtl_0|auto_generated|lutrama1~PORTBDATAOUT13 ;
+wire \data_array_rtl_0|auto_generated|lutrama1~PORTBDATAOUT14 ;
+wire \data_array_rtl_0|auto_generated|lutrama1~PORTBDATAOUT15 ;
+wire \data_array_rtl_0|auto_generated|lutrama1~PORTBDATAOUT16 ;
+wire \data_array_rtl_0|auto_generated|lutrama1~PORTBDATAOUT17 ;
+wire \data_array_rtl_0|auto_generated|lutrama1~PORTBDATAOUT18 ;
+wire \data_array_rtl_0|auto_generated|lutrama1~PORTBDATAOUT19 ;
+wire \data_array_rtl_0|auto_generated|lutrama2~PORTBDATAOUT1 ;
+wire \data_array_rtl_0|auto_generated|lutrama2~PORTBDATAOUT2 ;
+wire \data_array_rtl_0|auto_generated|lutrama2~PORTBDATAOUT3 ;
+wire \data_array_rtl_0|auto_generated|lutrama2~PORTBDATAOUT4 ;
+wire \data_array_rtl_0|auto_generated|lutrama2~PORTBDATAOUT5 ;
+wire \data_array_rtl_0|auto_generated|lutrama2~PORTBDATAOUT6 ;
+wire \data_array_rtl_0|auto_generated|lutrama2~PORTBDATAOUT7 ;
+wire \data_array_rtl_0|auto_generated|lutrama2~PORTBDATAOUT8 ;
+wire \data_array_rtl_0|auto_generated|lutrama2~PORTBDATAOUT9 ;
+wire \data_array_rtl_0|auto_generated|lutrama2~PORTBDATAOUT10 ;
+wire \data_array_rtl_0|auto_generated|lutrama2~PORTBDATAOUT11 ;
+wire \data_array_rtl_0|auto_generated|lutrama2~PORTBDATAOUT12 ;
+wire \data_array_rtl_0|auto_generated|lutrama2~PORTBDATAOUT13 ;
+wire \data_array_rtl_0|auto_generated|lutrama2~PORTBDATAOUT14 ;
+wire \data_array_rtl_0|auto_generated|lutrama2~PORTBDATAOUT15 ;
+wire \data_array_rtl_0|auto_generated|lutrama2~PORTBDATAOUT16 ;
+wire \data_array_rtl_0|auto_generated|lutrama2~PORTBDATAOUT17 ;
+wire \data_array_rtl_0|auto_generated|lutrama2~PORTBDATAOUT18 ;
+wire \data_array_rtl_0|auto_generated|lutrama2~PORTBDATAOUT19 ;
+wire \data_array_rtl_0|auto_generated|lutrama3~PORTBDATAOUT1 ;
+wire \data_array_rtl_0|auto_generated|lutrama3~PORTBDATAOUT2 ;
+wire \data_array_rtl_0|auto_generated|lutrama3~PORTBDATAOUT3 ;
+wire \data_array_rtl_0|auto_generated|lutrama3~PORTBDATAOUT4 ;
+wire \data_array_rtl_0|auto_generated|lutrama3~PORTBDATAOUT5 ;
+wire \data_array_rtl_0|auto_generated|lutrama3~PORTBDATAOUT6 ;
+wire \data_array_rtl_0|auto_generated|lutrama3~PORTBDATAOUT7 ;
+wire \data_array_rtl_0|auto_generated|lutrama3~PORTBDATAOUT8 ;
+wire \data_array_rtl_0|auto_generated|lutrama3~PORTBDATAOUT9 ;
+wire \data_array_rtl_0|auto_generated|lutrama3~PORTBDATAOUT10 ;
+wire \data_array_rtl_0|auto_generated|lutrama3~PORTBDATAOUT11 ;
+wire \data_array_rtl_0|auto_generated|lutrama3~PORTBDATAOUT12 ;
+wire \data_array_rtl_0|auto_generated|lutrama3~PORTBDATAOUT13 ;
+wire \data_array_rtl_0|auto_generated|lutrama3~PORTBDATAOUT14 ;
+wire \data_array_rtl_0|auto_generated|lutrama3~PORTBDATAOUT15 ;
+wire \data_array_rtl_0|auto_generated|lutrama3~PORTBDATAOUT16 ;
+wire \data_array_rtl_0|auto_generated|lutrama3~PORTBDATAOUT17 ;
+wire \data_array_rtl_0|auto_generated|lutrama3~PORTBDATAOUT18 ;
+wire \data_array_rtl_0|auto_generated|lutrama3~PORTBDATAOUT19 ;
+wire \data_array_rtl_0|auto_generated|lutrama4~PORTBDATAOUT1 ;
+wire \data_array_rtl_0|auto_generated|lutrama4~PORTBDATAOUT2 ;
+wire \data_array_rtl_0|auto_generated|lutrama4~PORTBDATAOUT3 ;
+wire \data_array_rtl_0|auto_generated|lutrama4~PORTBDATAOUT4 ;
+wire \data_array_rtl_0|auto_generated|lutrama4~PORTBDATAOUT5 ;
+wire \data_array_rtl_0|auto_generated|lutrama4~PORTBDATAOUT6 ;
+wire \data_array_rtl_0|auto_generated|lutrama4~PORTBDATAOUT7 ;
+wire \data_array_rtl_0|auto_generated|lutrama4~PORTBDATAOUT8 ;
+wire \data_array_rtl_0|auto_generated|lutrama4~PORTBDATAOUT9 ;
+wire \data_array_rtl_0|auto_generated|lutrama4~PORTBDATAOUT10 ;
+wire \data_array_rtl_0|auto_generated|lutrama4~PORTBDATAOUT11 ;
+wire \data_array_rtl_0|auto_generated|lutrama4~PORTBDATAOUT12 ;
+wire \data_array_rtl_0|auto_generated|lutrama4~PORTBDATAOUT13 ;
+wire \data_array_rtl_0|auto_generated|lutrama4~PORTBDATAOUT14 ;
+wire \data_array_rtl_0|auto_generated|lutrama4~PORTBDATAOUT15 ;
+wire \data_array_rtl_0|auto_generated|lutrama4~PORTBDATAOUT16 ;
+wire \data_array_rtl_0|auto_generated|lutrama4~PORTBDATAOUT17 ;
+wire \data_array_rtl_0|auto_generated|lutrama4~PORTBDATAOUT18 ;
+wire \data_array_rtl_0|auto_generated|lutrama4~PORTBDATAOUT19 ;
+wire \data_array_rtl_0|auto_generated|lutrama5~PORTBDATAOUT1 ;
+wire \data_array_rtl_0|auto_generated|lutrama5~PORTBDATAOUT2 ;
+wire \data_array_rtl_0|auto_generated|lutrama5~PORTBDATAOUT3 ;
+wire \data_array_rtl_0|auto_generated|lutrama5~PORTBDATAOUT4 ;
+wire \data_array_rtl_0|auto_generated|lutrama5~PORTBDATAOUT5 ;
+wire \data_array_rtl_0|auto_generated|lutrama5~PORTBDATAOUT6 ;
+wire \data_array_rtl_0|auto_generated|lutrama5~PORTBDATAOUT7 ;
+wire \data_array_rtl_0|auto_generated|lutrama5~PORTBDATAOUT8 ;
+wire \data_array_rtl_0|auto_generated|lutrama5~PORTBDATAOUT9 ;
+wire \data_array_rtl_0|auto_generated|lutrama5~PORTBDATAOUT10 ;
+wire \data_array_rtl_0|auto_generated|lutrama5~PORTBDATAOUT11 ;
+wire \data_array_rtl_0|auto_generated|lutrama5~PORTBDATAOUT12 ;
+wire \data_array_rtl_0|auto_generated|lutrama5~PORTBDATAOUT13 ;
+wire \data_array_rtl_0|auto_generated|lutrama5~PORTBDATAOUT14 ;
+wire \data_array_rtl_0|auto_generated|lutrama5~PORTBDATAOUT15 ;
+wire \data_array_rtl_0|auto_generated|lutrama5~PORTBDATAOUT16 ;
+wire \data_array_rtl_0|auto_generated|lutrama5~PORTBDATAOUT17 ;
+wire \data_array_rtl_0|auto_generated|lutrama5~PORTBDATAOUT18 ;
+wire \data_array_rtl_0|auto_generated|lutrama5~PORTBDATAOUT19 ;
+wire \data_array_rtl_0|auto_generated|lutrama6~PORTBDATAOUT1 ;
+wire \data_array_rtl_0|auto_generated|lutrama6~PORTBDATAOUT2 ;
+wire \data_array_rtl_0|auto_generated|lutrama6~PORTBDATAOUT3 ;
+wire \data_array_rtl_0|auto_generated|lutrama6~PORTBDATAOUT4 ;
+wire \data_array_rtl_0|auto_generated|lutrama6~PORTBDATAOUT5 ;
+wire \data_array_rtl_0|auto_generated|lutrama6~PORTBDATAOUT6 ;
+wire \data_array_rtl_0|auto_generated|lutrama6~PORTBDATAOUT7 ;
+wire \data_array_rtl_0|auto_generated|lutrama6~PORTBDATAOUT8 ;
+wire \data_array_rtl_0|auto_generated|lutrama6~PORTBDATAOUT9 ;
+wire \data_array_rtl_0|auto_generated|lutrama6~PORTBDATAOUT10 ;
+wire \data_array_rtl_0|auto_generated|lutrama6~PORTBDATAOUT11 ;
+wire \data_array_rtl_0|auto_generated|lutrama6~PORTBDATAOUT12 ;
+wire \data_array_rtl_0|auto_generated|lutrama6~PORTBDATAOUT13 ;
+wire \data_array_rtl_0|auto_generated|lutrama6~PORTBDATAOUT14 ;
+wire \data_array_rtl_0|auto_generated|lutrama6~PORTBDATAOUT15 ;
+wire \data_array_rtl_0|auto_generated|lutrama6~PORTBDATAOUT16 ;
+wire \data_array_rtl_0|auto_generated|lutrama6~PORTBDATAOUT17 ;
+wire \data_array_rtl_0|auto_generated|lutrama6~PORTBDATAOUT18 ;
+wire \data_array_rtl_0|auto_generated|lutrama6~PORTBDATAOUT19 ;
+wire \data_array_rtl_0|auto_generated|lutrama7~PORTBDATAOUT1 ;
+wire \data_array_rtl_0|auto_generated|lutrama7~PORTBDATAOUT2 ;
+wire \data_array_rtl_0|auto_generated|lutrama7~PORTBDATAOUT3 ;
+wire \data_array_rtl_0|auto_generated|lutrama7~PORTBDATAOUT4 ;
+wire \data_array_rtl_0|auto_generated|lutrama7~PORTBDATAOUT5 ;
+wire \data_array_rtl_0|auto_generated|lutrama7~PORTBDATAOUT6 ;
+wire \data_array_rtl_0|auto_generated|lutrama7~PORTBDATAOUT7 ;
+wire \data_array_rtl_0|auto_generated|lutrama7~PORTBDATAOUT8 ;
+wire \data_array_rtl_0|auto_generated|lutrama7~PORTBDATAOUT9 ;
+wire \data_array_rtl_0|auto_generated|lutrama7~PORTBDATAOUT10 ;
+wire \data_array_rtl_0|auto_generated|lutrama7~PORTBDATAOUT11 ;
+wire \data_array_rtl_0|auto_generated|lutrama7~PORTBDATAOUT12 ;
+wire \data_array_rtl_0|auto_generated|lutrama7~PORTBDATAOUT13 ;
+wire \data_array_rtl_0|auto_generated|lutrama7~PORTBDATAOUT14 ;
+wire \data_array_rtl_0|auto_generated|lutrama7~PORTBDATAOUT15 ;
+wire \data_array_rtl_0|auto_generated|lutrama7~PORTBDATAOUT16 ;
+wire \data_array_rtl_0|auto_generated|lutrama7~PORTBDATAOUT17 ;
+wire \data_array_rtl_0|auto_generated|lutrama7~PORTBDATAOUT18 ;
+wire \data_array_rtl_0|auto_generated|lutrama7~PORTBDATAOUT19 ;
+wire \data_array_rtl_0|auto_generated|lutrama8~PORTBDATAOUT1 ;
+wire \data_array_rtl_0|auto_generated|lutrama8~PORTBDATAOUT2 ;
+wire \data_array_rtl_0|auto_generated|lutrama8~PORTBDATAOUT3 ;
+wire \data_array_rtl_0|auto_generated|lutrama8~PORTBDATAOUT4 ;
+wire \data_array_rtl_0|auto_generated|lutrama8~PORTBDATAOUT5 ;
+wire \data_array_rtl_0|auto_generated|lutrama8~PORTBDATAOUT6 ;
+wire \data_array_rtl_0|auto_generated|lutrama8~PORTBDATAOUT7 ;
+wire \data_array_rtl_0|auto_generated|lutrama8~PORTBDATAOUT8 ;
+wire \data_array_rtl_0|auto_generated|lutrama8~PORTBDATAOUT9 ;
+wire \data_array_rtl_0|auto_generated|lutrama8~PORTBDATAOUT10 ;
+wire \data_array_rtl_0|auto_generated|lutrama8~PORTBDATAOUT11 ;
+wire \data_array_rtl_0|auto_generated|lutrama8~PORTBDATAOUT12 ;
+wire \data_array_rtl_0|auto_generated|lutrama8~PORTBDATAOUT13 ;
+wire \data_array_rtl_0|auto_generated|lutrama8~PORTBDATAOUT14 ;
+wire \data_array_rtl_0|auto_generated|lutrama8~PORTBDATAOUT15 ;
+wire \data_array_rtl_0|auto_generated|lutrama8~PORTBDATAOUT16 ;
+wire \data_array_rtl_0|auto_generated|lutrama8~PORTBDATAOUT17 ;
+wire \data_array_rtl_0|auto_generated|lutrama8~PORTBDATAOUT18 ;
+wire \data_array_rtl_0|auto_generated|lutrama8~PORTBDATAOUT19 ;
+wire \data_array_rtl_0|auto_generated|lutrama9~PORTBDATAOUT1 ;
+wire \data_array_rtl_0|auto_generated|lutrama9~PORTBDATAOUT2 ;
+wire \data_array_rtl_0|auto_generated|lutrama9~PORTBDATAOUT3 ;
+wire \data_array_rtl_0|auto_generated|lutrama9~PORTBDATAOUT4 ;
+wire \data_array_rtl_0|auto_generated|lutrama9~PORTBDATAOUT5 ;
+wire \data_array_rtl_0|auto_generated|lutrama9~PORTBDATAOUT6 ;
+wire \data_array_rtl_0|auto_generated|lutrama9~PORTBDATAOUT7 ;
+wire \data_array_rtl_0|auto_generated|lutrama9~PORTBDATAOUT8 ;
+wire \data_array_rtl_0|auto_generated|lutrama9~PORTBDATAOUT9 ;
+wire \data_array_rtl_0|auto_generated|lutrama9~PORTBDATAOUT10 ;
+wire \data_array_rtl_0|auto_generated|lutrama9~PORTBDATAOUT11 ;
+wire \data_array_rtl_0|auto_generated|lutrama9~PORTBDATAOUT12 ;
+wire \data_array_rtl_0|auto_generated|lutrama9~PORTBDATAOUT13 ;
+wire \data_array_rtl_0|auto_generated|lutrama9~PORTBDATAOUT14 ;
+wire \data_array_rtl_0|auto_generated|lutrama9~PORTBDATAOUT15 ;
+wire \data_array_rtl_0|auto_generated|lutrama9~PORTBDATAOUT16 ;
+wire \data_array_rtl_0|auto_generated|lutrama9~PORTBDATAOUT17 ;
+wire \data_array_rtl_0|auto_generated|lutrama9~PORTBDATAOUT18 ;
+wire \data_array_rtl_0|auto_generated|lutrama9~PORTBDATAOUT19 ;
+wire \init_ch[0]~3_combout ;
+wire \init_ch[1]~2_combout ;
+wire \init_ch[2]~1_combout ;
+wire \init_ch[3]~0_combout ;
+wire \Equal0~0_combout ;
+wire \ss_mem_index[1]~0_combout ;
+wire \ss_mem_index[1]~1_combout ;
+wire \data_array~15_combout ;
+wire \data_array~16_combout ;
+wire \data_array~17_combout ;
+wire \data_array~18_combout ;
+wire \data_array~19_combout ;
+wire \data_array~20_combout ;
+wire \data_array~21_combout ;
+wire \data_array~22_combout ;
+wire \data_array~23_combout ;
+wire \data_array~24_combout ;
+wire \data_array.raddr_a[0]~0_combout ;
+wire \data_array.raddr_a[1]~1_combout ;
+wire \data_array.raddr_a[2]~2_combout ;
+wire \data_array.raddr_a[3]~3_combout ;
+wire \data_array~25_combout ;
+wire \data_array~26_combout ;
+wire \data_array~27_combout ;
+wire \data_array~28_combout ;
+wire \data_array~29_combout ;
+wire \data_array~30_combout ;
+wire \data_array~31_combout ;
+wire \data_array~32_combout ;
+wire \data_array~33_combout ;
+wire [9:0] \data_array_rtl_0|auto_generated|dataout_wire ;
+wire [3:0] init_ch;
+wire [0:0] \data_array_rtl_0|auto_generated|lutrama0_PORTBDATAOUT_bus ;
+wire [0:0] \data_array_rtl_0|auto_generated|lutrama1_PORTBDATAOUT_bus ;
+wire [0:0] \data_array_rtl_0|auto_generated|lutrama2_PORTBDATAOUT_bus ;
+wire [0:0] \data_array_rtl_0|auto_generated|lutrama3_PORTBDATAOUT_bus ;
+wire [0:0] \data_array_rtl_0|auto_generated|lutrama4_PORTBDATAOUT_bus ;
+wire [0:0] \data_array_rtl_0|auto_generated|lutrama5_PORTBDATAOUT_bus ;
+wire [0:0] \data_array_rtl_0|auto_generated|lutrama6_PORTBDATAOUT_bus ;
+wire [0:0] \data_array_rtl_0|auto_generated|lutrama7_PORTBDATAOUT_bus ;
+wire [0:0] \data_array_rtl_0|auto_generated|lutrama8_PORTBDATAOUT_bus ;
+wire [0:0] \data_array_rtl_0|auto_generated|lutrama9_PORTBDATAOUT_bus ;
+assign gnd = 1'b0;
+assign vcc = 1'b1;
+assign unknown = 1'bx;
+assign \data_array_rtl_0|auto_generated|dataout_wire [0] = \data_array_rtl_0|auto_generated|lutrama0_PORTBDATAOUT_bus [0];
+assign \data_array_rtl_0|auto_generated|dataout_wire [1] = \data_array_rtl_0|auto_generated|lutrama1_PORTBDATAOUT_bus [0];
+assign \data_array_rtl_0|auto_generated|dataout_wire [2] = \data_array_rtl_0|auto_generated|lutrama2_PORTBDATAOUT_bus [0];
+assign \data_array_rtl_0|auto_generated|dataout_wire [3] = \data_array_rtl_0|auto_generated|lutrama3_PORTBDATAOUT_bus [0];
+assign \data_array_rtl_0|auto_generated|dataout_wire [4] = \data_array_rtl_0|auto_generated|lutrama4_PORTBDATAOUT_bus [0];
+assign \data_array_rtl_0|auto_generated|dataout_wire [5] = \data_array_rtl_0|auto_generated|lutrama5_PORTBDATAOUT_bus [0];
+assign \data_array_rtl_0|auto_generated|dataout_wire [6] = \data_array_rtl_0|auto_generated|lutrama6_PORTBDATAOUT_bus [0];
+assign \data_array_rtl_0|auto_generated|dataout_wire [7] = \data_array_rtl_0|auto_generated|lutrama7_PORTBDATAOUT_bus [0];
+assign \data_array_rtl_0|auto_generated|dataout_wire [8] = \data_array_rtl_0|auto_generated|lutrama8_PORTBDATAOUT_bus [0];
+assign \data_array_rtl_0|auto_generated|dataout_wire [9] = \data_array_rtl_0|auto_generated|lutrama9_PORTBDATAOUT_bus [0];
+assign reset=~out_en;assign devclrn=1'b1;assign devpor=1'b1;assign devoe=1'b1;
+assign {\data_array~24_combout ,\data_array~22_combout ,\data_array~20_combout ,\data_array~18_combout } = wa;
+assign {\data_array.raddr_a[3]~3_combout ,\data_array.raddr_a[2]~2_combout ,\data_array.raddr_a[1]~1_combout ,\data_array.raddr_a[0]~0_combout } = ra;
+assign \data_array~16_combout = we;
+assign {\data_array~17_combout } = data[0:0];
+assign {\data_array~25_combout } = data[1:1];
+assign {\data_array~26_combout } = data[2:2];
+assign {\data_array~27_combout } = data[3:3];
+assign {\data_array~28_combout } = data[4:4];
+assign {\data_array~29_combout } = data[5:5];
+assign {\data_array~30_combout } = data[6:6];
+assign {\data_array~31_combout } = data[7:7];
+assign {\data_array~32_combout } = data[8:8];
+assign {\data_array~33_combout } = data[9:9];
+assign q[0] = dataout_reg_0 ;
+assign q[1] = dataout_reg_1 ;
+assign q[2] = dataout_reg_2 ;
+assign q[3] = dataout_reg_3 ;
+assign q[4] = dataout_reg_4 ;
+assign q[5] = dataout_reg_5 ;
+assign q[6] = dataout_reg_6 ;
+assign q[7] = dataout_reg_7 ;
+assign q[8] = dataout_reg_8 ;
+assign q[9] = dataout_reg_9 ;
+dffeas \data_array_rtl_0|auto_generated|dataout_reg[0] (
+	.clk(clk),
+	.d(\data_array_rtl_0|auto_generated|dataout_wire [0]),
+	.asdata(vcc),
+	.clrn(vcc),
+	.aload(gnd),
+	.sclr(gnd),
+	.sload(gnd),
+	.ena(!reset),
+	.devclrn(devclrn),
+	.devpor(devpor),
+	.q(dataout_reg_0),
+	.prn(vcc));
+// synopsys translate_off
+defparam \data_array_rtl_0|auto_generated|dataout_reg[0] .is_wysiwyg = "true";
+defparam \data_array_rtl_0|auto_generated|dataout_reg[0] .power_up = "low";
+// synopsys translate_on
+
+
+dffeas \data_array_rtl_0|auto_generated|dataout_reg[1] (
+	.clk(clk),
+	.d(\data_array_rtl_0|auto_generated|dataout_wire [1]),
+	.asdata(vcc),
+	.clrn(vcc),
+	.aload(gnd),
+	.sclr(gnd),
+	.sload(gnd),
+	.ena(!reset),
+	.devclrn(devclrn),
+	.devpor(devpor),
+	.q(dataout_reg_1),
+	.prn(vcc));
+// synopsys translate_off
+defparam \data_array_rtl_0|auto_generated|dataout_reg[1] .is_wysiwyg = "true";
+defparam \data_array_rtl_0|auto_generated|dataout_reg[1] .power_up = "low";
+// synopsys translate_on
+
+
+dffeas \data_array_rtl_0|auto_generated|dataout_reg[2] (
+	.clk(clk),
+	.d(\data_array_rtl_0|auto_generated|dataout_wire [2]),
+	.asdata(vcc),
+	.clrn(vcc),
+	.aload(gnd),
+	.sclr(gnd),
+	.sload(gnd),
+	.ena(!reset),
+	.devclrn(devclrn),
+	.devpor(devpor),
+	.q(dataout_reg_2),
+	.prn(vcc));
+// synopsys translate_off
+defparam \data_array_rtl_0|auto_generated|dataout_reg[2] .is_wysiwyg = "true";
+defparam \data_array_rtl_0|auto_generated|dataout_reg[2] .power_up = "low";
+// synopsys translate_on
+
+
+dffeas \data_array_rtl_0|auto_generated|dataout_reg[3] (
+	.clk(clk),
+	.d(\data_array_rtl_0|auto_generated|dataout_wire [3]),
+	.asdata(vcc),
+	.clrn(vcc),
+	.aload(gnd),
+	.sclr(gnd),
+	.sload(gnd),
+	.ena(!reset),
+	.devclrn(devclrn),
+	.devpor(devpor),
+	.q(dataout_reg_3),
+	.prn(vcc));
+// synopsys translate_off
+defparam \data_array_rtl_0|auto_generated|dataout_reg[3] .is_wysiwyg = "true";
+defparam \data_array_rtl_0|auto_generated|dataout_reg[3] .power_up = "low";
+// synopsys translate_on
+
+
+dffeas \data_array_rtl_0|auto_generated|dataout_reg[4] (
+	.clk(clk),
+	.d(\data_array_rtl_0|auto_generated|dataout_wire [4]),
+	.asdata(vcc),
+	.clrn(vcc),
+	.aload(gnd),
+	.sclr(gnd),
+	.sload(gnd),
+	.ena(!reset),
+	.devclrn(devclrn),
+	.devpor(devpor),
+	.q(dataout_reg_4),
+	.prn(vcc));
+// synopsys translate_off
+defparam \data_array_rtl_0|auto_generated|dataout_reg[4] .is_wysiwyg = "true";
+defparam \data_array_rtl_0|auto_generated|dataout_reg[4] .power_up = "low";
+// synopsys translate_on
+
+
+dffeas \data_array_rtl_0|auto_generated|dataout_reg[5] (
+	.clk(clk),
+	.d(\data_array_rtl_0|auto_generated|dataout_wire [5]),
+	.asdata(vcc),
+	.clrn(vcc),
+	.aload(gnd),
+	.sclr(gnd),
+	.sload(gnd),
+	.ena(!reset),
+	.devclrn(devclrn),
+	.devpor(devpor),
+	.q(dataout_reg_5),
+	.prn(vcc));
+// synopsys translate_off
+defparam \data_array_rtl_0|auto_generated|dataout_reg[5] .is_wysiwyg = "true";
+defparam \data_array_rtl_0|auto_generated|dataout_reg[5] .power_up = "low";
+// synopsys translate_on
+
+
+dffeas \data_array_rtl_0|auto_generated|dataout_reg[6] (
+	.clk(clk),
+	.d(\data_array_rtl_0|auto_generated|dataout_wire [6]),
+	.asdata(vcc),
+	.clrn(vcc),
+	.aload(gnd),
+	.sclr(gnd),
+	.sload(gnd),
+	.ena(!reset),
+	.devclrn(devclrn),
+	.devpor(devpor),
+	.q(dataout_reg_6),
+	.prn(vcc));
+// synopsys translate_off
+defparam \data_array_rtl_0|auto_generated|dataout_reg[6] .is_wysiwyg = "true";
+defparam \data_array_rtl_0|auto_generated|dataout_reg[6] .power_up = "low";
+// synopsys translate_on
+
+
+dffeas \data_array_rtl_0|auto_generated|dataout_reg[7] (
+	.clk(clk),
+	.d(\data_array_rtl_0|auto_generated|dataout_wire [7]),
+	.asdata(vcc),
+	.clrn(vcc),
+	.aload(gnd),
+	.sclr(gnd),
+	.sload(gnd),
+	.ena(!reset),
+	.devclrn(devclrn),
+	.devpor(devpor),
+	.q(dataout_reg_7),
+	.prn(vcc));
+// synopsys translate_off
+defparam \data_array_rtl_0|auto_generated|dataout_reg[7] .is_wysiwyg = "true";
+defparam \data_array_rtl_0|auto_generated|dataout_reg[7] .power_up = "low";
+// synopsys translate_on
+
+
+dffeas \data_array_rtl_0|auto_generated|dataout_reg[8] (
+	.clk(clk),
+	.d(\data_array_rtl_0|auto_generated|dataout_wire [8]),
+	.asdata(vcc),
+	.clrn(vcc),
+	.aload(gnd),
+	.sclr(gnd),
+	.sload(gnd),
+	.ena(!reset),
+	.devclrn(devclrn),
+	.devpor(devpor),
+	.q(dataout_reg_8),
+	.prn(vcc));
+// synopsys translate_off
+defparam \data_array_rtl_0|auto_generated|dataout_reg[8] .is_wysiwyg = "true";
+defparam \data_array_rtl_0|auto_generated|dataout_reg[8] .power_up = "low";
+// synopsys translate_on
+
+
+dffeas \data_array_rtl_0|auto_generated|dataout_reg[9] (
+	.clk(clk),
+	.d(\data_array_rtl_0|auto_generated|dataout_wire [9]),
+	.asdata(vcc),
+	.clrn(vcc),
+	.aload(gnd),
+	.sclr(gnd),
+	.sload(gnd),
+	.ena(!reset),
+	.devclrn(devclrn),
+	.devpor(devpor),
+	.q(dataout_reg_9),
+	.prn(vcc));
+// synopsys translate_off
+defparam \data_array_rtl_0|auto_generated|dataout_reg[9] .is_wysiwyg = "true";
+defparam \data_array_rtl_0|auto_generated|dataout_reg[9] .power_up = "low";
+// synopsys translate_on
+
+
+cyclonev_mlab_cell \data_array_rtl_0|auto_generated|lutrama0 (
+	.clk0(clk),
+	.clk1(gnd),
+	.ena0(\data_array~16_combout ),
+	.ena1(vcc),
+	.ena2(vcc),
+	.clr(gnd),
+	.portadatain({\data_array~17_combout }),
+	.portaaddr({\data_array~24_combout ,\data_array~22_combout ,\data_array~20_combout ,\data_array~18_combout }),
+	.portabyteenamasks(1'b1),
+	.portbaddr({\data_array.raddr_a[3]~3_combout ,\data_array.raddr_a[2]~2_combout ,\data_array.raddr_a[1]~1_combout ,\data_array.raddr_a[0]~0_combout }),
+	.devclrn(devclrn),
+	.devpor(devpor),
+	.portbdataout(\data_array_rtl_0|auto_generated|lutrama0_PORTBDATAOUT_bus ));
+// synopsys translate_off
+defparam \data_array_rtl_0|auto_generated|lutrama0 .address_width = 4;
+defparam \data_array_rtl_0|auto_generated|lutrama0 .data_width = 1;
+defparam \data_array_rtl_0|auto_generated|lutrama0 .first_address = 0;
+defparam \data_array_rtl_0|auto_generated|lutrama0 .first_bit_number = 0;
+defparam \data_array_rtl_0|auto_generated|lutrama0 .init_file = "none";
+defparam \data_array_rtl_0|auto_generated|lutrama0 .last_address = 8;
+defparam \data_array_rtl_0|auto_generated|lutrama0 .logical_ram_depth = 9;
+defparam \data_array_rtl_0|auto_generated|lutrama0 .logical_ram_name = "emu:emu|system:system|opll:fm|outputgenerator:og|feedbackmemory:fmem|altdpram:data_array_rtl_0|dpram_dop1:auto_generated|altdpram_instance";
+defparam \data_array_rtl_0|auto_generated|lutrama0 .logical_ram_width = 10;
+defparam \data_array_rtl_0|auto_generated|lutrama0 .mixed_port_feed_through_mode = "dont care";
+// synopsys translate_on
+
+
+cyclonev_mlab_cell \data_array_rtl_0|auto_generated|lutrama1 (
+	.clk0(clk),
+	.clk1(gnd),
+	.ena0(\data_array~16_combout ),
+	.ena1(vcc),
+	.ena2(vcc),
+	.clr(gnd),
+	.portadatain({\data_array~25_combout }),
+	.portaaddr({\data_array~24_combout ,\data_array~22_combout ,\data_array~20_combout ,\data_array~18_combout }),
+	.portabyteenamasks(1'b1),
+	.portbaddr({\data_array.raddr_a[3]~3_combout ,\data_array.raddr_a[2]~2_combout ,\data_array.raddr_a[1]~1_combout ,\data_array.raddr_a[0]~0_combout }),
+	.devclrn(devclrn),
+	.devpor(devpor),
+	.portbdataout(\data_array_rtl_0|auto_generated|lutrama1_PORTBDATAOUT_bus ));
+// synopsys translate_off
+defparam \data_array_rtl_0|auto_generated|lutrama1 .address_width = 4;
+defparam \data_array_rtl_0|auto_generated|lutrama1 .data_width = 1;
+defparam \data_array_rtl_0|auto_generated|lutrama1 .first_address = 0;
+defparam \data_array_rtl_0|auto_generated|lutrama1 .first_bit_number = 1;
+defparam \data_array_rtl_0|auto_generated|lutrama1 .init_file = "none";
+defparam \data_array_rtl_0|auto_generated|lutrama1 .last_address = 8;
+defparam \data_array_rtl_0|auto_generated|lutrama1 .logical_ram_depth = 9;
+defparam \data_array_rtl_0|auto_generated|lutrama1 .logical_ram_name = "emu:emu|system:system|opll:fm|outputgenerator:og|feedbackmemory:fmem|altdpram:data_array_rtl_0|dpram_dop1:auto_generated|altdpram_instance";
+defparam \data_array_rtl_0|auto_generated|lutrama1 .logical_ram_width = 10;
+defparam \data_array_rtl_0|auto_generated|lutrama1 .mixed_port_feed_through_mode = "dont care";
+// synopsys translate_on
+
+
+cyclonev_mlab_cell \data_array_rtl_0|auto_generated|lutrama2 (
+	.clk0(clk),
+	.clk1(gnd),
+	.ena0(\data_array~16_combout ),
+	.ena1(vcc),
+	.ena2(vcc),
+	.clr(gnd),
+	.portadatain({\data_array~26_combout }),
+	.portaaddr({\data_array~24_combout ,\data_array~22_combout ,\data_array~20_combout ,\data_array~18_combout }),
+	.portabyteenamasks(1'b1),
+	.portbaddr({\data_array.raddr_a[3]~3_combout ,\data_array.raddr_a[2]~2_combout ,\data_array.raddr_a[1]~1_combout ,\data_array.raddr_a[0]~0_combout }),
+	.devclrn(devclrn),
+	.devpor(devpor),
+	.portbdataout(\data_array_rtl_0|auto_generated|lutrama2_PORTBDATAOUT_bus ));
+// synopsys translate_off
+defparam \data_array_rtl_0|auto_generated|lutrama2 .address_width = 4;
+defparam \data_array_rtl_0|auto_generated|lutrama2 .data_width = 1;
+defparam \data_array_rtl_0|auto_generated|lutrama2 .first_address = 0;
+defparam \data_array_rtl_0|auto_generated|lutrama2 .first_bit_number = 2;
+defparam \data_array_rtl_0|auto_generated|lutrama2 .init_file = "none";
+defparam \data_array_rtl_0|auto_generated|lutrama2 .last_address = 8;
+defparam \data_array_rtl_0|auto_generated|lutrama2 .logical_ram_depth = 9;
+defparam \data_array_rtl_0|auto_generated|lutrama2 .logical_ram_name = "emu:emu|system:system|opll:fm|outputgenerator:og|feedbackmemory:fmem|altdpram:data_array_rtl_0|dpram_dop1:auto_generated|altdpram_instance";
+defparam \data_array_rtl_0|auto_generated|lutrama2 .logical_ram_width = 10;
+defparam \data_array_rtl_0|auto_generated|lutrama2 .mixed_port_feed_through_mode = "dont care";
+// synopsys translate_on
+
+
+cyclonev_mlab_cell \data_array_rtl_0|auto_generated|lutrama3 (
+	.clk0(clk),
+	.clk1(gnd),
+	.ena0(\data_array~16_combout ),
+	.ena1(vcc),
+	.ena2(vcc),
+	.clr(gnd),
+	.portadatain({\data_array~27_combout }),
+	.portaaddr({\data_array~24_combout ,\data_array~22_combout ,\data_array~20_combout ,\data_array~18_combout }),
+	.portabyteenamasks(1'b1),
+	.portbaddr({\data_array.raddr_a[3]~3_combout ,\data_array.raddr_a[2]~2_combout ,\data_array.raddr_a[1]~1_combout ,\data_array.raddr_a[0]~0_combout }),
+	.devclrn(devclrn),
+	.devpor(devpor),
+	.portbdataout(\data_array_rtl_0|auto_generated|lutrama3_PORTBDATAOUT_bus ));
+// synopsys translate_off
+defparam \data_array_rtl_0|auto_generated|lutrama3 .address_width = 4;
+defparam \data_array_rtl_0|auto_generated|lutrama3 .data_width = 1;
+defparam \data_array_rtl_0|auto_generated|lutrama3 .first_address = 0;
+defparam \data_array_rtl_0|auto_generated|lutrama3 .first_bit_number = 3;
+defparam \data_array_rtl_0|auto_generated|lutrama3 .init_file = "none";
+defparam \data_array_rtl_0|auto_generated|lutrama3 .last_address = 8;
+defparam \data_array_rtl_0|auto_generated|lutrama3 .logical_ram_depth = 9;
+defparam \data_array_rtl_0|auto_generated|lutrama3 .logical_ram_name = "emu:emu|system:system|opll:fm|outputgenerator:og|feedbackmemory:fmem|altdpram:data_array_rtl_0|dpram_dop1:auto_generated|altdpram_instance";
+defparam \data_array_rtl_0|auto_generated|lutrama3 .logical_ram_width = 10;
+defparam \data_array_rtl_0|auto_generated|lutrama3 .mixed_port_feed_through_mode = "dont care";
+// synopsys translate_on
+
+
+cyclonev_mlab_cell \data_array_rtl_0|auto_generated|lutrama4 (
+	.clk0(clk),
+	.clk1(gnd),
+	.ena0(\data_array~16_combout ),
+	.ena1(vcc),
+	.ena2(vcc),
+	.clr(gnd),
+	.portadatain({\data_array~28_combout }),
+	.portaaddr({\data_array~24_combout ,\data_array~22_combout ,\data_array~20_combout ,\data_array~18_combout }),
+	.portabyteenamasks(1'b1),
+	.portbaddr({\data_array.raddr_a[3]~3_combout ,\data_array.raddr_a[2]~2_combout ,\data_array.raddr_a[1]~1_combout ,\data_array.raddr_a[0]~0_combout }),
+	.devclrn(devclrn),
+	.devpor(devpor),
+	.portbdataout(\data_array_rtl_0|auto_generated|lutrama4_PORTBDATAOUT_bus ));
+// synopsys translate_off
+defparam \data_array_rtl_0|auto_generated|lutrama4 .address_width = 4;
+defparam \data_array_rtl_0|auto_generated|lutrama4 .data_width = 1;
+defparam \data_array_rtl_0|auto_generated|lutrama4 .first_address = 0;
+defparam \data_array_rtl_0|auto_generated|lutrama4 .first_bit_number = 4;
+defparam \data_array_rtl_0|auto_generated|lutrama4 .init_file = "none";
+defparam \data_array_rtl_0|auto_generated|lutrama4 .last_address = 8;
+defparam \data_array_rtl_0|auto_generated|lutrama4 .logical_ram_depth = 9;
+defparam \data_array_rtl_0|auto_generated|lutrama4 .logical_ram_name = "emu:emu|system:system|opll:fm|outputgenerator:og|feedbackmemory:fmem|altdpram:data_array_rtl_0|dpram_dop1:auto_generated|altdpram_instance";
+defparam \data_array_rtl_0|auto_generated|lutrama4 .logical_ram_width = 10;
+defparam \data_array_rtl_0|auto_generated|lutrama4 .mixed_port_feed_through_mode = "dont care";
+// synopsys translate_on
+
+
+cyclonev_mlab_cell \data_array_rtl_0|auto_generated|lutrama5 (
+	.clk0(clk),
+	.clk1(gnd),
+	.ena0(\data_array~16_combout ),
+	.ena1(vcc),
+	.ena2(vcc),
+	.clr(gnd),
+	.portadatain({\data_array~29_combout }),
+	.portaaddr({\data_array~24_combout ,\data_array~22_combout ,\data_array~20_combout ,\data_array~18_combout }),
+	.portabyteenamasks(1'b1),
+	.portbaddr({\data_array.raddr_a[3]~3_combout ,\data_array.raddr_a[2]~2_combout ,\data_array.raddr_a[1]~1_combout ,\data_array.raddr_a[0]~0_combout }),
+	.devclrn(devclrn),
+	.devpor(devpor),
+	.portbdataout(\data_array_rtl_0|auto_generated|lutrama5_PORTBDATAOUT_bus ));
+// synopsys translate_off
+defparam \data_array_rtl_0|auto_generated|lutrama5 .address_width = 4;
+defparam \data_array_rtl_0|auto_generated|lutrama5 .data_width = 1;
+defparam \data_array_rtl_0|auto_generated|lutrama5 .first_address = 0;
+defparam \data_array_rtl_0|auto_generated|lutrama5 .first_bit_number = 5;
+defparam \data_array_rtl_0|auto_generated|lutrama5 .init_file = "none";
+defparam \data_array_rtl_0|auto_generated|lutrama5 .last_address = 8;
+defparam \data_array_rtl_0|auto_generated|lutrama5 .logical_ram_depth = 9;
+defparam \data_array_rtl_0|auto_generated|lutrama5 .logical_ram_name = "emu:emu|system:system|opll:fm|outputgenerator:og|feedbackmemory:fmem|altdpram:data_array_rtl_0|dpram_dop1:auto_generated|altdpram_instance";
+defparam \data_array_rtl_0|auto_generated|lutrama5 .logical_ram_width = 10;
+defparam \data_array_rtl_0|auto_generated|lutrama5 .mixed_port_feed_through_mode = "dont care";
+// synopsys translate_on
+
+
+cyclonev_mlab_cell \data_array_rtl_0|auto_generated|lutrama6 (
+	.clk0(clk),
+	.clk1(gnd),
+	.ena0(\data_array~16_combout ),
+	.ena1(vcc),
+	.ena2(vcc),
+	.clr(gnd),
+	.portadatain({\data_array~30_combout }),
+	.portaaddr({\data_array~24_combout ,\data_array~22_combout ,\data_array~20_combout ,\data_array~18_combout }),
+	.portabyteenamasks(1'b1),
+	.portbaddr({\data_array.raddr_a[3]~3_combout ,\data_array.raddr_a[2]~2_combout ,\data_array.raddr_a[1]~1_combout ,\data_array.raddr_a[0]~0_combout }),
+	.devclrn(devclrn),
+	.devpor(devpor),
+	.portbdataout(\data_array_rtl_0|auto_generated|lutrama6_PORTBDATAOUT_bus ));
+// synopsys translate_off
+defparam \data_array_rtl_0|auto_generated|lutrama6 .address_width = 4;
+defparam \data_array_rtl_0|auto_generated|lutrama6 .data_width = 1;
+defparam \data_array_rtl_0|auto_generated|lutrama6 .first_address = 0;
+defparam \data_array_rtl_0|auto_generated|lutrama6 .first_bit_number = 6;
+defparam \data_array_rtl_0|auto_generated|lutrama6 .init_file = "none";
+defparam \data_array_rtl_0|auto_generated|lutrama6 .last_address = 8;
+defparam \data_array_rtl_0|auto_generated|lutrama6 .logical_ram_depth = 9;
+defparam \data_array_rtl_0|auto_generated|lutrama6 .logical_ram_name = "emu:emu|system:system|opll:fm|outputgenerator:og|feedbackmemory:fmem|altdpram:data_array_rtl_0|dpram_dop1:auto_generated|altdpram_instance";
+defparam \data_array_rtl_0|auto_generated|lutrama6 .logical_ram_width = 10;
+defparam \data_array_rtl_0|auto_generated|lutrama6 .mixed_port_feed_through_mode = "dont care";
+// synopsys translate_on
+
+
+cyclonev_mlab_cell \data_array_rtl_0|auto_generated|lutrama7 (
+	.clk0(clk),
+	.clk1(gnd),
+	.ena0(\data_array~16_combout ),
+	.ena1(vcc),
+	.ena2(vcc),
+	.clr(gnd),
+	.portadatain({\data_array~31_combout }),
+	.portaaddr({\data_array~24_combout ,\data_array~22_combout ,\data_array~20_combout ,\data_array~18_combout }),
+	.portabyteenamasks(1'b1),
+	.portbaddr({\data_array.raddr_a[3]~3_combout ,\data_array.raddr_a[2]~2_combout ,\data_array.raddr_a[1]~1_combout ,\data_array.raddr_a[0]~0_combout }),
+	.devclrn(devclrn),
+	.devpor(devpor),
+	.portbdataout(\data_array_rtl_0|auto_generated|lutrama7_PORTBDATAOUT_bus ));
+// synopsys translate_off
+defparam \data_array_rtl_0|auto_generated|lutrama7 .address_width = 4;
+defparam \data_array_rtl_0|auto_generated|lutrama7 .data_width = 1;
+defparam \data_array_rtl_0|auto_generated|lutrama7 .first_address = 0;
+defparam \data_array_rtl_0|auto_generated|lutrama7 .first_bit_number = 7;
+defparam \data_array_rtl_0|auto_generated|lutrama7 .init_file = "none";
+defparam \data_array_rtl_0|auto_generated|lutrama7 .last_address = 8;
+defparam \data_array_rtl_0|auto_generated|lutrama7 .logical_ram_depth = 9;
+defparam \data_array_rtl_0|auto_generated|lutrama7 .logical_ram_name = "emu:emu|system:system|opll:fm|outputgenerator:og|feedbackmemory:fmem|altdpram:data_array_rtl_0|dpram_dop1:auto_generated|altdpram_instance";
+defparam \data_array_rtl_0|auto_generated|lutrama7 .logical_ram_width = 10;
+defparam \data_array_rtl_0|auto_generated|lutrama7 .mixed_port_feed_through_mode = "dont care";
+// synopsys translate_on
+
+
+cyclonev_mlab_cell \data_array_rtl_0|auto_generated|lutrama8 (
+	.clk0(clk),
+	.clk1(gnd),
+	.ena0(\data_array~16_combout ),
+	.ena1(vcc),
+	.ena2(vcc),
+	.clr(gnd),
+	.portadatain({\data_array~32_combout }),
+	.portaaddr({\data_array~24_combout ,\data_array~22_combout ,\data_array~20_combout ,\data_array~18_combout }),
+	.portabyteenamasks(1'b1),
+	.portbaddr({\data_array.raddr_a[3]~3_combout ,\data_array.raddr_a[2]~2_combout ,\data_array.raddr_a[1]~1_combout ,\data_array.raddr_a[0]~0_combout }),
+	.devclrn(devclrn),
+	.devpor(devpor),
+	.portbdataout(\data_array_rtl_0|auto_generated|lutrama8_PORTBDATAOUT_bus ));
+// synopsys translate_off
+defparam \data_array_rtl_0|auto_generated|lutrama8 .address_width = 4;
+defparam \data_array_rtl_0|auto_generated|lutrama8 .data_width = 1;
+defparam \data_array_rtl_0|auto_generated|lutrama8 .first_address = 0;
+defparam \data_array_rtl_0|auto_generated|lutrama8 .first_bit_number = 8;
+defparam \data_array_rtl_0|auto_generated|lutrama8 .init_file = "none";
+defparam \data_array_rtl_0|auto_generated|lutrama8 .last_address = 8;
+defparam \data_array_rtl_0|auto_generated|lutrama8 .logical_ram_depth = 9;
+defparam \data_array_rtl_0|auto_generated|lutrama8 .logical_ram_name = "emu:emu|system:system|opll:fm|outputgenerator:og|feedbackmemory:fmem|altdpram:data_array_rtl_0|dpram_dop1:auto_generated|altdpram_instance";
+defparam \data_array_rtl_0|auto_generated|lutrama8 .logical_ram_width = 10;
+defparam \data_array_rtl_0|auto_generated|lutrama8 .mixed_port_feed_through_mode = "dont care";
+// synopsys translate_on
+
+
+cyclonev_mlab_cell \data_array_rtl_0|auto_generated|lutrama9 (
+	.clk0(clk),
+	.clk1(gnd),
+	.ena0(\data_array~16_combout ),
+	.ena1(vcc),
+	.ena2(vcc),
+	.clr(gnd),
+	.portadatain({\data_array~33_combout }),
+	.portaaddr({\data_array~24_combout ,\data_array~22_combout ,\data_array~20_combout ,\data_array~18_combout }),
+	.portabyteenamasks(1'b1),
+	.portbaddr({\data_array.raddr_a[3]~3_combout ,\data_array.raddr_a[2]~2_combout ,\data_array.raddr_a[1]~1_combout ,\data_array.raddr_a[0]~0_combout }),
+	.devclrn(devclrn),
+	.devpor(devpor),
+	.portbdataout(\data_array_rtl_0|auto_generated|lutrama9_PORTBDATAOUT_bus ));
+// synopsys translate_off
+defparam \data_array_rtl_0|auto_generated|lutrama9 .address_width = 4;
+defparam \data_array_rtl_0|auto_generated|lutrama9 .data_width = 1;
+defparam \data_array_rtl_0|auto_generated|lutrama9 .first_address = 0;
+defparam \data_array_rtl_0|auto_generated|lutrama9 .first_bit_number = 9;
+defparam \data_array_rtl_0|auto_generated|lutrama9 .init_file = "none";
+defparam \data_array_rtl_0|auto_generated|lutrama9 .last_address = 8;
+defparam \data_array_rtl_0|auto_generated|lutrama9 .logical_ram_depth = 9;
+defparam \data_array_rtl_0|auto_generated|lutrama9 .logical_ram_name = "emu:emu|system:system|opll:fm|outputgenerator:og|feedbackmemory:fmem|altdpram:data_array_rtl_0|dpram_dop1:auto_generated|altdpram_instance";
+defparam \data_array_rtl_0|auto_generated|lutrama9 .logical_ram_width = 10;
+defparam \data_array_rtl_0|auto_generated|lutrama9 .mixed_port_feed_through_mode = "dont care";
+// synopsys translate_on
+
+
+endmodule

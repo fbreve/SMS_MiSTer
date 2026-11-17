@@ -1,0 +1,4 @@
+const fs=require('fs'),p=require('path'),d=p.join(__dirname,'memory_gate');fs.mkdirSync(d,{recursive:true});
+const settings=fs.readFileSync(p.resolve(__dirname,'../../SMS.qsf'),'utf8').split(/\r?\n/).filter(l=>l.startsWith('set_global_assignment')&&!/TOP_LEVEL_ENTITY|PRE_FLOW_SCRIPT|POST_FLOW_SCRIPT|QIP_FILE|SDC_FILE/.test(l)).join('\n');
+fs.writeFileSync(p.join(d,'snapshot.qpf'),'PROJECT_REVISION = "snapshot"\n');
+fs.writeFileSync(p.join(d,'snapshot.qsf'),settings+'\nset_global_assignment -name FAMILY "Cyclone V"\nset_global_assignment -name DEVICE 5CSEBA6U23I7\nset_global_assignment -name TOP_LEVEL_ENTITY opll_snapshot\nset_global_assignment -name SYSTEMVERILOG_FILE ../../../rtl/opll_snapshot.sv\nset_global_assignment -name PROJECT_OUTPUT_DIRECTORY output_files\nset_instance_assignment -name VIRTUAL_PIN ON -to *\n');

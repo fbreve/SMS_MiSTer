@@ -1,0 +1,154 @@
+--
+-- OutputMemory.vhd
+--
+-- Copyright (c) 2006 Mitsutaka Okazaki (brezza@pokipoki.org)
+-- All rights reserved.
+--
+-- Redistribution and use of this source code or any derivative works, are
+-- permitted provided that the following conditions are met:
+--
+-- 1. Redistributions of source code must retain the above copyright notice,
+--    this list of conditions and the following disclaimer.
+-- 2. Redistributions in binary form must reproduce the above copyright
+--    notice, this list of conditions and the following disclaimer in the
+--    documentation and/or other materials provided with the distribution.
+-- 3. Redistributions may not be sold, nor may they be used in a commercial
+--    product or activity without specific prior written permission.
+--
+-- THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS AND CONTRIBUTORS
+-- "AS IS" AND ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED
+-- TO, THE IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR
+-- PURPOSE ARE DISCLAIMED. IN NO EVENT SHALL THE COPYRIGHT OWNER OR
+-- CONTRIBUTORS BE LIABLE FOR ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL,
+-- EXEMPLARY, OR CONSEQUENTIAL DAMAGES (INCLUDING, BUT NOT LIMITED TO,
+-- PROCUREMENT OF SUBSTITUTE GOODS OR SERVICES; LOSS OF USE, DATA, OR PROFITS;
+-- OR BUSINESS INTERRUPTION) HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY,
+-- WHETHER IN CONTRACT, STRICT LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR
+-- OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF
+-- ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
+--
+--
+library IEEE;
+use IEEE.STD_LOGIC_1164.ALL;
+use IEEE.STD_LOGIC_UNSIGNED.ALL;
+use WORK.VM2413.ALL;
+
+use ieee.std_logic_arith.conv_std_logic_vector;
+entity OutputMemory is port (
+  clk    : in std_logic;
+  reset  : in std_logic;
+  wr     : in std_logic;
+  addr  : in SLOT_TYPE;
+  wdata  : in SIGNED_LI_TYPE;
+  rdata  : buffer SIGNED_LI_TYPE;
+  addr2  : in SLOT_TYPE;
+  rdata2 : buffer SIGNED_LI_TYPE
+;
+        -- F01 private, fixed-latency 32-bit access; no emulated clock enables.
+        ss_hold : in std_logic := '0';
+        ss_addr : in std_logic_vector(7 downto 0) := (others=>'0');
+        ss_read : in std_logic := '0';
+        ss_write : in std_logic := '0';
+        ss_wdata : in std_logic_vector(31 downto 0) := (others=>'0');
+        ss_rdata : out std_logic_vector(31 downto 0);
+        ss_initialized : out std_logic
+);
+end OutputMemory;
+
+architecture RTL of OutputMemory is
+
+  type SIGNED_LI_ARRAY_TYPE is array (0 to 18) of SIGNED_LI_VECTOR_TYPE;
+  signal data_array : SIGNED_LI_ARRAY_TYPE;
+  attribute ramstyle : string;
+  attribute ramstyle of data_array : signal is "logic";
+
+    signal ss_local_data : std_logic_vector(31 downto 0) := (others=>'0');
+    signal ss_mem_active : std_logic;
+    signal ss_mem_index : integer range 0 to 17;
+    signal ss_mem_ready : std_logic := '0';
+    signal ss_mem_vector : std_logic_vector(9 downto 0);
+
+begin
+
+  process(clk, reset)
+
+    variable init_ch : integer range 0 to 18;
+ variable init_before:integer range 0 to 18;
+
+  begin
+
+    if (reset = '1') then
+ss_mem_ready <= '0';
+
+      init_ch := 0;
+
+    elsif rising_edge(clk) then
+ init_before:=init_ch;
+
+      probe_out_collision1<='0';probe_out_collision2<='0';
+      if init_ch=18 then
+       if ss_hold='0' and wr='1' then probe_out_collision1<='1';if addr=addr2 then probe_out_collision2<='1';end if;
+       elsif ss_hold='1' and ss_write='1' and ss_mem_active='1' then probe_out_collision1<='1';if ss_mem_index=conv_integer(addr2) then probe_out_collision2<='1';end if;end if;
+      end if;
+      ss_mem_ready <= '0'; if init_ch=18 then ss_mem_ready <= '1'; end if;
+if ss_hold='0' then
+if init_ch /= 18 then
+
+        data_array(init_ch) <= (others=>'0');
+        init_ch := init_ch + 1;
+
+      elsif wr='1' then
+
+        data_array(conv_integer(addr)) <= CONV_SIGNED_LI_VECTOR(wdata);
+
+      end if;
+
+
+elsif ss_write='1' and ss_mem_active='1' then
+data_array(ss_mem_index)<=ss_wdata(9 downto 0);
+end if;
+if ss_mem_active='1' then rdata <= CONV_SIGNED_LI(data_array(ss_mem_index)); else rdata <= CONV_SIGNED_LI(data_array(conv_integer(addr))); end if;
+      rdata2 <= CONV_SIGNED_LI(data_array(conv_integer(addr2)));
+ if fault_target=2 and init_before<18 and ss_hold='0' then
+ if conv_integer(addr)=init_before then rdata<=CONV_SIGNED_LI(collision_value(data_array(init_before),"0000000000",fault_mode));end if;
+ if conv_integer(addr2)=init_before then rdata2<=CONV_SIGNED_LI(collision_value(data_array(init_before),"0000000000",fault_mode));end if;end if;
+ if fault_target=2 and init_before=18 then
+ if ss_hold='0' and wr='1' then
+ rdata<=CONV_SIGNED_LI(collision_value(data_array(conv_integer(addr)),CONV_SIGNED_LI_VECTOR(wdata),fault_mode));
+ if addr=addr2 then rdata2<=CONV_SIGNED_LI(collision_value(data_array(conv_integer(addr2)),CONV_SIGNED_LI_VECTOR(wdata),fault_mode));end if;
+ elsif ss_hold='1' and ss_write='1' and ss_mem_active='1' then
+ rdata<=CONV_SIGNED_LI(collision_value(data_array(ss_mem_index),ss_wdata(9 downto 0),fault_mode));
+ if ss_mem_index=conv_integer(addr2) then rdata2<=CONV_SIGNED_LI(collision_value(data_array(ss_mem_index),ss_wdata(9 downto 0),fault_mode));end if;end if;end if;
+
+    end if;
+
+  end process;
+ss_mem_active <= '1' when ss_hold='1' and conv_integer(ss_addr)>=58 and conv_integer(ss_addr)<=75 else '0';
+ss_mem_index <= conv_integer(ss_addr)-58 when conv_integer(ss_addr)>=58 and conv_integer(ss_addr)<=75 else 0;
+ss_mem_vector <= CONV_SIGNED_LI_VECTOR(rdata);
+ss_local_data <= (21 downto 0 => '0') & ss_mem_vector when ss_mem_active='1' else (others=>'0');
+
+
+ss_rdata <= ss_local_data;
+ss_initialized <= ss_mem_ready;
+
+verify_word_58 <= (21 downto 0=>'0') & data_array(0);
+verify_word_59 <= (21 downto 0=>'0') & data_array(1);
+verify_word_60 <= (21 downto 0=>'0') & data_array(2);
+verify_word_61 <= (21 downto 0=>'0') & data_array(3);
+verify_word_62 <= (21 downto 0=>'0') & data_array(4);
+verify_word_63 <= (21 downto 0=>'0') & data_array(5);
+verify_word_64 <= (21 downto 0=>'0') & data_array(6);
+verify_word_65 <= (21 downto 0=>'0') & data_array(7);
+verify_word_66 <= (21 downto 0=>'0') & data_array(8);
+verify_word_67 <= (21 downto 0=>'0') & data_array(9);
+verify_word_68 <= (21 downto 0=>'0') & data_array(10);
+verify_word_69 <= (21 downto 0=>'0') & data_array(11);
+verify_word_70 <= (21 downto 0=>'0') & data_array(12);
+verify_word_71 <= (21 downto 0=>'0') & data_array(13);
+verify_word_72 <= (21 downto 0=>'0') & data_array(14);
+verify_word_73 <= (21 downto 0=>'0') & data_array(15);
+verify_word_74 <= (21 downto 0=>'0') & data_array(16);
+verify_word_75 <= (21 downto 0=>'0') & data_array(17);
+probe_out_q1<=CONV_SIGNED_LI_VECTOR(rdata);probe_out_q2<=CONV_SIGNED_LI_VECTOR(rdata2);
+end rtl;

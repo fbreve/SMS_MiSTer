@@ -1,0 +1,6 @@
+const fs=require('fs'),p=require('path'),crypto=require('crypto'),d=__dirname;
+const current=JSON.parse(fs.readFileSync(p.join(d,'physical/input_manifest.json'))),prior=JSON.parse(fs.readFileSync(p.join(d,'../phase_memory_auto/input_manifest.json')));
+const changes=Object.entries(current.inputs.baseline).filter(([file,h])=>h.sha256!==prior.inputs[file]?.candidate).map(([file])=>file);
+const result={url:'https://github.com/MiSTer-devel/SMS_MiSTer/pull/224',previousBaseline:prior.baseline,previousBuildDate:prior.buildDate,currentBaselineMatchesPreviousCandidate:changes.length===0,sourceDifferences:changes,files:Object.keys(current.inputs.baseline).length,expectedBaselineBySeed:{},toolBinaries:JSON.parse(fs.readFileSync(p.join(d,'../phase_memory_auto_seed2/tool_identity.json'))).binaries};
+for(const [seed,folder] of [[1,'phase_memory_auto'],[2,'phase_memory_auto_seed2']]){const r=JSON.parse(fs.readFileSync(p.join(d,'..',folder,'results.json'))).builds.candidate;result.expectedBaselineBySeed[seed]=Object.fromEntries(['needed','placed','registers','synthesisRegisters','M10K','setup','hold'].map(k=>[k,r[k]]));}
+fs.writeFileSync(p.join(d,'physical/pr224_reference.json'),JSON.stringify(result,null,2)+'\n');console.log(result.currentBaselineMatchesPreviousCandidate,changes);

@@ -1,0 +1,1141 @@
+{
+  "baseline": "9873761503510e4b2c7e06600bf5515344235c2f",
+  "branch": "experiment/ym2413-registermemory-mlab",
+  "version": "Quartus Prime Shell\r\nVersion 17.0.2 Build 602 07/19/2017 SJ Lite Edition\r\nCopyright (C) 2017  Intel Corporation. All rights reserved.",
+  "device": "5CSEBA6U23I7",
+  "sourceEquality": "PASS all 221 frozen inputs equal except QSF Seed assignment; source unchanged",
+  "referenceVerification": "PASS independently parsed original fitter and timing summaries, native report hashes",
+  "preservation": "PASS all original Seed 2 files and all previous worktree HEADs/tracked diffs/status/master unchanged",
+  "results": {
+    "1": {
+      "reference": {
+        "neededALMs": 27438,
+        "placedALMs": 32465,
+        "fittedRegisters": 36049,
+        "M10K": 489,
+        "setupSlack": -0.173,
+        "setupTNS": -3.97
+      },
+      "candidate": {
+        "neededALMs": 27280,
+        "placedALMs": 32249,
+        "fittedRegisters": 35842,
+        "M10K": 489,
+        "physicalMLABs": 2,
+        "MLABcells": 22,
+        "MLABbits": 198,
+        "memoryALMs": 20,
+        "setupSlack": 0.377,
+        "setupTNS": 0
+      },
+      "deltas": {
+        "neededALMs": -158,
+        "placedALMs": -216,
+        "fittedRegisters": -207,
+        "M10K": 0,
+        "physicalMLABs": 2,
+        "MLABcells": 22,
+        "MLABbits": 198,
+        "memoryALMs": 20,
+        "setupSlack": 0.55,
+        "setupTNS": 3.97
+      },
+      "referenceCritical": {
+        "slack": -0.173,
+        "from": "shadowmask:HDMI_shadowmask|altshift_taps:vid_rtl_0|shift_taps_0vu:auto_generated|altsyncram_pr91:altsyncram4|ram_block5a0",
+        "to": "osd:hdmi_osd|h_cnt[16]~DUPLICATE",
+        "launch": "pll_hdmi|pll_hdmi_inst|altera_pll_i|cyclonev_pll|counter[0].output_counter|divclk",
+        "latch": "pll_hdmi|pll_hdmi_inst|altera_pll_i|cyclonev_pll|counter[0].output_counter|divclk",
+        "dataDelay": "5.932",
+        "skew": "-0.773",
+        "logicLevels": [
+          "",
+          "1",
+          "",
+          "",
+          "",
+          ""
+        ]
+      },
+      "candidateCritical": {
+        "slack": 0.377,
+        "from": "ascal:ascal|o_hcpt[1]",
+        "to": "ascal:ascal|o_vcpt_pre[7]",
+        "launch": "pll_hdmi|pll_hdmi_inst|altera_pll_i|cyclonev_pll|counter[0].output_counter|divclk",
+        "latch": "pll_hdmi|pll_hdmi_inst|altera_pll_i|cyclonev_pll|counter[0].output_counter|divclk",
+        "dataDelay": "5.677",
+        "skew": "-0.478",
+        "logicLevels": [
+          "",
+          "4",
+          "",
+          "",
+          "",
+          ""
+        ]
+      },
+      "candidateTimingPass": true,
+      "violations": [],
+      "registerMemory": {
+        "Name": "emu:emu|system:system|opll:fm|controller:ct|RegisterMemory:u_register_memory|altdpram:regs_array_rtl_0|dpram_iop1:auto_generated|ALTDPRAM_INSTANCE",
+        "Type": "MLAB",
+        "Mode": "Simple Dual Port",
+        "Clock Mode": "Single Clock",
+        "Port A Depth": "9",
+        "Port A Width": "24",
+        "Port B Depth": "9",
+        "Port B Width": "24",
+        "Port A Input Registers": "yes",
+        "Port A Output Registers": "no",
+        "Port B Input Registers": "no",
+        "Port B Output Registers": "yes",
+        "Size": "216",
+        "Implementation Port A Depth": "9",
+        "Implementation Port A Width": "22",
+        "Implementation Port B Depth": "9",
+        "Implementation Port B Width": "22",
+        "Implementation Bits": "198",
+        "M10K blocks": "0",
+        "MLAB cells": "22",
+        "MIF": "None",
+        "Location": "LAB_X84_Y9_N0, LAB_X87_Y9_N0",
+        "Mixed Width RDW Mode": "",
+        "Port A RDW Mode": "",
+        "Port B RDW Mode": "",
+        "ECC Mode": "",
+        "ECC Pipeline Registers": "",
+        "Fits in MLABs": ""
+      },
+      "registerMemoryPaths": {
+        "from": [
+          {
+            "slack": 7.296,
+            "from": "emu:emu|system:system|opll:fm|controller:ct|RegisterMemory:u_register_memory|ss_mem_ready",
+            "to": "emu:emu|savestates:savestates_inst|state.ST_LOAD_CPU0",
+            "launch": "emu|pll|pll_inst|altera_pll_i|cyclonev_pll|counter[0].output_counter|divclk",
+            "latch": "emu|pll|pll_inst|altera_pll_i|cyclonev_pll|counter[0].output_counter|divclk"
+          },
+          {
+            "slack": 7.352,
+            "from": "emu:emu|system:system|opll:fm|controller:ct|RegisterMemory:u_register_memory|ss_mem_ready",
+            "to": "emu:emu|savestates:savestates_inst|state.ST_SAVE_NVRAM",
+            "launch": "emu|pll|pll_inst|altera_pll_i|cyclonev_pll|counter[0].output_counter|divclk",
+            "latch": "emu|pll|pll_inst|altera_pll_i|cyclonev_pll|counter[0].output_counter|divclk"
+          },
+          {
+            "slack": 7.358,
+            "from": "emu:emu|system:system|opll:fm|controller:ct|RegisterMemory:u_register_memory|ss_mem_ready",
+            "to": "emu:emu|savestates:savestates_inst|state.ST_LOAD_VRAM2",
+            "launch": "emu|pll|pll_inst|altera_pll_i|cyclonev_pll|counter[0].output_counter|divclk",
+            "latch": "emu|pll|pll_inst|altera_pll_i|cyclonev_pll|counter[0].output_counter|divclk"
+          },
+          {
+            "slack": 7.398,
+            "from": "emu:emu|system:system|opll:fm|controller:ct|RegisterMemory:u_register_memory|ss_mem_ready",
+            "to": "emu:emu|savestates:savestates_inst|state.ST_LOAD_IO",
+            "launch": "emu|pll|pll_inst|altera_pll_i|cyclonev_pll|counter[0].output_counter|divclk",
+            "latch": "emu|pll|pll_inst|altera_pll_i|cyclonev_pll|counter[0].output_counter|divclk"
+          },
+          {
+            "slack": 7.403,
+            "from": "emu:emu|system:system|opll:fm|controller:ct|RegisterMemory:u_register_memory|ss_mem_ready",
+            "to": "emu:emu|savestates:savestates_inst|state.ST_LOAD_VDP2REG",
+            "launch": "emu|pll|pll_inst|altera_pll_i|cyclonev_pll|counter[0].output_counter|divclk",
+            "latch": "emu|pll|pll_inst|altera_pll_i|cyclonev_pll|counter[0].output_counter|divclk"
+          }
+        ],
+        "to": [
+          {
+            "slack": 5.384,
+            "from": "emu:emu|hps_io:hps_io|joystick_0[6]",
+            "to": "emu:emu|system:system|opll:fm|controller:ct|RegisterMemory:u_register_memory|altdpram:regs_array_rtl_0|dpram_iop1:auto_generated|lutrama23~ENA1REGOUT",
+            "launch": "emu|pll|pll_inst|altera_pll_i|cyclonev_pll|counter[0].output_counter|divclk",
+            "latch": "emu|pll|pll_inst|altera_pll_i|cyclonev_pll|counter[0].output_counter|divclk"
+          },
+          {
+            "slack": 5.384,
+            "from": "emu:emu|hps_io:hps_io|joystick_0[6]",
+            "to": "emu:emu|system:system|opll:fm|controller:ct|RegisterMemory:u_register_memory|altdpram:regs_array_rtl_0|dpram_iop1:auto_generated|lutrama22~ENA1REGOUT",
+            "launch": "emu|pll|pll_inst|altera_pll_i|cyclonev_pll|counter[0].output_counter|divclk",
+            "latch": "emu|pll|pll_inst|altera_pll_i|cyclonev_pll|counter[0].output_counter|divclk"
+          },
+          {
+            "slack": 5.449,
+            "from": "emu:emu|hps_io:hps_io|joystick_1[4]",
+            "to": "emu:emu|system:system|opll:fm|controller:ct|RegisterMemory:u_register_memory|altdpram:regs_array_rtl_0|dpram_iop1:auto_generated|lutrama23~ENA1REGOUT",
+            "launch": "emu|pll|pll_inst|altera_pll_i|cyclonev_pll|counter[0].output_counter|divclk",
+            "latch": "emu|pll|pll_inst|altera_pll_i|cyclonev_pll|counter[0].output_counter|divclk"
+          },
+          {
+            "slack": 5.449,
+            "from": "emu:emu|hps_io:hps_io|joystick_1[4]",
+            "to": "emu:emu|system:system|opll:fm|controller:ct|RegisterMemory:u_register_memory|altdpram:regs_array_rtl_0|dpram_iop1:auto_generated|lutrama22~ENA1REGOUT",
+            "launch": "emu|pll|pll_inst|altera_pll_i|cyclonev_pll|counter[0].output_counter|divclk",
+            "latch": "emu|pll|pll_inst|altera_pll_i|cyclonev_pll|counter[0].output_counter|divclk"
+          },
+          {
+            "slack": 5.629,
+            "from": "emu:emu|system:system|mapper_detect:mapper_detect_inst|rom_crc32[2]~DUPLICATE",
+            "to": "emu:emu|system:system|opll:fm|controller:ct|RegisterMemory:u_register_memory|altdpram:regs_array_rtl_0|dpram_iop1:auto_generated|lutrama23~ENA1REGOUT",
+            "launch": "emu|pll|pll_inst|altera_pll_i|cyclonev_pll|counter[0].output_counter|divclk",
+            "latch": "emu|pll|pll_inst|altera_pll_i|cyclonev_pll|counter[0].output_counter|divclk"
+          }
+        ]
+      },
+      "interconnect": {
+        "Average": {
+          "raw": [
+            "; Average interconnect usage (total/H/V)                      ; 31.8% / 32.0% / 31.1% ;       ;"
+          ],
+          "percent": [
+            31.8,
+            32,
+            31.1
+          ]
+        },
+        "Peak": {
+          "raw": [
+            "; Peak interconnect usage (total/H/V)                         ; 50.4% / 49.7% / 61.4% ;       ;"
+          ],
+          "percent": [
+            50.4,
+            49.7,
+            61.4
+          ]
+        }
+      },
+      "warnings": {
+        "added": [],
+        "removed": [
+          "Critical Warning (332148): Timing requirements not met"
+        ]
+      },
+      "sourceHash": "eb24501b048ed28d0563c915d939ea457231bbeb454c6363c9aea48450bb6911",
+      "productionSourceHash": "21fe004529641eda20d1020ca849ce18b0d1033092926c9a346c3bc0bd84463a",
+      "packedOutputRegisters": 22,
+      "generatedPrimitiveSHA256": "fdebedb9d2ffe5e3c6a894e21c1857a2695e84a538516be5cef862d60d13dfe3",
+      "rbf": {
+        "filename": "SMS_YM2413_REGMEM_MLAB_104W_v17_98737615_srceb24501b048e_Q17.0.2_seed1_TIMING_PASS_39b0586a6397.rbf",
+        "SHA256": "39b0586a639799b2fc35d0c77451232b2dd9b6bd098f6e1266a2ddac8f471d92",
+        "bytes": 4174264
+      }
+    },
+    "2": {
+      "reference": {
+        "neededALMs": 27421,
+        "placedALMs": 32490,
+        "fittedRegisters": 36112,
+        "M10K": 489,
+        "setupSlack": 0.367,
+        "setupTNS": 0
+      },
+      "candidate": {
+        "neededALMs": 27192,
+        "placedALMs": 32297,
+        "fittedRegisters": 35868,
+        "M10K": 489,
+        "physicalMLABs": 2,
+        "MLABcells": 22,
+        "MLABbits": 198,
+        "memoryALMs": 20,
+        "setupSlack": 0.396,
+        "setupTNS": 0
+      },
+      "deltas": {
+        "neededALMs": -229,
+        "placedALMs": -193,
+        "fittedRegisters": -244,
+        "M10K": 0,
+        "physicalMLABs": 2,
+        "MLABcells": 22,
+        "MLABbits": 198,
+        "memoryALMs": 20,
+        "setupSlack": 0.029000000000000026,
+        "setupTNS": 0
+      },
+      "referenceCritical": {
+        "slack": 0.367,
+        "from": "ascal:ascal|o_v_poly_t.r1[25]",
+        "to": "ascal:ascal|o_v_poly_pix.r[7]",
+        "launch": "pll_hdmi|pll_hdmi_inst|altera_pll_i|cyclonev_pll|counter[0].output_counter|divclk",
+        "latch": "pll_hdmi|pll_hdmi_inst|altera_pll_i|cyclonev_pll|counter[0].output_counter|divclk",
+        "dataDelay": "5.299",
+        "skew": "-0.866",
+        "logicLevels": [
+          "",
+          "1",
+          "",
+          "",
+          "",
+          ""
+        ]
+      },
+      "candidateCritical": {
+        "slack": 0.396,
+        "from": "ascal:ascal|altsyncram:o_line0[0].r[7]__2|altsyncram_ccn1:auto_generated|ram_block1a0~PORT_B_WRITE_ENABLE_REG",
+        "to": "ascal:ascal|o_vpix_inner[0].r[7]",
+        "launch": "pll_hdmi|pll_hdmi_inst|altera_pll_i|cyclonev_pll|counter[0].output_counter|divclk",
+        "latch": "pll_hdmi|pll_hdmi_inst|altera_pll_i|cyclonev_pll|counter[0].output_counter|divclk",
+        "dataDelay": "4.647",
+        "skew": "-1.489",
+        "logicLevels": [
+          "",
+          "2",
+          "",
+          "",
+          "",
+          ""
+        ]
+      },
+      "candidateTimingPass": true,
+      "violations": [],
+      "registerMemory": {
+        "Name": "emu:emu|system:system|opll:fm|controller:ct|RegisterMemory:u_register_memory|altdpram:regs_array_rtl_0|dpram_iop1:auto_generated|ALTDPRAM_INSTANCE",
+        "Type": "MLAB",
+        "Mode": "Simple Dual Port",
+        "Clock Mode": "Single Clock",
+        "Port A Depth": "9",
+        "Port A Width": "24",
+        "Port B Depth": "9",
+        "Port B Width": "24",
+        "Port A Input Registers": "yes",
+        "Port A Output Registers": "no",
+        "Port B Input Registers": "no",
+        "Port B Output Registers": "yes",
+        "Size": "216",
+        "Implementation Port A Depth": "9",
+        "Implementation Port A Width": "22",
+        "Implementation Port B Depth": "9",
+        "Implementation Port B Width": "22",
+        "Implementation Bits": "198",
+        "M10K blocks": "0",
+        "MLAB cells": "22",
+        "MIF": "None",
+        "Location": "LAB_X3_Y47_N0, LAB_X3_Y50_N0",
+        "Mixed Width RDW Mode": "",
+        "Port A RDW Mode": "",
+        "Port B RDW Mode": "",
+        "ECC Mode": "",
+        "ECC Pipeline Registers": "",
+        "Fits in MLABs": ""
+      },
+      "registerMemoryPaths": {
+        "from": [
+          {
+            "slack": 7.249,
+            "from": "emu:emu|system:system|opll:fm|controller:ct|RegisterMemory:u_register_memory|ss_mem_ready",
+            "to": "emu:emu|savestates:savestates_inst|state.ST_LOAD_VIDEO",
+            "launch": "emu|pll|pll_inst|altera_pll_i|cyclonev_pll|counter[0].output_counter|divclk",
+            "latch": "emu|pll|pll_inst|altera_pll_i|cyclonev_pll|counter[0].output_counter|divclk"
+          },
+          {
+            "slack": 7.53,
+            "from": "emu:emu|system:system|opll:fm|controller:ct|RegisterMemory:u_register_memory|ss_mem_ready",
+            "to": "emu:emu|savestates:savestates_inst|cur_game_id[6]",
+            "launch": "emu|pll|pll_inst|altera_pll_i|cyclonev_pll|counter[0].output_counter|divclk",
+            "latch": "emu|pll|pll_inst|altera_pll_i|cyclonev_pll|counter[0].output_counter|divclk"
+          },
+          {
+            "slack": 7.572,
+            "from": "emu:emu|system:system|opll:fm|controller:ct|RegisterMemory:u_register_memory|ss_mem_ready",
+            "to": "emu:emu|savestates:savestates_inst|state.ST_SAVE_AUDIO_INVALID",
+            "launch": "emu|pll|pll_inst|altera_pll_i|cyclonev_pll|counter[0].output_counter|divclk",
+            "latch": "emu|pll|pll_inst|altera_pll_i|cyclonev_pll|counter[0].output_counter|divclk"
+          },
+          {
+            "slack": 7.573,
+            "from": "emu:emu|system:system|opll:fm|controller:ct|RegisterMemory:u_register_memory|ss_mem_ready",
+            "to": "emu:emu|savestates:savestates_inst|state.ST_LOAD_WRAM",
+            "launch": "emu|pll|pll_inst|altera_pll_i|cyclonev_pll|counter[0].output_counter|divclk",
+            "latch": "emu|pll|pll_inst|altera_pll_i|cyclonev_pll|counter[0].output_counter|divclk"
+          },
+          {
+            "slack": 7.579,
+            "from": "emu:emu|system:system|opll:fm|controller:ct|RegisterMemory:u_register_memory|ss_mem_ready",
+            "to": "emu:emu|savestates:savestates_inst|state.ST_WAIT_RESTORE_BOUNDARY",
+            "launch": "emu|pll|pll_inst|altera_pll_i|cyclonev_pll|counter[0].output_counter|divclk",
+            "latch": "emu|pll|pll_inst|altera_pll_i|cyclonev_pll|counter[0].output_counter|divclk"
+          }
+        ],
+        "to": [
+          {
+            "slack": 7.659,
+            "from": "emu:emu|system:system|mapper_detect:mapper_detect_inst|rom_crc32[7]~DUPLICATE",
+            "to": "emu:emu|system:system|opll:fm|controller:ct|RegisterMemory:u_register_memory|altdpram:regs_array_rtl_0|dpram_iop1:auto_generated|lutrama23~ENA1REGOUT",
+            "launch": "emu|pll|pll_inst|altera_pll_i|cyclonev_pll|counter[0].output_counter|divclk",
+            "latch": "emu|pll|pll_inst|altera_pll_i|cyclonev_pll|counter[0].output_counter|divclk"
+          },
+          {
+            "slack": 7.659,
+            "from": "emu:emu|system:system|mapper_detect:mapper_detect_inst|rom_crc32[7]~DUPLICATE",
+            "to": "emu:emu|system:system|opll:fm|controller:ct|RegisterMemory:u_register_memory|altdpram:regs_array_rtl_0|dpram_iop1:auto_generated|lutrama22~ENA1REGOUT",
+            "launch": "emu|pll|pll_inst|altera_pll_i|cyclonev_pll|counter[0].output_counter|divclk",
+            "latch": "emu|pll|pll_inst|altera_pll_i|cyclonev_pll|counter[0].output_counter|divclk"
+          },
+          {
+            "slack": 7.735,
+            "from": "emu:emu|system:system|mapper_detect:mapper_detect_inst|rom_crc32[29]~DUPLICATE",
+            "to": "emu:emu|system:system|opll:fm|controller:ct|RegisterMemory:u_register_memory|altdpram:regs_array_rtl_0|dpram_iop1:auto_generated|lutrama23~ENA1REGOUT",
+            "launch": "emu|pll|pll_inst|altera_pll_i|cyclonev_pll|counter[0].output_counter|divclk",
+            "latch": "emu|pll|pll_inst|altera_pll_i|cyclonev_pll|counter[0].output_counter|divclk"
+          },
+          {
+            "slack": 7.735,
+            "from": "emu:emu|system:system|mapper_detect:mapper_detect_inst|rom_crc32[29]~DUPLICATE",
+            "to": "emu:emu|system:system|opll:fm|controller:ct|RegisterMemory:u_register_memory|altdpram:regs_array_rtl_0|dpram_iop1:auto_generated|lutrama22~ENA1REGOUT",
+            "launch": "emu|pll|pll_inst|altera_pll_i|cyclonev_pll|counter[0].output_counter|divclk",
+            "latch": "emu|pll|pll_inst|altera_pll_i|cyclonev_pll|counter[0].output_counter|divclk"
+          },
+          {
+            "slack": 7.76,
+            "from": "emu:emu|system:system|mapper_detect:mapper_detect_inst|rom_crc32[0]~DUPLICATE",
+            "to": "emu:emu|system:system|opll:fm|controller:ct|RegisterMemory:u_register_memory|altdpram:regs_array_rtl_0|dpram_iop1:auto_generated|lutrama23~ENA1REGOUT",
+            "launch": "emu|pll|pll_inst|altera_pll_i|cyclonev_pll|counter[0].output_counter|divclk",
+            "latch": "emu|pll|pll_inst|altera_pll_i|cyclonev_pll|counter[0].output_counter|divclk"
+          }
+        ]
+      },
+      "interconnect": {
+        "Average": {
+          "raw": [
+            "; Average interconnect usage (total/H/V)                      ; 30.9% / 31.1% / 30.2% ;       ;"
+          ],
+          "percent": [
+            30.9,
+            31.1,
+            30.2
+          ]
+        },
+        "Peak": {
+          "raw": [
+            "; Peak interconnect usage (total/H/V)                         ; 46.6% / 47.2% / 49.4% ;       ;"
+          ],
+          "percent": [
+            46.6,
+            47.2,
+            49.4
+          ]
+        }
+      },
+      "warnings": {
+        "added": [],
+        "removed": []
+      },
+      "sourceHash": "9ee54a99201c4e9e370ff4c2e15cdb75f12837a62020a843c8d7afef8f9b2726",
+      "packedOutputRegisters": 22,
+      "generatedPrimitiveSHA256": "fdebedb9d2ffe5e3c6a894e21c1857a2695e84a538516be5cef862d60d13dfe3",
+      "rbf": {
+        "filename": "SMS_YM2413_REGMEM_MLAB_104W_v17_98737615_src9ee54a99201c_Q17.0.2_seed2_TIMING_PASS_0853f7d54caa.rbf",
+        "SHA256": "0853f7d54caa8f4fe82f23696cda97d1dc926be991d11a2eebb9dde149a5ef7f",
+        "bytes": 4177232
+      }
+    },
+    "3": {
+      "reference": {
+        "neededALMs": 27445,
+        "placedALMs": 32453,
+        "fittedRegisters": 36044,
+        "M10K": 489,
+        "setupSlack": 0.002,
+        "setupTNS": 0
+      },
+      "candidate": {
+        "neededALMs": 27285,
+        "placedALMs": 32257,
+        "fittedRegisters": 35894,
+        "M10K": 489,
+        "physicalMLABs": 2,
+        "MLABcells": 22,
+        "MLABbits": 198,
+        "memoryALMs": 20,
+        "setupSlack": 0.03,
+        "setupTNS": 0
+      },
+      "deltas": {
+        "neededALMs": -160,
+        "placedALMs": -196,
+        "fittedRegisters": -150,
+        "M10K": 0,
+        "physicalMLABs": 2,
+        "MLABcells": 22,
+        "MLABbits": 198,
+        "memoryALMs": 20,
+        "setupSlack": 0.027999999999999997,
+        "setupTNS": 0
+      },
+      "referenceCritical": {
+        "slack": 0.002,
+        "from": "shadowmask:HDMI_shadowmask|altshift_taps:vid_rtl_0|shift_taps_0vu:auto_generated|altsyncram_pr91:altsyncram4|ram_block5a0",
+        "to": "osd:hdmi_osd|dsp_width[18]",
+        "launch": "pll_hdmi|pll_hdmi_inst|altera_pll_i|cyclonev_pll|counter[0].output_counter|divclk",
+        "latch": "pll_hdmi|pll_hdmi_inst|altera_pll_i|cyclonev_pll|counter[0].output_counter|divclk",
+        "dataDelay": "5.768",
+        "skew": "-0.762",
+        "logicLevels": [
+          "",
+          "1",
+          "",
+          "",
+          "",
+          ""
+        ]
+      },
+      "candidateCritical": {
+        "slack": 0.03,
+        "from": "shadowmask:HDMI_shadowmask|altshift_taps:vid_rtl_0|shift_taps_0vu:auto_generated|altsyncram_pr91:altsyncram4|ram_block5a0",
+        "to": "osd:hdmi_osd|h_cnt[14]~DUPLICATE",
+        "launch": "pll_hdmi|pll_hdmi_inst|altera_pll_i|cyclonev_pll|counter[0].output_counter|divclk",
+        "latch": "pll_hdmi|pll_hdmi_inst|altera_pll_i|cyclonev_pll|counter[0].output_counter|divclk",
+        "dataDelay": "5.802",
+        "skew": "-0.700",
+        "logicLevels": [
+          "",
+          "1",
+          "",
+          "",
+          "",
+          ""
+        ]
+      },
+      "candidateTimingPass": true,
+      "violations": [],
+      "registerMemory": {
+        "Name": "emu:emu|system:system|opll:fm|controller:ct|RegisterMemory:u_register_memory|altdpram:regs_array_rtl_0|dpram_iop1:auto_generated|ALTDPRAM_INSTANCE",
+        "Type": "MLAB",
+        "Mode": "Simple Dual Port",
+        "Clock Mode": "Single Clock",
+        "Port A Depth": "9",
+        "Port A Width": "24",
+        "Port B Depth": "9",
+        "Port B Width": "24",
+        "Port A Input Registers": "yes",
+        "Port A Output Registers": "no",
+        "Port B Input Registers": "no",
+        "Port B Output Registers": "yes",
+        "Size": "216",
+        "Implementation Port A Depth": "9",
+        "Implementation Port A Width": "22",
+        "Implementation Port B Depth": "9",
+        "Implementation Port B Width": "22",
+        "Implementation Bits": "198",
+        "M10K blocks": "0",
+        "MLAB cells": "22",
+        "MIF": "None",
+        "Location": "LAB_X78_Y6_N0, LAB_X72_Y6_N0",
+        "Mixed Width RDW Mode": "",
+        "Port A RDW Mode": "",
+        "Port B RDW Mode": "",
+        "ECC Mode": "",
+        "ECC Pipeline Registers": "",
+        "Fits in MLABs": ""
+      },
+      "registerMemoryPaths": {
+        "from": [
+          {
+            "slack": 6.518,
+            "from": "emu:emu|system:system|opll:fm|controller:ct|RegisterMemory:u_register_memory|ss_mem_ready",
+            "to": "emu:emu|savestates:savestates_inst|state.ST_LOAD_CRAM2",
+            "launch": "emu|pll|pll_inst|altera_pll_i|cyclonev_pll|counter[0].output_counter|divclk",
+            "latch": "emu|pll|pll_inst|altera_pll_i|cyclonev_pll|counter[0].output_counter|divclk"
+          },
+          {
+            "slack": 6.524,
+            "from": "emu:emu|system:system|opll:fm|controller:ct|RegisterMemory:u_register_memory|ss_mem_ready",
+            "to": "emu:emu|savestates:savestates_inst|state.ST_LOAD_PSG2",
+            "launch": "emu|pll|pll_inst|altera_pll_i|cyclonev_pll|counter[0].output_counter|divclk",
+            "latch": "emu|pll|pll_inst|altera_pll_i|cyclonev_pll|counter[0].output_counter|divclk"
+          },
+          {
+            "slack": 6.545,
+            "from": "emu:emu|system:system|opll:fm|controller:ct|RegisterMemory:u_register_memory|ss_mem_ready",
+            "to": "emu:emu|savestates:savestates_inst|state.ST_LOAD_CRAM2",
+            "launch": "emu|pll|pll_inst|altera_pll_i|cyclonev_pll|counter[0].output_counter|divclk",
+            "latch": "emu|pll|pll_inst|altera_pll_i|cyclonev_pll|counter[0].output_counter|divclk"
+          },
+          {
+            "slack": 6.552,
+            "from": "emu:emu|system:system|opll:fm|controller:ct|RegisterMemory:u_register_memory|ss_mem_ready",
+            "to": "emu:emu|savestates:savestates_inst|state.ST_LOAD_PSG2",
+            "launch": "emu|pll|pll_inst|altera_pll_i|cyclonev_pll|counter[0].output_counter|divclk",
+            "latch": "emu|pll|pll_inst|altera_pll_i|cyclonev_pll|counter[0].output_counter|divclk"
+          },
+          {
+            "slack": 6.627,
+            "from": "emu:emu|system:system|opll:fm|controller:ct|RegisterMemory:u_register_memory|ss_mem_ready",
+            "to": "emu:emu|savestates:savestates_inst|state.ST_WAIT_BOUNDARY",
+            "launch": "emu|pll|pll_inst|altera_pll_i|cyclonev_pll|counter[0].output_counter|divclk",
+            "latch": "emu|pll|pll_inst|altera_pll_i|cyclonev_pll|counter[0].output_counter|divclk"
+          }
+        ],
+        "to": [
+          {
+            "slack": 8.049,
+            "from": "emu:emu|hps_io:hps_io|ioctl_download",
+            "to": "emu:emu|system:system|opll:fm|controller:ct|RegisterMemory:u_register_memory|altdpram:regs_array_rtl_0|dpram_iop1:auto_generated|lutrama23~OBSERVABLEVIRTUALREGOUT0",
+            "launch": "emu|pll|pll_inst|altera_pll_i|cyclonev_pll|counter[0].output_counter|divclk",
+            "latch": "emu|pll|pll_inst|altera_pll_i|cyclonev_pll|counter[0].output_counter|divclk"
+          },
+          {
+            "slack": 8.049,
+            "from": "emu:emu|hps_io:hps_io|ioctl_download",
+            "to": "emu:emu|system:system|opll:fm|controller:ct|RegisterMemory:u_register_memory|altdpram:regs_array_rtl_0|dpram_iop1:auto_generated|lutrama22~OBSERVABLEVIRTUALREGOUT0",
+            "launch": "emu|pll|pll_inst|altera_pll_i|cyclonev_pll|counter[0].output_counter|divclk",
+            "latch": "emu|pll|pll_inst|altera_pll_i|cyclonev_pll|counter[0].output_counter|divclk"
+          },
+          {
+            "slack": 8.159,
+            "from": "emu:emu|savestates:savestates_inst|opll_snapshot:fm_snapshot|index[6]~DUPLICATE",
+            "to": "emu:emu|system:system|opll:fm|controller:ct|RegisterMemory:u_register_memory|altdpram:regs_array_rtl_0|dpram_iop1:auto_generated|lutrama23~OBSERVABLEVIRTUALREGOUT0",
+            "launch": "emu|pll|pll_inst|altera_pll_i|cyclonev_pll|counter[0].output_counter|divclk",
+            "latch": "emu|pll|pll_inst|altera_pll_i|cyclonev_pll|counter[0].output_counter|divclk"
+          },
+          {
+            "slack": 8.159,
+            "from": "emu:emu|savestates:savestates_inst|opll_snapshot:fm_snapshot|index[6]~DUPLICATE",
+            "to": "emu:emu|system:system|opll:fm|controller:ct|RegisterMemory:u_register_memory|altdpram:regs_array_rtl_0|dpram_iop1:auto_generated|lutrama22~OBSERVABLEVIRTUALREGOUT0",
+            "launch": "emu|pll|pll_inst|altera_pll_i|cyclonev_pll|counter[0].output_counter|divclk",
+            "latch": "emu|pll|pll_inst|altera_pll_i|cyclonev_pll|counter[0].output_counter|divclk"
+          },
+          {
+            "slack": 8.206,
+            "from": "emu:emu|hps_io:hps_io|ioctl_download",
+            "to": "emu:emu|system:system|opll:fm|controller:ct|RegisterMemory:u_register_memory|altdpram:regs_array_rtl_0|dpram_iop1:auto_generated|lutrama11~ENA1REGOUT",
+            "launch": "emu|pll|pll_inst|altera_pll_i|cyclonev_pll|counter[0].output_counter|divclk",
+            "latch": "emu|pll|pll_inst|altera_pll_i|cyclonev_pll|counter[0].output_counter|divclk"
+          }
+        ]
+      },
+      "interconnect": {
+        "Average": {
+          "raw": [
+            "; Average interconnect usage (total/H/V)                      ; 30.8% / 30.7% / 31.2% ;       ;"
+          ],
+          "percent": [
+            30.8,
+            30.7,
+            31.2
+          ]
+        },
+        "Peak": {
+          "raw": [
+            "; Peak interconnect usage (total/H/V)                         ; 52.9% / 53.0% / 57.9% ;       ;"
+          ],
+          "percent": [
+            52.9,
+            53,
+            57.9
+          ]
+        }
+      },
+      "warnings": {
+        "added": [],
+        "removed": []
+      },
+      "sourceHash": "10aa1381422d616312b6d43d3f32c416f5098721fb8ae1a07c69cb55f0c42887",
+      "productionSourceHash": "21fe004529641eda20d1020ca849ce18b0d1033092926c9a346c3bc0bd84463a",
+      "packedOutputRegisters": 22,
+      "generatedPrimitiveSHA256": "fdebedb9d2ffe5e3c6a894e21c1857a2695e84a538516be5cef862d60d13dfe3",
+      "rbf": {
+        "filename": "SMS_YM2413_REGMEM_MLAB_104W_v17_98737615_src10aa1381422d_Q17.0.2_seed3_TIMING_PASS_a8746c17703a.rbf",
+        "SHA256": "a8746c17703a9093b1c2a4ef0efbf96ccfdc1fae0c21779561a54bacbe583fd4",
+        "bytes": 4168420
+      }
+    }
+  },
+  "statistics": {
+    "neededALMs": {
+      "reference": {
+        "mean": 27434.666666666668,
+        "min": 27421,
+        "max": 27445
+      },
+      "candidate": {
+        "mean": 27252.333333333332,
+        "min": 27192,
+        "max": 27285
+      },
+      "pairedDelta": {
+        "mean": -182.33333333333334,
+        "min": -229,
+        "max": -158
+      }
+    },
+    "placedALMs": {
+      "reference": {
+        "mean": 32469.333333333332,
+        "min": 32453,
+        "max": 32490
+      },
+      "candidate": {
+        "mean": 32267.666666666668,
+        "min": 32249,
+        "max": 32297
+      },
+      "pairedDelta": {
+        "mean": -201.66666666666666,
+        "min": -216,
+        "max": -193
+      }
+    },
+    "fittedRegisters": {
+      "reference": {
+        "mean": 36068.333333333336,
+        "min": 36044,
+        "max": 36112
+      },
+      "candidate": {
+        "mean": 35868,
+        "min": 35842,
+        "max": 35894
+      },
+      "pairedDelta": {
+        "mean": -200.33333333333334,
+        "min": -244,
+        "max": -150
+      }
+    },
+    "M10K": {
+      "reference": {
+        "mean": 489,
+        "min": 489,
+        "max": 489
+      },
+      "candidate": {
+        "mean": 489,
+        "min": 489,
+        "max": 489
+      },
+      "pairedDelta": {
+        "mean": 0,
+        "min": 0,
+        "max": 0
+      }
+    },
+    "physicalMLABs": {
+      "reference": {
+        "mean": 0,
+        "min": 0,
+        "max": 0
+      },
+      "candidate": {
+        "mean": 2,
+        "min": 2,
+        "max": 2
+      },
+      "pairedDelta": {
+        "mean": 2,
+        "min": 2,
+        "max": 2
+      }
+    },
+    "MLABcells": {
+      "reference": {
+        "mean": 0,
+        "min": 0,
+        "max": 0
+      },
+      "candidate": {
+        "mean": 22,
+        "min": 22,
+        "max": 22
+      },
+      "pairedDelta": {
+        "mean": 22,
+        "min": 22,
+        "max": 22
+      }
+    },
+    "MLABbits": {
+      "reference": {
+        "mean": 0,
+        "min": 0,
+        "max": 0
+      },
+      "candidate": {
+        "mean": 198,
+        "min": 198,
+        "max": 198
+      },
+      "pairedDelta": {
+        "mean": 198,
+        "min": 198,
+        "max": 198
+      }
+    },
+    "memoryALMs": {
+      "reference": {
+        "mean": 0,
+        "min": 0,
+        "max": 0
+      },
+      "candidate": {
+        "mean": 20,
+        "min": 20,
+        "max": 20
+      },
+      "pairedDelta": {
+        "mean": 20,
+        "min": 20,
+        "max": 20
+      }
+    },
+    "setupSlack": {
+      "reference": {
+        "mean": 0.06533333333333334,
+        "min": -0.173,
+        "max": 0.367
+      },
+      "candidate": {
+        "mean": 0.26766666666666666,
+        "min": 0.03,
+        "max": 0.396
+      },
+      "pairedDelta": {
+        "mean": 0.20233333333333337,
+        "min": 0.027999999999999997,
+        "max": 0.55
+      }
+    },
+    "setupTNS": {
+      "reference": {
+        "mean": -1.3233333333333335,
+        "min": -3.97,
+        "max": 0
+      },
+      "candidate": {
+        "mean": 0,
+        "min": 0,
+        "max": 0
+      },
+      "pairedDelta": {
+        "mean": 1.3233333333333335,
+        "min": 0,
+        "max": 3.97
+      }
+    }
+  },
+  "AUTOcomparison": {
+    "1": {
+      "values": {
+        "neededALMs": 27258,
+        "placedALMs": 32307,
+        "fittedRegisters": 35706,
+        "M10K": 490,
+        "physicalMLABs": 0,
+        "MLABcells": 0,
+        "MLABbits": 0,
+        "memoryALMs": 0,
+        "setupSlack": 0.128,
+        "setupTNS": 0
+      },
+      "MLABminusAUTO": {
+        "neededALMs": 22,
+        "placedALMs": -58,
+        "fittedRegisters": 136,
+        "M10K": -1,
+        "physicalMLABs": 2,
+        "MLABcells": 22,
+        "MLABbits": 198,
+        "memoryALMs": 20,
+        "setupSlack": 0.249,
+        "setupTNS": 0
+      },
+      "critical": {
+        "slack": 0.128,
+        "from": "ascal:ascal|o_hacc[8]",
+        "to": "ascal:ascal|o_dir[0][10]",
+        "launch": "pll_hdmi|pll_hdmi_inst|altera_pll_i|cyclonev_pll|counter[0].output_counter|divclk",
+        "latch": "pll_hdmi|pll_hdmi_inst|altera_pll_i|cyclonev_pll|counter[0].output_counter|divclk",
+        "dataDelay": "5.940",
+        "skew": "-0.464",
+        "logicLevels": [
+          "",
+          "4",
+          "",
+          "",
+          "",
+          ""
+        ]
+      },
+      "timingPass": true
+    },
+    "2": {
+      "values": {
+        "neededALMs": 27295,
+        "placedALMs": 32221,
+        "fittedRegisters": 35784,
+        "M10K": 490,
+        "physicalMLABs": 0,
+        "MLABcells": 0,
+        "MLABbits": 0,
+        "memoryALMs": 0,
+        "setupSlack": 0.09,
+        "setupTNS": 0
+      },
+      "MLABminusAUTO": {
+        "neededALMs": -103,
+        "placedALMs": 76,
+        "fittedRegisters": 84,
+        "M10K": -1,
+        "physicalMLABs": 2,
+        "MLABcells": 22,
+        "MLABbits": 198,
+        "memoryALMs": 20,
+        "setupSlack": 0.30600000000000005,
+        "setupTNS": 0
+      },
+      "critical": {
+        "slack": 0.09,
+        "from": "ascal:ascal|o_hcpt[3]",
+        "to": "ascal:ascal|o_vcpt_pre3[9]",
+        "launch": "pll_hdmi|pll_hdmi_inst|altera_pll_i|cyclonev_pll|counter[0].output_counter|divclk",
+        "latch": "pll_hdmi|pll_hdmi_inst|altera_pll_i|cyclonev_pll|counter[0].output_counter|divclk",
+        "dataDelay": "5.966",
+        "skew": "-0.476",
+        "logicLevels": [
+          "",
+          "4",
+          "",
+          "",
+          "",
+          ""
+        ]
+      },
+      "timingPass": true
+    },
+    "3": {
+      "values": {
+        "neededALMs": 27271,
+        "placedALMs": 32112,
+        "fittedRegisters": 35726,
+        "M10K": 490,
+        "physicalMLABs": 0,
+        "MLABcells": 0,
+        "MLABbits": 0,
+        "memoryALMs": 0,
+        "setupSlack": -0.113,
+        "setupTNS": -0.113
+      },
+      "MLABminusAUTO": {
+        "neededALMs": 14,
+        "placedALMs": 145,
+        "fittedRegisters": 168,
+        "M10K": -1,
+        "physicalMLABs": 2,
+        "MLABcells": 22,
+        "MLABbits": 198,
+        "memoryALMs": 20,
+        "setupSlack": 0.14300000000000002,
+        "setupTNS": 0.113
+      },
+      "critical": {
+        "slack": -0.113,
+        "from": "ascal:ascal|o_hacc[6]",
+        "to": "ascal:ascal|o_dir[0][10]",
+        "launch": "pll_hdmi|pll_hdmi_inst|altera_pll_i|cyclonev_pll|counter[0].output_counter|divclk",
+        "latch": "pll_hdmi|pll_hdmi_inst|altera_pll_i|cyclonev_pll|counter[0].output_counter|divclk",
+        "dataDelay": "6.152",
+        "skew": "-0.493",
+        "logicLevels": [
+          "",
+          "4",
+          "",
+          "",
+          "",
+          ""
+        ]
+      },
+      "timingPass": false
+    }
+  },
+  "MLABminusAUTOstatistics": {
+    "neededALMs": {
+      "mean": -22.333333333333332,
+      "min": -103,
+      "max": 22
+    },
+    "placedALMs": {
+      "mean": 54.333333333333336,
+      "min": -58,
+      "max": 145
+    },
+    "fittedRegisters": {
+      "mean": 129.33333333333334,
+      "min": 84,
+      "max": 168
+    },
+    "M10K": {
+      "mean": -1,
+      "min": -1,
+      "max": -1
+    },
+    "physicalMLABs": {
+      "mean": 2,
+      "min": 2,
+      "max": 2
+    },
+    "MLABcells": {
+      "mean": 22,
+      "min": 22,
+      "max": 22
+    },
+    "MLABbits": {
+      "mean": 198,
+      "min": 198,
+      "max": 198
+    },
+    "memoryALMs": {
+      "mean": 20,
+      "min": 20,
+      "max": 20
+    },
+    "setupSlack": {
+      "mean": 0.2326666666666667,
+      "min": 0.14300000000000002,
+      "max": 0.30600000000000005
+    },
+    "setupTNS": {
+      "mean": 0.03766666666666667,
+      "min": 0,
+      "max": 0.113
+    }
+  },
+  "AUTOstatistics": {
+    "neededALMs": {
+      "reference": {
+        "mean": 27434.666666666668,
+        "min": 27421,
+        "max": 27445
+      },
+      "candidate": {
+        "mean": 27274.666666666668,
+        "min": 27258,
+        "max": 27295
+      },
+      "pairedDelta": {
+        "mean": -160,
+        "min": -180,
+        "max": -126
+      }
+    },
+    "placedALMs": {
+      "reference": {
+        "mean": 32469.333333333332,
+        "min": 32453,
+        "max": 32490
+      },
+      "candidate": {
+        "mean": 32213.333333333332,
+        "min": 32112,
+        "max": 32307
+      },
+      "pairedDelta": {
+        "mean": -256,
+        "min": -341,
+        "max": -158
+      }
+    },
+    "fittedRegisters": {
+      "reference": {
+        "mean": 36068.333333333336,
+        "min": 36044,
+        "max": 36112
+      },
+      "candidate": {
+        "mean": 35738.666666666664,
+        "min": 35706,
+        "max": 35784
+      },
+      "pairedDelta": {
+        "mean": -329.6666666666667,
+        "min": -343,
+        "max": -318
+      }
+    },
+    "M10K": {
+      "reference": {
+        "mean": 489,
+        "min": 489,
+        "max": 489
+      },
+      "candidate": {
+        "mean": 490,
+        "min": 490,
+        "max": 490
+      },
+      "pairedDelta": {
+        "mean": 1,
+        "min": 1,
+        "max": 1
+      }
+    },
+    "MLABcells": {
+      "reference": {
+        "mean": 0,
+        "min": 0,
+        "max": 0
+      },
+      "candidate": {
+        "mean": 0,
+        "min": 0,
+        "max": 0
+      },
+      "pairedDelta": {
+        "mean": 0,
+        "min": 0,
+        "max": 0
+      }
+    },
+    "MLABbits": {
+      "reference": {
+        "mean": 0,
+        "min": 0,
+        "max": 0
+      },
+      "candidate": {
+        "mean": 0,
+        "min": 0,
+        "max": 0
+      },
+      "pairedDelta": {
+        "mean": 0,
+        "min": 0,
+        "max": 0
+      }
+    },
+    "setupSlack": {
+      "reference": {
+        "mean": 0.06533333333333334,
+        "min": -0.173,
+        "max": 0.367
+      },
+      "candidate": {
+        "mean": 0.034999999999999996,
+        "min": -0.113,
+        "max": 0.128
+      },
+      "pairedDelta": {
+        "mean": -0.030333333333333348,
+        "min": -0.277,
+        "max": 0.301
+      }
+    },
+    "setupTNS": {
+      "reference": {
+        "mean": -1.3233333333333335,
+        "min": -3.97,
+        "max": 0
+      },
+      "candidate": {
+        "mean": -0.03766666666666667,
+        "min": -0.113,
+        "max": 0
+      },
+      "pairedDelta": {
+        "mean": 1.2856666666666667,
+        "min": -0.113,
+        "max": 3.97
+      }
+    }
+  }
+}

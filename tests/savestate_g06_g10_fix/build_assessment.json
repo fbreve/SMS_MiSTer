@@ -1,0 +1,67 @@
+{
+  "resourcesExplained": true,
+  "warningsReviewed": true,
+  "recommendation": "READY TO COMMIT",
+  "recommendationReason": "Both scoped obligations pass the functional matrix, exact replay and source invariants, and the final controlled routed build meets timing. G02–G05 and G08.release remain OPEN.",
+  "summary": "The increase comes from two 4,800-bit snapshot banks, VDP restore muxes and physical packing/routing. Synthesis adds 9,603 registers (9,601 in savestates and 2 at top level). The fitted delta of 11,171 registers reconciles exactly by entity; the additional 1,568 is physical mapping/optimization overhead, not serialized guest state. Logic ALUTs increase by 5,818 and routing ALUTs by 5,399. Placed ALMs +5,458, recoverable packing -2,410 and unavailable ALMs +183 reconcile through A-B+C to needed ALMs +8,051. Hierarchical ALM allocations are estimates; this global packing equation gives the exact delta. The indexed transport failed routing at 39,680 needed ALMs. The cycle-equivalent sequential transfer reduced controller ALUTs from 9,643 to 6,003 and needed ALMs by 4,261, to 35,419. The final design routes and meets timing, with no new warning types/messages. M10K, memory bits and DSPs are unchanged. The matched-date baseline reproduces every retained resource and setup/hold metric exactly.",
+  "registerGroups": {
+    "snapshotController": {
+      "registers": 9599,
+      "ALMsNeeded": 5121.6,
+      "aluts": 612
+    },
+    "VDP2": {
+      "registers": 745,
+      "ALMsNeeded": 1418.5,
+      "aluts": 2615
+    },
+    "VDP1": {
+      "registers": 813,
+      "ALMsNeeded": 1457.6,
+      "aluts": 2653
+    },
+    "CPU": {
+      "registers": 22,
+      "ALMsNeeded": -2.7,
+      "aluts": -23
+    },
+    "other": {
+      "registers": -8,
+      "ALMsNeeded": 28.6,
+      "aluts": -39
+    }
+  },
+  "synthesisRegisterDelta": 9603,
+  "fittedRegisterDelta": 11171,
+  "physicalMappingDelta": 1568,
+  "packingReconciliation": {
+    "placed": 5458,
+    "minusRecoverable": 2410,
+    "unavailable": 183,
+    "totalNeeded": 8051
+  },
+  "remainingCapacity": {
+    "ALMsNeeded": 6491,
+    "ALMsPlaced": 3768,
+    "registers": 119638,
+    "M10K": 66,
+    "memoryBits": 1852862,
+    "DSP": 73
+  },
+  "failedIndexedTransport": {
+    "status": "FAILED - ROUTING CONGESTION",
+    "ALMsNeeded": 39680,
+    "ALMsPlaced": 39698,
+    "registers": 45017,
+    "M10K": 487,
+    "memoryBits": 3809858,
+    "DSP": 39,
+    "setup": null,
+    "hold": null,
+    "timing": "No valid final routed timing result",
+    "reason": "16684/16618 congestion;188026 route failure;170143/11802 unsuccessful fitting. Indexed snapshot transport replaced with sequential64-bit ring/shift operations; no seed/constraint/device/format change."
+  },
+  "finalControllerALUTs": 6003,
+  "failedControllerALUTs": 9643,
+  "finalVersusFailedNeededDelta": -4261
+}

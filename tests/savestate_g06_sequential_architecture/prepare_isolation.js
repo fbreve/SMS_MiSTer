@@ -1,0 +1,14 @@
+const fs=require('fs'),p=require('path'),assert=require('assert'),adapter=require('../savestate_g06_g10_fix/controller_adapter');
+const d=__dirname,src=p.join(d,'../savestate_f01_opll_fix'),dst=p.join(d,'fm_isolation');
+assert(!fs.existsSync(dst));fs.mkdirSync(dst);
+for(const f of ['T80_sim.vhd','T80s_sim.vhd','pause_fixture.sv','audio_tb.sv','compile.do'])fs.copyFileSync(p.join(src,f),p.join(dst,f));
+fs.cpSync(p.join(src,'sim_opll'),p.join(dst,'sim_opll'),{recursive:true});
+fs.writeFileSync(p.join(dst,'savestates_sim.sv'),adapter(p.join(d,'candidate_A/rtl/savestates.sv')));
+let tb=fs.readFileSync(p.join(dst,'audio_tb.sv'),'utf8');
+tb=tb.replace('savestates dut (',"savestates dut (.sprite_state_rdata(32'd0),.sprite_state_addr(),.sprite_state_second(),.sprite_state_read(),.sprite_state_write(),.sprite_state_wdata(),");
+fs.writeFileSync(p.join(dst,'audio_tb.sv'),tb);
+let c=fs.readFileSync(p.join(dst,'compile.do'),'utf8').replaceAll('../../rtl/','../../../rtl/').replace('savestates_sim.sv','../candidate_A/rtl/sprite_snapshot.sv savestates_sim.sv');
+fs.writeFileSync(p.join(dst,'compile.do'),c);
+fs.mkdirSync(p.join(dst,'isolation'));
+for(const f of ['reference.dat','rom.hex','run.do'])fs.copyFileSync(p.join(src,'isolation',f),p.join(dst,'isolation',f));
+console.log('Prepared unchanged F01 raw FM/PSG oracle; FM contribution suppressed as retained fixture requires.');

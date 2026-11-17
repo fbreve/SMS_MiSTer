@@ -1,0 +1,1 @@
+const fs=require('fs'),c=require('crypto'),p=__dirname;const n=JSON.parse(fs.readFileSync(p+'/native_reports_before_queries.json','utf8').replace(/^\uFEFF/,''));for(const[f,h]of Object.entries(n)){const a=c.createHash('sha256').update(fs.readFileSync(f)).digest('hex').toUpperCase();if(a!==h)console.log(f,h,a)}

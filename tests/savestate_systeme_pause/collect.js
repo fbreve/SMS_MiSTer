@@ -1,0 +1,15 @@
+const fs=require('fs'),path=require('path'),cp=require('child_process'),crypto=require('crypto'),d=__dirname,r=path.resolve(d,'../..');
+const git=(args)=>cp.execFileSync('git',args,{cwd:r,encoding:'utf8',stdio:['ignore','pipe','pipe']});
+const history=['8f3bcb2','c3a804b','03d912f','4768249','7bdd6d4'];
+fs.writeFileSync(path.join(d,'history.txt'),history.map(h=>git(['show','--format=fuller',h,'--','SMS.sv'])).join('\n\n'));
+fs.writeFileSync(path.join(d,'git_status.txt'),git(['status','--short']));
+fs.writeFileSync(path.join(d,'diff_stat.txt'),git(['diff','--stat']));
+const diff=git(['diff','HEAD','--','SMS.sv','rtl']);if(diff)throw Error('Production diff exists');
+const inputs=['SMS.sv','rtl/system.vhd','rtl/savestates.sv','rtl/video.vhd','rtl/vdp.vhd','rtl/jt89/jt89.v','rtl/T80/T80.vhd','rtl/T80/T80s.vhd'];
+const hashes=Object.fromEntries(inputs.map(p=>[p,crypto.createHash('sha256').update(fs.readFileSync(path.join(r,p))).digest('hex')]));
+const sourceHashes=Object.fromEntries(['prepare.js','scenario.sv.in','edge_tb.sv','edge.do','run.ps1','regressions.ps1','clean.ps1','collect.js'].map(p=>[p,crypto.createHash('sha256').update(fs.readFileSync(path.join(d,p))).digest('hex')]));
+const logs=fs.readdirSync(d).filter(n=>/^(case\d+_keep\d+_full\d+|f\d+_|psg|edge)/.test(n)&&n.endsWith('.log'));
+const results=logs.map(n=>{const b=fs.readFileSync(path.join(d,n)),s=b.toString(b[0]===255&&b[1]===254?'utf16le':'utf8').replace(/^\uFEFF/,'');return {log:n,pass:/PASS/.test(s)&&!/\*\* (Error|Fatal|Failure)|Errors: [1-9]/.test(s)&&/Errors: 0/.test(s),evidence:s.split(/\r?\n/).filter(l=>/PASS|REQUEST|ACCEPT|FREEZE cycle|RELEASE cycle|LIVENESS|LOAD PHASE|SAVE ONLY RESULT|CPU DIVERGENCE|PSG REFERENCE|PAUSED ACTIVITY|PAUSED phase/.test(l))};});
+const logHashes=Object.fromEntries(logs.map(p=>[p,crypto.createHash('sha256').update(fs.readFileSync(path.join(d,p))).digest('hex')]));
+fs.writeFileSync(path.join(d,'results.json'),JSON.stringify({branch:git(['branch','--show-current']).trim(),head:git(['rev-parse','HEAD']).trim(),productionDiff:diff,hashes,sourceHashes,logHashes,results},null,2)+'\n');
+console.log(JSON.stringify(results.map(({log,pass})=>({log,pass})),null,2));

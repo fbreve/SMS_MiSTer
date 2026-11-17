@@ -1,0 +1,3 @@
+const fs=require('fs'),p=require('path'),d=__dirname,old=p.resolve(d,'../ym2413_outputmemory_mlab');let s=fs.readFileSync(p.join(old,'analyze_synthesis.js'),'utf8').replaceAll('OutputMemory:Mmem','FeedbackMemory:Fmem').replaceAll('OutputMemory','FeedbackMemory').replaceAll('outputmemory_evidence','feedbackmemory_evidence').replaceAll('outputRAMs','feedbackRAMs');fs.writeFileSync(p.join(d,'analyze_synthesis.js'),s);
+s=fs.readFileSync(p.join(old,'extract_netlist.js'),'utf8').replaceAll('OutputMemory','FeedbackMemory');fs.writeFileSync(p.join(d,'extract_netlist.js'),s);
+fs.copyFileSync(p.join(old,'synthesis/export_netlist.ps1'),p.join(d,'export_netlist_template.ps1'));

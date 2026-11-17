@@ -1,0 +1,7 @@
+const fs=require('fs'),p=require('path'),assert=require('assert'),d=__dirname;
+const text=fs.readFileSync(p.join(d,'review.md'),'utf8'),headings=[...text.matchAll(/^## (\d+)\./gm)].map(m=>+m[1]);assert.deepEqual(headings,Array.from({length:35},(_,i)=>i+1));
+const missing=[];for(const m of text.matchAll(/\[[^\]]*\]\(([^)]+)\)/g)){const target=m[1].split('#')[0];if(target&&!/^https?:/.test(target)&&!fs.existsSync(p.resolve(d,target)))missing.push(target);}assert.deepEqual(missing,[]);
+assert(!/^-(?=\S)/m.test(text),'Malformed CommonMark bullet');
+const decision=require('./decision.json'),hygiene=require('./hygiene.json');assert.equal(decision.decision,'A');assert(hygiene.trackedUnchanged&&!hygiene.staged&&!hygiene.diffstat);
+const state={task:'Savestate compatibility consolidation investigation',status:'COMPLETE',decision:decision.label,costClass:decision.costClass,report:'tests/savestate_format_consolidation/review.md',branch:hygiene.branch,head:hygiene.head,productionUnchanged:true,productionVersion:17,staged:false,commit:false,push:false,pr:false,functionalGate:'PASS',primary:'No area recovery: placed+27, needed-10; setup+0.365ns hold+0.233ns',confirmation:'One unpaired seed2 sensitivity check: needed37197 placed38524; setup-0.013ns hold+0.207ns; timing warning332148',completedUTC:new Date().toISOString()};
+fs.writeFileSync(p.join(d,'run_state.json'),JSON.stringify(state,null,2));console.log({status:state.status,reportSections:headings.length,localLinksValid:true,decision:state.decision,productionUnchanged:true});

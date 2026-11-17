@@ -1,0 +1,144 @@
+{
+  "decision": "GO to propose physical SRAM preservation only for the reproduced standard-ROM environment-change failure; hardware release unverified",
+  "playableMapReached": true,
+  "baselineProgressiveGraphicsCorruptionReproduced": true,
+  "SRAMOnlyPreventsCorruptionForCompleteSequence": true,
+  "predecessorOnlyMatchesCorruptedBaseline": true,
+  "equalTimingDiscardedSRAMWriteControlMatchesCorruptedBaseline": true,
+  "independentSaveValidation": "e_saved_slot_validation.json",
+  "renderedCheckpointsPixelExactWithUninterrupted": 46,
+  "matchingNormalizedStreams": [
+    "physical SRAM transactions",
+    "CPU VDP port writes",
+    "VDP command/address/latch observations",
+    "VRAM writes",
+    "effective VRAM changes",
+    "map-name mutations",
+    "mapper state"
+  ],
+  "finalMemoryBytesExact": 73728,
+  "regressionControllerCases": 51,
+  "exclusionEquivalenceCases": 2,
+  "residualRestartDifferences": {
+    "firstFetchDifference": {
+      "index": 12917,
+      "a": {
+        "key": "0038 f5 0 0",
+        "sourceLine": 44651,
+        "trace": "C 1679193 0038 ff 0 0 1 2 00101 f5 00"
+      },
+      "b": {
+        "key": "0046 3a 0 0",
+        "sourceLine": 44645,
+        "trace": "C 1678976 0046 20 0 0 1 2 00101 3a 00"
+      }
+    },
+    "firstWRAMWriteDifference": {
+      "index": 1062,
+      "a": {
+        "key": "dfea 46",
+        "sourceLine": 44649,
+        "trace": "W 1679149 0046 dfea 46"
+      },
+      "b": {
+        "key": "dfea 49",
+        "sourceLine": 44651,
+        "trace": "W 1679322 0049 dfea 49"
+      }
+    },
+    "firstVDPProbeDifference": {
+      "index": 0,
+      "a": {
+        "key": "1008002ff",
+        "sourceLine": 253,
+        "trace": "T 3714 1008002ff"
+      },
+      "b": {
+        "key": "1000002ff",
+        "sourceLine": 251,
+        "trace": "T 3692 1000002ff"
+      }
+    },
+    "intermediateWRAMCheckpointDifferences": [
+      {
+        "checkpoint": "right16",
+        "differences": {
+          "count": 3,
+          "first": [
+            {
+              "address": "1fe0",
+              "a": 0,
+              "b": 52
+            },
+            {
+              "address": "1fe1",
+              "a": 49,
+              "b": 48
+            },
+            {
+              "address": "1fe2",
+              "a": 155,
+              "b": 157
+            }
+          ]
+        }
+      },
+      {
+        "checkpoint": "right32",
+        "differences": {
+          "count": 1,
+          "first": [
+            {
+              "address": "1fe5",
+              "a": 48,
+              "b": 0
+            }
+          ]
+        }
+      },
+      {
+        "checkpoint": "right40",
+        "differences": {
+          "count": 1,
+          "first": [
+            {
+              "address": "1fea",
+              "a": 70,
+              "b": 73
+            }
+          ]
+        }
+      },
+      {
+        "checkpoint": "clear_right32",
+        "differences": {
+          "count": 1,
+          "first": [
+            {
+              "address": "1fe2",
+              "a": 2,
+              "b": 1
+            }
+          ]
+        }
+      }
+    ]
+  },
+  "scopeLimits": [
+    "single standard ROM and environment-change route",
+    "ordinary predecessor class0 SAVE",
+    "simplified synchronous memory/DDR service",
+    "audio state stubbed",
+    "no hardware/Quartus validation",
+    "Japanese/FM-hack map cases and exact reset variant unverified"
+  ],
+  "artifacts": {
+    "e_map_comparison.json": "9b9275dfaac9cab3e63c4197cfd2d7a261b5f080da0aa095b399392f92eb62fa",
+    "e_saved_slot_validation.json": "94bb46bdcc1d2f887bb85117495f4cf4bdbfde1dd5b368a66431a4a13ec088f8",
+    "first_map_column_evidence.json": "dcba50d109990924ee50a3b3ccc2b23f3666c979a392718c40126fed2635c6a4",
+    "sram_checkpoint_hashes.json": "0d166a0a0ce54dbacd08f44b9df224d1364169ae2b3aac1de0a19942a3ff88da",
+    "distinct_transport_results.json": "ba3964dbacecf690be04220f2038c423b5d159e938f39a690b995e5d45a7a99b",
+    "legacy_footprint_results.json": "b2dea127feb547a7bd98a4f8f17c548ffda11a880526e585af47682a24bc63a6",
+    "regression_summary.json": "ccc770f68139bcbd5050f02c4744aad156152abc2a251046d1b13e5757cf9e7f"
+  }
+}

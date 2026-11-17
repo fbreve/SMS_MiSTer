@@ -1,0 +1,167 @@
+commit 60c6552afdbc87dd6f7f3ccfbab14ee41be7195e
+Author:     Fabricio Breve <fbreve@gmail.com>
+AuthorDate: Tue Oct 20 10:11:07 2026 -0300
+Commit:     Fabricio Breve <fbreve@gmail.com>
+CommitDate: Tue Oct 20 10:11:07 2026 -0300
+
+    Fix HCounter state restoration in savestates
+    
+    Preserve the VDP HCounter latch across savestate save/load cycles.
+    
+    Store each VDP's latched HCounter in a tagged, versioned extension while keeping the existing 128-bit VDP state layout unchanged. Legacy savestates
+    without the extension remain supported and restore the HCounter latch to zero.
+    
+    Add coverage for SMS/GG and System E dual-VDP restore paths, repeated loads, legacy and invalid extensions, reference replay, and HCounter updates after restore.
+
+diff --git a/SMS.sv b/SMS.sv
+index f36d4e7..3990358 100644
+--- a/SMS.sv
++++ b/SMS.sv
+@@ -856,7 +856,7 @@ wire         ss_z80_set;
+ wire         ss_z80_m1_n;
+ wire         ss_z80_mreq_n;   // low = normal opcode fetch, high = interrupt ack
+ wire   [1:0] ss_z80_iset;     // "00" = clean instruction boundary (no prefix)
+-wire [127:0] ss_vdp_regs, ss_vdp_regs_in;
++wire [135:0] ss_vdp_regs, ss_vdp_regs_in;
+ wire         ss_vdp_regs_set;
+ wire [383:0] ss_vdp_cram;
+ wire  [4:0]  ss_cram_A;
+@@ -907,7 +907,7 @@ wire [21:0]  ss_video_state_out, ss_video_state_in;
+ wire         ss_video_state_set;
+ 
+ // System E VDP2 / PSG2 save-state wires
+-wire [127:0] ss_vdp2_regs, ss_vdp2_regs_in;
++wire [135:0] ss_vdp2_regs, ss_vdp2_regs_in;
+ wire         ss_vdp2_regs_set;
+ wire [383:0] ss_vdp2_cram;
+ wire  [4:0]  ss_cram2_A;
+diff --git a/rtl/savestates.sv b/rtl/savestates.sv
+index dd8ef3f..e4f4fb3 100644
+--- a/rtl/savestates.sv
++++ b/rtl/savestates.sv
+@@ -61,8 +61,8 @@ module savestates (
+     input             sp_ce,
+ 
+     // ---- VDP registers ----
+-    input     [127:0] vdp_regs,
+-    output reg [127:0] vdp_regs_in,
++    input     [135:0] vdp_regs,
++    output reg [135:0] vdp_regs_in,
+     output reg        vdp_regs_set,
+ 
+     // ---- CRAM ----
+@@ -134,8 +134,8 @@ module savestates (
+     input             systeme,
+ 
+     // ---- VDP2 registers (System E second VDP) ----
+-    input     [127:0] vdp2_regs,
+-    output reg [127:0] vdp2_regs_in,
++    input     [135:0] vdp2_regs,
++    output reg [135:0] vdp2_regs_in,
+     output reg        vdp2_regs_set,
+ 
+     // ---- CRAM2 (System E second VDP colour RAM) ----
+@@ -318,18 +318,24 @@ reg  [7:0] unfreeze_cnt; // expanded to 8 bits for 255 cycles
+ reg  [21:0] align_timeout;
+ // Latching buffers for multi-word state
+ reg [229:0] z80_snap;
+-reg [127:0] vdp_snap;
++reg [135:0] vdp_snap;
+ reg [383:0] cram_snap;
+ reg  [55:0] psg_snap;
+ reg  [63:0] mapper_snap;
+ reg  [95:0] evolution_snap;
+ // System E latching buffers
+-reg [127:0] vdp2_snap;
++reg [135:0] vdp2_snap;
++// Video word extension v1: previously-written zero padding is never latch data
++// unless the full tag and reserved bits match. Legacy snapshots restore zero.
++localparam [23:0] HCOUNTER_MAGIC = 24'h484301; // "HC", version 1
+ reg [383:0] cram2_snap;
+ reg  [55:0] psg2_snap;
+ reg  [31:0] io_snap;
+ reg  [21:0] video_snap;
+ reg  [63:0] eeprom_snap;
++wire [63:0] video_word = {HCOUNTER_MAGIC, 2'd0,
++                         systeme ? vdp2_snap[135:128] : 8'd0,
++                         vdp_snap[135:128], video_snap};
+ 
+ // VRAM DMA pipelining: address issued, wait 2 clocks for data
+ reg  [2:0]  vram_pipe;
+@@ -476,7 +482,7 @@ always @(*) begin
+         ST_SAVE_PSG: if (! DDRAM_BUSY) ddram_cmd_write ( base_addr + 29'd14 , { 8'd0 , psg_snap } , 8'hFF ) ;
+         ST_SAVE_MAPPER: if (! DDRAM_BUSY) ddram_cmd_write ( base_addr + 29'd15 , mapper_snap , 8'hFF ) ;
+         ST_SAVE_IO: if (! DDRAM_BUSY) ddram_cmd_write ( base_addr + 29'h019 , { evolution_snap [ 31 : 0 ] , io_snap } , 8'hFF ) ;
+-        ST_SAVE_VIDEO: if (! DDRAM_BUSY) ddram_cmd_write ( base_addr + 29'h01a , { 42'd0 , video_snap } , 8'hFF ) ;
++        ST_SAVE_VIDEO: if (! DDRAM_BUSY) ddram_cmd_write ( base_addr + 29'h01a , video_word , 8'hFF ) ;
+         ST_SAVE_EEPROM: if (! DDRAM_BUSY) ddram_cmd_write ( base_addr + 29'h01b , evolution_snap [ 31 : 16 ] == 16'hE132 ? evolution_snap [ 95 : 32 ] : eeprom_snap , 8'hFF ) ;
+         ST_SAVE_VDP2REG: begin
+             if (! DDRAM_BUSY) begin
+@@ -1032,7 +1038,7 @@ always @(posedge clk or negedge reset_n) begin
+ 
+         ST_SAVE_VIDEO: begin
+             if (!DDRAM_BUSY) begin
+-                ddram_write(base_addr + 29'h01a, {42'd0, video_snap}, 8'hFF);
++                ddram_write(base_addr + 29'h01a, video_word, 8'hFF);
+                 state <= ST_SAVE_EEPROM;
+             end
+         end
+@@ -1385,6 +1391,9 @@ always @(posedge clk or negedge reset_n) begin
+ 
+         ST_LOAD_HDR_RD: begin
+             if (!DDRAM_BUSY) begin
++                // Old 64KB files bypass ST_LOAD_VIDEO entirely.
++                vdp_snap[135:128] <= 8'd0;
++                vdp2_snap[135:128] <= 8'd0;
+                 ddram_read(base_addr + 29'd0);
+                 state <= ST_LOAD_HDR_WT;
+             end
+@@ -1598,6 +1607,13 @@ always @(posedge clk or negedge reset_n) begin
+                 dout_latch    <= DDRAM_DOUT;
+             end else if (!dout_expected && !DDRAM_BUSY) begin
+                 video_snap       <= dout_latch[21:0];
++                if (dout_latch[63:40] == HCOUNTER_MAGIC && dout_latch[39:38] == 2'd0) begin
++                    vdp_snap[135:128] <= dout_latch[29:22];
++                    vdp2_snap[135:128] <= systeme ? dout_latch[37:30] : 8'd0;
++                end else begin
++                    vdp_snap[135:128] <= 8'd0;
++                    vdp2_snap[135:128] <= 8'd0;
++                end
+                 ddram_read(base_addr + 29'h01b);
+                 state            <= ST_LOAD_EEPROM;
+             end
+diff --git a/rtl/system.vhd b/rtl/system.vhd
+index b8cbea8..e875cc9 100644
+--- a/rtl/system.vhd
++++ b/rtl/system.vhd
+@@ -150,8 +150,8 @@ entity system is
+ 		z80_reg_out  : out STD_LOGIC_VECTOR(229 downto 0);
+ 		z80_dir      : in  STD_LOGIC_VECTOR(229 downto 0) := (others => '0');
+ 		z80_set      : in  STD_LOGIC := '0';
+-		vdp_regs_out : out STD_LOGIC_VECTOR(127 downto 0);
+-		vdp_regs_in  : in  STD_LOGIC_VECTOR(127 downto 0) := (others => '0');
++		vdp_regs_out : out STD_LOGIC_VECTOR(135 downto 0);
++		vdp_regs_in  : in  STD_LOGIC_VECTOR(135 downto 0) := (others => '0');
+ 		vdp_regs_set : in  STD_LOGIC := '0';
+ 		vdp_cram_out : out STD_LOGIC_VECTOR(383 downto 0);
+ 		ss_cram_wr   : in  STD_LOGIC := '0';
+@@ -190,8 +190,8 @@ entity system is
+ 		-- ISet: "00" = no prefix active (clean instruction boundary)
+ 		z80_iset     : out STD_LOGIC_VECTOR(1 downto 0);
+ 		-- Save-state interface for VDP2 (System E second VDP)
+-		vdp2_regs_out : out STD_LOGIC_VECTOR(127 downto 0);
+-		vdp2_regs_in  : in  STD_LOGIC_VECTOR(127 downto 0) := (others => '0');
++		vdp2_regs_out : out STD_LOGIC_VECTOR(135 downto 0);
++		vdp2_regs_in  : in  STD_LOGIC_VECTOR(135 downto 0) := (others => '0');
+ 		vdp2_regs_set : in  STD_LOGIC := '0';
+ 		vdp2_cram_out : out STD_LOGIC_VECTOR(383 downto 0);
+ 		ss_cram2_wr   : in  STD_LOGIC := '0';
+@@ -308,7 +308,7 @@ architecture Behavioral of system is
+ 	signal vdp_cpu_bank:		std_logic := '0';
+ 
+ 	-- VDP2 save-state internal wires (System E)
+-	signal vdp2_regs_out_i   : std_logic_vector(127 downto 0);
++	signal vdp2_regs_out_i   : std_logic_vector(135 downto 0);
+ 	signal vdp2_cram_out_i   : std_logic_vector(383 downto 0);
+ 	signal vdp2_vram_D_i     : std_logic_vector(7 downto 0);
+ 	-- PSG2 save-state internal wire

@@ -1,0 +1,11 @@
+{
+  "change": "Full SRAM mode excludes live EEPROM mode, including invalid/absent EEPROM extension metadata",
+  "priorPredicate": "!transfer_eeprom",
+  "finalPredicate": "!eeprom_present",
+  "equivalence": "All non-EEPROM fixtures set eeprom_present=0 and eeprom_full=0; successful EEPROM current LOAD has both true. Only EEPROM mode without a valid full extension changes: it must not fall through to SRAM.",
+  "requiredFreshChecks": [
+    "actual EEPROM integration including invalid/absent descriptors",
+    "full shared-memory matrix including EEPROM and SC",
+    "source-frozen controller copies for all remaining compiles"
+  ]
+}

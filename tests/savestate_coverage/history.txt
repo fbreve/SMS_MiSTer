@@ -1,0 +1,434 @@
+commit 077545e09bdbcb98b777fcd5dafd01b7af3810ad
+Author:     Fabricio Breve <fbreve@gmail.com>
+AuthorDate: Wed May 27 22:25:31 2026 -0300
+Commit:     GitHub <noreply@github.com>
+CommitDate: Thu May 28 09:25:31 2026 +0800
+
+    Implement savestates and enhance detection for Zemina/Nemesis (#191)
+    
+    * Implement and stabilize savestates
+    
+    Implement savestate support for the SMS MiSTer core, ensuring cycle-accurate CPU state restoration and reliable memory recall.
+    
+    * Use CRC/header for Zemina/Nemesis detection
+    
+    This commit fix misdetection of Sonic The Hedeghog (both SMS and GG) mapper.
+    
+    Refactor Zemina/Nemesis mapper detection to rely on CRC/header signatures instead of write-based heuristics. Removed write-triggered signals and logic (mapper_zemina_det, auto_nemesis1_boot, detect_nemesis1/detect_nemesis2, rom_last_page_idx, rom_last_byte0, and related write paths) and add mapper_nemesis_auto and mapper_zemina_crc driven by rom_crc16_run and page-0 bytes. Nemesis I boot now maps $0000-$1FFF to the last ROM page when mapper_nemesis_auto is asserted, and plain-Zemina games are detected by explicit CRCs (9136, 599E, C47B, 880E). Simplified metadata capture to only track rom_size_pages and page-0 bytes, removed last-page tracking, and adjusted mapper_out packing and various detection-window checks (including Wonder Kid/4-PAK adjustments) accordingly. These changes reduce ambiguous detections and ensure correct startup mapping for known ROM edge cases.
+    
+    * Document BIOS loading and savestate behavior
+    
+    Update README: add "BIOS Loading Support" and "Savestates" to the feature list and clarify savestate persistence. Notes that regular ROM savestates are stored on the SD card while BIOS built-in games save to SDRAM (non-persistent), and provide a workaround to load the BIOS with an empty ROM.
+    
+    * Enhance savestate UI: gamepad combos & OSD info
+    
+    Expand savestate UI and integrate it with top-level SMS.sv. Updated CONF_STR to add OSD menu entries and save/load message indices. Wire new ss_info / ss_info_req / ss_status signals into hps_io and SMS, and push slot changes back to the OSD when the joystick combo updates the slot. Replace/extend savestate_ui with a richer implementation that supports PS/2 Alt+F1 save / F1 load, dedicated SaveState gamepad button combos (slot left/right, Pause+Up/Down for load/save), a hold-to-hint timer, info message indices, allow_ss gating, selected_slot output, and a one-cycle statusUpdate pulse to sync the OSD. Overall this improves gamepad-driven save/load UX and OSD feedback for savestates.
+    
+    * Fix regression bug in Astro Flash (Japan) - System E
+    
+    This bug was introduced in commit a2c0a09cebb92879c821ed39e68f9b0b126b4455
+    
+    ---------
+    
+    Co-authored-by: Fabricio Breve <7475908+fbreve@users.noreply.github.com>
+
+ README.md           |   3 +
+ SMS.sv              | 276 ++++++++++++++--
+ files.qip           |   2 +
+ rtl/T80/T80.vhd     |  26 +-
+ rtl/T80/T80s.vhd    |  25 +-
+ rtl/jt89/jt89.v     |  22 +-
+ rtl/jt89/jt89.vhd   |   6 +-
+ rtl/savestate_ui.sv | 200 ++++++++++++
+ rtl/savestates.sv   | 899 ++++++++++++++++++++++++++++++++++++++++++++++++++++
+ rtl/system.vhd      | 269 ++++++++--------
+ rtl/vdp.vhd         | 299 ++++++++++++++---
+ rtl/vdp_cram.vhd    |  19 +-
+ 12 files changed, 1832 insertions(+), 214 deletions(-)
+
+commit 8f3bcb2bb7129139940cfbb18cc66f5ef139bd1f
+Author:     Fabricio Breve <fbreve@gmail.com>
+AuthorDate: Sat Jun 13 00:28:35 2026 -0300
+Commit:     GitHub <noreply@github.com>
+CommitDate: Sat Jun 13 11:28:35 2026 +0800
+
+    SaveStates and Pause for System-E, enhanced SaveStates for SMS (#192)
+    
+    This commit:
+    - Implements SaveStates for System-E games.
+    - Implements Pause for System-E games.
+    - Hardens SaveStates for Master System games (fixes occasional freezes/glitches/resets when loading a state)
+    - Fixes audio and video sync issues when saving/loading states
+    
+    Note: The save format changed. The new save files are 96KB. Old save files (64 KB) can still be loaded (retro compatibility).
+    
+    Details:
+    - Implement System E pause/unpause gating tied to VBlank and add se_paused logic; freeze handling now separates savestate freeze and System E pause. HDMI freeze behavior adjusted.
+    - Extend savestates to track ROM rolling signature (ss_game_id) to prevent cross-ROM restores and increase slot size/format for System E (VDP2/CRAM2/VRAM2/PSG2 support). Expand DDRAM layout and NVRAM/VRAM/WRAM addressing accordingly.
+    - Add IO state and System E mapper save/restore hooks in io.vhd (io_state and se_mapper signals) and preserve VDP/PSG enables across restores.
+    - Introduce additional save-state wires for VDP2/PSG2/VRAM2 and integrate them into system and savestates instances; wire up video state save/restore.
+    - Increase Z80/T80 register vector width to include WZ/Halt/Alternate state; propagate changes through T80 and T80s modules and savestates (229-bit register snapshot).
+    - Update clock gating: provide raw clock refs (clkref_cpu) and gate subsystem clocks when ss_freeze or se_pause_gate active to ensure clean CPU/VDP behavior during save/restore and pause.
+    - Change joystick handling: add SaveState 'hotkey' masking and remap J1/J2 button indices to new layout; update many .mra release files to expose SaveState button in game configs.
+    - Add cooldown timer to savestate UI to debounce and rate-limit slot changes/saves/loads (approx 500ms), simplify SS combos to not require Pause, and adjust OSD hint text.
+    - Video: when System E pause active, mute high bits of RGB to indicate pause; feed video_state wires into video module.
+    - NVRAM/WRAM address widths adjusted and nvram dpram addressing simplified for savestate DMA.
+    - Misc: update other small wiring/fixes across RTL modules to support the above changes.
+    
+    These changes improve savestate reliability, prevent accidental cross-ROM restores, and provide a smoother pause/save/load UX.
+    
+    Co-authored-by: Fabricio Breve <7475908+fbreve@users.noreply.github.com>
+
+ SMS.qsf                                            |    2 +-
+ SMS.sv                                             |  235 ++++-
+ releases/Astro Flash (Japan).mra                   |    2 +-
+ .../Fantasy Zone II - The Tears of Opa-Opa.mra     |    2 +-
+ releases/Hang On Jr.mra                            |    2 +-
+ releases/Megumi Rescue (Japan).mra                 |    2 +-
+ releases/Opa Opa.mra                               |    2 +-
+ releases/Riddle of Pythagoras (Japan).mra          |    2 +-
+ releases/Slap Shooter.mra                          |    2 +-
+ releases/Tetris (Japan, System E).mra              |    2 +-
+ releases/Transformer.mra                           |    2 +-
+ rtl/T80/T80.vhd                                    |   37 +-
+ rtl/T80/T80s.vhd                                   |   13 +-
+ rtl/io.vhd                                         |   47 +-
+ rtl/savestate_ui.sv                                |   67 +-
+ rtl/savestates.sv                                  | 1067 +++++++++++++++++---
+ rtl/system.vhd                                     |  156 ++-
+ rtl/vdp.vhd                                        |   32 +-
+ rtl/vdp_background.vhd                             |   41 +-
+ rtl/vdp_main.vhd                                   |   13 +-
+ rtl/vdp_sprite_shifter.vhd                         |   21 +-
+ rtl/vdp_sprites.vhd                                |  291 +++---
+ rtl/video.vhd                                      |   63 +-
+ 23 files changed, 1641 insertions(+), 462 deletions(-)
+
+commit 1524fe312a3907be80644614ee81502fcd416724
+Author:     Fabricio Breve <fbreve@gmail.com>
+AuthorDate: Fri Jun 19 13:21:58 2026 -0300
+Commit:     GitHub <noreply@github.com>
+CommitDate: Sat Jun 20 00:21:58 2026 +0800
+
+    Add Game Gear external BIOS support (#193)
+    
+    Introduce support for loading/booting an external Game Gear (GG) BIOS.
+    
+    Co-authored-by: Fabricio Breve <7475908+fbreve@users.noreply.github.com>
+
+ SMS.sv         | 41 ++++++++++++++++++++++++++++++-----------
+ rtl/system.vhd | 50 ++++++++++++++++++++++++++++++++++++++++++--------
+ 2 files changed, 72 insertions(+), 19 deletions(-)
+
+commit 9dfc10739f35b13987ba54afc2f88fb4662ee511
+Author:     Fabricio Breve <fbreve@gmail.com>
+AuthorDate: Fri Aug 14 17:57:37 2026 -0300
+Commit:     GitHub <noreply@github.com>
+CommitDate: Sat Aug 15 04:57:37 2026 +0800
+
+    Refine Codemasters mapper handling and add Game Gear EEPROM support (#199)
+    
+    * Refine Codemasters mapper handling
+    
+    Allows the detection of "Heroes Against Demons" (SMS). No need to force Sega mapper anymore.
+    Codemasters detection was too agressive and could mistakenly identify non-Codemasters games like this one.
+    
+    Restrict Codemasters-related bank writes to valid memory requests and rely on static/forced detection before accepting them. This also removes the BIOS handoff locking path from the Codemasters write handlers and updates the related mapper comments.
+    
+    * Add Game Gear EEPROM cart support
+    
+    Implement 93C46 EEPROM cartridge support for the Game Gear baseball titles that use it. This adds EEPROM mapper hardware, CRC32-based cart detection, NVRAM initialization to 0xFF, bus/memory routing in the main system, and savestate save/restore coverage so EEPROM-backed saves persist correctly.
+    
+    New games supported:
+    - Hyper Pro Yakyuu '92 (Japan)
+    - Pro Yakyuu GG League (Japan)
+    - Majors, The - Pro Baseball (USA)
+    - World Series Baseball (USA)
+    - World Series Baseball (USA) (Rev A)
+    - World Series Baseball '95 (USA)
+    - World Series Baseball '95 (USA) (Beta) (1994-06-29)
+    - World Series Baseball '95 (USA) (Beta) (1994-07-09)
+    - World Series Baseball '95 (USA) (Beta) (1994-07-19)
+    - World Series Baseball '95 (USA) (Beta) (1994-07-22)
+    - World Series Baseball '95 (USA) (Beta) (1994-07-28)
+    - World Series Baseball '95 (USA) (Beta) (1994-07-29)
+    
+    This commit fixes issue #130
+
+ SMS.sv               |  29 +++--
+ files.qip            |   3 +
+ rtl/cart_eeprom.vhd  | 127 ++++++++++++++++++++++
+ rtl/eeprom_93c46.vhd | 295 +++++++++++++++++++++++++++++++++++++++++++++++++++
+ rtl/nvram_ff.mif     |   8 ++
+ rtl/savestates.sv    |  33 +++++-
+ rtl/system.vhd       | 206 ++++++++++++++++++++++++++---------
+ 7 files changed, 645 insertions(+), 56 deletions(-)
+
+commit d7197ed52fdec50ffaa0ab6131cebef564ab0baf
+Merge: 1fc3c12 968a449
+Author:     Alexey Melnikov <pour.garbage@gmail.com>
+AuthorDate: Sat Sep 12 17:53:32 2026 +0800
+Commit:     GitHub <noreply@github.com>
+CommitDate: Sat Sep 12 17:53:32 2026 +0800
+
+    Add Master System Evolution and Mega Drive controller support, enhance BIOS support
+    
+    Add Master System Evolution and Mega Drive controller support, enhance BIOS support
+
+ README.md                |  23 +++
+ SMS.qsf                  |   2 +-
+ SMS.sv                   | 121 ++++++++++---
+ files.qip                |   2 +
+ rtl/dpram.vhd            |   3 +
+ rtl/evolution_mapper.vhd | 294 ++++++++++++++++++++++++++++++
+ rtl/io.vhd               |  32 +++-
+ rtl/savestates.sv        |  37 +++-
+ rtl/sega_controller.sv   |  56 ++++++
+ rtl/system.vhd           | 459 +++++++++++++++++++++++++++++++++++++++++++----
+ rtl/vdp.vhd              |  76 +++++---
+ rtl/vdp_background.vhd   |   5 +-
+ rtl/vdp_main.vhd         |   6 +-
+ 13 files changed, 1012 insertions(+), 104 deletions(-)
+
+commit 968a44915ba90687e75bf0e1b9cd893656a0c11b
+Author:     Fabricio Breve <fbreve@gmail.com>
+AuthorDate: Fri Sep 11 13:46:16 2026 -0300
+Commit:     Fabricio Breve <fbreve@gmail.com>
+CommitDate: Fri Sep 11 20:34:30 2026 -0300
+
+    Add Mega Drive 3/6-button controller support
+    
+    Add Mega Drive 3/6-button controller support
+    
+    Add selectable SMS 2-button, Mega Drive 3-button, and Mega Drive 6-button controller types independently for P1 and P2.
+    
+    Emulate the Mega Drive TH multiplexing protocol, including A/Start for 3-button controllers and the extended X/Y/Z/Mode handshake and timeout for 6-button controllers.
+    
+    Add unmapped inputs for the extra Mega Drive buttons while preserving existing SMS controls and accessory behavior.
+    
+    For Master System Evolution games, support X+Y+Z reset when using a 6-button controller while retaining the existing Pause+1+2 reset combination.
+    
+    Extend the status field for the per-port controller settings while preserving byte-oriented HPS transfers.
+
+ README.md              | 23 +++++++++++++
+ SMS.sv                 | 90 +++++++++++++++++++++++++++++++++++---------------
+ files.qip              |  1 +
+ rtl/sega_controller.sv | 56 +++++++++++++++++++++++++++++++
+ 4 files changed, 143 insertions(+), 27 deletions(-)
+
+commit 958d947f5411770a8cbc078facc3bbabb3265734
+Author:     Fabricio Breve <fbreve@gmail.com>
+AuthorDate: Wed Sep 23 16:58:54 2026 -0300
+Commit:     Fabricio Breve <fbreve@gmail.com>
+CommitDate: Wed Sep 23 16:58:54 2026 -0300
+
+    Fix Evolution mapper bank savestate restore
+
+ rtl/mapper_ctrl.vhd | 3 +--
+ 1 file changed, 1 insertion(+), 2 deletions(-)
+
+commit 74b40034c6ad79cec418dcf7bb5bbbc1af0bf0e2
+Merge: 99dbeee f3a58df
+Author:     Alexey Melnikov <pour.garbage@gmail.com>
+AuthorDate: Fri Sep 25 16:14:28 2026 +0800
+Commit:     GitHub <noreply@github.com>
+CommitDate: Fri Sep 25 16:14:28 2026 +0800
+
+    Fix Evolution BIOS, mapper and savestate handling
+    
+    Fix Evolution BIOS, mapper and savestate handling
+
+ rtl/evolution_mapper.vhd | 39 ++++--------------------
+ rtl/io.vhd               |  2 +-
+ rtl/mapper_ctrl.vhd      |  3 +-
+ rtl/mapper_detect.vhd    | 62 +++++++++++++++++++++++++++++++++++++-
+ rtl/system.vhd           | 77 ++++++++++++++++++++++++++++++------------------
+ 5 files changed, 116 insertions(+), 67 deletions(-)
+
+commit 82b3c15be7b744caeedebebf2f6b3c74b5450ced
+Author:     Fabricio Breve <fbreve@gmail.com>
+AuthorDate: Thu Aug 20 19:27:22 2026 -0300
+Commit:     Fabricio Breve <fbreve@gmail.com>
+CommitDate: Fri Aug 21 16:49:57 2026 -0300
+
+    Add CPU-visible VCounter with early update
+    
+    This commit fixes issue #112
+    
+    Introduces a separate vcounter_cpu signal that updates two pixel ticks before the internal vcount/y line counter (at hcount=485 instead of 487). This matches hardware behavior where the CPU-readable VCounter register advances ahead of the display counter. Includes proper wraparound logic for all PAL/NTSC video modes (192/224/240-line) and correct state restore handling for save states.
+
+ SMS.sv         |   5 ++-
+ rtl/system.vhd |   3 ++
+ rtl/vdp.vhd    |   3 +-
+ rtl/video.vhd  | 111 +++++++++++++++++++++++++++++++++++++++++++++++++++++++++
+ 4 files changed, 120 insertions(+), 2 deletions(-)
+
+commit 82c679b4cd0c6aa922f5029f5272a35fe6512d24
+Author:     Fabricio Breve <fbreve@gmail.com>
+AuthorDate: Wed Aug 19 15:30:30 2026 -0300
+Commit:     Fabricio Breve <fbreve@gmail.com>
+CommitDate: Wed Aug 19 18:07:15 2026 -0300
+
+    SMS core now passes the X-Scroll Latchtime in VDP Test
+    
+    This commit fix the issue #113
+    It doesn't break Samgukji III - Cheonha Jaengpae (Korea) (Unl).
+    
+    Introduces bg_scroll_x_latched, captured from R8 at pixel x=487 so the background pipeline always uses a stable, per-line scroll value. Replaces the old last_x0 save-state slot with bg_scroll_x_latched in ss_regs[127:120] for proper state save/restore.
+
+ rtl/vdp.vhd            | 31 +++++++++++++++++++++++++------
+ rtl/vdp_background.vhd |  6 +++---
+ rtl/vdp_main.vhd       |  2 +-
+ 3 files changed, 29 insertions(+), 10 deletions(-)
+
+commit a196cf113e0d36a9ec11c2c39a2c5142b1e0ea3f
+Author:     Fabricio Breve <fbreve@gmail.com>
+AuthorDate: Thu Oct 8 09:36:59 2026 -0300
+Commit:     Fabricio Breve <fbreve@gmail.com>
+CommitDate: Thu Oct 8 09:36:59 2026 -0300
+
+    Preserve PSG state across savestates
+    
+    Extend PSG savestates to preserve the internal generator state needed
+    for deterministic audio restoration, including tone counters and
+    phases, noise counter and LFSR, channel samples, and divider state.
+    
+    Also preserve Game Gear stereo routing, FM detect state, System E PSG2
+    state, and the AudioMix phase. Store the extended PSG data in versioned
+    extension words while retaining compatibility with legacy savestates.
+    
+    Write the extension presence marker last so an interrupted save cannot
+    make an incomplete extension appear valid.
+
+ SMS.sv                |  30 +++++++
+ rtl/AudioMix.vhd      |  20 +++--
+ rtl/jt89/jt89.v       |  40 +++++++--
+ rtl/jt89/jt89.vhd     |  56 ++++++------
+ rtl/jt89/jt89_noise.v |  19 +++-
+ rtl/jt89/jt89_tone.v  |  14 ++-
+ rtl/jt89/jt89_vol.v   |  12 ++-
+ rtl/savestates.sv     | 237 +++++++++++++++++++++++++++++++++++++++++++++++---
+ rtl/system.vhd        |  35 +++++++-
+ 9 files changed, 403 insertions(+), 60 deletions(-)
+
+commit 19fedb6cfeaddf15380823c203c4d9738bde6e7a
+Author:     Fabricio Breve <fbreve@gmail.com>
+AuthorDate: Mon Oct 5 05:50:35 2026 -0300
+Commit:     GitHub <noreply@github.com>
+CommitDate: Mon Oct 5 16:50:35 2026 +0800
+
+    Refactor savestate transfers and fix controller/RAM issues (#216)
+    
+    * Refactor duplicated VRAM savestate transfers
+    
+    Consolidate the duplicated VDP1 and VDP2 active/passive VRAM save and load paths while preserving the existing state machine, transfer timing,
+    port retention, and save-state layout.
+    
+    Keep WRAM, NVRAM, snapshot serialization, and restore sequencing unchanged.
+    
+    No functional changes intended.
+    
+    * Fix port B output register mapping in dpram
+    
+    Forward the port B output-register generic to the corresponding altsyncram parameter instead of incorrectly reusing the port A setting.
+    
+    Current SMS RAM instances use unregistered outputs on both ports, so their effective configuration remains unchanged.
+    
+    * Fix Master Tap TH edge detection
+    
+    Use the console-driven TH output for Master Tap timing and edge detection instead of the controller-returned TH input.
+    
+    The TH input/output paths were split in 2020, but the existing Master Tap logic continued monitoring the returned signal, which remains high for virtual USB controllers. As a result, console TH pulses could not
+    advance the selected controller.
+    
+    Preserve the existing timeout, controller routing, and savestate behavior.
+
+ SMS.sv            |   6 +-
+ rtl/dpram.vhd     |   2 +-
+ rtl/savestates.sv | 463 ++++++++++++++++++------------------------------------
+ 3 files changed, 153 insertions(+), 318 deletions(-)
+
+commit 998d8aa6f17499c913c2df64d858f76b7a5d8d4a
+Author:     Fabricio Breve <fbreve@gmail.com>
+AuthorDate: Thu Oct 8 09:36:14 2026 -0300
+Commit:     Fabricio Breve <fbreve@gmail.com>
+CommitDate: Thu Oct 8 09:36:14 2026 -0300
+
+    Fix savestate DDRAM transaction handshake
+    
+    Hold DDRAM read and write requests, address, data, and byte enables
+    stable until the transaction is accepted instead of relying on
+    single-cycle request pulses.
+    
+    Advance the savestate FSM only after acceptance so DDRAM_BUSY cannot
+    drop or duplicate transactions. This also preserves the final byte of
+    buffered memory transfers while a write is stalled.
+
+ rtl/savestates.sv | 260 ++++++++++++++++++++++++++++++++++++++++++++++++++++++
+ 1 file changed, 260 insertions(+)
+
+commit f875eb70ccd9023802ee41bb28686d11d65ee717
+Author:     Fabricio Breve <fbreve@gmail.com>
+AuthorDate: Fri Oct 9 02:40:05 2026 -0300
+Commit:     GitHub <noreply@github.com>
+CommitDate: Fri Oct 9 13:40:05 2026 +0800
+
+    Simplify VDP savestate restore interfaces (#220)
+    
+    * Fix savestate DDRAM transaction handshake
+    
+    Hold DDRAM read and write requests, address, data, and byte enables
+    stable until the transaction is accepted instead of relying on
+    single-cycle request pulses.
+    
+    Advance the savestate FSM only after acceptance so DDRAM_BUSY cannot
+    drop or duplicate transactions. This also preserves the final byte of
+    buffered memory transfers while a write is stalled.
+    
+    * Preserve PSG state across savestates
+    
+    Extend PSG savestates to preserve the internal generator state needed
+    for deterministic audio restoration, including tone counters and
+    phases, noise counter and LFSR, channel samples, and divider state.
+    
+    Also preserve Game Gear stereo routing, FM detect state, System E PSG2
+    state, and the AudioMix phase. Store the extended PSG data in versioned
+    extension words while retaining compatibility with legacy savestates.
+    
+    Write the extension presence marker last so an interrupted save cannot
+    make an incomplete extension appear valid.
+    
+    * Remove unused RTL interfaces
+    
+    Remove unused ports and local signals from the system, mapper, EEPROM, Evolution and audio integration.
+    
+    These connections were not consumed by their respective modules and only increased the interface surface. No functional logic or behavior is changed.
+    
+    * Simplify VDP savestate restore interfaces
+    
+    Remove redundant VDP restore inputs that were always driven by the same savestate restore strobe.
+    
+    Use a single restore signal in vdp_main and vdp_sprites while preserving the existing restore timing and behavior.
+
+ rtl/vdp.vhd         | 2 --
+ rtl/vdp_main.vhd    | 9 +++------
+ rtl/vdp_sprites.vhd | 7 +++----
+ 3 files changed, 6 insertions(+), 12 deletions(-)
+
+commit 8443a0d19a88aff7a5900011bccf386daf146945
+Author:     Fabricio Breve <fbreve@gmail.com>
+AuthorDate: Wed Oct 14 04:02:07 2026 -0300
+Commit:     GitHub <noreply@github.com>
+CommitDate: Wed Oct 14 15:02:07 2026 +0800
+
+    Fix SMS cartridge disable through port $3E (#223)
+    
+    Make the SMS cartridge-enable control independent of BIOS presence.
+    
+    Port $3E correctly updated the media control register, but cartridge deselection was only honored when an external SMS BIOS was enabled and loaded. As a result, disabling the cartridge had no effect without a BIOS or when using the internal BIOS.
+    
+    Apply the cartridge-disable state to normal SMS operation while preserving Game Gear, Evolution, and other special-platform behavior.
+
+ rtl/memory_decode.vhd | 8 ++++++--
+ rtl/system.vhd        | 1 +
+ 2 files changed, 7 insertions(+), 2 deletions(-)

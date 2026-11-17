@@ -1,0 +1,215 @@
+EEPROM selection has no RAM enable
+rtl/mapper_ctrl.vhd:338: 						end case;
+rtl/mapper_ctrl.vhd:339: 					end if;
+rtl/mapper_ctrl.vhd:340: 				elsif mapper_eeprom = '1' then
+rtl/mapper_ctrl.vhd:341: 					-- EEPROM carts (93C46) always use the plain Sega $FFFC-$FFFF register map.
+rtl/mapper_ctrl.vhd:342: 					-- Must take priority over every other mapper heuristic below (4-PAK $3FFE
+rtl/mapper_ctrl.vhd:343: 					-- write-trigger, Zemina opcode scan, Dahjee/linear/castle/etc.) so a false
+rtl/mapper_ctrl.vhd:344: 					-- positive on one of those heuristics can never steal the $FFFC write.
+rtl/mapper_ctrl.vhd:345: 					if ss_freeze = '0' and WR_n='0' and MREQ_n='0' and A(15 downto 2)="11111111111111" then
+rtl/mapper_ctrl.vhd:346: 						case A(1 downto 0) is
+rtl/mapper_ctrl.vhd:347: 							when "00" =>
+rtl/mapper_ctrl.vhd:348: 								eeprom_soft_reset  <= D_in(7);
+rtl/mapper_ctrl.vhd:349: 							when "01" => bank0 <= D_in;
+rtl/mapper_ctrl.vhd:350: 							when "10" => bank1 <= D_in;
+rtl/mapper_ctrl.vhd:351: 							when "11" => bank2 <= D_in;
+rtl/mapper_ctrl.vhd:352: 						end case;
+rtl/mapper_ctrl.vhd:353: 					end if;
+rtl/mapper_ctrl.vhd:354: 				elsif systeme = '1' or sc3000_en = '1' or mapper_castle = '1' or mapper_linear = '1' or mapper_dahjee_a = '1' or mapper_sega_locked = '1' then
+rtl/mapper_ctrl.vhd:355: 					-- no System E, SC-3000, Castle (32KB RAM), linear, Dahjee Type A, or Sega-locked mappers
+rtl/mapper_ctrl.vhd:356: 				elsif mapper_4pak = '1' then
+rtl/mapper_ctrl.vhd:357: 					-- 4-PAK All Action mapper (per MAME sega8_4pak_device):
+
+EEPROM protocol snapshot/reset
+rtl/eeprom_93c46.vhd:74: 
+rtl/eeprom_93c46.vhd:75:     process(clk_sys)
+rtl/eeprom_93c46.vhd:76:         variable nxt       : std_logic_vector(7 downto 0);
+rtl/eeprom_93c46.vhd:77:         variable op2       : std_logic_vector(1 downto 0);
+rtl/eeprom_93c46.vhd:78:         variable sp2       : std_logic_vector(1 downto 0);
+rtl/eeprom_93c46.vhd:79:         variable waddr     : unsigned(5 downto 0);
+rtl/eeprom_93c46.vhd:80:         variable full_word : std_logic_vector(15 downto 0);
+rtl/eeprom_93c46.vhd:81:     begin
+rtl/eeprom_93c46.vhd:82:         if rising_edge(clk_sys) then
+rtl/eeprom_93c46.vhd:83:             nv_we_r <= '0';
+rtl/eeprom_93c46.vhd:84: 
+rtl/eeprom_93c46.vhd:85:             -- Synchronous 2-byte SPRAM write sequence (runs at 53.6MHz clk_sys)
+rtl/eeprom_93c46.vhd:86:             if wr_phase = 1 then
+rtl/eeprom_93c46.vhd:87:                 if wr_all = '1' then
+rtl/eeprom_93c46.vhd:88:                     nv_a_r   <= std_logic_vector(all_cnt) & '0';
+rtl/eeprom_93c46.vhd:89:                     nv_di_r  <= pending_wdata(15 downto 8);
+rtl/eeprom_93c46.vhd:90:                     nv_we_r  <= '1';
+rtl/eeprom_93c46.vhd:91:                     wr_phase <= 2;
+rtl/eeprom_93c46.vhd:92:                 else
+rtl/eeprom_93c46.vhd:93:                     nv_a_r   <= pending_waddr & '0';
+rtl/eeprom_93c46.vhd:94:                     nv_di_r  <= pending_wdata(15 downto 8);
+rtl/eeprom_93c46.vhd:95:                     nv_we_r  <= '1';
+rtl/eeprom_93c46.vhd:96:                     wr_phase <= 2;
+rtl/eeprom_93c46.vhd:97:                 end if;
+rtl/eeprom_93c46.vhd:98:             elsif wr_phase = 2 then
+rtl/eeprom_93c46.vhd:99:                 if wr_all = '1' then
+rtl/eeprom_93c46.vhd:100:                     nv_a_r   <= std_logic_vector(all_cnt) & '1';
+rtl/eeprom_93c46.vhd:101:                     nv_di_r  <= pending_wdata(7 downto 0);
+rtl/eeprom_93c46.vhd:102:                     nv_we_r  <= '1';
+rtl/eeprom_93c46.vhd:103:                     if all_cnt = 63 then
+rtl/eeprom_93c46.vhd:104:                         wr_phase <= 0;
+rtl/eeprom_93c46.vhd:105:                         wr_all   <= '0';
+rtl/eeprom_93c46.vhd:106:                     else
+rtl/eeprom_93c46.vhd:107:                         all_cnt  <= all_cnt + 1;
+rtl/eeprom_93c46.vhd:108:                         wr_phase <= 1;
+rtl/eeprom_93c46.vhd:109:                     end if;
+rtl/eeprom_93c46.vhd:110:                 else
+rtl/eeprom_93c46.vhd:111:                     nv_a_r   <= pending_waddr & '1';
+rtl/eeprom_93c46.vhd:112:                     nv_di_r  <= pending_wdata(7 downto 0);
+rtl/eeprom_93c46.vhd:113:                     nv_we_r  <= '1';
+rtl/eeprom_93c46.vhd:114:                     wr_phase <= 0;
+rtl/eeprom_93c46.vhd:115:                 end if;
+rtl/eeprom_93c46.vhd:116:             end if;
+rtl/eeprom_93c46.vhd:117: 
+rtl/eeprom_93c46.vhd:118:             if ss_set = '1' then
+rtl/eeprom_93c46.vhd:119:                 we_r     <= ss_in(1);
+rtl/eeprom_93c46.vhd:120:                 data_o   <= ss_in(0);
+rtl/eeprom_93c46.vhd:121:                 state    <= WAIT_START;
+rtl/eeprom_93c46.vhd:122:                 wr_phase <= 0;
+rtl/eeprom_93c46.vhd:123: 
+rtl/eeprom_93c46.vhd:124:             elsif reset_n = '0' then
+rtl/eeprom_93c46.vhd:125:                 state    <= WAIT_START;
+rtl/eeprom_93c46.vhd:126:                 data_o   <= '1';
+rtl/eeprom_93c46.vhd:127:                 clk_r    <= '0';
+rtl/eeprom_93c46.vhd:128:                 we_r     <= '0';
+rtl/eeprom_93c46.vhd:129:                 opcode   <= (others => '0');
+rtl/eeprom_93c46.vhd:130:                 data_buf <= (others => '0');
+rtl/eeprom_93c46.vhd:131:                 cycles   <= (others => '0');
+rtl/eeprom_93c46.vhd:132:                 wr_phase <= 0;
+rtl/eeprom_93c46.vhd:133:                 wr_all   <= '0';
+rtl/eeprom_93c46.vhd:134:             elsif soft_reset = '1' then
+rtl/eeprom_93c46.vhd:135:                 state    <= WAIT_START;
+rtl/eeprom_93c46.vhd:136:                 data_o   <= '1';
+rtl/eeprom_93c46.vhd:137:                 clk_r    <= '0';
+rtl/eeprom_93c46.vhd:138:                 -- preserve we_r across soft_reset
+rtl/eeprom_93c46.vhd:139:                 opcode   <= (others => '0');
+rtl/eeprom_93c46.vhd:140:                 data_buf <= (others => '0');
+rtl/eeprom_93c46.vhd:141:                 cycles   <= (others => '0');
+rtl/eeprom_93c46.vhd:142:                 wr_phase <= 0;
+rtl/eeprom_93c46.vhd:143:                 wr_all   <= '0';
+rtl/eeprom_93c46.vhd:144: 
+rtl/eeprom_93c46.vhd:145:             else
+
+DMA selection
+rtl/savestates.sv:289: 
+rtl/savestates.sv:290: // NVRAM size calculation helpers
+rtl/savestates.sv:291: wire evolution_state = evolution_snap[31:16] == 16'hE132;
+rtl/savestates.sv:292: wire has_nvram_8k  = !evolution_state && (mapper_snap[48] | mapper_snap[53]); // Dahjee A / Codemasters CME
+rtl/savestates.sv:293: wire has_nvram_16k = !evolution_state && mapper_snap[50];                    // Sega mapper nvram_e
+rtl/savestates.sv:294: wire has_nvram_32k = !evolution_state && (mapper_snap[51] | mapper_snap[52] | mapper_snap[61]); // nvram_ex / nvram_p / The Castle
+rtl/savestates.sv:295: wire has_nvram     = has_nvram_8k | has_nvram_16k | has_nvram_32k;
+rtl/savestates.sv:296: 
+rtl/savestates.sv:297: wire [14:0] nvram_size_minus_1 = has_nvram_32k ? 15'd32767 :
+rtl/savestates.sv:298:                                  has_nvram_16k ? 15'd16383 :
+rtl/savestates.sv:299:                                                  15'd8191;
+rtl/savestates.sv:300: 
+rtl/savestates.sv:301: reg [6:0]  state;
+
+SC cartridge RAM
+rtl/memory_bus.vhd:39: 	signal sc_multicart_open:	std_logic;
+rtl/memory_bus.vhd:40: begin
+rtl/memory_bus.vhd:41: 	sc_cart_ram_32k <= '1' when (sc3000_en='1' and sc_cart_ram="11") or mapper_castle='1' else '0';
+rtl/memory_bus.vhd:42: 	sc_cart_ram_low <= '1' when ((sc3000_en='1' and sc_cart_ram/="00") or mapper_castle='1') and A(15 downto 14)="10" else '0';
+rtl/memory_bus.vhd:43: 	sc_cart_ram_high <= '1' when sc_cart_ram_32k='1' and A(15 downto 14)="11" else '0';
+rtl/memory_bus.vhd:44: 	sc_cart_ram_rd <= sc_cart_ram_low or sc_cart_ram_high;
+rtl/memory_bus.vhd:45: 	sc_multicart_upper <= '1' when sc_multicart_en='1' and A(15)='1' else '0';
+rtl/memory_bus.vhd:46: 	sc_multicart_open <= '1' when sc_multicart_en='1' and A(15 downto 14)="10" and sc_cart_ram="00" else '0';
+rtl/memory_bus.vhd:47: 
+rtl/memory_bus.vhd:48: 	ram_WR   <= not WR_n when ss_freeze = '0' and MREQ_n='0' and A(15 downto 14)="11" and sc_cart_ram_32k='0' else '0';
+rtl/memory_bus.vhd:49: 	nvram_WR <= not WR_n when ss_freeze = '0' and MREQ_n='0' and mapper_eeprom = '0' and (((A(15 downto 14)="10" and nvram_e = '1')
+rtl/memory_bus.vhd:50: 						or (A(15 downto 14)="11" and nvram_ex = '1')
+rtl/memory_bus.vhd:51: 						or (A(15 downto 13)="101" and nvram_cme = '1'))
+rtl/memory_bus.vhd:52: 						or sc_cart_ram_low='1'
+rtl/memory_bus.vhd:53: 						or sc_cart_ram_high='1'
+rtl/memory_bus.vhd:54: 						or (dahjee_cart_access='1' and A(15 downto 13)="001")) else '0';
+rtl/memory_bus.vhd:55: 	rom_RD   <= not RD_n when MREQ_n='0' and A(15 downto 14)/="11" and sc_multicart_upper='0'
+rtl/memory_bus.vhd:56: 	                     and not (mapper_castle='1' and A(15)='1')
+rtl/memory_bus.vhd:57: 	                     and not (dahjee_cart_access='1' and A(15 downto 13)="001") else '0';
+
+FM connection
+rtl/system.vhd:787: 	fm: work.opll
+rtl/system.vhd:788: 	port map
+rtl/system.vhd:789: 	(
+rtl/system.vhd:790: 		xin		=> clk_sys,
+rtl/system.vhd:791: 		xena		=> ce_cpu,
+rtl/system.vhd:792: 		d        => fm_d,
+rtl/system.vhd:793: 		a        => fm_a,
+rtl/system.vhd:794: 		cs_n     => '0',
+rtl/system.vhd:795: 		we_n		=> '0',
+rtl/system.vhd:796: 		ic_n		=> RESET_n,
+rtl/system.vhd:797: 		mixout   => FM_out
+rtl/system.vhd:798: 	);
+rtl/system.vhd:799: 	
+rtl/system.vhd:800: 	process (clk_sys)
+rtl/system.vhd:801: 	begin
+rtl/system.vhd:802: 		if rising_edge(clk_sys) then
+rtl/system.vhd:803: 			if RESET_n='0' then
+rtl/system.vhd:804: 				fm_d <= (others => '0');
+rtl/system.vhd:805: 				fm_a <= '0';
+rtl/system.vhd:806: 			elsif ss_freeze = '0' and fm_WR_n='0' then
+rtl/system.vhd:807: 				fm_d <= D_in;
+rtl/system.vhd:808: 				fm_a <= A(0);
+rtl/system.vhd:809: 			end if;
+rtl/system.vhd:810: 		end if;
+rtl/system.vhd:811: 	end process;
+rtl/system.vhd:812: 	
+
+HCounter latch/read
+rtl/vdp.vhd:449: 
+rtl/vdp.vhd:450: 			old_HL <= HL;
+rtl/vdp.vhd:451: 			if old_HL = '0' and HL = '1' then
+rtl/vdp.vhd:452: 				latched_x <= x(8 downto 1);
+rtl/vdp.vhd:453: 			end if;
+rtl/vdp.vhd:454: 
+
+HCounter read
+rtl/vdp.vhd:526: 					end if;
+rtl/vdp.vhd:527: 					
+rtl/vdp.vhd:528: 				elsif old_RD_n = '1' and RD_n='0' then
+rtl/vdp.vhd:529: 					case A(7 downto 6)&A(0) is
+rtl/vdp.vhd:530: 					when "010" => -- VCounter
+rtl/vdp.vhd:531: 						D_out <= vcounter_cpu;
+rtl/vdp.vhd:532: 					when "011" => -- HCounter
+rtl/vdp.vhd:533: 						D_out <= latched_x;
+rtl/vdp.vhd:534: 					when "100" => -- Data port
+rtl/vdp.vhd:535: 						--D_out <= vram_cpu_D_out;
+
+Evolution restore
+rtl/evolution_mapper.vhd:113:                 launch_fetch_addr_r <= (others => '0');
+rtl/evolution_mapper.vhd:114:                 record_read_pending_r <= '0';
+rtl/evolution_mapper.vhd:115:                 menu_launch_armed_r <= '0';
+rtl/evolution_mapper.vhd:116:             elsif ss_set = '1' and enable = '1' and
+rtl/evolution_mapper.vhd:117:                   ss_in(31 downto 16) = x"E132" then
+rtl/evolution_mapper.vhd:118:                 launch_fetch_addr_r        <= ss_mapper_in(63 downto 48);
+rtl/evolution_mapper.vhd:119:                 bank61_r                   <= ss_in(15 downto 8);
+rtl/evolution_mapper.vhd:120:                 bank62_r                   <= ss_in(7 downto 0);
+rtl/evolution_mapper.vhd:121:                 game_bank61_r              <= ss_in(15 downto 8);
+rtl/evolution_mapper.vhd:122:                 game_bank62_r              <= ss_in(7 downto 0);
+rtl/evolution_mapper.vhd:123:                 prev_game_bank61_r         <= (others => '0');
+rtl/evolution_mapper.vhd:124:                 prev_game_bank62_r         <= (others => '0');
+rtl/evolution_mapper.vhd:125:                 candidate_bank61_r         <= ss_in(15 downto 8);
+rtl/evolution_mapper.vhd:126:                 candidate_bank62_r         <= ss_in(7 downto 0);
+rtl/evolution_mapper.vhd:127:                 prior_candidate_bank61_r   <= (others => '0');
+rtl/evolution_mapper.vhd:128:                 prior_candidate_bank62_r   <= (others => '0');
+rtl/evolution_mapper.vhd:129:                 reg3ffe_r                  <= ss_mapper_in(15 downto 8);
+rtl/evolution_mapper.vhd:130:                 reg3ffe_pending            <= ss_in(95 downto 88);
+rtl/evolution_mapper.vhd:131:                 reg8c_r                    <= ss_in(39 downto 32);
+rtl/evolution_mapper.vhd:132:                 regcd_r                    <= ss_in(47 downto 40);
+rtl/evolution_mapper.vhd:133:                 reg63_r                    <= ss_in(55 downto 48);
+rtl/evolution_mapper.vhd:134:                 reg88_r                    <= ss_in(63 downto 56);
+rtl/evolution_mapper.vhd:135:                 reg8d_r                    <= ss_in(71 downto 64);
+rtl/evolution_mapper.vhd:136:                 reg8e_r                    <= ss_in(79 downto 72);
+rtl/evolution_mapper.vhd:137:                 reg8f_r                    <= ss_in(87 downto 80);
+rtl/evolution_mapper.vhd:138:                 old_m1_n                  <= m1_n;
+rtl/evolution_mapper.vhd:139:                 switch_pending            <= '0';
+rtl/evolution_mapper.vhd:140:                 switch_armed              <= '0';
+rtl/evolution_mapper.vhd:141:                 game_started              <= ss_mapper_in(15) or ss_mapper_in(14);
+rtl/evolution_mapper.vhd:142:                 record_read_pending_r      <= '0';
+rtl/evolution_mapper.vhd:143:                 menu_launch_armed_r        <= '0';
+rtl/evolution_mapper.vhd:144:             elsif enable = '1' then
+rtl/evolution_mapper.vhd:145:                 old_m1_n <= m1_n;
+rtl/evolution_mapper.vhd:146: 

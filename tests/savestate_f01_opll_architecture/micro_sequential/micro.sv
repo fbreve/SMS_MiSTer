@@ -1,0 +1,2 @@
+module micro(input clk,run,load,capture,shift,input[5:0]addr,input[31:0]bus,input[2047:0]din,input[2047:0]restore,output reg[2047:0]q,output[31:0]dout);
+genvar i;generate for(i=0;i<64;i=i+1)begin:wordbank always@(posedge clk)if(load&&addr==i)q[i*32+:32]<=bus;else if(run)q[i*32+:32]<=din[i*32+:32];end endgenerate assign dout=q[addr*32+:32];endmodule

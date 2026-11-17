@@ -1,0 +1,3846 @@
+diff --git a/SMS.sv b/SMS.sv
+index f36d4e7a..eff91576 100644
+--- a/SMS.sv
++++ b/SMS.sv
+@@ -39,6 +39,9 @@ assign BUTTONS   = osd_btn;
+ assign VGA_SCALER= 0;
+ assign VGA_DISABLE = 0;
+ wire ss_freeze;
++wire [7:0] ss_fm_addr;
++wire [31:0] ss_fm_rdata, ss_fm_wdata;
++wire ss_fm_read, ss_fm_write, ss_fm_initialized, ss_fm_legacy_reset, ss_fm_initialization_run;
+ reg  ss_freeze_r;
+ always @(posedge clk_sys) begin
+ 	ss_freeze_r <= ss_freeze;
+@@ -970,7 +973,10 @@ wire  [7:0] ss_nvram_WD;   // DMA write data
+ system #(63) system
+ (
+ 	.clk_sys(clk_sys),
+-	.ss_freeze(ss_freeze),
++	.fm_state_addr(ss_fm_addr), .fm_state_read(ss_fm_read), .fm_state_write(ss_fm_write),
++    .fm_state_wdata(ss_fm_wdata), .fm_state_rdata(ss_fm_rdata), .fm_initialized(ss_fm_initialized),
++    .fm_legacy_reset(ss_fm_legacy_reset), .fm_initialization_run(ss_fm_initialization_run),
++    .ss_freeze(ss_freeze),
+ 	.ce_cpu(ss_freeze ? 1'b0 : (ce_cpu & ~se_pause_gate)),
+ 	.ce_vdp(ss_freeze ? 1'b0 : ce_vdp),
+ 	.ce_pix(ss_freeze ? 1'b0 : ce_pix),
+@@ -1201,7 +1207,10 @@ savestates savestates_inst (
+ 	.ss_slot         (ss_slot),
+ 	.ss_bios_mode    (ss_bios_mode),
+ 	.ss_game_id      (ss_game_id),
+-	.ss_freeze       (ss_freeze),
++	.fm_state_addr(ss_fm_addr), .fm_state_read(ss_fm_read), .fm_state_write(ss_fm_write),
++    .fm_state_wdata(ss_fm_wdata), .fm_state_rdata(ss_fm_rdata), .fm_initialized(ss_fm_initialized),
++    .fm_legacy_reset(ss_fm_legacy_reset), .fm_initialization_run(ss_fm_initialization_run),
++    .ss_freeze(ss_freeze),
+ 	.vblank          (VBlank),
+ 	.x               (x),
+ 	// Z80
+diff --git a/files.qip b/files.qip
+index 5a3664b8..2891b9cb 100644
+--- a/files.qip
++++ b/files.qip
+@@ -35,3 +35,5 @@ set_global_assignment -name VHDL_FILE rtl/cart_eeprom.vhd
+ set_global_assignment -name VHDL_FILE rtl/io.vhd
+ set_global_assignment -name VHDL_FILE rtl/AudioMix.vhd
+ set_global_assignment -name SYSTEMVERILOG_FILE SMS.sv
++
++set_global_assignment -name SYSTEMVERILOG_FILE rtl/opll_snapshot.sv
+diff --git a/rtl/VM2413/attacktable.vhd b/rtl/VM2413/attacktable.vhd
+index 02f649a5..ceee52a9 100644
+--- a/rtl/VM2413/attacktable.vhd
++++ b/rtl/VM2413/attacktable.vhd
+@@ -43,7 +43,7 @@ entity attack_table_mul is
+     port(
+         i0      : in    std_logic_vector(  7 downto 0 );    --  符号無し 8bit (整数部 0bit, 小数部 8bit)
+         i1      : in    std_logic_vector(  7 downto 0 );    --  符号付き 8bit (整数部 8bit)
+-        o       : out   std_logic_vector( 13 downto 0 )     --  符号付き14bit (整数部 8bit, 小数部 6bit)
++        o       : buffer   std_logic_vector( 13 downto 0 )     --  符号付き14bit (整数部 8bit, 小数部 6bit)
+     );
+ end attack_table_mul;
+ 
+@@ -61,13 +61,23 @@ library ieee;
+     use ieee.std_logic_unsigned.all;
+     use ieee.std_logic_arith;
+ 
++use ieee.std_logic_arith.conv_std_logic_vector;
+ entity AttackTable is
+     port(
+         clk     : in    std_logic;
+         clkena  : in    std_logic;
+         addr    : in    std_logic_vector( 21 downto 0 );    --  小数部 15bit
+-        data    : out   std_logic_vector( 12 downto 0 )     --  小数部  6bit
+-    );
++        data    : buffer   std_logic_vector( 12 downto 0 )     --  小数部  6bit
++    ;
++        -- F01 private, fixed-latency 32-bit access; no emulated clock enables.
++        ss_hold : in std_logic := '0';
++        ss_addr : in std_logic_vector(7 downto 0) := (others=>'0');
++        ss_read : in std_logic := '0';
++        ss_write : in std_logic := '0';
++        ss_wdata : in std_logic_vector(31 downto 0) := (others=>'0');
++        ss_rdata : out std_logic_vector(31 downto 0);
++        ss_initialized : out std_logic
++);
+ end AttackTable;
+ 
+ architecture rtl of attacktable is
+@@ -76,7 +86,7 @@ architecture rtl of attacktable is
+         port(
+             i0      : in    std_logic_vector(  7 downto 0 );    --  符号無し 8bit (整数部 0bit, 小数部 8bit)
+             i1      : in    std_logic_vector(  7 downto 0 );    --  符号付き 8bit (整数部 8bit)
+-            o       : out   std_logic_vector( 13 downto 0 )     --  符号付き 8bit (整数部 8bit, 小数部 6bit)
++            o       : buffer   std_logic_vector( 13 downto 0 )     --  符号付き 8bit (整数部 8bit, 小数部 6bit)
+         );
+     end component;
+ 
+@@ -109,30 +119,87 @@ architecture rtl of attacktable is
+     signal w_sub    : std_logic_vector(  7 downto 0 );  --  符号付き
+     signal w_mul    : std_logic_vector( 13 downto 0 );  --  符号付き
+     signal w_inter  : std_logic_vector( 13 downto 0 );
++    signal ss_local_data : std_logic_vector(31 downto 0) := (others=>'0');
++
+ begin
+ 
+     w_addr1 <= addr( 21 downto 15 );
+     w_addr2 <= (others => '1') when( addr( 21 downto 15 ) = "1111111" )else
+                w_addr1 + 1;
+ 
+-    process( clk )
+-    begin
+-        if rising_edge(clk) then
++    process(clk)
++
++
++
++
++
++
++variable ss_v_ff_w : std_logic_vector(7 downto 0);
++variable ss_v_ff_d1 : std_logic_vector(6 downto 0);
++variable ss_v_ff_d2 : std_logic_vector(6 downto 0);
++variable ss_v_data : std_logic_vector(12 downto 0);
++variable ss_response : std_logic_vector(31 downto 0);
++begin
++if rising_edge(clk) then
++
++ss_response := (others=>'0');
++if ss_hold='1' and (ss_read='1' or ss_write='1') then
++ss_v_ff_w := ff_w;
++ss_v_ff_d1 := ff_d1;
++ss_v_ff_d2 := ff_d2;
++ss_v_data := data;
++
++if ss_read='1' then
++case conv_integer(ss_addr) is
++when 91 =>
++ss_response(7 downto 0) := ff_w(7 downto 0);
++ss_response(14 downto 8) := ff_d1(6 downto 0);
++ss_response(21 downto 15) := ff_d2(6 downto 0);
++when 92 =>
++ss_response(12 downto 0) := data(12 downto 0);
++when others => null; end case;
++end if;
++if ss_write='1' then
++case conv_integer(ss_addr) is
++when 91 =>
++ss_v_ff_w(7 downto 0) := ss_wdata(7 downto 0);
++ff_w <= ss_v_ff_w;
++ss_v_ff_d1(6 downto 0) := ss_wdata(14 downto 8);
++ff_d1 <= ss_v_ff_d1;
++ss_v_ff_d2(6 downto 0) := ss_wdata(21 downto 15);
++ff_d2 <= ss_v_ff_d2;
++when 92 =>
++ss_v_data(12 downto 0) := ss_wdata(12 downto 0);
++data <= ss_v_data;
++when others => null; end case;
++end if;
++end if;
++ss_local_data <= ss_response;
++
++if ss_hold='0' then
++
+             if( clkena = '1' )then
+                 ff_d1 <= ar_adjust( conv_integer( w_addr1 ) );
+                 ff_d2 <= ar_adjust( conv_integer( w_addr2 ) );
+             end if;
+-        end if;
+-    end process;
+ 
+-    process( clk )
+-    begin
+-        if rising_edge(clk) then
++
++            if( clkena = '1' )then
++                ff_w <= addr( 14 downto 7 );
++            end if;
++
++
+             if( clkena = '1' )then
+-                ff_w <= addr( 14 downto 7 );    --  データ自体のビット数が 7bit なので 8bit で十分
++                data <=w_inter( 12 downto 0 );
+             end if;
+-        end if;
+-    end process;
++
++
++end if;
++end if;
++end process;
++
++
++
+ 
+     --  補間    (※符号をまたがる場所では 0 になるから ff_sign は気にしない）
+     --  o = i1 * (1 - k) + i2 * w = i1 - w * i1 + w * i2 = i1 + w * (i2 - i1)
+@@ -147,13 +214,9 @@ begin
+ 
+     w_inter <= ('0' & ff_d1 & "000000") + w_mul;
+ 
+-    process( clk )
+-    begin
+-        if rising_edge(clk) then
+-            if( clkena = '1' )then
+-                data <=w_inter( 12 downto 0 );  --  MSB は必ず 0
+-            end if;
+-        end if;
+-    end process;
++
++
++ss_rdata <= ss_local_data;
++ss_initialized <= '1';
+ 
+ end rtl;
+diff --git a/rtl/VM2413/controller.vhd b/rtl/VM2413/controller.vhd
+index 788464af..a29503af 100644
+--- a/rtl/VM2413/controller.vhd
++++ b/rtl/VM2413/controller.vhd
+@@ -67,6 +67,7 @@ library ieee;
+     use ieee.std_logic_unsigned.all;
+     use work.vm2413.all;
+ 
++use ieee.std_logic_arith.conv_std_logic_vector;
+ entity controller is port (
+ 
+     clk     : in    std_logic;
+@@ -81,25 +82,34 @@ entity controller is port (
+     data    : in    std_logic_vector( 7 downto 0 );
+ 
+     -- output parameters for phasegenerator and envelopegenerator
+-    am      : out   am_type;
+-    pm      : out   pm_type;
+-    wf      : out   wf_type;
+-    ml      : out   ml_type;
+-    tl      : out   db_type;
+-    fb      : out   fb_type;
+-    ar      : out   ar_type;
+-    dr      : out   dr_type;
+-    sl      : out   sl_type;
+-    rr      : out   rr_type;
+-
+-    blk     : out   blk_type;
+-    fnum    : out   fnum_type;
+-    rks     : out   rks_type;
+-
+-    key     : out   std_logic;
+-    rhythm  : out   std_logic
+-
+-    -- slot_out : out slot_id
++    am      : buffer   am_type;
++    pm      : buffer   pm_type;
++    wf      : buffer   wf_type;
++    ml      : buffer   ml_type;
++    tl      : buffer   db_type;
++    fb      : buffer   fb_type;
++    ar      : buffer   ar_type;
++    dr      : buffer   dr_type;
++    sl      : buffer   sl_type;
++    rr      : buffer   rr_type;
++
++    blk     : buffer   blk_type;
++    fnum    : buffer   fnum_type;
++    rks     : buffer   rks_type;
++
++    key     : buffer   std_logic;
++    rhythm  : buffer   std_logic
++
++    -- slot_out : buffer slot_id
++;
++        -- F01 private, fixed-latency 32-bit access; no emulated clock enables.
++        ss_hold : in std_logic := '0';
++        ss_addr : in std_logic_vector(7 downto 0) := (others=>'0');
++        ss_read : in std_logic := '0';
++        ss_write : in std_logic := '0';
++        ss_wdata : in std_logic_vector(31 downto 0) := (others=>'0');
++        ss_rdata : out std_logic_vector(31 downto 0);
++        ss_initialized : out std_logic
+ );
+ end controller;
+ 
+@@ -112,8 +122,17 @@ architecture rtl of controller is
+             addr    : in    std_logic_vector(  3 downto 0 );
+             wr      : in    std_logic;
+             idata   : in    std_logic_vector( 23 downto 0 );
+-            odata   : out   std_logic_vector( 23 downto 0 )
+-        );
++            odata   : buffer   std_logic_vector( 23 downto 0 )
++        ;
++        -- F01 private, fixed-latency 32-bit access; no emulated clock enables.
++        ss_hold : in std_logic := '0';
++        ss_addr : in std_logic_vector(7 downto 0) := (others=>'0');
++        ss_read : in std_logic := '0';
++        ss_write : in std_logic := '0';
++        ss_wdata : in std_logic_vector(31 downto 0) := (others=>'0');
++        ss_rdata : out std_logic_vector(31 downto 0);
++        ss_initialized : out std_logic
++);
+     end component;
+ 
+     component voicememory port (
+@@ -123,8 +142,17 @@ architecture rtl of controller is
+         wr       : in std_logic;
+         rwaddr : in voice_id_type;
+         roaddr : in voice_id_type;
+-        odata   : out voice_type;
+-        rodata : out voice_type );
++        odata   : buffer voice_type;
++        rodata : buffer voice_type ;
++        -- F01 private, fixed-latency 32-bit access; no emulated clock enables.
++        ss_hold : in std_logic := '0';
++        ss_addr : in std_logic_vector(7 downto 0) := (others=>'0');
++        ss_read : in std_logic := '0';
++        ss_write : in std_logic := '0';
++        ss_wdata : in std_logic_vector(31 downto 0) := (others=>'0');
++        ss_rdata : out std_logic_vector(31 downto 0);
++        ss_initialized : out std_logic
++);
+     end component;
+ 
+     -- the array which caches instrument number of each channel.
+@@ -159,6 +187,12 @@ architecture rtl of controller is
+     signal w_channel            : std_logic_vector(  3 downto 0 );
+ --  signal w_is_carrier         : std_logic;
+ 
++    signal ss_local_data : std_logic_vector(31 downto 0) := (others=>'0');
++    signal ss_u_register_memory_data : std_logic_vector(31 downto 0);
++    signal ss_u_register_memory_ready : std_logic;
++    signal ss_vmem_data : std_logic_vector(31 downto 0);
++    signal ss_vmem_ready : std_logic;
++
+ begin   -- rtl
+ 
+     --  レジスタ設定値を保持するためのメモリ
+@@ -170,53 +204,21 @@ begin   -- rtl
+         wr      => regs_wr,
+         idata   => regs_wdata,
+         odata   => regs_rdata
+-    );
++    ,
++ss_hold=>ss_hold, ss_addr=>ss_addr, ss_read=>ss_read, ss_write=>ss_write, ss_wdata=>ss_wdata, ss_rdata=>ss_u_register_memory_data, ss_initialized=>ss_u_register_memory_ready);
+ 
+     vmem : voicememory port map (
+         clk, reset, user_voice_wdata, user_voice_wr, user_voice_addr, slot_voice_addr,
+-        user_voice_rdata, slot_voice_data );
++        user_voice_rdata, slot_voice_data ,
++ss_hold,ss_addr,ss_read,ss_write,ss_wdata,ss_vmem_data,ss_vmem_ready);
+ 
+     --  レジスタアドレスラッチ (第１ステージ)
+-    process( reset, clk )
+-    begin
+-        if( reset = '1' )then
+-            regs_addr   <= (others => '0');
+-        elsif rising_edge(clk) then
+-            if clkena='1' then
+-                if( stage = "00" )then
+-                    regs_addr <= slot( 4 downto 1 );
+-                else
+-                    --  hold
+-                end if;
+-            end if;
+-        end if;
+-    end process;
++    process(clk,reset)
++
++
+ 
+-    --  現在のスロットの音色データ読み出しアドレスラッチ (第１ステージ)
+-    process( reset, clk )
+-    begin
+-        if( reset = '1' )then
+-            slot_voice_addr <= 0;
+-        elsif rising_edge(clk) then
+-            if clkena='1' then
+-                if( stage = "00" )then
+-                    if( rflag(5) = '1' and w_channel >= "0110" )then
+-                        --  リズムモードで ch6 以降
+-                        slot_voice_addr <= conv_integer(slot) - 12 + 32;
+-                    else
+-                        slot_voice_addr <= inst_cache(conv_integer(slot)/2) * 2 + conv_integer(slot) mod 2;
+-                    end if;
+-                else
+-                    --  hold
+-                end if;
+-            end if;
+-        end if;
+-    end process;
+ 
+-    w_channel       <= slot( 4 downto 1 );
+---  w_is_carrier    <= slot( 0 );
+ 
+-    process (clk, reset)
+ 
+         variable kflag : std_logic;
+         variable tll : std_logic_vector(db_type'high+1 downto 0);
+@@ -231,9 +233,44 @@ begin   -- rtl
+         variable extra_mode : std_logic;
+         variable vindex : voice_id_type;
+ 
+-    begin   -- process
+ 
+-        if(reset = '1') then
++variable ss_v_inst_cache : std_logic_vector(35 downto 0);
++variable ss_v_regs_addr : std_logic_vector(3 downto 0);
++variable ss_v_slot_voice_addr : std_logic_vector(5 downto 0);
++variable ss_v_user_voice_addr : std_logic_vector(5 downto 0);
++variable ss_v_user_voice_wr : std_logic_vector(0 downto 0);
++variable ss_v_user_voice_wdata : std_logic_vector(35 downto 0);
++variable ss_v_regs_wr : std_logic_vector(0 downto 0);
++variable ss_v_regs_wdata : std_logic_vector(23 downto 0);
++variable ss_v_rflag : std_logic_vector(7 downto 0);
++variable ss_v_am : std_logic_vector(0 downto 0);
++variable ss_v_pm : std_logic_vector(0 downto 0);
++variable ss_v_wf : std_logic_vector(0 downto 0);
++variable ss_v_ml : std_logic_vector(3 downto 0);
++variable ss_v_tl : std_logic_vector(6 downto 0);
++variable ss_v_fb : std_logic_vector(2 downto 0);
++variable ss_v_ar : std_logic_vector(3 downto 0);
++variable ss_v_dr : std_logic_vector(3 downto 0);
++variable ss_v_sl : std_logic_vector(3 downto 0);
++variable ss_v_rr : std_logic_vector(3 downto 0);
++variable ss_v_blk : std_logic_vector(2 downto 0);
++variable ss_v_fnum : std_logic_vector(8 downto 0);
++variable ss_v_rks : std_logic_vector(3 downto 0);
++variable ss_v_key : std_logic_vector(0 downto 0);
++variable ss_v_rhythm : std_logic_vector(0 downto 0);
++variable ss_v_extra_mode : std_logic_vector(0 downto 0);
++variable ss_v_vindex : std_logic_vector(5 downto 0);
++variable ss_response : std_logic_vector(31 downto 0);
++begin
++if reset='1' then
++ss_local_data <= (others=>'0');
++
++            regs_addr   <= (others => '0');
++
++
++            slot_voice_addr <= 0;
++
++
+ 
+             key <= '0';
+             rhythm <= '0';
+@@ -260,47 +297,234 @@ begin   -- rtl
+             extra_mode := '0';
+             vindex := 0;
+ 
+-        elsif rising_edge(clk) then if clkena='1' then
++
++elsif rising_edge(clk) then
++
++ss_response := (others=>'0');
++if ss_hold='1' and (ss_read='1' or ss_write='1') then
++ss_v_inst_cache(3 downto 0) := conv_std_logic_vector(inst_cache(0),4);
++ss_v_inst_cache(7 downto 4) := conv_std_logic_vector(inst_cache(1),4);
++ss_v_inst_cache(11 downto 8) := conv_std_logic_vector(inst_cache(2),4);
++ss_v_inst_cache(15 downto 12) := conv_std_logic_vector(inst_cache(3),4);
++ss_v_inst_cache(19 downto 16) := conv_std_logic_vector(inst_cache(4),4);
++ss_v_inst_cache(23 downto 20) := conv_std_logic_vector(inst_cache(5),4);
++ss_v_inst_cache(27 downto 24) := conv_std_logic_vector(inst_cache(6),4);
++ss_v_inst_cache(31 downto 28) := conv_std_logic_vector(inst_cache(7),4);
++ss_v_inst_cache(35 downto 32) := conv_std_logic_vector(inst_cache(8),4);
++ss_v_regs_addr := regs_addr;
++ss_v_slot_voice_addr := conv_std_logic_vector(slot_voice_addr,6);
++ss_v_user_voice_addr := conv_std_logic_vector(user_voice_addr,6);
++ss_v_user_voice_wr := (0 => user_voice_wr);
++ss_v_user_voice_wdata := CONV_VOICE_VECTOR(user_voice_wdata);
++ss_v_regs_wr := (0 => regs_wr);
++ss_v_regs_wdata := regs_wdata;
++ss_v_rflag := rflag;
++ss_v_am := (0 => am);
++ss_v_pm := (0 => pm);
++ss_v_wf := (0 => wf);
++ss_v_ml := ml;
++ss_v_tl := tl;
++ss_v_fb := fb;
++ss_v_ar := ar;
++ss_v_dr := dr;
++ss_v_sl := sl;
++ss_v_rr := rr;
++ss_v_blk := blk;
++ss_v_fnum := fnum;
++ss_v_rks := rks;
++ss_v_key := (0 => key);
++ss_v_rhythm := (0 => rhythm);
++ss_v_extra_mode := (0 => extra_mode);
++ss_v_vindex := conv_std_logic_vector(vindex,6);
++
++if ss_read='1' then
++case conv_integer(ss_addr) is
++when 80 =>
++ss_response(31 downto 0) := ss_v_inst_cache(31 downto 0);
++when 81 =>
++ss_response(3 downto 0) := ss_v_inst_cache(35 downto 32);
++ss_response(7 downto 4) := regs_addr(3 downto 0);
++ss_response(13 downto 8) := ss_v_slot_voice_addr(5 downto 0);
++ss_response(14) := ss_v_user_voice_addr(0);
++ss_response(15) := user_voice_wr;
++when 82 =>
++ss_response(31 downto 0) := ss_v_user_voice_wdata(31 downto 0);
++when 83 =>
++ss_response(3 downto 0) := ss_v_user_voice_wdata(35 downto 32);
++ss_response(4) := regs_wr;
++ss_response(26 downto 5) := regs_wdata(23 downto 16) & regs_wdata(13 downto 0);
++when 84 =>
++ss_response(5 downto 0) := rflag(5 downto 0);
++ss_response(6) := am;
++ss_response(7) := pm;
++ss_response(8) := wf;
++ss_response(12 downto 9) := ml(3 downto 0);
++ss_response(19 downto 13) := tl(6 downto 0);
++ss_response(22 downto 20) := fb(2 downto 0);
++ss_response(26 downto 23) := ar(3 downto 0);
++ss_response(30 downto 27) := dr(3 downto 0);
++when 85 =>
++ss_response(3 downto 0) := sl(3 downto 0);
++ss_response(7 downto 4) := rr(3 downto 0);
++ss_response(10 downto 8) := blk(2 downto 0);
++ss_response(19 downto 11) := fnum(8 downto 0);
++ss_response(23 downto 20) := rks(3 downto 0);
++ss_response(24) := key;
++ss_response(25) := rhythm;
++ss_response(26) := extra_mode;
++ss_response(27) := ss_v_vindex(0);
++when others => null; end case;
++end if;
++if ss_write='1' then
++case conv_integer(ss_addr) is
++when 80 =>
++ss_v_inst_cache(31 downto 0) := ss_wdata(31 downto 0);
++inst_cache(0) <= conv_integer(ss_v_inst_cache(3 downto 0));
++inst_cache(1) <= conv_integer(ss_v_inst_cache(7 downto 4));
++inst_cache(2) <= conv_integer(ss_v_inst_cache(11 downto 8));
++inst_cache(3) <= conv_integer(ss_v_inst_cache(15 downto 12));
++inst_cache(4) <= conv_integer(ss_v_inst_cache(19 downto 16));
++inst_cache(5) <= conv_integer(ss_v_inst_cache(23 downto 20));
++inst_cache(6) <= conv_integer(ss_v_inst_cache(27 downto 24));
++inst_cache(7) <= conv_integer(ss_v_inst_cache(31 downto 28));
++inst_cache(8) <= conv_integer(ss_v_inst_cache(35 downto 32));
++when 81 =>
++ss_v_inst_cache(35 downto 32) := ss_wdata(3 downto 0);
++inst_cache(0) <= conv_integer(ss_v_inst_cache(3 downto 0));
++inst_cache(1) <= conv_integer(ss_v_inst_cache(7 downto 4));
++inst_cache(2) <= conv_integer(ss_v_inst_cache(11 downto 8));
++inst_cache(3) <= conv_integer(ss_v_inst_cache(15 downto 12));
++inst_cache(4) <= conv_integer(ss_v_inst_cache(19 downto 16));
++inst_cache(5) <= conv_integer(ss_v_inst_cache(23 downto 20));
++inst_cache(6) <= conv_integer(ss_v_inst_cache(27 downto 24));
++inst_cache(7) <= conv_integer(ss_v_inst_cache(31 downto 28));
++inst_cache(8) <= conv_integer(ss_v_inst_cache(35 downto 32));
++ss_v_regs_addr(3 downto 0) := ss_wdata(7 downto 4);
++regs_addr <= ss_v_regs_addr;
++ss_v_slot_voice_addr(5 downto 0) := ss_wdata(13 downto 8);
++slot_voice_addr <= conv_integer(ss_v_slot_voice_addr);
++ss_v_user_voice_addr(0) := ss_wdata(14);
++user_voice_addr <= conv_integer(ss_v_user_voice_addr);
++ss_v_user_voice_wr(0) := ss_wdata(15);
++user_voice_wr <= ss_v_user_voice_wr(0);
++when 82 =>
++ss_v_user_voice_wdata(31 downto 0) := ss_wdata(31 downto 0);
++user_voice_wdata <= CONV_VOICE(ss_v_user_voice_wdata);
++when 83 =>
++ss_v_user_voice_wdata(35 downto 32) := ss_wdata(3 downto 0);
++user_voice_wdata <= CONV_VOICE(ss_v_user_voice_wdata);
++ss_v_regs_wr(0) := ss_wdata(4);
++regs_wr <= ss_v_regs_wr(0);
++ss_v_regs_wdata(15 downto 14) := "00"; ss_v_regs_wdata(13 downto 0) := ss_wdata(18 downto 5); ss_v_regs_wdata(23 downto 16) := ss_wdata(26 downto 19);
++regs_wdata <= ss_v_regs_wdata;
++when 84 =>
++ss_v_rflag(5 downto 0) := ss_wdata(5 downto 0);
++rflag <= ss_v_rflag;
++ss_v_am(0) := ss_wdata(6);
++am <= ss_v_am(0);
++ss_v_pm(0) := ss_wdata(7);
++pm <= ss_v_pm(0);
++ss_v_wf(0) := ss_wdata(8);
++wf <= ss_v_wf(0);
++ss_v_ml(3 downto 0) := ss_wdata(12 downto 9);
++ml <= ss_v_ml;
++ss_v_tl(6 downto 0) := ss_wdata(19 downto 13);
++tl <= ss_v_tl;
++ss_v_fb(2 downto 0) := ss_wdata(22 downto 20);
++fb <= ss_v_fb;
++ss_v_ar(3 downto 0) := ss_wdata(26 downto 23);
++ar <= ss_v_ar;
++ss_v_dr(3 downto 0) := ss_wdata(30 downto 27);
++dr <= ss_v_dr;
++when 85 =>
++ss_v_sl(3 downto 0) := ss_wdata(3 downto 0);
++sl <= ss_v_sl;
++ss_v_rr(3 downto 0) := ss_wdata(7 downto 4);
++rr <= ss_v_rr;
++ss_v_blk(2 downto 0) := ss_wdata(10 downto 8);
++blk <= ss_v_blk;
++ss_v_fnum(8 downto 0) := ss_wdata(19 downto 11);
++fnum <= ss_v_fnum;
++ss_v_rks(3 downto 0) := ss_wdata(23 downto 20);
++rks <= ss_v_rks;
++ss_v_key(0) := ss_wdata(24);
++key <= ss_v_key(0);
++ss_v_rhythm(0) := ss_wdata(25);
++rhythm <= ss_v_rhythm(0);
++ss_v_extra_mode(0) := ss_wdata(26);
++extra_mode := ss_v_extra_mode(0);
++ss_v_vindex(0) := ss_wdata(27);
++vindex := conv_integer(ss_v_vindex);
++when others => null; end case;
++end if;
++end if;
++ss_local_data <= ss_response;
++
++if ss_hold='0' then
++
++            if clkena='1' then
++                if( stage = "00" )then
++                    regs_addr <= slot( 4 downto 1 );
++                else
++
++                end if;
++            end if;
++
++
++            if clkena='1' then
++                if( stage = "00" )then
++                    if( rflag(5) = '1' and w_channel >= "0110" )then
++
++                        slot_voice_addr <= conv_integer(slot) - 12 + 32;
++                    else
++                        slot_voice_addr <= inst_cache(conv_integer(slot)/2) * 2 + conv_integer(slot) mod 2;
++                    end if;
++                else
++
++                end if;
++            end if;
++
++ if clkena='1' then
+ 
+             case stage is
+-            --------------------------------------------------------------------------
+-            -- 1st stage (setting up a read request for register and voice memories.)
+-            --------------------------------------------------------------------------
++
++
++
+             when "00" =>
+ 
+---              if extra_mode = '0' then
+-                    -- alternately read modulator or carrior.
++
++
+                      vindex := conv_integer(slot) mod 2;
+---              else
+---                  if vindex = voice_id_type'high then
+---                      vindex:= 0;
+---                  else
+---                      vindex:= vindex + 1;
+---                  end if;
+---              end if;
++
++
++
++
++
++
++
+ 
+                 user_voice_addr <= vindex;
+                 regs_wr <= '0';
+                 user_voice_wr <='0';
+ 
+-            --------------------------------------------------------------------------
+-            -- 2nd stage (just a wait for register and voice memories.)
+-            --------------------------------------------------------------------------
++
++
++
+             when "01" =>
+                 null;
+ 
+-            --------------------------------------------------------------------------
+-            -- 3rd stage (updating a register and voice parameters.)
+-            --------------------------------------------------------------------------
++
++
++
+             when "10" =>
+ 
+                 if wr='1' then
+ 
+---                  if ( extra_mode = '0' and conv_integer(addr) < 8 ) or
+---                       ( extra_mode = '1' and ( conv_integer(addr) - 64 ) / 8 = vindex / 2 ) then
++
++
+                     if( extra_mode = '0' and conv_integer(addr) < 8 )then
+ 
+-                        -- update user voice parameter.
++
+                         user_voice_tmp := user_voice_rdata;
+ 
+                         case addr(2 downto 1) is
+@@ -359,18 +583,18 @@ begin   -- rtl
+                         if( conv_integer(addr(3 downto 0) ) = conv_integer(slot) / 2 ) then
+                             regs_tmp := regs_rdata;
+                             case addr( 5 downto 4 ) is
+-                                when "01" => -- 10h～18h の場合（下位 F-Number）
+-                                    regs_tmp(7 downto 0) := data;               --  F-Number
++                                when "01" =>
++                                    regs_tmp(7 downto 0) := data;
+                                     regs_wr <= '1';
+-                                when "10" => -- 20h～28h の場合（Sus, Key, Block, F-Number MSB）
+-                                    regs_tmp(13) := data(5);                    --  Sus
+-                                    regs_tmp(12) := data(4);                    --  Key
+-                                    regs_tmp(11 downto 9) := data(3 downto 1);  --  Block
+-                                    regs_tmp(8) := data(0);                     --  F-Number
++                                when "10" =>
++                                    regs_tmp(13) := data(5);
++                                    regs_tmp(12) := data(4);
++                                    regs_tmp(11 downto 9) := data(3 downto 1);
++                                    regs_tmp(8) := data(0);
+                                     regs_wr <= '1';
+-                                when "11" => -- 30h～38h の場合（Inst, Vol）
+-                                    regs_tmp(23 downto 20) := data(7 downto 4); --  Inst
+-                                    regs_tmp(19 downto 16) := data(3 downto 0); --  Vol
++                                when "11" =>
++                                    regs_tmp(23 downto 20) := data(7 downto 4);
++                                    regs_tmp(19 downto 16) := data(3 downto 0);
+                                     regs_wr <='1';
+                                 when others =>
+                                     null;
+@@ -390,31 +614,31 @@ begin   -- rtl
+ 
+                 end if;
+ 
+-            --------------------------------------------------------------------------
+-            -- 4th stage (updating a register and voice parameters.)
+-            --------------------------------------------------------------------------
++
++
++
+             when "11" =>
+ 
+-                -- output slot number (for explicit synchonization with other units).
+-                -- slot_out <= slot;
+ 
+-                -- updating insturument cache
++
++
++
+                 inst_cache(conv_integer(slot)/2) <= conv_integer(regs_rdata(23 downto 20));
+ 
+                 rhythm <= rflag(5);
+ 
+-                -- updating rhythm status and key flag
++
+                 if rflag(5) = '1' and 12 <= slot then
+                     case slot is
+-                        when "01100" | "01101" => -- bd
++                        when "01100" | "01101" =>
+                             kflag := rflag(4);
+-                        when "01110" =>                 -- hh
++                        when "01110" =>
+                             kflag := rflag(0);
+-                        when "01111" =>                 -- sd
++                        when "01111" =>
+                             kflag := rflag(3);
+-                        when "10000" =>                 -- tom
++                        when "10000" =>
+                             kflag := rflag(2);
+-                        when "10001" =>                 -- cym
++                        when "10001" =>
+                             kflag := rflag(1);
+                         when others => null;
+                     end case;
+@@ -424,7 +648,7 @@ begin   -- rtl
+ 
+                 kflag := kflag or regs_rdata(12);
+ 
+-                -- calculate key-scale attenuation amount.
++
+                 kll := (("0"&kl_table(conv_integer(regs_rdata(8 downto 5))))
+                          - ("0"&("111"-regs_rdata(11 downto 9))&"000")) & '0';
+ 
+@@ -434,13 +658,13 @@ begin   -- rtl
+                     kll := shr(kll, "11" - slot_voice_data.kl );
+                 end if;
+ 
+-                -- calculate base total level from volume register value.
+-                if rflag(5) = '1' and (slot = "01110" or slot = "10000") then -- hh and cym
++
++                if rflag(5) = '1' and (slot = "01110" or slot = "10000") then
+                     tll := ('0' & regs_rdata(23 downto 20) & "000");
+                 elsif( slot(0) = '0' )then
+-                    tll := ('0' & slot_voice_data.tl & '0'); -- mod
++                    tll := ('0' & slot_voice_data.tl & '0');
+                 else
+-                    tll := ('0' & regs_rdata(19 downto 16) & "000");         -- car
++                    tll := ('0' & regs_rdata(19 downto 16) & "000");
+                 end if;
+ 
+                 tll := tll + kll;
+@@ -451,7 +675,7 @@ begin   -- rtl
+                     tl <= tll(tl'range);
+                 end if;
+ 
+-                -- output rks, f-number, block and key-status.
++
+                 fnum <= regs_rdata(8 downto 0);
+                 blk <= regs_rdata(11 downto 9);
+                 key <= kflag;
+@@ -470,10 +694,10 @@ begin   -- rtl
+                     end if;
+                 end if;
+ 
+-                -- output voice parameters
+-                -- note that wf and fb output must keep its value
+-                -- at least 3 clocks since the operator module will fetch
+-                -- the wf and fb 2 clocks later of this stage.
++
++
++
++
+                 am <= slot_voice_data.am;
+                 pm <= slot_voice_data.pm;
+                 ml <= slot_voice_data.ml;
+@@ -485,14 +709,14 @@ begin   -- rtl
+                 dr <= slot_voice_data.dr;
+                 sl <= slot_voice_data.sl;
+ 
+-                -- output release rate (depends on the sustine and envelope type).
+-                if( kflag = '1' ) then -- key on
++
++                if( kflag = '1' ) then
+                     if slot_voice_data.eg = '1' then
+                         rr <= "0000";
+                     else
+                         rr <= slot_voice_data.rr;
+                     end if;
+-                else -- key off
++                else
+                     if (slot(0) = '0') and not ( rflag(5) = '1' and (7 <= conv_integer(slot)/2) ) then
+                         rr  <= "0000";
+                     elsif regs_rdata(13) = '1' then
+@@ -506,8 +730,22 @@ begin   -- rtl
+ 
+             end case;
+ 
+-        end if; end if;
++        end if;
++
++end if;
++end if;
++end process;
++
++
++    --  現在のスロットの音色データ読み出しアドレスラッチ (第１ステージ)
++
++
++    w_channel       <= slot( 4 downto 1 );
++--  w_is_carrier    <= slot( 0 );
++
++
+ 
+-    end process;
++ss_rdata <= ss_local_data or ss_u_register_memory_data or ss_vmem_data;
++ss_initialized <= '1' and ss_u_register_memory_ready and ss_vmem_ready;
+ 
+ end rtl;
+diff --git a/rtl/VM2413/envelopegenerator.vhd b/rtl/VM2413/envelopegenerator.vhd
+index e8a66e67..e909e260 100644
+--- a/rtl/VM2413/envelopegenerator.vhd
++++ b/rtl/VM2413/envelopegenerator.vhd
+@@ -39,6 +39,7 @@ library ieee;
+     use ieee.std_logic_unsigned.all;
+     use work.vm2413.all;
+ 
++use ieee.std_logic_arith.conv_std_logic_vector;
+ entity envelopegenerator is
+     port (
+         clk     : in    std_logic;
+@@ -58,8 +59,17 @@ entity envelopegenerator is
+         rks     : in    rks_type;
+         key     : in    std_logic;
+ 
+-        egout   : out   std_logic_vector( 12 downto 0 )     --  小数部 6bit
+-    );
++        egout   : buffer   std_logic_vector( 12 downto 0 )     --  小数部 6bit
++    ;
++        -- F01 private, fixed-latency 32-bit access; no emulated clock enables.
++        ss_hold : in std_logic := '0';
++        ss_addr : in std_logic_vector(7 downto 0) := (others=>'0');
++        ss_read : in std_logic := '0';
++        ss_write : in std_logic := '0';
++        ss_wdata : in std_logic_vector(31 downto 0) := (others=>'0');
++        ss_rdata : out std_logic_vector(31 downto 0);
++        ss_initialized : out std_logic
++);
+ end envelopegenerator;
+ 
+ architecture rtl of envelopegenerator is
+@@ -73,8 +83,17 @@ architecture rtl of envelopegenerator is
+             wr      : in    std_logic;
+             wdata   : in    egdata_type;
+             raddr   : in    slot_type;
+-            rdata   : out   egdata_type
+-        );
++            rdata   : buffer   egdata_type
++        ;
++        -- F01 private, fixed-latency 32-bit access; no emulated clock enables.
++        ss_hold : in std_logic := '0';
++        ss_addr : in std_logic_vector(7 downto 0) := (others=>'0');
++        ss_read : in std_logic := '0';
++        ss_write : in std_logic := '0';
++        ss_wdata : in std_logic_vector(31 downto 0) := (others=>'0');
++        ss_rdata : out std_logic_vector(31 downto 0);
++        ss_initialized : out std_logic
++);
+     end component;
+ 
+     component AttackTable
+@@ -82,8 +101,17 @@ architecture rtl of envelopegenerator is
+             clk     : in    std_logic;
+             clkena  : in    std_logic;
+             addr    : in    std_logic_vector( 21 downto 0 );    -- 小数部 15bit
+-            data    : out   std_logic_vector( 12 downto 0 )
+-        );
++            data    : buffer   std_logic_vector( 12 downto 0 )
++        ;
++        -- F01 private, fixed-latency 32-bit access; no emulated clock enables.
++        ss_hold : in std_logic := '0';
++        ss_addr : in std_logic_vector(7 downto 0) := (others=>'0');
++        ss_read : in std_logic := '0';
++        ss_write : in std_logic := '0';
++        ss_wdata : in std_logic_vector(31 downto 0) := (others=>'0');
++        ss_rdata : out std_logic_vector(31 downto 0);
++        ss_initialized : out std_logic
++);
+     end component;
+ 
+     signal rslot    : slot_type;
+@@ -93,6 +121,12 @@ architecture rtl of envelopegenerator is
+ 
+     signal aridx    : std_logic_vector( 21 downto 0 );
+     signal ardata   : std_logic_vector( 12 downto 0 );  --  小数部 6bit
++    signal ss_local_data : std_logic_vector(31 downto 0) := (others=>'0');
++    signal ss_u_envelope_memory_data : std_logic_vector(31 downto 0);
++    signal ss_u_envelope_memory_ready : std_logic;
++    signal ss_u_attack_table_data : std_logic_vector(31 downto 0);
++    signal ss_u_attack_table_ready : std_logic;
++
+ begin
+ 
+     --  Attack テーブル
+@@ -102,7 +136,8 @@ begin
+         clkena  =>  clkena,
+         addr    =>  aridx,
+         data    =>  ardata
+-    );
++    ,
++ss_hold=>ss_hold, ss_addr=>ss_addr, ss_read=>ss_read, ss_write=>ss_write, ss_wdata=>ss_wdata, ss_rdata=>ss_u_attack_table_data, ss_initialized=>ss_u_attack_table_ready);
+ 
+     u_envelope_memory: EnvelopeMemory
+     port map (
+@@ -113,27 +148,14 @@ begin
+         wdata   =>  memin,
+         raddr   =>  rslot,
+         rdata   =>  memout
+-    );
++    ,
++ss_hold=>ss_hold, ss_addr=>ss_addr, ss_read=>ss_read, ss_write=>ss_write, ss_wdata=>ss_wdata, ss_rdata=>ss_u_envelope_memory_data, ss_initialized=>ss_u_envelope_memory_ready);
+ 
+     --  EnvelopeMemory のプリフェッチ
+-    process( reset, clk )
+-    begin
+-        if( reset = '1' )then
+-            rslot   <= (others => '0');
+-        elsif rising_edge(clk) then
+-            if( clkena = '1' )then
+-                if( stage = "10" )then
+-                    if( slot = "10001" )then
+-                        rslot <= (others => '0');
+-                    else
+-                        rslot <= slot + 1;
+-                    end if;
+-                end if;
+-            end if;
+-        end if;
+-    end process;
++    process(clk,reset)
++
++
+ 
+-    process( reset, clk )
+         variable lastkey    : std_logic_vector(18-1 downto 0);
+         variable rm         : std_logic_vector(4 downto 0);
+         variable egtmp      : std_logic_vector(db_type'high + 8 downto 0);  --  小数部 6bit
+@@ -142,8 +164,24 @@ begin
+         variable egstate    : egstate_type;
+         variable dphase     : egphase_type;
+         variable ntable     : std_logic_vector(17 downto 0);
+-    begin
+-        if( reset = '1' )then
++
++variable ss_v_rslot : std_logic_vector(4 downto 0);
++variable ss_v_memin : std_logic_vector(24 downto 0);
++variable ss_v_memwr : std_logic_vector(0 downto 0);
++variable ss_v_egout : std_logic_vector(12 downto 0);
++variable ss_v_lastkey : std_logic_vector(17 downto 0);
++variable ss_v_amphase : std_logic_vector(19 downto 0);
++variable ss_v_egphase : std_logic_vector(22 downto 0);
++variable ss_v_egstate : std_logic_vector(1 downto 0);
++variable ss_v_ntable : std_logic_vector(17 downto 0);
++variable ss_response : std_logic_vector(31 downto 0);
++begin
++if reset='1' then
++ss_local_data <= (others=>'0');
++
++            rslot   <= (others => '0');
++
++
+             rm      := (others=>'0');
+             lastkey := (others=>'0');
+             memwr   <= '0';
+@@ -153,16 +191,91 @@ begin
+             amphase(amphase'high downto amphase'high-4) := "00001";
+             amphase(amphase'high-5 downto 0)            := (others=>'0');
+ 
+-        elsif rising_edge(clk) then
+ 
+-            aridx <= egphase( 22-1 downto 0 );
++elsif rising_edge(clk) then
++aridx <= egphase(21 downto 0);
++ss_response := (others=>'0');
++if ss_hold='1' and (ss_read='1' or ss_write='1') then
++ss_v_rslot := rslot;
++ss_v_memin := CONV_EGDATA_VECTOR(memin);
++ss_v_memwr := (0 => memwr);
++ss_v_egout := egout;
++ss_v_lastkey := lastkey;
++ss_v_amphase := amphase;
++ss_v_egphase := egphase;
++ss_v_egstate := egstate;
++ss_v_ntable := ntable;
++
++if ss_read='1' then
++case conv_integer(ss_addr) is
++when 86 =>
++ss_response(4 downto 0) := rslot(4 downto 0);
++ss_response(29 downto 5) := ss_v_memin(24 downto 0);
++ss_response(30) := memwr;
++when 87 =>
++ss_response(12 downto 0) := egout(12 downto 0);
++ss_response(30 downto 13) := lastkey(17 downto 0);
++when 88 =>
++ss_response(19 downto 0) := amphase(19 downto 0);
++when 89 =>
++ss_response(22 downto 0) := egphase(22 downto 0);
++ss_response(24 downto 23) := egstate(1 downto 0);
++when 90 =>
++ss_response(17 downto 0) := ntable(17 downto 0);
++when others => null; end case;
++end if;
++if ss_write='1' then
++case conv_integer(ss_addr) is
++when 86 =>
++ss_v_rslot(4 downto 0) := ss_wdata(4 downto 0);
++rslot <= ss_v_rslot;
++ss_v_memin(24 downto 0) := ss_wdata(29 downto 5);
++memin <= CONV_EGDATA(ss_v_memin);
++ss_v_memwr(0) := ss_wdata(30);
++memwr <= ss_v_memwr(0);
++when 87 =>
++ss_v_egout(12 downto 0) := ss_wdata(12 downto 0);
++egout <= ss_v_egout;
++ss_v_lastkey(17 downto 0) := ss_wdata(30 downto 13);
++lastkey := ss_v_lastkey;
++when 88 =>
++ss_v_amphase(19 downto 0) := ss_wdata(19 downto 0);
++amphase := ss_v_amphase;
++when 89 =>
++ss_v_egphase(22 downto 0) := ss_wdata(22 downto 0);
++egphase := ss_v_egphase;
++ss_v_egstate(1 downto 0) := ss_wdata(24 downto 23);
++egstate := ss_v_egstate;
++when 90 =>
++ss_v_ntable(17 downto 0) := ss_wdata(17 downto 0);
++ntable := ss_v_ntable;
++when others => null; end case;
++end if;
++end if;
++ss_local_data <= ss_response;
++
++if ss_hold='0' then
++
++            if( clkena = '1' )then
++                if( stage = "10" )then
++                    if( slot = "10001" )then
++                        rslot <= (others => '0');
++                    else
++                        rslot <= slot + 1;
++                    end if;
++                end if;
++            end if;
++
++
++
++
+ 
+             if( clkena = '1' )then
+ 
+                 ntable( 17 downto 1 )   := ntable( 16 downto 0 );
+                 ntable( 0 )             := ntable( 17 ) xor ntable( 14 );
+ 
+-                -- Amplitude oscillator ( -4.8dB to 0dB , 3.7Hz )
++
+                 amphase := amphase + '1';
+                 if amphase(amphase'high downto amphase'high-4) = "11111" then
+                     amphase(amphase'high downto amphase'high-4) := "00001";
+@@ -173,13 +286,13 @@ begin
+                     egphase := memout.phase;
+ 
+                 elsif stage = 1 then
+-                    -- Wait for AttackTable
++
+ 
+                 elsif stage = 2 then
+                     case egstate is
+                         when Attack =>
+                             rm := '0'&ar;
+-                            egtmp := ("00"&tl&"000000") + ("00"&ardata);        -- カーブを描いて上昇する
++                            egtmp := ("00"&tl&"000000") + ("00"&ardata);
+                         when Decay  =>
+                             rm := '0'&dr;
+                             egtmp := ("00"&tl&"000000") + ("00"&egphase(22-1 downto 22-7-6));
+@@ -191,24 +304,24 @@ begin
+                             egtmp(egtmp'high-2 downto 0) := (others=>'1');
+                     end case;
+ 
+-                    -- SD and HH
++
+                     if ntable(0)='1' and conv_integer(slot)/2 = 7 and rhythm = '1' then
+                         egtmp := egtmp + "010000000000000";
+                     end if;
+ 
+-                    -- Amplitude LFO
++
+                     if am ='1' then
+                         if (amphase(amphase'high) = '0') then
+-                            -- 上りの場合
++
+                             egtmp := egtmp + ("00000"&(amphase(amphase'high-1 downto amphase'high-4-6)-"0001000000"));
+                         else
+-                            -- 下りの場合
++
+                             egtmp := egtmp + ("00000"&("1111000000"-amphase(amphase'high-1 downto amphase'high-4-6)));
+                         end if;
+                     end if;
+ 
+-                    -- Generate output
+-                    if egtmp(egtmp'high downto egtmp'high-1) = "00" then    -- リミッタ
++
++                    if egtmp(egtmp'high downto egtmp'high-1) = "00" then
+                         egout <= egtmp(egout'range);
+                     else
+                         egout <= (others=>'1');
+@@ -265,16 +378,24 @@ begin
+                     end if;
+                     lastkey(conv_integer(slot)) := key;
+ 
+-                    -- update phase and state memory
++
+                     memin <= ( state => egstate, phase => egphase );
+                     memwr <='1';
+                 elsif stage = 3 then
+-                    -- wait for phase memory
++
+                     memwr <='0';
+                 end if;
+             end if;
+-        end if;
+-    end process;
+ 
+-end rtl;
+ 
++end if;
++end if;
++end process;
++
++
++
++
++ss_rdata <= ss_local_data or ss_u_envelope_memory_data or ss_u_attack_table_data;
++ss_initialized <= '1' and ss_u_envelope_memory_ready and ss_u_attack_table_ready;
++
++end rtl;
+diff --git a/rtl/VM2413/envelopememory.vhd b/rtl/VM2413/envelopememory.vhd
+index 20229159..f6d7505e 100644
+--- a/rtl/VM2413/envelopememory.vhd
++++ b/rtl/VM2413/envelopememory.vhd
+@@ -33,6 +33,7 @@ use IEEE.STD_LOGIC_1164.ALL;
+ use IEEE.STD_LOGIC_UNSIGNED.ALL;
+ use WORK.VM2413.ALL;
+ 
++use ieee.std_logic_arith.conv_std_logic_vector;
+ entity EnvelopeMemory is port (
+   clk     : in std_logic;
+   reset   : in std_logic;
+@@ -41,8 +42,17 @@ entity EnvelopeMemory is port (
+   wr      : in std_logic;
+   wdata   : in EGDATA_TYPE;
+   raddr   : in SLOT_TYPE;
+-  rdata   : out EGDATA_TYPE
+-  );
++  rdata   : buffer EGDATA_TYPE
++  ;
++        -- F01 private, fixed-latency 32-bit access; no emulated clock enables.
++        ss_hold : in std_logic := '0';
++        ss_addr : in std_logic_vector(7 downto 0) := (others=>'0');
++        ss_read : in std_logic := '0';
++        ss_write : in std_logic := '0';
++        ss_wdata : in std_logic_vector(31 downto 0) := (others=>'0');
++        ss_rdata : out std_logic_vector(31 downto 0);
++        ss_initialized : out std_logic
++);
+ end EnvelopeMemory;
+ 
+ architecture RTL of EnvelopeMemory is
+@@ -50,30 +60,51 @@ architecture RTL of EnvelopeMemory is
+   type EGDATA_ARRAY is array (0 to 18-1) of EGDATA_VECTOR_TYPE;
+   signal egdata_set : EGDATA_ARRAY;
+ 
++    signal ss_local_data : std_logic_vector(31 downto 0) := (others=>'0');
++    signal ss_mem_active : std_logic;
++    signal ss_mem_index : integer range 0 to 17;
++    signal ss_mem_ready : std_logic := '0';
++    signal ss_mem_vector : std_logic_vector(24 downto 0);
++
+ begin
+ 
+-  process (clk, reset)
++  process(clk, reset)
+ 
+     variable init_slot : integer range 0 to 18;
+ 
+   begin
+ 
+    if reset = '1' then
++ss_mem_ready <= '0';
+ 
+      init_slot := 0;
+ 
+    elsif rising_edge(clk) then
+ 
+-     if init_slot /= 18 then
++     ss_mem_ready <= '0'; if init_slot=18 then ss_mem_ready <= '1'; end if;
++if ss_hold='0' then
++if init_slot /= 18 then
+        egdata_set(init_slot) <= (others=>'1');
+        init_slot := init_slot + 1;
+      elsif wr = '1' then
+        egdata_set(conv_integer(waddr)) <= CONV_EGDATA_VECTOR(wdata);
+      end if;
+-     rdata <= CONV_EGDATA(egdata_set(conv_integer(raddr)));
++
++elsif ss_write='1' and ss_mem_active='1' then
++egdata_set(ss_mem_index)<=ss_wdata(24 downto 0);
++end if;
++if ss_mem_active='1' then rdata <= CONV_EGDATA(egdata_set(ss_mem_index)); else rdata <= CONV_EGDATA(egdata_set(conv_integer(raddr))); end if;
+ 
+    end if;
+ 
+ end process;
++ss_mem_active <= '1' when ss_hold='1' and conv_integer(ss_addr)>=31 and conv_integer(ss_addr)<=48 else '0';
++ss_mem_index <= conv_integer(ss_addr)-31 when conv_integer(ss_addr)>=31 and conv_integer(ss_addr)<=48 else 0;
++ss_mem_vector <= CONV_EGDATA_VECTOR(rdata);
++ss_local_data <= (6 downto 0 => '0') & ss_mem_vector when ss_mem_active='1' else (others=>'0');
++
++
++ss_rdata <= ss_local_data;
++ss_initialized <= ss_mem_ready;
+ 
+-end RTL;
++end rtl;
+diff --git a/rtl/VM2413/feedbackmemory.vhd b/rtl/VM2413/feedbackmemory.vhd
+index a40adc55..03570202 100644
+--- a/rtl/VM2413/feedbackmemory.vhd
++++ b/rtl/VM2413/feedbackmemory.vhd
+@@ -38,6 +38,7 @@ use WORK.VM2413.ALL;
+ -- data is written by the OutputGenerator module. Then the value written is
+ -- read from the Operator module.
+ --
++use ieee.std_logic_arith.conv_std_logic_vector;
+ entity FeedbackMemory is port (
+   clk    : in std_logic;
+   reset  : in std_logic;
+@@ -45,7 +46,16 @@ entity FeedbackMemory is port (
+   waddr  : in CH_TYPE;
+   wdata  : in SIGNED_LI_TYPE;
+   raddr  : in CH_TYPE;
+-  rdata  : out SIGNED_LI_TYPE
++  rdata  : buffer SIGNED_LI_TYPE
++;
++        -- F01 private, fixed-latency 32-bit access; no emulated clock enables.
++        ss_hold : in std_logic := '0';
++        ss_addr : in std_logic_vector(7 downto 0) := (others=>'0');
++        ss_read : in std_logic := '0';
++        ss_write : in std_logic := '0';
++        ss_wdata : in std_logic_vector(31 downto 0) := (others=>'0');
++        ss_rdata : out std_logic_vector(31 downto 0);
++        ss_initialized : out std_logic
+ );
+ end FeedbackMemory;
+ 
+@@ -56,6 +66,12 @@ architecture RTL of FeedbackMemory is
+   attribute ramstyle : string;
+   attribute ramstyle of data_array : signal is "logic";
+ 
++    signal ss_local_data : std_logic_vector(31 downto 0) := (others=>'0');
++    signal ss_mem_active : std_logic;
++    signal ss_mem_index : integer range 0 to 8;
++    signal ss_mem_ready : std_logic := '0';
++    signal ss_mem_vector : std_logic_vector(9 downto 0);
++
+ begin
+ 
+   process(clk, reset)
+@@ -65,12 +81,15 @@ begin
+   begin
+ 
+     if reset = '1' then
++ss_mem_ready <= '0';
+ 
+       init_ch := 0;
+ 
+     elsif rising_edge(clk) then
+ 
+-      if init_ch /= 9 then
++      ss_mem_ready <= '0'; if init_ch=9 then ss_mem_ready <= '1'; end if;
++if ss_hold='0' then
++if init_ch /= 9 then
+ 
+         data_array(init_ch) <= (others=>'0');
+         init_ch := init_ch + 1;
+@@ -81,10 +100,22 @@ begin
+ 
+       end if;
+ 
+-      rdata <= CONV_SIGNED_LI(data_array(raddr));
++
++elsif ss_write='1' and ss_mem_active='1' then
++data_array(ss_mem_index)<=ss_wdata(9 downto 0);
++end if;
++if ss_mem_active='1' then rdata <= CONV_SIGNED_LI(data_array(ss_mem_index)); else rdata <= CONV_SIGNED_LI(data_array(raddr)); end if;
+ 
+     end if;
+ 
+   end process;
++ss_mem_active <= '1' when ss_hold='1' and conv_integer(ss_addr)>=49 and conv_integer(ss_addr)<=57 else '0';
++ss_mem_index <= conv_integer(ss_addr)-49 when conv_integer(ss_addr)>=49 and conv_integer(ss_addr)<=57 else 0;
++ss_mem_vector <= CONV_SIGNED_LI_VECTOR(rdata);
++ss_local_data <= (21 downto 0 => '0') & ss_mem_vector when ss_mem_active='1' else (others=>'0');
++
++
++ss_rdata <= ss_local_data;
++ss_initialized <= ss_mem_ready;
+ 
+-end RTL;
++end rtl;
+diff --git a/rtl/VM2413/lineartable.vhd b/rtl/VM2413/lineartable.vhd
+index 4e9a746e..3d847d4b 100644
+--- a/rtl/VM2413/lineartable.vhd
++++ b/rtl/VM2413/lineartable.vhd
+@@ -42,7 +42,7 @@ entity linear_table_mul is
+     port (
+         i0      : in    std_logic_vector( 5 downto 0 );     --  符号無し 6bit (小数部  6bit)
+         i1      : in    std_logic_vector( 9 downto 0 );     --  符号付き10bit (整数部 10bit)
+-        o       : out   std_logic_vector( 9 downto 0 )      --  符号付き10bit (整数部 10bit)
++        o       : buffer   std_logic_vector( 9 downto 0 )      --  符号付き10bit (整数部 10bit)
+     );
+ end linear_table_mul;
+ 
+@@ -65,7 +65,7 @@ entity LinearTable is
+         clk     : in    std_logic;
+         reset   : in    std_logic;
+         addr    : in    std_logic_vector( 13 downto 0 );    --  整数部 8bit, 小数部 6bit
+-        data    : out   signed_li_type
++        data    : buffer   signed_li_type
+     );
+ end LinearTable;
+ 
+@@ -75,7 +75,7 @@ architecture rtl of lineartable is
+         port (
+             i0      : in    std_logic_vector( 5 downto 0 );
+             i1      : in    std_logic_vector( 9 downto 0 );
+-            o       : out   std_logic_vector( 9 downto 0 )
++            o       : buffer   std_logic_vector( 9 downto 0 )
+         );
+     end component;
+ 
+diff --git a/rtl/VM2413/operator.vhd b/rtl/VM2413/operator.vhd
+index c043017f..8c8442c2 100644
+--- a/rtl/VM2413/operator.vhd
++++ b/rtl/VM2413/operator.vhd
+@@ -38,6 +38,7 @@ library ieee;
+     use ieee.std_logic_unsigned.all;
+     use work.vm2413.all;
+ 
++use ieee.std_logic_arith.conv_std_logic_vector;
+ entity Operator is
+     port (
+         clk     : in    std_logic;
+@@ -55,11 +56,20 @@ entity Operator is
+         pgout   : in    std_logic_vector( 17 downto 0 );    --  整数部 9bit, 小数部 9bit
+         egout   : in    std_logic_vector( 12 downto 0 );
+ 
+-        faddr   : out   CH_TYPE;
++        faddr   : buffer   CH_TYPE;
+         fdata   : in    SIGNED_LI_TYPE;
+ 
+-        opout   : out   std_logic_vector( 13 downto 0 )     -- 整数部 8bit, 小数部 6bit
+-    );
++        opout   : buffer   std_logic_vector( 13 downto 0 )     -- 整数部 8bit, 小数部 6bit
++    ;
++        -- F01 private, fixed-latency 32-bit access; no emulated clock enables.
++        ss_hold : in std_logic := '0';
++        ss_addr : in std_logic_vector(7 downto 0) := (others=>'0');
++        ss_read : in std_logic := '0';
++        ss_write : in std_logic := '0';
++        ss_wdata : in std_logic_vector(31 downto 0) := (others=>'0');
++        ss_rdata : out std_logic_vector(31 downto 0);
++        ss_initialized : out std_logic
++);
+ end Operator;
+ 
+ architecture rtl of Operator is
+@@ -70,8 +80,17 @@ architecture rtl of Operator is
+             clkena  : in    std_logic;
+             wf      : in    std_logic;
+             addr    : in    std_logic_vector( 17 downto 0 );    --  整数部 9bit, 小数部 9bit
+-            data    : out   std_logic_vector( 13 downto 0 )     --  整数部 8bit, 小数部 6bit
+-        );
++            data    : buffer   std_logic_vector( 13 downto 0 )     --  整数部 8bit, 小数部 6bit
++        ;
++        -- F01 private, fixed-latency 32-bit access; no emulated clock enables.
++        ss_hold : in std_logic := '0';
++        ss_addr : in std_logic_vector(7 downto 0) := (others=>'0');
++        ss_read : in std_logic := '0';
++        ss_write : in std_logic := '0';
++        ss_wdata : in std_logic_vector(31 downto 0) := (others=>'0');
++        ss_rdata : out std_logic_vector(31 downto 0);
++        ss_initialized : out std_logic
++);
+     end component;
+ 
+     signal addr         : std_logic_vector( 17 downto 0 );
+@@ -81,6 +100,10 @@ architecture rtl of Operator is
+     signal w_modula_c   : std_logic_vector( LI_TYPE'high + 2 + 9 downto 0 );
+     signal w_modula     : std_logic_vector( LI_TYPE'high + 2 + 9 downto 0 );
+     signal ff_egout     : std_logic_vector( 12 downto 0 );
++    signal ss_local_data : std_logic_vector(31 downto 0) := (others=>'0');
++    signal ss_u_sine_table_data : std_logic_vector(31 downto 0);
++    signal ss_u_sine_table_ready : std_logic;
++
+ begin
+ 
+     --  サイン波（対数表現）--------------------------------------------------
+@@ -98,7 +121,8 @@ begin
+         wf      => wf,
+         addr    => addr,
+         data    => data
+-    );
++    ,
++ss_hold=>ss_hold, ss_addr=>ss_addr, ss_read=>ss_read, ss_write=>ss_write, ss_wdata=>ss_wdata, ss_rdata=>ss_u_sine_table_data, ss_initialized=>ss_u_sine_table_ready);
+ 
+     w_is_carrier    <=  slot(0);
+     w_modula_m      <=  (others => '0') when( fb = "000" )else
+@@ -107,24 +131,71 @@ begin
+     w_modula        <=  w_modula_c  when( w_is_carrier = '1' )else
+                         w_modula_m;
+ 
+-    process( reset, clk )
++    process(clk,reset)
++
+         variable opout_buf  : std_logic_vector( 13 downto 0 );  --  整数部 8bit, 小数部 6bit
+-    begin
+-        if( reset = '1' )then
++
++variable ss_v_addr : std_logic_vector(17 downto 0);
++variable ss_v_ff_egout : std_logic_vector(12 downto 0);
++variable ss_v_faddr : std_logic_vector(3 downto 0);
++variable ss_v_opout : std_logic_vector(13 downto 0);
++variable ss_response : std_logic_vector(31 downto 0);
++begin
++if reset='1' then
++ss_local_data <= (others=>'0');
++
+             opout       <= (others => '0');
+             ff_egout    <= (others => '0');
+-        elsif rising_edge(clk) then
++
++elsif rising_edge(clk) then
++
++ss_response := (others=>'0');
++if ss_hold='1' and (ss_read='1' or ss_write='1') then
++ss_v_addr := addr;
++ss_v_ff_egout := ff_egout;
++ss_v_faddr := conv_std_logic_vector(faddr,4);
++ss_v_opout := opout;
++
++if ss_read='1' then
++case conv_integer(ss_addr) is
++when 96 =>
++ss_response(17 downto 0) := addr(17 downto 0);
++ss_response(30 downto 18) := ff_egout(12 downto 0);
++when 97 =>
++ss_response(3 downto 0) := ss_v_faddr(3 downto 0);
++ss_response(17 downto 4) := opout(13 downto 0);
++when others => null; end case;
++end if;
++if ss_write='1' then
++case conv_integer(ss_addr) is
++when 96 =>
++ss_v_addr(17 downto 0) := ss_wdata(17 downto 0);
++addr <= ss_v_addr;
++ss_v_ff_egout(12 downto 0) := ss_wdata(30 downto 18);
++ff_egout <= ss_v_ff_egout;
++when 97 =>
++ss_v_faddr(3 downto 0) := ss_wdata(3 downto 0);
++faddr <= conv_integer(ss_v_faddr);
++ss_v_opout(13 downto 0) := ss_wdata(17 downto 4);
++opout <= ss_v_opout;
++when others => null; end case;
++end if;
++end if;
++ss_local_data <= ss_response;
++
++if ss_hold='0' then
++
+             if( clkena = '1' )then
+                 if( stage = "00" )then
+-                    --  サイン波の参照アドレス（位相）を決定するステージ
+-                    if(    rhythm = '1' and ( slot = 14 or slot = 17 ))then -- HH or CYM
++
++                    if(    rhythm = '1' and ( slot = 14 or slot = 17 ))then
+                         addr <= (not noise) & "01111111" & "000000000";
+-                    elsif( rhythm = '1' and slot = 15 )then -- SD
++                    elsif( rhythm = '1' and slot = 15 )then
+                         addr <= (not pgout(pgout'high)) & "01111111" & "000000000";
+-                    elsif( rhythm = '1' and slot = 16 )then -- TOM
++                    elsif( rhythm = '1' and slot = 16 )then
+                         addr <= pgout;
+                     else
+-                        if( fdata.sign = '0' )then      -- modula は fdata の絶対値をシフトした値だから、ここで符号処理してる
++                        if( fdata.sign = '0' )then
+                             addr <= pgout + w_modula(pgout'range);
+                         else
+                             addr <= pgout - w_modula(pgout'range);
+@@ -132,29 +203,36 @@ begin
+                     end if;
+ 
+                 elsif( stage = "01" )then
+-                    --  決定された参照アドレスが u_sine_table へ供給されるステージ
++
+                 elsif( stage = "10" )then
+                     ff_egout <= egout;
+ 
+-                    --  フィードバックメモリのアドレスを決めるステージ
++
+                     if( slot(0) = '1' )then
+                         if( conv_integer(slot)/2 = 8 )then
+                             faddr <= 0;
+                         else
+-                            faddr <= conv_integer(slot)/2 + 1;  --  次のモジュレータのアドレスなので +1
++                            faddr <= conv_integer(slot)/2 + 1;
+                         end if;
+                     end if;
+                 elsif( stage = "11" )then
+-                    -- SineTable からデータが出てくるステージ
++
+                     if ( ( '0' & ff_egout ) + ('0'& data(12 downto 0) ) ) < "10000000000000" then
+                         opout_buf := data(13) & (ff_egout + data(12 downto 0) );
+                     else
+                         opout_buf := data(13) & "1111111111111";
+                     end if;
+                     opout <= opout_buf;
+-                    --  決定されたフィードバックメモリアドレスが FeedBackMemory へ供給されるステージ
++
+                 end if;
+             end if;
+-        end if;
+-    end process;
++
++
++end if;
++end if;
++end process;
++
++ss_rdata <= ss_local_data or ss_u_sine_table_data;
++ss_initialized <= '1' and ss_u_sine_table_ready;
++
+ end rtl;
+diff --git a/rtl/VM2413/opll.vhd b/rtl/VM2413/opll.vhd
+index 06a851f9..4854e269 100644
+--- a/rtl/VM2413/opll.vhd
++++ b/rtl/VM2413/opll.vhd
+@@ -38,18 +38,28 @@ library ieee;
+     use ieee.std_logic_unsigned.all;
+     use work.vm2413.all;
+ 
++use ieee.std_logic_arith.conv_std_logic_vector;
+ entity opll is
+     port(
+         xin         : in  std_logic;
+-        xout        : out std_logic;
++        xout        : buffer std_logic;
+         xena        : in  std_logic;
+         d           : in  std_logic_vector( 7 downto 0 );
+         a           : in  std_logic;
+         cs_n        : in  std_logic;
+         we_n        : in  std_logic;
+         ic_n        : in  std_logic;
+-        mixout      : out std_logic_vector(13 downto 0 )
+-    );
++        mixout      : buffer std_logic_vector(13 downto 0 )
++    ;
++        -- F01 private, fixed-latency 32-bit access; no emulated clock enables.
++        ss_hold : in std_logic := '0';
++        ss_addr : in std_logic_vector(7 downto 0) := (others=>'0');
++        ss_read : in std_logic := '0';
++        ss_write : in std_logic := '0';
++        ss_wdata : in std_logic_vector(31 downto 0) := (others=>'0');
++        ss_rdata : out std_logic_vector(31 downto 0);
++        ss_initialized : out std_logic
++);
+ end opll;
+ 
+ architecture rtl of opll is
+@@ -62,9 +72,18 @@ architecture rtl of opll is
+         reset   : in    std_logic;
+         clkena  : in    std_logic;
+ 
+-        slot    : out   std_logic_vector( 4 downto 0 );
+-        stage   : out   std_logic_vector( 1 downto 0 )
+-    );
++        slot    : buffer   std_logic_vector( 4 downto 0 );
++        stage   : buffer   std_logic_vector( 1 downto 0 )
++    ;
++        -- F01 private, fixed-latency 32-bit access; no emulated clock enables.
++        ss_hold : in std_logic := '0';
++        ss_addr : in std_logic_vector(7 downto 0) := (others=>'0');
++        ss_read : in std_logic := '0';
++        ss_write : in std_logic := '0';
++        ss_wdata : in std_logic_vector(31 downto 0) := (others=>'0');
++        ss_rdata : out std_logic_vector(31 downto 0);
++        ss_initialized : out std_logic
++);
+     end component;
+ 
+     component controller port (
+@@ -79,22 +98,31 @@ architecture rtl of opll is
+         addr    : in    std_logic_vector( 7 downto 0 );
+         data    : in    std_logic_vector( 7 downto 0 );
+ 
+-        am      : out   am_type;
+-        pm      : out   pm_type;
+-        wf      : out   wf_type;
+-        ml      : out   ml_type;
+-        tl      : out   db_type;
+-        fb      : out   fb_type;
+-        ar      : out   ar_type;
+-        dr      : out   dr_type;
+-        sl      : out   sl_type;
+-        rr      : out   rr_type;
+-        blk     : out   blk_type;
+-        fnum    : out   fnum_type;
+-        rks     : out   rks_type;
+-        key     : out   std_logic;
+-        rhythm  : out   std_logic
+-    );
++        am      : buffer   am_type;
++        pm      : buffer   pm_type;
++        wf      : buffer   wf_type;
++        ml      : buffer   ml_type;
++        tl      : buffer   db_type;
++        fb      : buffer   fb_type;
++        ar      : buffer   ar_type;
++        dr      : buffer   dr_type;
++        sl      : buffer   sl_type;
++        rr      : buffer   rr_type;
++        blk     : buffer   blk_type;
++        fnum    : buffer   fnum_type;
++        rks     : buffer   rks_type;
++        key     : buffer   std_logic;
++        rhythm  : buffer   std_logic
++    ;
++        -- F01 private, fixed-latency 32-bit access; no emulated clock enables.
++        ss_hold : in std_logic := '0';
++        ss_addr : in std_logic_vector(7 downto 0) := (others=>'0');
++        ss_read : in std_logic := '0';
++        ss_write : in std_logic := '0';
++        ss_wdata : in std_logic_vector(31 downto 0) := (others=>'0');
++        ss_rdata : out std_logic_vector(31 downto 0);
++        ss_initialized : out std_logic
++);
+     end component;
+ 
+     component envelopegenerator
+@@ -116,8 +144,17 @@ architecture rtl of opll is
+         rks     : in    rks_type;
+         key     : in    std_logic;
+ 
+-        egout   : out   std_logic_vector( 12 downto 0 )
+-    );
++        egout   : buffer   std_logic_vector( 12 downto 0 )
++    ;
++        -- F01 private, fixed-latency 32-bit access; no emulated clock enables.
++        ss_hold : in std_logic := '0';
++        ss_addr : in std_logic_vector(7 downto 0) := (others=>'0');
++        ss_read : in std_logic := '0';
++        ss_write : in std_logic := '0';
++        ss_wdata : in std_logic_vector(31 downto 0) := (others=>'0');
++        ss_rdata : out std_logic_vector(31 downto 0);
++        ss_initialized : out std_logic
++);
+     end component;
+ 
+     component phasegenerator
+@@ -136,9 +173,18 @@ architecture rtl of opll is
+         fnum    : in    fnum_type;
+         key     : in    std_logic;
+ 
+-        noise   : out   std_logic;
+-        pgout   : out   std_logic_vector( 17 downto 0 )
+-    );
++        noise   : buffer   std_logic;
++        pgout   : buffer   std_logic_vector( 17 downto 0 )
++    ;
++        -- F01 private, fixed-latency 32-bit access; no emulated clock enables.
++        ss_hold : in std_logic := '0';
++        ss_addr : in std_logic_vector(7 downto 0) := (others=>'0');
++        ss_read : in std_logic := '0';
++        ss_write : in std_logic := '0';
++        ss_wdata : in std_logic_vector(31 downto 0) := (others=>'0');
++        ss_rdata : out std_logic_vector(31 downto 0);
++        ss_initialized : out std_logic
++);
+     end component;
+ 
+     component operator
+@@ -157,11 +203,20 @@ architecture rtl of opll is
+         pgout   : in    std_logic_vector( 17 downto 0 );
+         egout   : in    std_logic_vector( 12 downto 0 );
+ 
+-        faddr   : out   ch_type;
++        faddr   : buffer   ch_type;
+         fdata   : in    signed_li_type;
+ 
+-        opout   : out   std_logic_vector( 13 downto 0 )
+-    );
++        opout   : buffer   std_logic_vector( 13 downto 0 )
++    ;
++        -- F01 private, fixed-latency 32-bit access; no emulated clock enables.
++        ss_hold : in std_logic := '0';
++        ss_addr : in std_logic_vector(7 downto 0) := (others=>'0');
++        ss_read : in std_logic := '0';
++        ss_write : in std_logic := '0';
++        ss_wdata : in std_logic_vector(31 downto 0) := (others=>'0');
++        ss_rdata : out std_logic_vector(31 downto 0);
++        ss_initialized : out std_logic
++);
+     end component;
+ 
+     component outputgenerator
+@@ -176,11 +231,20 @@ architecture rtl of opll is
+         opout   : in    std_logic_vector( 13 downto 0 );
+ 
+         faddr   : in    ch_type;
+-        fdata   : out   signed_li_type;
++        fdata   : buffer   signed_li_type;
+ 
+         maddr   : in    slot_type;
+-        mdata   : out   signed_li_type
+-    );
++        mdata   : buffer   signed_li_type
++    ;
++        -- F01 private, fixed-latency 32-bit access; no emulated clock enables.
++        ss_hold : in std_logic := '0';
++        ss_addr : in std_logic_vector(7 downto 0) := (others=>'0');
++        ss_read : in std_logic := '0';
++        ss_write : in std_logic := '0';
++        ss_wdata : in std_logic_vector(31 downto 0) := (others=>'0');
++        ss_rdata : out std_logic_vector(31 downto 0);
++        ss_initialized : out std_logic
++);
+     end component;
+ 
+     component temporalmixer
+@@ -194,11 +258,20 @@ architecture rtl of opll is
+ 
+         rhythm  : in std_logic;
+ 
+-        maddr   : out slot_type;
++        maddr   : buffer slot_type;
+         mdata   : in signed_li_type;
+ 
+-        mixout  : out std_logic_vector(13 downto 0)
+-    );
++        mixout  : buffer std_logic_vector(13 downto 0)
++    ;
++        -- F01 private, fixed-latency 32-bit access; no emulated clock enables.
++        ss_hold : in std_logic := '0';
++        ss_addr : in std_logic_vector(7 downto 0) := (others=>'0');
++        ss_read : in std_logic := '0';
++        ss_write : in std_logic := '0';
++        ss_wdata : in std_logic_vector(31 downto 0) := (others=>'0');
++        ss_rdata : out std_logic_vector(31 downto 0);
++        ss_initialized : out std_logic
++);
+     end component;
+ 
+     signal reset    : std_logic;
+@@ -249,17 +322,79 @@ architecture rtl of opll is
+     signal stage5   : stage_type;
+     signal stage8   : stage_type;
+ 
++    signal ss_local_data : std_logic_vector(31 downto 0) := (others=>'0');
++    signal ss_s0_data : std_logic_vector(31 downto 0);
++    signal ss_s0_ready : std_logic;
++    signal ss_s2_data : std_logic_vector(31 downto 0);
++    signal ss_s2_ready : std_logic;
++    signal ss_s5_data : std_logic_vector(31 downto 0);
++    signal ss_s5_ready : std_logic;
++    signal ss_s8_data : std_logic_vector(31 downto 0);
++    signal ss_s8_ready : std_logic;
++    signal ss_ct_data : std_logic_vector(31 downto 0);
++    signal ss_ct_ready : std_logic;
++    signal ss_eg_data : std_logic_vector(31 downto 0);
++    signal ss_eg_ready : std_logic;
++    signal ss_pg_data : std_logic_vector(31 downto 0);
++    signal ss_pg_ready : std_logic;
++    signal ss_op_data : std_logic_vector(31 downto 0);
++    signal ss_op_ready : std_logic;
++    signal ss_og_data : std_logic_vector(31 downto 0);
++    signal ss_og_ready : std_logic;
++    signal ss_tm_data : std_logic_vector(31 downto 0);
++    signal ss_tm_ready : std_logic;
++
+ begin
+ 
+     xout    <= xin;
+     reset   <= not ic_n;
+ 
+-    process( xin, reset )
+-    begin
+-        if( reset ='1' )then
++    process(xin,reset)
++
++
++variable ss_v_opllptr : std_logic_vector(7 downto 0);
++variable ss_v_oplldat : std_logic_vector(7 downto 0);
++variable ss_v_opllwr : std_logic_vector(0 downto 0);
++variable ss_response : std_logic_vector(31 downto 0);
++begin
++if reset='1' then
++ss_local_data <= (others=>'0');
++
+             opllwr  <= '0';
+             opllptr <= (others =>'0');
+-        elsif rising_edge(xin) then
++
++elsif rising_edge(xin) then
++
++ss_response := (others=>'0');
++if ss_hold='1' and (ss_read='1' or ss_write='1') then
++ss_v_opllptr := opllptr;
++ss_v_oplldat := oplldat;
++ss_v_opllwr := (0 => opllwr);
++
++if ss_read='1' then
++case conv_integer(ss_addr) is
++when 77 =>
++ss_response(7 downto 0) := opllptr(7 downto 0);
++ss_response(15 downto 8) := oplldat(7 downto 0);
++ss_response(16) := opllwr;
++when others => null; end case;
++end if;
++if ss_write='1' then
++case conv_integer(ss_addr) is
++when 77 =>
++ss_v_opllptr(7 downto 0) := ss_wdata(7 downto 0);
++opllptr <= ss_v_opllptr;
++ss_v_oplldat(7 downto 0) := ss_wdata(15 downto 8);
++oplldat <= ss_v_oplldat;
++ss_v_opllwr(0) := ss_wdata(16);
++opllwr <= ss_v_opllwr(0);
++when others => null; end case;
++end if;
++end if;
++ss_local_data <= ss_response;
++
++if ss_hold='0' then
++
+             if( xena = '1' )then
+                 if(    cs_n = '0' and we_n = '0' and a = '0' )then
+                     opllptr <= d;
+@@ -269,8 +404,12 @@ begin
+                     opllwr  <= '1';
+                 end if;
+             end if;
+-        end if;
+-    end process;
++
++
++end if;
++end if;
++end process;
++
+ 
+     s0: slotcounter
+     generic map(
+@@ -282,7 +421,8 @@ begin
+         clkena  => xena,
+         slot    => slot,
+         stage   => stage
+-    );
++    ,
++ss_hold=>ss_hold, ss_addr=>ss_addr, ss_read=>ss_read, ss_write=>ss_write, ss_wdata=>ss_wdata, ss_rdata=>ss_s0_data, ss_initialized=>ss_s0_ready);
+ 
+     s2: slotcounter
+     generic map(
+@@ -294,7 +434,8 @@ begin
+         clkena  => xena,
+         slot    => slot2,
+         stage   => stage2
+-    );
++    ,
++ss_hold=>ss_hold, ss_addr=>ss_addr, ss_read=>ss_read, ss_write=>ss_write, ss_wdata=>ss_wdata, ss_rdata=>ss_s2_data, ss_initialized=>ss_s2_ready);
+ 
+     s5: slotcounter
+     generic map(
+@@ -306,7 +447,8 @@ begin
+         clkena  => xena,
+         slot    => slot5,
+         stage   => stage5
+-    );
++    ,
++ss_hold=>ss_hold, ss_addr=>ss_addr, ss_read=>ss_read, ss_write=>ss_write, ss_wdata=>ss_wdata, ss_rdata=>ss_s5_data, ss_initialized=>ss_s5_ready);
+ 
+     s8: slotcounter
+     generic map(
+@@ -318,12 +460,14 @@ begin
+         clkena  => xena,
+         slot    => slot8,
+         stage   => stage8
+-    );
++    ,
++ss_hold=>ss_hold, ss_addr=>ss_addr, ss_read=>ss_read, ss_write=>ss_write, ss_wdata=>ss_wdata, ss_rdata=>ss_s8_data, ss_initialized=>ss_s8_ready);
+ 
+     -- no delay
+     ct: controller port map (
+         xin,reset,xena, slot, stage, opllwr,opllptr,oplldat,
+-        am,pm,wf,ml,tl,fb,ar,dr,sl,rr,blk,fnum,rks,key,rhythm);
++        am,pm,wf,ml,tl,fb,ar,dr,sl,rr,blk,fnum,rks,key,rhythm,
++ss_hold,ss_addr,ss_read,ss_write,ss_wdata,ss_ct_data,ss_ct_ready);
+ 
+     -- 2 stages delay
+     eg: envelopegenerator port map (
+@@ -331,27 +475,31 @@ begin
+         slot2, stage2, rhythm,
+         am, tl, ar, dr, sl, rr, rks, key,
+         egout
+-    );
++    ,
++ss_hold,ss_addr,ss_read,ss_write,ss_wdata,ss_eg_data,ss_eg_ready);
+ 
+     pg: phasegenerator port map (
+         xin,reset,xena,
+         slot2, stage2, rhythm,
+         pm, ml, blk, fnum, key,
+         noise, pgout
+-    );
++    ,
++ss_hold,ss_addr,ss_read,ss_write,ss_wdata,ss_pg_data,ss_pg_ready);
+ 
+     -- 5 stages delay
+     op: operator port map (
+         xin,reset,xena,
+         slot5, stage5, rhythm,
+         wf, fb, noise, pgout, egout, faddr, fdata, opout
+-    );
++    ,
++ss_hold,ss_addr,ss_read,ss_write,ss_wdata,ss_op_data,ss_op_ready);
+ 
+     -- 8 stages delay
+     og: outputgenerator port map (
+         xin, reset, xena, slot8, stage8, rhythm,
+         opout, faddr, fdata, maddr, mdata
+-    );
++    ,
++ss_hold,ss_addr,ss_read,ss_write,ss_wdata,ss_og_data,ss_og_ready);
+ 
+     -- independent from delay
+     tm: temporalmixer port map (
+@@ -359,7 +507,10 @@ begin
+         slot, stage, rhythm,
+         maddr, mdata,
+         mixout
+-    );
++    ,
++ss_hold,ss_addr,ss_read,ss_write,ss_wdata,ss_tm_data,ss_tm_ready);
+ 
+-end rtl;
++ss_rdata <= ss_local_data or ss_s0_data or ss_s2_data or ss_s5_data or ss_s8_data or ss_ct_data or ss_eg_data or ss_pg_data or ss_op_data or ss_og_data or ss_tm_data;
++ss_initialized <= '1' and ss_s0_ready and ss_s2_ready and ss_s5_ready and ss_s8_ready and ss_ct_ready and ss_eg_ready and ss_pg_ready and ss_op_ready and ss_og_ready and ss_tm_ready;
+ 
++end rtl;
+diff --git a/rtl/VM2413/outputgenerator.vhd b/rtl/VM2413/outputgenerator.vhd
+index 6b7e5aef..629342b0 100644
+--- a/rtl/VM2413/outputgenerator.vhd
++++ b/rtl/VM2413/outputgenerator.vhd
+@@ -33,6 +33,7 @@ use IEEE.STD_LOGIC_1164.ALL;
+ use IEEE.STD_LOGIC_UNSIGNED.ALL;
+ use WORK.VM2413.ALL;
+ 
++use ieee.std_logic_arith.conv_std_logic_vector;
+ entity OutputGenerator is
+     port (
+         clk         : in    std_logic;
+@@ -45,11 +46,20 @@ entity OutputGenerator is
+         opout       : in    std_logic_vector( 13 downto 0 );
+ 
+         faddr       : in    CH_TYPE;
+-        fdata       : out   SIGNED_LI_TYPE;
++        fdata       : buffer   SIGNED_LI_TYPE;
+ 
+         maddr       : in    SLOT_TYPE;
+-        mdata       : out   SIGNED_LI_TYPE
+-    );
++        mdata       : buffer   SIGNED_LI_TYPE
++    ;
++        -- F01 private, fixed-latency 32-bit access; no emulated clock enables.
++        ss_hold : in std_logic := '0';
++        ss_addr : in std_logic_vector(7 downto 0) := (others=>'0');
++        ss_read : in std_logic := '0';
++        ss_write : in std_logic := '0';
++        ss_wdata : in std_logic_vector(31 downto 0) := (others=>'0');
++        ss_rdata : out std_logic_vector(31 downto 0);
++        ss_initialized : out std_logic
++);
+ end OutputGenerator;
+ 
+ architecture RTL of OutputGenerator is
+@@ -62,8 +72,17 @@ architecture RTL of OutputGenerator is
+             waddr   : in    CH_TYPE;
+             wdata   : in    SIGNED_LI_TYPE;
+             raddr   : in    CH_TYPE;
+-            rdata   : out   SIGNED_LI_TYPE
+-        );
++            rdata   : buffer   SIGNED_LI_TYPE
++        ;
++        -- F01 private, fixed-latency 32-bit access; no emulated clock enables.
++        ss_hold : in std_logic := '0';
++        ss_addr : in std_logic_vector(7 downto 0) := (others=>'0');
++        ss_read : in std_logic := '0';
++        ss_write : in std_logic := '0';
++        ss_wdata : in std_logic_vector(31 downto 0) := (others=>'0');
++        ss_rdata : out std_logic_vector(31 downto 0);
++        ss_initialized : out std_logic
++);
+     end component;
+ 
+     component OutputMemory
+@@ -73,10 +92,19 @@ architecture RTL of OutputGenerator is
+             wr      : in    std_logic;
+             addr    : in    SLOT_TYPE;
+             wdata   : in    SIGNED_LI_TYPE;
+-            rdata   : out   SIGNED_LI_TYPE;
++            rdata   : buffer   SIGNED_LI_TYPE;
+             addr2   : in    SLOT_TYPE;
+-            rdata2  : out   SIGNED_LI_TYPE
+-        );
++            rdata2  : buffer   SIGNED_LI_TYPE
++        ;
++        -- F01 private, fixed-latency 32-bit access; no emulated clock enables.
++        ss_hold : in std_logic := '0';
++        ss_addr : in std_logic_vector(7 downto 0) := (others=>'0');
++        ss_read : in std_logic := '0';
++        ss_write : in std_logic := '0';
++        ss_wdata : in std_logic_vector(31 downto 0) := (others=>'0');
++        ss_rdata : out std_logic_vector(31 downto 0);
++        ss_initialized : out std_logic
++);
+     end component;
+ 
+     component LinearTable
+@@ -84,7 +112,7 @@ architecture RTL of OutputGenerator is
+             clk      : in   std_logic;
+             reset    : in   std_logic;
+             addr     : in   std_logic_vector( 13 downto 0 );
+-            data     : out  SIGNED_LI_TYPE
++            data     : buffer  SIGNED_LI_TYPE
+         );
+     end component;
+ 
+@@ -120,6 +148,12 @@ architecture RTL of OutputGenerator is
+     signal fb_addr      : CH_TYPE;
+     signal mo_addr      : SLOT_TYPE;
+     signal li_data, fb_wdata, mo_wdata, mo_rdata : SIGNED_LI_TYPE;
++    signal ss_local_data : std_logic_vector(31 downto 0) := (others=>'0');
++    signal ss_Fmem_data : std_logic_vector(31 downto 0);
++    signal ss_Fmem_ready : std_logic;
++    signal ss_Mmem_data : std_logic_vector(31 downto 0);
++    signal ss_Mmem_ready : std_logic;
++
+ begin
+ 
+     Fmem : FeedbackMemory port map(
+@@ -130,7 +164,8 @@ begin
+         wdata   => fb_wdata,
+         raddr   => faddr,
+         rdata   => fdata
+-    );
++    ,
++ss_hold=>ss_hold, ss_addr=>ss_addr, ss_read=>ss_read, ss_write=>ss_write, ss_wdata=>ss_wdata, ss_rdata=>ss_Fmem_data, ss_initialized=>ss_Fmem_ready);
+ 
+     Mmem : OutputMemory port map(
+         clk     => clk,
+@@ -141,7 +176,8 @@ begin
+         rdata   => mo_rdata,
+         addr2   => maddr,
+         rdata2  => mdata
+-    );
++    ,
++ss_hold=>ss_hold, ss_addr=>ss_addr, ss_read=>ss_read, ss_write=>ss_write, ss_wdata=>ss_wdata, ss_rdata=>ss_Mmem_data, ss_initialized=>ss_Mmem_ready);
+ 
+     Ltbl : LinearTable port map (
+         clk     => clk,
+@@ -150,12 +186,67 @@ begin
+         data    => li_data          --  0～511
+     );
+ 
+-    process( reset, clk )
+-    begin
+-        if( reset = '1' )then
++    process(clk,reset)
++
++
++variable ss_v_fb_wr : std_logic_vector(0 downto 0);
++variable ss_v_mo_wr : std_logic_vector(0 downto 0);
++variable ss_v_fb_addr : std_logic_vector(3 downto 0);
++variable ss_v_mo_addr : std_logic_vector(4 downto 0);
++variable ss_v_fb_wdata : std_logic_vector(9 downto 0);
++variable ss_v_mo_wdata : std_logic_vector(9 downto 0);
++variable ss_response : std_logic_vector(31 downto 0);
++begin
++if reset='1' then
++ss_local_data <= (others=>'0');
++
+             mo_wr <= '0';
+             fb_wr <= '0';
+-        elsif rising_edge(clk) then
++
++elsif rising_edge(clk) then
++
++ss_response := (others=>'0');
++if ss_hold='1' and (ss_read='1' or ss_write='1') then
++ss_v_fb_wr := (0 => fb_wr);
++ss_v_mo_wr := (0 => mo_wr);
++ss_v_fb_addr := conv_std_logic_vector(fb_addr,4);
++ss_v_mo_addr := mo_addr;
++ss_v_fb_wdata := CONV_SIGNED_LI_VECTOR(fb_wdata);
++ss_v_mo_wdata := CONV_SIGNED_LI_VECTOR(mo_wdata);
++
++if ss_read='1' then
++case conv_integer(ss_addr) is
++when 100 =>
++ss_response(0) := fb_wr;
++ss_response(1) := mo_wr;
++ss_response(5 downto 2) := ss_v_fb_addr(3 downto 0);
++ss_response(10 downto 6) := mo_addr(4 downto 0);
++ss_response(20 downto 11) := ss_v_fb_wdata(9 downto 0);
++ss_response(30 downto 21) := ss_v_mo_wdata(9 downto 0);
++when others => null; end case;
++end if;
++if ss_write='1' then
++case conv_integer(ss_addr) is
++when 100 =>
++ss_v_fb_wr(0) := ss_wdata(0);
++fb_wr <= ss_v_fb_wr(0);
++ss_v_mo_wr(0) := ss_wdata(1);
++mo_wr <= ss_v_mo_wr(0);
++ss_v_fb_addr(3 downto 0) := ss_wdata(5 downto 2);
++fb_addr <= conv_integer(ss_v_fb_addr);
++ss_v_mo_addr(4 downto 0) := ss_wdata(10 downto 6);
++mo_addr <= ss_v_mo_addr;
++ss_v_fb_wdata(9 downto 0) := ss_wdata(20 downto 11);
++fb_wdata <= CONV_SIGNED_LI(ss_v_fb_wdata);
++ss_v_mo_wdata(9 downto 0) := ss_wdata(30 downto 21);
++mo_wdata <= CONV_SIGNED_LI(ss_v_mo_wdata);
++when others => null; end case;
++end if;
++end if;
++ss_local_data <= ss_response;
++
++if ss_hold='0' then
++
+             if( clkena = '1' )then
+                 mo_addr <= slot;
+ 
+@@ -164,23 +255,30 @@ begin
+                     fb_wr   <= '0';
+ 
+                 elsif( stage = 1 )then
+-                    --  opout に所望の値が入ってくるステージ
++
+                 elsif( stage = 2 )then
+-                    --  待ち
++
+                 elsif( stage = 3 )then
+-                    --  LinerTable から opout で指定されたアドレスに対応する値が出てくるステージ
++
+                     if( slot(0) = '0' )then
+-                        --  フィードバックメモリにはモジュレータのときしか書き込まない
++
+                         fb_addr <= conv_integer(slot)/2;
+                         fb_wdata<= AVERAGE(mo_rdata, li_data);
+                         fb_wr   <= '1';
+                     end if;
+-                    -- Store raw output
++
+                     mo_wdata<= li_data;
+                     mo_wr   <= '1';
+                 end if;
+             end if;
+-        end if;
+-    end process;
+ 
+-end RTL;
++
++end if;
++end if;
++end process;
++
++
++ss_rdata <= ss_local_data or ss_Fmem_data or ss_Mmem_data;
++ss_initialized <= '1' and ss_Fmem_ready and ss_Mmem_ready;
++
++end rtl;
+diff --git a/rtl/VM2413/outputmemory.vhd b/rtl/VM2413/outputmemory.vhd
+index 466d6768..8a74148d 100644
+--- a/rtl/VM2413/outputmemory.vhd
++++ b/rtl/VM2413/outputmemory.vhd
+@@ -33,15 +33,25 @@ use IEEE.STD_LOGIC_1164.ALL;
+ use IEEE.STD_LOGIC_UNSIGNED.ALL;
+ use WORK.VM2413.ALL;
+ 
++use ieee.std_logic_arith.conv_std_logic_vector;
+ entity OutputMemory is port (
+   clk    : in std_logic;
+   reset  : in std_logic;
+   wr     : in std_logic;
+   addr  : in SLOT_TYPE;
+   wdata  : in SIGNED_LI_TYPE;
+-  rdata  : out SIGNED_LI_TYPE;
++  rdata  : buffer SIGNED_LI_TYPE;
+   addr2  : in SLOT_TYPE;
+-  rdata2 : out SIGNED_LI_TYPE
++  rdata2 : buffer SIGNED_LI_TYPE
++;
++        -- F01 private, fixed-latency 32-bit access; no emulated clock enables.
++        ss_hold : in std_logic := '0';
++        ss_addr : in std_logic_vector(7 downto 0) := (others=>'0');
++        ss_read : in std_logic := '0';
++        ss_write : in std_logic := '0';
++        ss_wdata : in std_logic_vector(31 downto 0) := (others=>'0');
++        ss_rdata : out std_logic_vector(31 downto 0);
++        ss_initialized : out std_logic
+ );
+ end OutputMemory;
+ 
+@@ -52,6 +62,12 @@ architecture RTL of OutputMemory is
+   attribute ramstyle : string;
+   attribute ramstyle of data_array : signal is "logic";
+ 
++    signal ss_local_data : std_logic_vector(31 downto 0) := (others=>'0');
++    signal ss_mem_active : std_logic;
++    signal ss_mem_index : integer range 0 to 17;
++    signal ss_mem_ready : std_logic := '0';
++    signal ss_mem_vector : std_logic_vector(9 downto 0);
++
+ begin
+ 
+   process(clk, reset)
+@@ -61,12 +77,15 @@ begin
+   begin
+ 
+     if (reset = '1') then
++ss_mem_ready <= '0';
+ 
+       init_ch := 0;
+ 
+     elsif rising_edge(clk) then
+ 
+-      if init_ch /= 18 then
++      ss_mem_ready <= '0'; if init_ch=18 then ss_mem_ready <= '1'; end if;
++if ss_hold='0' then
++if init_ch /= 18 then
+ 
+         data_array(init_ch) <= (others=>'0');
+         init_ch := init_ch + 1;
+@@ -77,11 +96,23 @@ begin
+ 
+       end if;
+ 
+-      rdata <= CONV_SIGNED_LI(data_array(conv_integer(addr)));
++
++elsif ss_write='1' and ss_mem_active='1' then
++data_array(ss_mem_index)<=ss_wdata(9 downto 0);
++end if;
++if ss_mem_active='1' then rdata <= CONV_SIGNED_LI(data_array(ss_mem_index)); else rdata <= CONV_SIGNED_LI(data_array(conv_integer(addr))); end if;
+       rdata2 <= CONV_SIGNED_LI(data_array(conv_integer(addr2)));
+ 
+     end if;
+ 
+   end process;
++ss_mem_active <= '1' when ss_hold='1' and conv_integer(ss_addr)>=58 and conv_integer(ss_addr)<=75 else '0';
++ss_mem_index <= conv_integer(ss_addr)-58 when conv_integer(ss_addr)>=58 and conv_integer(ss_addr)<=75 else 0;
++ss_mem_vector <= CONV_SIGNED_LI_VECTOR(rdata);
++ss_local_data <= (21 downto 0 => '0') & ss_mem_vector when ss_mem_active='1' else (others=>'0');
++
++
++ss_rdata <= ss_local_data;
++ss_initialized <= ss_mem_ready;
+ 
+-end RTL;
+\ No newline at end of file
++end rtl;
+diff --git a/rtl/VM2413/phasegenerator.vhd b/rtl/VM2413/phasegenerator.vhd
+index 0879351b..c00a91a1 100644
+--- a/rtl/VM2413/phasegenerator.vhd
++++ b/rtl/VM2413/phasegenerator.vhd
+@@ -38,6 +38,7 @@ use IEEE.STD_LOGIC_1164.ALL;
+ use IEEE.STD_LOGIC_UNSIGNED.ALL;
+ use WORK.VM2413.ALL;
+ 
++use ieee.std_logic_arith.conv_std_logic_vector;
+ entity PhaseGenerator is port (
+   clk      : in std_logic;
+   reset    : in std_logic;
+@@ -53,9 +54,18 @@ entity PhaseGenerator is port (
+   fnum   : in FNUM_TYPE;
+   key    : in std_logic;
+ 
+-  noise  : out std_logic;
+-  pgout  : out std_logic_vector( 17 downto 0 )
+-  );
++  noise  : buffer std_logic;
++  pgout  : buffer std_logic_vector( 17 downto 0 )
++  ;
++        -- F01 private, fixed-latency 32-bit access; no emulated clock enables.
++        ss_hold : in std_logic := '0';
++        ss_addr : in std_logic_vector(7 downto 0) := (others=>'0');
++        ss_read : in std_logic := '0';
++        ss_write : in std_logic := '0';
++        ss_wdata : in std_logic_vector(31 downto 0) := (others=>'0');
++        ss_rdata : out std_logic_vector(31 downto 0);
++        ss_initialized : out std_logic
++);
+ end PhaseGenerator;
+ 
+ architecture RTL of PhaseGenerator is
+@@ -67,9 +77,18 @@ architecture RTL of PhaseGenerator is
+     slot    : in SLOT_TYPE;
+     memwr   : in std_logic;
+ 
+-    memout  : out PHASE_TYPE;
++    memout  : buffer PHASE_TYPE;
+     memin   : in  PHASE_TYPE
+-    );
++    ;
++        -- F01 private, fixed-latency 32-bit access; no emulated clock enables.
++        ss_hold : in std_logic := '0';
++        ss_addr : in std_logic_vector(7 downto 0) := (others=>'0');
++        ss_read : in std_logic := '0';
++        ss_write : in std_logic := '0';
++        ss_wdata : in std_logic_vector(31 downto 0) := (others=>'0');
++        ss_rdata : out std_logic_vector(31 downto 0);
++        ss_initialized : out std_logic
++);
+   end component;
+ 
+   type ML_TABLE is array (0 to 15) of std_logic_vector(4 downto 0);
+@@ -91,17 +110,33 @@ architecture RTL of PhaseGenerator is
+   -- Counter for pitch modulation;
+   signal pmcount : std_logic_vector(12 downto 0);
+ 
++    signal ss_local_data : std_logic_vector(31 downto 0) := (others=>'0');
++    signal ss_MEM_data : std_logic_vector(31 downto 0);
++    signal ss_MEM_ready : std_logic;
++
+ begin
+ 
+-    process(clk, reset)
++    process(clk,reset)
++
+         variable lastkey : std_logic_vector(18-1 downto 0);
+         variable dphase : PHASE_TYPE;
+         variable noise14 : std_logic;
+         variable noise17 : std_logic;
+         variable pgout_buf : std_logic_vector( 17 downto 0 );   --  整数部 9bit, 小数部 9bit
+-  begin
+ 
+-    if reset = '1' then
++variable ss_v_memwr : std_logic_vector(0 downto 0);
++variable ss_v_memin : std_logic_vector(17 downto 0);
++variable ss_v_pmcount : std_logic_vector(12 downto 0);
++variable ss_v_noise : std_logic_vector(0 downto 0);
++variable ss_v_pgout : std_logic_vector(17 downto 0);
++variable ss_v_lastkey : std_logic_vector(17 downto 0);
++variable ss_v_noise14 : std_logic_vector(0 downto 0);
++variable ss_v_noise17 : std_logic_vector(0 downto 0);
++variable ss_response : std_logic_vector(31 downto 0);
++begin
++if reset='1' then
++ss_local_data <= (others=>'0');
++
+ 
+       pmcount <= (others=>'0');
+       memwr <= '0';
+@@ -110,7 +145,63 @@ begin
+       noise14 := '0';
+       noise17 := '0';
+ 
+-    elsif rising_edge(clk) then if clkena = '1' then
++
++elsif rising_edge(clk) then
++
++ss_response := (others=>'0');
++if ss_hold='1' and (ss_read='1' or ss_write='1') then
++ss_v_memwr := (0 => memwr);
++ss_v_memin := memin;
++ss_v_pmcount := pmcount;
++ss_v_noise := (0 => noise);
++ss_v_pgout := pgout;
++ss_v_lastkey := lastkey;
++ss_v_noise14 := (0 => noise14);
++ss_v_noise17 := (0 => noise17);
++
++if ss_read='1' then
++case conv_integer(ss_addr) is
++when 93 =>
++ss_response(0) := memwr;
++ss_response(18 downto 1) := memin(17 downto 0);
++ss_response(31 downto 19) := pmcount(12 downto 0);
++when 94 =>
++ss_response(0) := noise;
++ss_response(18 downto 1) := pgout(17 downto 0);
++when 95 =>
++ss_response(17 downto 0) := lastkey(17 downto 0);
++ss_response(18) := noise14;
++ss_response(19) := noise17;
++when others => null; end case;
++end if;
++if ss_write='1' then
++case conv_integer(ss_addr) is
++when 93 =>
++ss_v_memwr(0) := ss_wdata(0);
++memwr <= ss_v_memwr(0);
++ss_v_memin(17 downto 0) := ss_wdata(18 downto 1);
++memin <= ss_v_memin;
++ss_v_pmcount(12 downto 0) := ss_wdata(31 downto 19);
++pmcount <= ss_v_pmcount;
++when 94 =>
++ss_v_noise(0) := ss_wdata(0);
++noise <= ss_v_noise(0);
++ss_v_pgout(17 downto 0) := ss_wdata(18 downto 1);
++pgout <= ss_v_pgout;
++when 95 =>
++ss_v_lastkey(17 downto 0) := ss_wdata(17 downto 0);
++lastkey := ss_v_lastkey;
++ss_v_noise14(0) := ss_wdata(18);
++noise14 := ss_v_noise14(0);
++ss_v_noise17(0) := ss_wdata(19);
++noise17 := ss_v_noise17(0);
++when others => null; end case;
++end if;
++end if;
++ss_local_data <= ss_response;
++
++if ss_hold='0' then
++ if clkena = '1' then
+ 
+       noise <= noise14 xor noise17;
+ 
+@@ -120,16 +211,16 @@ begin
+ 
+       elsif stage = 1 then
+ 
+-        -- Wait for memory
++
+ 
+       elsif stage = 2 then
+ 
+-        -- Update pitch LFO counter when slot = 0 and stage = 0 (i.e. increment per 72 clocks)
++
+         if slot = 0 then
+           pmcount <= pmcount + '1';
+         end if;
+ 
+-        -- Delta phase
++
+         dphase := (SHL("00000000"&(fnum*mltbl(CONV_INTEGER(ml))),blk)(19 downto 2));
+ 
+         if pm ='1' then
+@@ -142,7 +233,7 @@ begin
+            end case;
+         end if;
+ 
+-        -- Update Phase
++
+         if lastkey(conv_integer(slot)) = '0' and key = '1' and (rhythm = '0' or (slot /= "01110" and slot /= "10001")) then
+           memin <= (others=>'0');
+         else
+@@ -150,7 +241,7 @@ begin
+         end if;
+         lastkey(conv_integer(slot)) := key;
+ 
+-        -- Update noise
++
+         if slot = "01110" then
+           noise14 := noise14_tbl(CONV_INTEGER(memout(15 downto 10)));
+         elsif slot = "10001" then
+@@ -167,11 +258,17 @@ begin
+ 
+       end if;
+ 
+-    end if; end if;
++    end if;
++
++end if;
++end if;
++end process;
+ 
+-  end process;
+ 
+-  MEM : PhaseMemory port map(clk,reset,slot,memwr,memout,memin);
++  MEM : PhaseMemory port map(clk,reset,slot,memwr,memout,memin,
++ss_hold,ss_addr,ss_read,ss_write,ss_wdata,ss_MEM_data,ss_MEM_ready);
+ 
+-end RTL;
++ss_rdata <= ss_local_data or ss_MEM_data;
++ss_initialized <= '1' and ss_MEM_ready;
+ 
++end rtl;
+diff --git a/rtl/VM2413/phasememory.vhd b/rtl/VM2413/phasememory.vhd
+index 92074bf9..824ad7d9 100644
+--- a/rtl/VM2413/phasememory.vhd
++++ b/rtl/VM2413/phasememory.vhd
+@@ -33,15 +33,25 @@ use IEEE.STD_LOGIC_1164.ALL;
+ use IEEE.STD_LOGIC_UNSIGNED.ALL;
+ use WORK.VM2413.ALL;
+ 
++use ieee.std_logic_arith.conv_std_logic_vector;
+ entity PhaseMemory is
+   port (
+     clk     : in std_logic;
+     reset   : in std_logic;
+     slot    : in SLOT_TYPE;
+     memwr   : in std_logic;
+-    memout  : out PHASE_TYPE;
++    memout  : buffer PHASE_TYPE;
+     memin   : in  PHASE_TYPE
+-  );
++  ;
++        -- F01 private, fixed-latency 32-bit access; no emulated clock enables.
++        ss_hold : in std_logic := '0';
++        ss_addr : in std_logic_vector(7 downto 0) := (others=>'0');
++        ss_read : in std_logic := '0';
++        ss_write : in std_logic := '0';
++        ss_wdata : in std_logic_vector(31 downto 0) := (others=>'0');
++        ss_rdata : out std_logic_vector(31 downto 0);
++        ss_initialized : out std_logic
++);
+ end PhaseMemory;
+ 
+ architecture RTL of PhaseMemory is
+@@ -50,21 +60,30 @@ architecture RTL of PhaseMemory is
+   signal phase_array : PHASE_ARRAY_TYPE;
+   attribute ramstyle : string;
+ 
++    signal ss_local_data : std_logic_vector(31 downto 0) := (others=>'0');
++    signal ss_mem_active : std_logic;
++    signal ss_mem_index : integer range 0 to 17;
++    signal ss_mem_ready : std_logic := '0';
++    signal ss_mem_vector : std_logic_vector(17 downto 0);
++
+ begin
+ 
+-  process (clk, reset)
++  process(clk, reset)
+ 
+     variable init_slot : integer range 0 to 18;
+ 
+   begin
+ 
+    if reset = '1' then
++ss_mem_ready <= '0';
+ 
+       init_slot := 0;
+ 
+    elsif rising_edge(clk) then
+ 
+-     if init_slot /= 18 then
++     ss_mem_ready <= '0'; if init_slot=18 then ss_mem_ready <= '1'; end if;
++if ss_hold='0' then
++if init_slot /= 18 then
+ 
+        phase_array(init_slot) <= (others=>'0');
+        init_slot := init_slot + 1;
+@@ -75,10 +94,22 @@ begin
+ 
+      end if;
+ 
+-     memout <= phase_array(conv_integer(slot));
++
++elsif ss_write='1' and ss_mem_active='1' then
++phase_array(ss_mem_index)<=ss_wdata(17 downto 0);
++end if;
++if ss_mem_active='1' then memout <= phase_array(ss_mem_index); else memout <= phase_array(conv_integer(slot)); end if;
+ 
+     end if;
+ 
+   end process;
++ss_mem_active <= '1' when ss_hold='1' and conv_integer(ss_addr)>=13 and conv_integer(ss_addr)<=30 else '0';
++ss_mem_index <= conv_integer(ss_addr)-13 when conv_integer(ss_addr)>=13 and conv_integer(ss_addr)<=30 else 0;
++ss_mem_vector <= memout;
++ss_local_data <= (13 downto 0 => '0') & ss_mem_vector when ss_mem_active='1' else (others=>'0');
++
++
++ss_rdata <= ss_local_data;
++ss_initialized <= ss_mem_ready;
+ 
+-end RTL;
+\ No newline at end of file
++end rtl;
+diff --git a/rtl/VM2413/registermemory.vhd b/rtl/VM2413/registermemory.vhd
+index 789b1400..cf4bb382 100644
+--- a/rtl/VM2413/registermemory.vhd
++++ b/rtl/VM2413/registermemory.vhd
+@@ -37,6 +37,7 @@ library ieee;
+     use ieee.std_logic_1164.all;
+     use ieee.std_logic_unsigned.all;
+ 
++use ieee.std_logic_arith.conv_std_logic_vector;
+ entity RegisterMemory is
+     port (
+         clk     : in    std_logic;
+@@ -44,8 +45,17 @@ entity RegisterMemory is
+         addr    : in    std_logic_vector(  3 downto 0 );
+         wr      : in    std_logic;
+         idata   : in    std_logic_vector( 23 downto 0 );
+-        odata   : out   std_logic_vector( 23 downto 0 )
+-    );
++        odata   : buffer   std_logic_vector( 23 downto 0 )
++    ;
++        -- F01 private, fixed-latency 32-bit access; no emulated clock enables.
++        ss_hold : in std_logic := '0';
++        ss_addr : in std_logic_vector(7 downto 0) := (others=>'0');
++        ss_read : in std_logic := '0';
++        ss_write : in std_logic := '0';
++        ss_wdata : in std_logic_vector(31 downto 0) := (others=>'0');
++        ss_rdata : out std_logic_vector(31 downto 0);
++        ss_initialized : out std_logic
++);
+ end RegisterMemory;
+ 
+ architecture rtl of registermemory is
+@@ -55,14 +65,23 @@ architecture rtl of registermemory is
+     attribute ramstyle : string;
+     attribute ramstyle of regs_array : signal is "logic";
+ 
++    signal ss_local_data : std_logic_vector(31 downto 0) := (others=>'0');
++    signal ss_mem_active : std_logic;
++    signal ss_mem_index : integer range 0 to 8;
++    signal ss_mem_ready : std_logic := '0';
++    signal ss_mem_vector : std_logic_vector(23 downto 0);
++
+ begin
+     process( reset, clk )
+         variable init_state : integer range 0 to 9;
+     begin
+         if( reset = '1' )then
++ss_mem_ready <= '0';
+             init_state := 0;
+         elsif rising_edge(clk) then
+-            if( init_state /= 9 )then
++            ss_mem_ready <= '0'; if init_state=9 then ss_mem_ready <= '1'; end if;
++if ss_hold='0' then
++if( init_state /= 9 )then
+                 --  起動してすぐに RAM の内容を初期化する
+                 regs_array( init_state ) <= (others => '0');
+                 init_state := init_state + 1;
+@@ -71,7 +90,19 @@ begin
+                 regs_array( conv_integer(addr) ) <= idata;
+             end if;
+             --  読み出しは常時
+-            odata <= regs_array( conv_integer(addr) );
++
++elsif ss_write='1' and ss_mem_active='1' then
++regs_array(ss_mem_index)<=ss_wdata(21 downto 14) & "00" & ss_wdata(13 downto 0);
++end if;
++if ss_mem_active='1' then odata <= regs_array(ss_mem_index); else odata <= regs_array( conv_integer(addr) ); end if;
+         end if;
+     end process;
++ss_mem_active <= '1' when ss_hold='1' and conv_integer(ss_addr)>=0 and conv_integer(ss_addr)<=8 else '0';
++ss_mem_index <= conv_integer(ss_addr)-0 when conv_integer(ss_addr)>=0 and conv_integer(ss_addr)<=8 else 0;
++ss_mem_vector <= odata;
++ss_local_data <= (9 downto 0 => '0') & ss_mem_vector(23 downto 16) & ss_mem_vector(13 downto 0) when ss_mem_active='1' else (others=>'0');
++
++ss_rdata <= ss_local_data;
++ss_initialized <= ss_mem_ready;
++
+ end rtl;
+diff --git a/rtl/VM2413/sinetable.vhd b/rtl/VM2413/sinetable.vhd
+index 9b97c0a5..162508bb 100644
+--- a/rtl/VM2413/sinetable.vhd
++++ b/rtl/VM2413/sinetable.vhd
+@@ -42,7 +42,7 @@ entity interpolate_mul is
+     port (
+         i0      : in    std_logic_vector(  8 downto 0 );    --  符号無し 9bit (整数部 0bit, 小数部 9bit)
+         i1      : in    std_logic_vector( 11 downto 0 );    --  符号付き12bit (整数部 8bit, 小数部 4bit)
+-        o       : out   std_logic_vector( 13 downto 0 )     --  符号付き 7bit (整数部 8bit, 小数部 6bit)
++        o       : buffer   std_logic_vector( 13 downto 0 )     --  符号付き 7bit (整数部 8bit, 小数部 6bit)
+     );
+ end interpolate_mul;
+ 
+@@ -60,14 +60,24 @@ library ieee;
+     use ieee.std_logic_unsigned.all;
+     use ieee.std_logic_arith.all;                           --  conv_integer()
+ 
++use ieee.std_logic_arith.conv_std_logic_vector;
+ entity SineTable is
+     port (
+         clk     : in    std_logic;
+         clkena  : in    std_logic;
+         wf      : in    std_logic;
+         addr    : in    std_logic_vector( 17 downto 0 );    --  整数部 9bit, 小数部 9bit
+-        data    : out   std_logic_vector( 13 downto 0 )     --  整数部 8bit, 小数部 6bit
+-    );
++        data    : buffer   std_logic_vector( 13 downto 0 )     --  整数部 8bit, 小数部 6bit
++    ;
++        -- F01 private, fixed-latency 32-bit access; no emulated clock enables.
++        ss_hold : in std_logic := '0';
++        ss_addr : in std_logic_vector(7 downto 0) := (others=>'0');
++        ss_read : in std_logic := '0';
++        ss_write : in std_logic := '0';
++        ss_wdata : in std_logic_vector(31 downto 0) := (others=>'0');
++        ss_rdata : out std_logic_vector(31 downto 0);
++        ss_initialized : out std_logic
++);
+ end SineTable;
+ 
+ architecture rtl of sinetable is
+@@ -76,7 +86,7 @@ architecture rtl of sinetable is
+         port (
+             i0      : in    std_logic_vector(  8 downto 0 );    --  符号無し 9bit (整数部 0bit, 小数部 9bit)
+             i1      : in    std_logic_vector( 11 downto 0 );    --  符号付き 8bit (整数部 8bit)
+-            o       : out   std_logic_vector( 13 downto 0 )     --  符号無し 7bit (整数部 8bit)
++            o       : buffer   std_logic_vector( 13 downto 0 )     --  符号無し 7bit (整数部 8bit)
+         );
+     end component;
+ 
+@@ -130,6 +140,8 @@ architecture rtl of sinetable is
+     signal w_mul        : std_logic_vector( 13 downto 0 );  --  符号付き整数部 8bit, 小数部 6bit
+     signal w_inter      : std_logic_vector( 13 downto 0 );
+     signal ff_data      : std_logic_vector( 13 downto 0 );
++    signal ss_local_data : std_logic_vector(31 downto 0) := (others=>'0');
++
+ begin
+ 
+     w_xor   <= (others => addr(16));
+@@ -139,27 +151,93 @@ begin
+                (addr( 15 downto 9 ) + 1) xor w_xor;
+ 
+     --  波形メモリ
+-    process( clk )
+-    begin
+-        if rising_edge(clk) then
++    process(clk)
++
++
++
++
++
++
++variable ss_v_ff_data0 : std_logic_vector(10 downto 0);
++variable ss_v_ff_data1 : std_logic_vector(10 downto 0);
++variable ss_v_ff_sign : std_logic_vector(0 downto 0);
++variable ss_v_ff_wf : std_logic_vector(0 downto 0);
++variable ss_v_ff_weight : std_logic_vector(8 downto 0);
++variable ss_v_ff_data : std_logic_vector(13 downto 0);
++variable ss_response : std_logic_vector(31 downto 0);
++begin
++if rising_edge(clk) then
++
++ss_response := (others=>'0');
++if ss_hold='1' and (ss_read='1' or ss_write='1') then
++ss_v_ff_data0 := ff_data0;
++ss_v_ff_data1 := ff_data1;
++ss_v_ff_sign := (0 => ff_sign);
++ss_v_ff_wf := (0 => ff_wf);
++ss_v_ff_weight := ff_weight;
++ss_v_ff_data := ff_data;
++
++if ss_read='1' then
++case conv_integer(ss_addr) is
++when 98 =>
++ss_response(10 downto 0) := ff_data0(10 downto 0);
++ss_response(21 downto 11) := ff_data1(10 downto 0);
++ss_response(22) := ff_sign;
++ss_response(23) := ff_wf;
++when 99 =>
++ss_response(8 downto 0) := ff_weight(8 downto 0);
++ss_response(22 downto 9) := ff_data(13 downto 0);
++when others => null; end case;
++end if;
++if ss_write='1' then
++case conv_integer(ss_addr) is
++when 98 =>
++ss_v_ff_data0(10 downto 0) := ss_wdata(10 downto 0);
++ff_data0 <= ss_v_ff_data0;
++ss_v_ff_data1(10 downto 0) := ss_wdata(21 downto 11);
++ff_data1 <= ss_v_ff_data1;
++ss_v_ff_sign(0) := ss_wdata(22);
++ff_sign <= ss_v_ff_sign(0);
++ss_v_ff_wf(0) := ss_wdata(23);
++ff_wf <= ss_v_ff_wf(0);
++when 99 =>
++ss_v_ff_weight(8 downto 0) := ss_wdata(8 downto 0);
++ff_weight <= ss_v_ff_weight;
++ss_v_ff_data(13 downto 0) := ss_wdata(22 downto 9);
++ff_data <= ss_v_ff_data;
++when others => null; end case;
++end if;
++end if;
++ss_local_data <= ss_response;
++
++if ss_hold='0' then
++
+             if( clkena = '1' )then
+                 ff_data0 <= sin_data( conv_integer( w_addr0 ) );
+                 ff_data1 <= sin_data( conv_integer( w_addr1 ) );
+             end if;
+-        end if;
+-    end process;
+ 
+-    --  修飾情報の遅延（波形メモリの読み出し遅延にあわせる）
+-    process( clk )
+-    begin
+-        if rising_edge(clk) then
++
+             if( clkena = '1' )then
+                 ff_sign     <= addr(17);
+                 ff_wf       <= wf and addr(17);
+                 ff_weight   <= addr( 8 downto 0 );
+             end if;
+-        end if;
+-    end process;
++
++
++            if( clkena = '1' )then
++
++                ff_data <= (ff_sign & w_inter(12 downto 0)) or w_wf;
++            end if;
++
++
++end if;
++end if;
++end process;
++
++
++    --  修飾情報の遅延（波形メモリの読み出し遅延にあわせる）
++
+ 
+     --  補間    (※符号をまたがる場所では 0 になるから ff_sign は気にしない）
+     --  o = i0 * (1 - k) + i1 * w = i0 - w * i0 + w * i1 = i0 + w * (i1 - i0)
+@@ -176,15 +254,7 @@ begin
+     w_inter <= (ff_data0 & "00") + w_mul;   --  "00" は桁あわせ
+     w_wf    <= (others => ff_wf);
+ 
+-    process( clk )
+-    begin
+-        if rising_edge(clk) then
+-            if( clkena = '1' )then
+-                --  補間演算の結果をいったん FF に入れて演算遅延を吸収
+-                ff_data <= (ff_sign & w_inter(12 downto 0)) or w_wf;
+-            end if;
+-        end if;
+-    end process;
++
+ 
+     data <= ff_data;
+ 
+@@ -211,4 +281,7 @@ begin
+     --
+     --  アドレス指定されてから、それに対応する値が得られるまで 2cycle の遅延
+     --
++ss_rdata <= ss_local_data;
++ss_initialized <= '1';
++
+ end rtl;
+diff --git a/rtl/VM2413/slotcounter.vhd b/rtl/VM2413/slotcounter.vhd
+index 028a3dbe..357509d2 100644
+--- a/rtl/VM2413/slotcounter.vhd
++++ b/rtl/VM2413/slotcounter.vhd
+@@ -37,6 +37,7 @@ library ieee;
+     use ieee.std_logic_1164.all;
+     use ieee.std_logic_unsigned.all;
+ 
++use ieee.std_logic_arith.conv_std_logic_vector;
+ entity SlotCounter is
+     generic (
+         delay   : integer
+@@ -46,30 +47,75 @@ entity SlotCounter is
+         reset   : in    std_logic;
+         clkena  : in    std_logic;
+ 
+-        slot    : out   std_logic_vector( 4 downto 0 );
+-        stage   : out   std_logic_vector( 1 downto 0 )
+-    );
++        slot    : buffer   std_logic_vector( 4 downto 0 );
++        stage   : buffer   std_logic_vector( 1 downto 0 )
++    ;
++        -- F01 private, fixed-latency 32-bit access; no emulated clock enables.
++        ss_hold : in std_logic := '0';
++        ss_addr : in std_logic_vector(7 downto 0) := (others=>'0');
++        ss_read : in std_logic := '0';
++        ss_write : in std_logic := '0';
++        ss_wdata : in std_logic_vector(31 downto 0) := (others=>'0');
++        ss_rdata : out std_logic_vector(31 downto 0);
++        ss_initialized : out std_logic
++);
+ end SlotCounter;
+ 
+ architecture rtl of SlotCounter is
+     signal ff_count     : std_logic_vector( 6 downto 0 );
++    signal ss_local_data : std_logic_vector(31 downto 0) := (others=>'0');
++
++begin
++
++    process(clk,reset)
++
++
++variable ss_v_ff_count : std_logic_vector(6 downto 0);
++variable ss_response : std_logic_vector(31 downto 0);
+ begin
++if reset='1' then
++ss_local_data <= (others=>'0');
+ 
+-    process( reset, clk )
+-    begin
+-        if( reset = '1' )then
+             ff_count <= "1000111" - delay;
+-        elsif rising_edge(clk) then
++
++elsif rising_edge(clk) then
++
++ss_response := (others=>'0');
++if ss_hold='1' and (ss_read='1' or ss_write='1') then
++ss_v_ff_count := ff_count;
++
++if ss_read='1' then
++case conv_integer(ss_addr) is
++when 78 => if delay=0 then ss_response(6 downto 0):=ff_count; end if;
++when others => null; end case;
++end if;
++if ss_write='1' then
++case conv_integer(ss_addr) is
++when 78 => if conv_integer(ss_wdata(6 downto 0)) >= delay then ff_count <= conv_std_logic_vector(conv_integer(ss_wdata(6 downto 0))-delay,7); else ff_count <= conv_std_logic_vector(conv_integer(ss_wdata(6 downto 0))+72-delay,7); end if;
++when others => null; end case;
++end if;
++end if;
++ss_local_data <= ss_response;
++
++if ss_hold='0' then
++
+             if( clkena ='1' )then
+-                if( ff_count = "1000111" )then      -- 71
++                if( ff_count = "1000111" )then
+                     ff_count <= (others => '0');
+                 else
+                     ff_count <= ff_count + 1;
+                 end if;
+             end if;
+-        end if;
+-    end process;
++
++
++end if;
++end if;
++end process;
++
+ 
+     stage   <= ff_count( 1 downto 0 );      --  0～3 で循環
+     slot    <= ff_count( 6 downto 2 );      --  0～17 で循環
++ss_rdata <= ss_local_data;
++ss_initialized <= '1';
++
+ end rtl;
+diff --git a/rtl/VM2413/temporalmixer.vhd b/rtl/VM2413/temporalmixer.vhd
+index 85acb381..18574930 100644
+--- a/rtl/VM2413/temporalmixer.vhd
++++ b/rtl/VM2413/temporalmixer.vhd
+@@ -34,6 +34,7 @@ use IEEE.STD_LOGIC_UNSIGNED.ALL;
+ use ieee.std_logic_arith.all;
+ use WORK.VM2413.ALL;
+ 
++use ieee.std_logic_arith.conv_std_logic_vector;
+ entity TemporalMixer is
+   port (
+     clk    : in std_logic;
+@@ -45,11 +46,20 @@ entity TemporalMixer is
+ 
+     rhythm : in std_logic;
+ 
+-    maddr : out SLOT_TYPE;
++    maddr : buffer SLOT_TYPE;
+     mdata : in SIGNED_LI_TYPE;
+ 
+-    mixout : out std_logic_vector(13 downto 0)
+-  );
++    mixout : buffer std_logic_vector(13 downto 0)
++  ;
++        -- F01 private, fixed-latency 32-bit access; no emulated clock enables.
++        ss_hold : in std_logic := '0';
++        ss_addr : in std_logic_vector(7 downto 0) := (others=>'0');
++        ss_read : in std_logic := '0';
++        ss_write : in std_logic := '0';
++        ss_wdata : in std_logic_vector(31 downto 0) := (others=>'0');
++        ss_rdata : out std_logic_vector(31 downto 0);
++        ss_initialized : out std_logic
++);
+ end TemporalMixer;
+ 
+ architecture RTL of TemporalMixer is
+@@ -57,40 +67,88 @@ architecture RTL of TemporalMixer is
+   signal mute : std_logic;
+   signal mix  : std_logic_vector(13 downto 0);
+ 
++    signal ss_local_data : std_logic_vector(31 downto 0) := (others=>'0');
++
+ begin
+ 
+-  process (clk, reset)
+-  begin
++  process(clk,reset)
++
++
++variable ss_v_mute : std_logic_vector(0 downto 0);
++variable ss_v_maddr : std_logic_vector(4 downto 0);
++variable ss_v_mix : std_logic_vector(13 downto 0);
++variable ss_v_mixout : std_logic_vector(13 downto 0);
++variable ss_response : std_logic_vector(31 downto 0);
++begin
++if reset='1' then
++ss_local_data <= (others=>'0');
+ 
+-    if reset = '1' then
+ 
+       maddr  <= (others => '0');
+       mute   <= '1';
+ 		mix    <= (others =>'0');
+ 		mixout <= (others =>'0');
+ 
+-    elsif rising_edge(clk) then if clkena='1' then
++
++elsif rising_edge(clk) then
++
++ss_response := (others=>'0');
++if ss_hold='1' and (ss_read='1' or ss_write='1') then
++ss_v_mute := (0 => mute);
++ss_v_maddr := maddr;
++ss_v_mix := mix;
++ss_v_mixout := mixout;
++
++if ss_read='1' then
++case conv_integer(ss_addr) is
++when 101 =>
++ss_response(0) := mute;
++ss_response(5 downto 1) := maddr(4 downto 0);
++ss_response(19 downto 6) := mix(13 downto 0);
++when 102 =>
++ss_response(13 downto 0) := mixout(13 downto 0);
++when others => null; end case;
++end if;
++if ss_write='1' then
++case conv_integer(ss_addr) is
++when 101 =>
++ss_v_mute(0) := ss_wdata(0);
++mute <= ss_v_mute(0);
++ss_v_maddr(4 downto 0) := ss_wdata(5 downto 1);
++maddr <= ss_v_maddr;
++ss_v_mix(13 downto 0) := ss_wdata(19 downto 6);
++mix <= ss_v_mix;
++when 102 =>
++ss_v_mixout(13 downto 0) := ss_wdata(13 downto 0);
++mixout <= ss_v_mixout;
++when others => null; end case;
++end if;
++end if;
++ss_local_data <= ss_response;
++
++if ss_hold='0' then
++ if clkena='1' then
+ 
+       if stage = 0 then
+ 
+         if rhythm = '0' then
+ 
+           case slot is
+-            when "00000" => maddr <= "00001"; mute <='0'; -- CH0
+-            when "00001" => maddr <= "00011"; mute <='0'; -- CH1
+-            when "00010" => maddr <= "00101"; mute <='0'; -- CH2
++            when "00000" => maddr <= "00001"; mute <='0';
++            when "00001" => maddr <= "00011"; mute <='0';
++            when "00010" => maddr <= "00101"; mute <='0';
+             when "00011" => mute <= '1';
+             when "00100" => mute <= '1';
+             when "00101" => mute <= '1';
+-            when "00110" => maddr <= "00111"; mute<='0'; -- CH3
+-            when "00111" => maddr <= "01001"; mute<='0'; -- CH4
+-            when "01000" => maddr <= "01011"; mute<='0'; -- CH5
++            when "00110" => maddr <= "00111"; mute<='0';
++            when "00111" => maddr <= "01001"; mute<='0';
++            when "01000" => maddr <= "01011"; mute<='0';
+             when "01001" => mute <= '1';
+             when "01010" => mute <= '1';
+             when "01011" => mute <= '1';
+-            when "01100" => maddr <= "01101"; mute<='0'; -- CH6
+-            when "01101" => maddr <= "01111"; mute<='0'; -- CH7
+-            when "01110" => maddr <= "10001"; mute<='0'; -- CH8
++            when "01100" => maddr <= "01101"; mute<='0';
++            when "01101" => maddr <= "01111"; mute<='0';
++            when "01110" => maddr <= "10001"; mute<='0';
+             when "01111" => mute <= '1';
+             when "10000" => mute <= '1';
+             when "10001" => mute <= '1';
+@@ -100,23 +158,23 @@ begin
+         else
+ 
+           case slot is
+-            when "00000" => maddr <= "00001"; mute <='0'; -- CH0
+-            when "00001" => maddr <= "00011"; mute <='0'; -- CH1
+-            when "00010" => maddr <= "00101"; mute <='0'; -- CH2
+-            when "00011" => maddr <= "01111"; mute <='0'; -- SD
+-            when "00100" => maddr <= "10001"; mute <='0'; -- CYM
++            when "00000" => maddr <= "00001"; mute <='0';
++            when "00001" => maddr <= "00011"; mute <='0';
++            when "00010" => maddr <= "00101"; mute <='0';
++            when "00011" => maddr <= "01111"; mute <='0';
++            when "00100" => maddr <= "10001"; mute <='0';
+             when "00101" =>                   mute <='1';
+-            when "00110" => maddr <= "00111"; mute <='0'; -- CH3
+-            when "00111" => maddr <= "01001"; mute <='0'; -- CH4
+-            when "01000" => maddr <= "01011"; mute <='0'; -- CH5
+-            when "01001" => maddr <= "01110"; mute <='0'; -- HH
+-            when "01010" => maddr <= "10000"; mute <='0'; -- TOM
+-            when "01011" => maddr <= "01101"; mute <='0'; -- BD
+-            when "01100" => maddr <= "01111"; mute <='0'; -- SD
+-            when "01101" => maddr <= "10001"; mute <='0'; -- CYM
+-            when "01110" => maddr <= "01110"; mute <='0'; -- HH
+-            when "01111" => maddr <= "10000"; mute <='0'; -- TOM
+-            when "10000" => maddr <= "01101"; mute <='0'; -- BD
++            when "00110" => maddr <= "00111"; mute <='0';
++            when "00111" => maddr <= "01001"; mute <='0';
++            when "01000" => maddr <= "01011"; mute <='0';
++            when "01001" => maddr <= "01110"; mute <='0';
++            when "01010" => maddr <= "10000"; mute <='0';
++            when "01011" => maddr <= "01101"; mute <='0';
++            when "01100" => maddr <= "01111"; mute <='0';
++            when "01101" => maddr <= "10001"; mute <='0';
++            when "01110" => maddr <= "01110"; mute <='0';
++            when "01111" => maddr <= "10000"; mute <='0';
++            when "10000" => maddr <= "01101"; mute <='0';
+             when "10001" =>                   mute <='1';
+             when others  =>                   mute <='1';
+           end case;
+@@ -141,8 +199,14 @@ begin
+ 
+       end if;
+ 
+-    end if; end if;
++    end if;
++
++end if;
++end if;
++end process;
++
+ 
+-  end process;
++ss_rdata <= ss_local_data;
++ss_initialized <= '1';
+ 
+-end RTL;
+\ No newline at end of file
++end rtl;
+diff --git a/rtl/VM2413/vm2413.vhd b/rtl/VM2413/vm2413.vhd
+index a3f780ce..c7215e5a 100644
+--- a/rtl/VM2413/vm2413.vhd
++++ b/rtl/VM2413/vm2413.vhd
+@@ -136,15 +136,24 @@ package VM2413 is
+ 
+   component Opll port(
+     XIN     : in std_logic;
+-    XOUT    : out std_logic;
++    XOUT    : buffer std_logic;
+     XENA    : in std_logic;
+     D       : in std_logic_vector(7 downto 0);
+     A       : in std_logic;
+     CS_n    : in std_logic;
+     WE_n    : in std_logic;
+     IC_n    : in std_logic;
+-    mixout  : out std_logic_vector(13 downto 0)
+-  );
++    mixout  : buffer std_logic_vector(13 downto 0)
++  ;
++        -- F01 private, fixed-latency 32-bit access; no emulated clock enables.
++        ss_hold : in std_logic := '0';
++        ss_addr : in std_logic_vector(7 downto 0) := (others=>'0');
++        ss_read : in std_logic := '0';
++        ss_write : in std_logic := '0';
++        ss_wdata : in std_logic_vector(31 downto 0) := (others=>'0');
++        ss_rdata : out std_logic_vector(31 downto 0);
++        ss_initialized : out std_logic
++);
+   end component;
+ 
+ end VM2413;
+diff --git a/rtl/VM2413/voicememory.vhd b/rtl/VM2413/voicememory.vhd
+index 7395bb83..64c1b515 100644
+--- a/rtl/VM2413/voicememory.vhd
++++ b/rtl/VM2413/voicememory.vhd
+@@ -33,6 +33,7 @@ use IEEE.STD_LOGIC_1164.ALL;
+ use IEEE.STD_LOGIC_UNSIGNED.ALL;
+ use WORK.VM2413.ALL;
+ 
++use ieee.std_logic_arith.conv_std_logic_vector;
+ entity VoiceMemory is
+   port (
+     clk    : in std_logic;
+@@ -42,9 +43,18 @@ entity VoiceMemory is
+     wr     : in std_logic;
+     rwaddr : in VOICE_ID_TYPE; -- read/write address
+     roaddr : in VOICE_ID_TYPE; -- read only address
+-    odata  : out VOICE_TYPE;
+-    rodata : out VOICE_TYPE
+-  );
++    odata  : buffer VOICE_TYPE;
++    rodata : buffer VOICE_TYPE
++  ;
++        -- F01 private, fixed-latency 32-bit access; no emulated clock enables.
++        ss_hold : in std_logic := '0';
++        ss_addr : in std_logic_vector(7 downto 0) := (others=>'0');
++        ss_read : in std_logic := '0';
++        ss_write : in std_logic := '0';
++        ss_wdata : in std_logic_vector(31 downto 0) := (others=>'0');
++        ss_rdata : out std_logic_vector(31 downto 0);
++        ss_initialized : out std_logic
++);
+ end VoiceMemory;
+ 
+ architecture RTL of VoiceMemory is
+@@ -57,7 +67,7 @@ architecture RTL of VoiceMemory is
+   component VoiceRom port (
+     clk   : in std_logic;
+     addr  : in VOICE_ID_TYPE;
+-    data  : out VOICE_TYPE
++    data  : buffer VOICE_TYPE
+   );
+   end component;
+ 
+@@ -65,24 +75,34 @@ architecture RTL of VoiceMemory is
+   signal rom_data : VOICE_TYPE;
+   signal rstate : integer range 0 to 2;
+ 
++    signal ss_local_data : std_logic_vector(31 downto 0) := (others=>'0');
++    signal ss_mem_active : std_logic;
++    signal ss_mem_index : integer range 0 to 37;
++    signal ss_mem_ready : std_logic := '0';
++    signal ss_voice_low : std_logic_vector(31 downto 0);
++    signal ss_mem_vector : std_logic_vector(35 downto 0);
++
+ begin
+ 
+   ROM2413 : VoiceRom port map(clk, rom_addr, rom_data);
+ 
+-  process (clk, reset)
++  process(clk, reset)
+ 
+     variable init_id  : integer range 0 to VOICE_ID_TYPE'high+1;
+ 
+   begin
+ 
+     if reset = '1' then
++ss_mem_ready <= '0';
+ 
+       init_id := 0;
+       rstate <= 0;
+ 
+     elsif rising_edge(clk) then
+ 
+-      if init_id /= VOICE_ID_TYPE'high+1 then
++      ss_mem_ready <= '0'; if init_id=38 then ss_mem_ready <= '1'; end if;
++if ss_hold='0' then
++if init_id /= VOICE_ID_TYPE'high+1 then
+ 
+         case rstate is
+         when 0 =>
+@@ -100,11 +120,23 @@ begin
+         voices(rwaddr) <= CONV_VOICE_VECTOR(idata);
+       end if;
+ 
+-      odata <= CONV_VOICE(voices(rwaddr));
++
++elsif ss_write='1' and ss_mem_active='1' then
++if ss_addr(0)='1' then ss_voice_low<=ss_wdata; else voices(ss_mem_index)<=ss_wdata(3 downto 0) & ss_voice_low; end if;
++end if;
++if ss_mem_active='1' then odata <= CONV_VOICE(voices(ss_mem_index)); else odata <= CONV_VOICE(voices(rwaddr)); end if;
+       rodata <= CONV_VOICE(voices(roaddr));
+ 
+     end if;
+ 
+   end process;
++ss_mem_active <= '1' when ss_hold='1' and conv_integer(ss_addr)>=9 and conv_integer(ss_addr)<=12 else '0';
++ss_mem_index <= (conv_integer(ss_addr)-9)/2 when conv_integer(ss_addr)>=9 and conv_integer(ss_addr)<=12 else 0;
++ss_mem_vector <= CONV_VOICE_VECTOR(odata);
++ss_local_data <= ss_mem_vector(31 downto 0) when ss_mem_active='1' and ss_addr(0)='1' else (27 downto 0 => '0') & ss_mem_vector(35 downto 32) when ss_mem_active='1' else (others=>'0');
++
++
++ss_rdata <= ss_local_data;
++ss_initialized <= ss_mem_ready;
+ 
+-end RTL;
+\ No newline at end of file
++end rtl;
+diff --git a/rtl/VM2413/voicerom.vhd b/rtl/VM2413/voicerom.vhd
+index c76acb19..71ec2bb4 100644
+--- a/rtl/VM2413/voicerom.vhd
++++ b/rtl/VM2413/voicerom.vhd
+@@ -40,7 +40,7 @@ entity VoiceRom is
+   port (
+     clk    : in std_logic;
+     addr : in VOICE_ID_TYPE;
+-    data  : out VOICE_TYPE
++    data  : buffer VOICE_TYPE
+   );
+ end VoiceRom;
+ 
+diff --git a/rtl/savestates.sv b/rtl/savestates.sv
+index f1a7ba07..a108635c 100644
+--- a/rtl/savestates.sv
++++ b/rtl/savestates.sv
+@@ -20,10 +20,20 @@
+ //   Words 0x1901-0x2100: VDP1 passive 16KB (System E only; inline; written to SD)
+ //   Words 0x2101-0x2900: VDP2 passive 16KB (System E only; inline; written to SD)
+ //
++//   FM v17: 0x2997 descriptor; 0x2998..0x29cb = 104 private 32-bit words.
++//   Video word 0x01a upper bits: [63:40]=0x484311, [39:22]=0.
++//
+ // Slot size = 0x3000 words = 96KB.  Up to 4 slots.
+ // Base word address = 29'h07C00000 + slot * 29'h3000
+ 
+ module savestates (
++    output [7:0] fm_state_addr,
++    output fm_state_read, fm_state_write,
++    output [31:0] fm_state_wdata,
++    input [31:0] fm_state_rdata,
++    input fm_initialized,
++    output fm_legacy_reset, fm_initialization_run,
++
+     input             clk,
+     input             reset_n,
+ 
+@@ -277,6 +287,139 @@ localparam ST_SAVE_AUDIO_INVALID = 7'd66, ST_SAVE_AUDIO_PAYLOAD = 7'd67,
+            ST_SAVE_AUDIO_DESC = 7'd68, ST_SAVE_AUDIO_COMMIT = 7'd69,
+            ST_LOAD_AUDIO_DESC = 7'd70, ST_LOAD_AUDIO_PAYLOAD = 7'd71,
+            ST_SAVE_AUDIO_DRAIN = 7'd72;
++// FM v17: dedicated free tail of the existing 96 KiB slot.
++// All master regions end at or below 0x2900 (System E passive VRAM).
++// 32 KiB NVRAM ends at 0x1d00; FM ends at 0x29cb, below 0x3000.
++// Upper video-word tag discovers this extension; untagged images never read it.
++localparam [28:0] FM_DESC_ADDR=29'h2997, FM_DATA_ADDR=29'h2998;
++localparam [23:0] FM_MAGIC = 24'h484311;
++// Explicit owner, version17, 104 private32-bit rows. Free tail of96KiB slot.
++localparam [63:0] FM_DESC = {16'd104,8'd17,8'd1,32'h464d5331};
++localparam ST_FM_CAPTURE=7'd111, ST_FM_SAVE_FETCH=7'd112, ST_FM_SAVE_WAIT=7'd113,
++ ST_FM_SAVE_WRITE=7'd114, ST_FM_SAVE_DESC=7'd115, ST_FM_LOAD_DESC=7'd116,
++ ST_FM_LOAD=7'd117, ST_FM_LOAD_STORE=7'd118, ST_FM_LOAD_NEXT=7'd119,
++ ST_FM_APPLY=7'd120, ST_FM_APPLY_WAIT=7'd121;
++reg fm_capture,fm_apply,fm_legacy,fm_bulk_read,fm_bulk_write,has_fm;
++reg [6:0] fm_word;
++// Shared DDRAM response latch, declared before the FM transport connection.
++reg [63:0] dout_latch;
++wire [63:0] fm_bulk_rdata;
++wire fm_done,fm_busy;
++opll_snapshot fm_snapshot(.clk(clk),.reset_n(reset_n),.capture(fm_capture),.apply_state(fm_apply),.legacy(fm_legacy),
++ .initialized(fm_initialized),.legacy_reset(fm_legacy_reset),.initialization_run(fm_initialization_run),
++ .bulk_read(fm_bulk_read),.bulk_write(fm_bulk_write),.bulk_addr(fm_word),.bulk_wdata(dout_latch),
++ .bulk_rdata(fm_bulk_rdata),.done(fm_done),.busy(fm_busy),.state_addr(fm_state_addr),
++ .state_read(fm_state_read),.state_write(fm_state_write),.state_wdata(fm_state_wdata),.state_rdata(fm_state_rdata));
++function fm_word_valid;
++input [7:0] address;input [31:0] data;begin
++case(address)
++8'd0:fm_word_valid=(data & ~32'h003fffff)==0;
++8'd1:fm_word_valid=(data & ~32'h003fffff)==0;
++8'd2:fm_word_valid=(data & ~32'h003fffff)==0;
++8'd3:fm_word_valid=(data & ~32'h003fffff)==0;
++8'd4:fm_word_valid=(data & ~32'h003fffff)==0;
++8'd5:fm_word_valid=(data & ~32'h003fffff)==0;
++8'd6:fm_word_valid=(data & ~32'h003fffff)==0;
++8'd7:fm_word_valid=(data & ~32'h003fffff)==0;
++8'd8:fm_word_valid=(data & ~32'h003fffff)==0;
++8'd9:fm_word_valid=(data & ~32'hffffffff)==0;
++8'd10:fm_word_valid=(data & ~32'h0000000f)==0;
++8'd11:fm_word_valid=(data & ~32'hfc08ffff)==0;
++8'd12:fm_word_valid=(data & ~32'h0000000f)==0;
++8'd13:fm_word_valid=(data & ~32'h0003ffff)==0;
++8'd14:fm_word_valid=(data & ~32'h0003ffff)==0;
++8'd15:fm_word_valid=(data & ~32'h0003ffff)==0;
++8'd16:fm_word_valid=(data & ~32'h0003ffff)==0;
++8'd17:fm_word_valid=(data & ~32'h0003ffff)==0;
++8'd18:fm_word_valid=(data & ~32'h0003ffff)==0;
++8'd19:fm_word_valid=(data & ~32'h0003ffff)==0;
++8'd20:fm_word_valid=(data & ~32'h0003ffff)==0;
++8'd21:fm_word_valid=(data & ~32'h0003ffff)==0;
++8'd22:fm_word_valid=(data & ~32'h0003ffff)==0;
++8'd23:fm_word_valid=(data & ~32'h0003ffff)==0;
++8'd24:fm_word_valid=(data & ~32'h0003ffff)==0;
++8'd25:fm_word_valid=(data & ~32'h0003ffff)==0;
++8'd26:fm_word_valid=(data & ~32'h0003ffff)==0;
++8'd27:fm_word_valid=(data & ~32'h0003ffff)==0;
++8'd28:fm_word_valid=(data & ~32'h0003ffff)==0;
++8'd29:fm_word_valid=(data & ~32'h0003ffff)==0;
++8'd30:fm_word_valid=(data & ~32'h0003ffff)==0;
++8'd31:fm_word_valid=(data & ~32'h01ffffff)==0;
++8'd32:fm_word_valid=(data & ~32'h01ffffff)==0;
++8'd33:fm_word_valid=(data & ~32'h01ffffff)==0;
++8'd34:fm_word_valid=(data & ~32'h01ffffff)==0;
++8'd35:fm_word_valid=(data & ~32'h01ffffff)==0;
++8'd36:fm_word_valid=(data & ~32'h01ffffff)==0;
++8'd37:fm_word_valid=(data & ~32'h01ffffff)==0;
++8'd38:fm_word_valid=(data & ~32'h01ffffff)==0;
++8'd39:fm_word_valid=(data & ~32'h01ffffff)==0;
++8'd40:fm_word_valid=(data & ~32'h01ffffff)==0;
++8'd41:fm_word_valid=(data & ~32'h01ffffff)==0;
++8'd42:fm_word_valid=(data & ~32'h01ffffff)==0;
++8'd43:fm_word_valid=(data & ~32'h01ffffff)==0;
++8'd44:fm_word_valid=(data & ~32'h01ffffff)==0;
++8'd45:fm_word_valid=(data & ~32'h01ffffff)==0;
++8'd46:fm_word_valid=(data & ~32'h01ffffff)==0;
++8'd47:fm_word_valid=(data & ~32'h01ffffff)==0;
++8'd48:fm_word_valid=(data & ~32'h01ffffff)==0;
++8'd49:fm_word_valid=(data & ~32'h000003ff)==0;
++8'd50:fm_word_valid=(data & ~32'h000003ff)==0;
++8'd51:fm_word_valid=(data & ~32'h000003ff)==0;
++8'd52:fm_word_valid=(data & ~32'h000003ff)==0;
++8'd53:fm_word_valid=(data & ~32'h000003ff)==0;
++8'd54:fm_word_valid=(data & ~32'h000003ff)==0;
++8'd55:fm_word_valid=(data & ~32'h000003ff)==0;
++8'd56:fm_word_valid=(data & ~32'h000003ff)==0;
++8'd57:fm_word_valid=(data & ~32'h000003ff)==0;
++8'd58:fm_word_valid=(data & ~32'h000003ff)==0;
++8'd59:fm_word_valid=(data & ~32'h000003ff)==0;
++8'd60:fm_word_valid=(data & ~32'h000003ff)==0;
++8'd61:fm_word_valid=(data & ~32'h000003ff)==0;
++8'd62:fm_word_valid=(data & ~32'h000003ff)==0;
++8'd63:fm_word_valid=(data & ~32'h000003ff)==0;
++8'd64:fm_word_valid=(data & ~32'h000003ff)==0;
++8'd65:fm_word_valid=(data & ~32'h000003ff)==0;
++8'd66:fm_word_valid=(data & ~32'h000003ff)==0;
++8'd67:fm_word_valid=(data & ~32'h000003ff)==0;
++8'd68:fm_word_valid=(data & ~32'h000003ff)==0;
++8'd69:fm_word_valid=(data & ~32'h000003ff)==0;
++8'd70:fm_word_valid=(data & ~32'h000003ff)==0;
++8'd71:fm_word_valid=(data & ~32'h000003ff)==0;
++8'd72:fm_word_valid=(data & ~32'h000003ff)==0;
++8'd73:fm_word_valid=(data & ~32'h000003ff)==0;
++8'd74:fm_word_valid=(data & ~32'h000003ff)==0;
++8'd75:fm_word_valid=(data & ~32'h000003ff)==0;
++8'd76:fm_word_valid=(data & ~32'h000001ff)==0;
++8'd77:fm_word_valid=(data & ~32'h0001ffff)==0;
++8'd78:fm_word_valid=(data & ~32'h0000007f)==0 && data[6:0] < 72;
++8'd79:fm_word_valid=(data & ~32'h00000000)==0;
++8'd80:fm_word_valid=(data & ~32'hffffffff)==0;
++8'd81:fm_word_valid=(data & ~32'h0000ffff)==0 && data[7:4] < 9 && data[13:8] < 38;
++8'd82:fm_word_valid=(data & ~32'hffffffff)==0;
++8'd83:fm_word_valid=(data & ~32'h07ffffff)==0;
++8'd84:fm_word_valid=(data & ~32'h7fffffff)==0;
++8'd85:fm_word_valid=(data & ~32'h0fffffff)==0;
++8'd86:fm_word_valid=(data & ~32'h7fffffff)==0 && data[4:0] < 18;
++8'd87:fm_word_valid=(data & ~32'h7fffffff)==0;
++8'd88:fm_word_valid=(data & ~32'h000fffff)==0;
++8'd89:fm_word_valid=(data & ~32'h01ffffff)==0;
++8'd90:fm_word_valid=(data & ~32'h0003ffff)==0;
++8'd91:fm_word_valid=(data & ~32'h003fffff)==0;
++8'd92:fm_word_valid=(data & ~32'h00001fff)==0;
++8'd93:fm_word_valid=(data & ~32'hffffffff)==0;
++8'd94:fm_word_valid=(data & ~32'h0007ffff)==0;
++8'd95:fm_word_valid=(data & ~32'h000fffff)==0;
++8'd96:fm_word_valid=(data & ~32'h7fffffff)==0;
++8'd97:fm_word_valid=(data & ~32'h0003ffff)==0 && data[3:0] < 9;
++8'd98:fm_word_valid=(data & ~32'h00ffffff)==0;
++8'd99:fm_word_valid=(data & ~32'h007fffff)==0;
++8'd100:fm_word_valid=(data & ~32'h7fffffff)==0 && data[5:2] < 9 && data[10:6] < 18;
++8'd101:fm_word_valid=(data & ~32'h000fffff)==0 && data[5:1] < 18;
++8'd102:fm_word_valid=(data & ~32'h00003fff)==0;
++8'd103:fm_word_valid=(data & ~32'h00000000)==0;
++default:fm_word_valid=0;endcase
++end endfunction
++
+ reg [95:0] psg_ext_snap, psg2_ext_snap;
+ reg [3:0] audio_div_snap;
+ reg [10:0] audio_control_snap;
+@@ -366,9 +509,6 @@ reg         nvram_load_active;
+ reg  [7:0]  nvram_d_latch;
+ reg         nvram_d_latched;
+ 
+-// Shared latch for DDRAM read data (LOAD path)
+-reg [63:0]  dout_latch;
+-
+ // Guard flag: set when a ddram_read is issued, cleared when DOUT_READY is consumed.
+ // Prevents stale DOUT_READY pulses (from pre-freeze scaler reads) from
+ // being misinterpreted as responses to our own load-path read requests.
+@@ -441,6 +581,10 @@ always @(*) begin
+     ddram_cmd_rd = 0; ddram_cmd_we = 0;
+     ddram_cmd_addr = 0; ddram_cmd_data = 0; ddram_cmd_be = 0;
+     case (state)
++        ST_FM_SAVE_WRITE: if(!DDRAM_BUSY) ddram_cmd_write(base_addr+FM_DATA_ADDR+fm_word,fm_bulk_rdata,8'hff);
++        ST_FM_SAVE_DESC: if(!DDRAM_BUSY) ddram_cmd_write(base_addr+FM_DESC_ADDR,FM_DESC,8'hff);
++        ST_FM_LOAD_DESC: if(!DDRAM_DOUT_READY && !dout_expected && !DDRAM_BUSY && dout_latch==FM_DESC) ddram_cmd_read(base_addr+FM_DATA_ADDR);
++        ST_FM_LOAD_NEXT: if(!DDRAM_BUSY) ddram_cmd_read(base_addr+(fm_word==51?29'h01b:FM_DATA_ADDR+fm_word+29'd1));
+         ST_WAIT_RESTORE_BOUNDARY: if (! DDRAM_BUSY) if (is_old_format ? mapper_snap [ 48 ] : has_nvram) ddram_cmd_read ( base_addr + 29'h0D01 ) ;
+         ST_SAVE_HDR: if (! DDRAM_BUSY) ddram_cmd_write ( base_addr + 29'd1 , { cur_game_id , cur_magic } , 8'hFF ) ;
+         ST_SAVE_CPU0: begin
+@@ -478,7 +622,7 @@ always @(*) begin
+         ST_SAVE_PSG: if (! DDRAM_BUSY) ddram_cmd_write ( base_addr + 29'd14 , { 8'd0 , psg_snap } , 8'hFF ) ;
+         ST_SAVE_MAPPER: if (! DDRAM_BUSY) ddram_cmd_write ( base_addr + 29'd15 , mapper_snap , 8'hFF ) ;
+         ST_SAVE_IO: if (! DDRAM_BUSY) ddram_cmd_write ( base_addr + 29'h019 , { evolution_snap [ 31 : 0 ] , io_snap } , 8'hFF ) ;
+-        ST_SAVE_VIDEO: if (! DDRAM_BUSY) ddram_cmd_write ( base_addr + 29'h01a , { 42'd0 , video_snap } , 8'hFF ) ;
++        ST_SAVE_VIDEO: if (! DDRAM_BUSY) ddram_cmd_write ( base_addr + 29'h01a , { FM_MAGIC, 18'd0, video_snap } , 8'hFF ) ;
+         ST_SAVE_EEPROM: if (! DDRAM_BUSY) ddram_cmd_write ( base_addr + 29'h01b , evolution_snap [ 31 : 16 ] == 16'hE132 ? evolution_snap [ 95 : 32 ] : eeprom_snap , 8'hFF ) ;
+         ST_SAVE_VDP2REG: begin
+             if (! DDRAM_BUSY) begin
+@@ -604,7 +748,9 @@ always @(*) begin
+             end
+         end
+         ST_LOAD_IO: if (!(DDRAM_DOUT_READY && dout_expected)) if (! dout_expected && ! DDRAM_BUSY) ddram_cmd_read ( base_addr + 29'h01a ) ;
+-        ST_LOAD_VIDEO: if (!(DDRAM_DOUT_READY && dout_expected)) if (! dout_expected && ! DDRAM_BUSY) ddram_cmd_read ( base_addr + 29'h01b ) ;
++        ST_LOAD_VIDEO: if (!(DDRAM_DOUT_READY && dout_expected)) if (!dout_expected && !DDRAM_BUSY)
++            if(dout_latch[63:40]!=FM_MAGIC || dout_latch[39:22]==0)
++                ddram_cmd_read(base_addr+(dout_latch[63:40]==FM_MAGIC?FM_DESC_ADDR:29'h01b));
+         ST_LOAD_EEPROM: begin
+             if (!(DDRAM_DOUT_READY && dout_expected)) begin
+                 if (! dout_expected && ! DDRAM_BUSY) begin
+@@ -726,6 +872,7 @@ endtask
+ // -----------------------------------------------------------------------
+ always @(posedge clk or negedge reset_n) begin
+     if (!reset_n) begin
++        fm_capture<=0;fm_apply<=0;fm_legacy<=0;fm_bulk_read<=0;fm_bulk_write<=0;has_fm<=0;fm_word<=0;
+         state           <= ST_IDLE;
+         ss_freeze       <= 0;
+         ss_change_det   <= 0;
+@@ -775,6 +922,7 @@ always @(posedge clk or negedge reset_n) begin
+         DDRAM_RD        <= 0;
+         DDRAM_BURSTCNT  <= 8'd1;
+     end else begin
++        fm_capture<=0;fm_apply<=0;fm_legacy<=0;fm_bulk_read<=0;fm_bulk_write<=0;
+         // default: clear one-cycle strobes
+         z80_set      <= 0;
+         vdp_regs_set <= 0;
+@@ -812,7 +960,7 @@ always @(posedge clk or negedge reset_n) begin
+         // ---------------------------------------------------------------
+         ST_IDLE: begin
+             ss_freeze   <= 0;
+-            is_old_format <= 0;
++            is_old_format <= 0; has_fm<=0;
+             has_audio_ext <= 0;
+              if (op_cooldown != 0)
+                  op_cooldown <= op_cooldown - 28'd1;
+@@ -838,7 +986,7 @@ always @(posedge clk or negedge reset_n) begin
+             //   - ISet=00   : no prefix active (not mid-way through CB/DD/ED/FD sequence)
+             //   - cpu_ce     : only act on an actual CPU tick, not on held bus
+             //                  levels between ticks.
+-            if (cpu_ce && !z80_m1_n && !z80_mreq_n && z80_iset == 2'b00 && vblank && x < 9'd256) begin
++            if (fm_initialized && cpu_ce && !z80_m1_n && !z80_mreq_n && z80_iset == 2'b00 && vblank && x < 9'd256) begin
+                 base_addr <= ss_bios_mode ? bios_slot_base(cur_slot) : slot_base(cur_slot);
+                 cur_bios_mode <= ss_bios_mode;
+                 cur_magic <= ss_bios_mode ? MAGIC_BIOS : MAGIC;
+@@ -913,7 +1061,7 @@ always @(posedge clk or negedge reset_n) begin
+                 audio_control_snap <= audio_control_out;
+                 audio_phase_snap <= audio_phase_out;
+                 audio_word <= 0;
+-                state <= ST_SAVE_AUDIO_INVALID;
++                fm_capture<=1; state<=ST_FM_CAPTURE;
+             end
+         end
+ 
+@@ -951,6 +1099,36 @@ always @(posedge clk or negedge reset_n) begin
+         // SAVE
+         // ===============================================================
+ 
++        ST_FM_CAPTURE: if(fm_done)state<=ST_SAVE_AUDIO_INVALID;
++        ST_FM_SAVE_FETCH: begin fm_bulk_read<=1;state<=ST_FM_SAVE_WAIT;end
++        ST_FM_SAVE_WAIT: if(fm_done)state<=ST_FM_SAVE_WRITE;
++        ST_FM_SAVE_WRITE: if(!DDRAM_BUSY)begin
++            ddram_write(base_addr+FM_DATA_ADDR+fm_word,fm_bulk_rdata,8'hff);
++            if(fm_word==51)state<=ST_FM_SAVE_DESC;
++            else begin fm_word<=fm_word+7'd1;state<=ST_FM_SAVE_FETCH;end
++        end
++        ST_FM_SAVE_DESC: if(!DDRAM_BUSY)begin ddram_write(base_addr+FM_DESC_ADDR,FM_DESC,8'hff);state<=ST_SAVE_EEPROM;end
++        ST_FM_LOAD_DESC,ST_FM_LOAD: begin
++            if(DDRAM_DOUT_READY&&dout_expected)begin dout_expected<=0;dout_latch<=DDRAM_DOUT;end
++            else if(!dout_expected&&!DDRAM_BUSY)begin
++                if(state==ST_FM_LOAD_DESC)begin
++                    if(dout_latch!=FM_DESC)state<=ST_ERROR;
++                    else begin fm_word<=0;ddram_read(base_addr+FM_DATA_ADDR);state<=ST_FM_LOAD;end
++                end else if(!fm_word_valid({fm_word,1'b0},dout_latch[31:0])||!fm_word_valid({fm_word,1'b1},dout_latch[63:32]))state<=ST_ERROR;
++                else begin fm_bulk_write<=1;state<=ST_FM_LOAD_STORE;end
++            end
++        end
++        ST_FM_LOAD_STORE: if(fm_done)state<=ST_FM_LOAD_NEXT;
++        ST_FM_LOAD_NEXT: if(!DDRAM_BUSY)begin
++            if(fm_word==51)begin ddram_read(base_addr+29'h01b);state<=ST_LOAD_EEPROM;end
++            else begin fm_word<=fm_word+7'd1;ddram_read(base_addr+FM_DATA_ADDR+fm_word+29'd1);state<=ST_FM_LOAD;end
++        end
++        ST_FM_APPLY: begin
++            if(has_fm)fm_apply<=1;else fm_legacy<=1;
++            state<=ST_FM_APPLY_WAIT;
++        end
++        ST_FM_APPLY_WAIT: if(fm_done)state<=ST_PRE_UNFREEZE;
++
+         ST_SAVE_HDR: begin
+             if (!DDRAM_BUSY) begin
+                 ddram_write(base_addr + 29'd1, {cur_game_id, cur_magic}, 8'hFF);
+@@ -1032,8 +1210,8 @@ always @(posedge clk or negedge reset_n) begin
+ 
+         ST_SAVE_VIDEO: begin
+             if (!DDRAM_BUSY) begin
+-                ddram_write(base_addr + 29'h01a, {42'd0, video_snap}, 8'hFF);
+-                state <= ST_SAVE_EEPROM;
++                ddram_write(base_addr + 29'h01a, {FM_MAGIC, 18'd0, video_snap}, 8'hFF);
++                fm_word<=0; state<=ST_FM_SAVE_FETCH;
+             end
+         end
+ 
+@@ -1598,8 +1776,12 @@ always @(posedge clk or negedge reset_n) begin
+                 dout_latch    <= DDRAM_DOUT;
+             end else if (!dout_expected && !DDRAM_BUSY) begin
+                 video_snap       <= dout_latch[21:0];
+-                ddram_read(base_addr + 29'h01b);
+-                state            <= ST_LOAD_EEPROM;
++                has_fm <= dout_latch[63:40]==FM_MAGIC;
++                if(dout_latch[63:40]==FM_MAGIC && dout_latch[39:22]!=0) state<=ST_ERROR;
++                else begin
++                    ddram_read(base_addr+(dout_latch[63:40]==FM_MAGIC?FM_DESC_ADDR:29'h01b));
++                    state<=dout_latch[63:40]==FM_MAGIC?ST_FM_LOAD_DESC:ST_LOAD_EEPROM;
++                end
+             end
+         end
+ 
+@@ -1902,7 +2084,7 @@ always @(posedge clk or negedge reset_n) begin
+ 
+         ST_FLUSH_PIPELINE: begin
+             if (flush_cnt == FLUSH_MAX) begin
+-                state <= ST_PRE_UNFREEZE;
++                state <= do_save ? ST_PRE_UNFREEZE : ST_FM_APPLY;
+             end else begin
+                 flush_cnt <= flush_cnt + 20'd1;
+             end
+diff --git a/rtl/system.vhd b/rtl/system.vhd
+index b8cbea8b..0acf6a6c 100644
+--- a/rtl/system.vhd
++++ b/rtl/system.vhd
+@@ -214,6 +214,12 @@ entity system is
+ 		-- System E hardware pause: gates Z80 clock independently of ce_pix
+ 		-- (ce_pix keeps running so VDP scanout and sync are unaffected)
+ 		se_pause      : in  STD_LOGIC := '0';
++		fm_state_addr : in std_logic_vector(7 downto 0) := (others=>'0');
++        fm_state_read, fm_state_write : in std_logic := '0';
++        fm_state_wdata : in std_logic_vector(31 downto 0) := (others=>'0');
++        fm_state_rdata : out std_logic_vector(31 downto 0);
++        fm_initialized : out std_logic;
++        fm_legacy_reset, fm_initialization_run : in std_logic := '0';
+ 		ss_freeze     : in  STD_LOGIC := '0'
+ 	);
+ end system;
+@@ -331,6 +337,7 @@ architecture Behavioral of system is
+ 	alias FM_adj:				std_logic is FM_out(12);
+ 	signal fm_a:            std_logic;
+ 	signal fm_d:            std_logic_vector(7 downto 0);
++    signal fm_local_rdata, fm_wrapper_rdata : std_logic_vector(31 downto 0);
+ 	signal fm_WR_n:	   	std_logic;
+ 
+ 	signal mix_inL:			std_logic_vector(12 downto 0);
+@@ -793,17 +800,23 @@ begin
+ 		a        => fm_a,
+ 		cs_n     => '0',
+ 		we_n		=> '0',
+-		ic_n		=> RESET_n,
+-		mixout   => FM_out
++		ic_n		=> RESET_n and not fm_legacy_reset,
++		mixout   => FM_out,
++        ss_hold => ss_freeze and not fm_initialization_run,
++        ss_addr => fm_state_addr, ss_read => fm_state_read,
++        ss_write => fm_state_write, ss_wdata => fm_state_wdata,
++        ss_rdata => fm_local_rdata, ss_initialized => fm_initialized
+ 	);
+ 	
+ 	process (clk_sys)
+ 	begin
+ 		if rising_edge(clk_sys) then
+-			if RESET_n='0' then
++			if RESET_n='0' or fm_legacy_reset='1' then
+ 				fm_d <= (others => '0');
+ 				fm_a <= '0';
+-			elsif ss_freeze = '0' and fm_WR_n='0' then
++			elsif ss_freeze='1' and fm_state_write='1' and fm_state_addr=x"4c" then
++                fm_a <= fm_state_wdata(0); fm_d <= fm_state_wdata(8 downto 1);
++            elsif ss_freeze = '0' and fm_WR_n='0' then
+ 				fm_d <= D_in;
+ 				fm_a <= A(0);
+ 			end if;
+@@ -811,6 +824,17 @@ begin
+ 	end process;
+ 	
+ 	
++fm_state_rdata <= fm_local_rdata or fm_wrapper_rdata;
++    process(clk_sys)
++    begin
++        if rising_edge(clk_sys) then
++            fm_wrapper_rdata <= (others=>'0');
++            if ss_freeze='1' and fm_state_read='1' and fm_state_addr=x"4c" then
++                fm_wrapper_rdata <= (31 downto 9=>'0') & fm_d & fm_a;
++            end if;
++        end if;
++    end process;
++
+ -- AMR - Clamped volume boosting - if the top two bits match, truncate the topmost bit.
+ -- If the top two bits don't match, duplicate the second bit across the output.
+ 
+
+diff --git a/rtl/opll_snapshot.sv b/rtl/opll_snapshot.sv
+new file mode 100644
+index 00000000..3c43e92b
+--- /dev/null
++++ b/rtl/opll_snapshot.sv
+@@ -0,0 +1,93 @@
++// F01 sequential transport scratch. Exactly one synchronous 256 x 32 M10K.
++// Live OPLL state is read/written locally; this is not a parallel shadow bank.
++module opll_snapshot (
++    input clk, reset_n,
++    input capture, apply_state, legacy,
++    input initialized,
++    output legacy_reset, initialization_run,
++    input bulk_read, bulk_write,
++    input [6:0] bulk_addr,
++    input [63:0] bulk_wdata,
++    output reg [63:0] bulk_rdata,
++    output reg done,
++    output busy,
++    output [7:0] state_addr,
++    output state_read, state_write,
++    output [31:0] state_wdata,
++    input [31:0] state_rdata
++);
++    localparam WORDS=104;
++    localparam IDLE=0,CAP_READ=1,CAP_STORE=2,AP_READ=3,AP_WRITE=4,
++               REFILL=5,B_RD_LO=6,B_GET_LO=7,B_RD_HI=8,B_GET_HI=9,
++               B_WR_LO=10,B_WR_HI=11,LEG_RESET=12,LEG_INIT=13;
++    reg [3:0] state;
++    reg [7:0] index;
++    reg [3:0] refill_count;
++    reg [63:0] incoming;
++    reg legacy_mode;
++    (* ramstyle = "M10K" *) reg [31:0] memory [0:255];
++    reg [31:0] ram_q;
++    wire [7:0] ram_addr = (state==B_RD_HI || state==B_GET_HI || state==B_WR_HI) ? index+8'd1 : index;
++    wire ram_we = state==CAP_STORE || state==B_WR_LO || state==B_WR_HI;
++    wire [31:0] ram_d = state==CAP_STORE ? state_rdata : state==B_WR_LO ? incoming[31:0] : incoming[63:32];
++    // No reset on memory or its output: preserve block-RAM inference.
++    always @(posedge clk) begin
++        if (ram_we) memory[ram_addr] <= ram_d;
++        ram_q <= memory[ram_addr];
++    end
++    assign busy=state!=IDLE;
++    assign state_addr=(state==CAP_READ || state==CAP_STORE || state==AP_READ || state==AP_WRITE) ? index : 8'hff;
++    assign state_read=state==CAP_READ;
++    assign state_write=state==AP_WRITE;
++    assign legacy_reset=state==LEG_RESET;
++    assign initialization_run=state==LEG_RESET || state==LEG_INIT;
++    // Deterministic missing-history fallback is generated from the state map.
++    function [31:0] legacy_word;
++        input [7:0] address;
++        begin
++            legacy_word=0;
++            case(address)
++            // F01_LEGACY_WORDS
++            8'd78: legacy_word=32'h47;
++            8'd88: legacy_word=32'h8000;
++            8'd90: legacy_word=32'h3ffff;
++            8'd101: legacy_word=32'h1;
++
++
++            default: legacy_word=0;
++            endcase
++        end
++    endfunction
++    assign state_wdata=legacy_mode?legacy_word(index):ram_q;
++    always @(posedge clk or negedge reset_n) begin
++        if (!reset_n) begin state<=IDLE;index<=0;done<=0;refill_count<=0;incoming<=0;bulk_rdata<=0;legacy_mode<=0;end
++        else begin
++            done<=0;
++            case(state)
++            IDLE: begin
++                if(capture) begin index<=0;legacy_mode<=0;state<=CAP_READ;end
++                else if(apply_state) begin index<=0;legacy_mode<=0;state<=AP_READ;end
++                else if(legacy) begin legacy_mode<=1;state<=LEG_RESET;end
++                else if(bulk_read) begin index<={bulk_addr,1'b0};state<=B_RD_LO;end
++                else if(bulk_write) begin index<={bulk_addr,1'b0};incoming<=bulk_wdata;state<=B_WR_LO;end
++            end
++            CAP_READ: state<=CAP_STORE;
++            CAP_STORE: if(index==WORDS-1)begin state<=IDLE;done<=1;end
++                       else begin index<=index+8'd1;state<=CAP_READ;end
++            AP_READ: state<=AP_WRITE;
++            AP_WRITE: if(index==WORDS-1)begin refill_count<=0;state<=REFILL;end
++                      else begin index<=index+8'd1;state<=AP_READ;end
++            REFILL: if(refill_count==7)begin state<=IDLE;done<=1;end else refill_count<=refill_count+4'd1;
++            B_RD_LO: state<=B_GET_LO;
++            B_GET_LO: begin bulk_rdata[31:0]<=ram_q;state<=B_RD_HI;end
++            B_RD_HI: state<=B_GET_HI;
++            B_GET_HI: begin bulk_rdata[63:32]<=ram_q;state<=IDLE;done<=1;end
++            B_WR_LO: state<=B_WR_HI;
++            B_WR_HI: begin state<=IDLE;done<=1;end
++            LEG_RESET: state<=LEG_INIT;
++            LEG_INIT: if(initialized)begin index<=76;state<=AP_READ;end
++            default: state<=IDLE;
++            endcase
++        end
++    end
++endmodule

@@ -1,0 +1,530 @@
+{
+  "status": "PASS",
+  "scope": "Functional qualification of exact corrected working-tree source; hardware untested and Quartus not implied",
+  "identity": {
+    "head": "69edeb48455820d3119ab54d052bf3de906c91fa",
+    "branch": "fix/ys-physical-sram-on-fm-pr227",
+    "uncommittedPatchSHA256": "8e59c978d1cecf4bb0f86d5b3f4ffd8bcb104f34a66637f6b5b7ee61480df0a4",
+    "productionSHA256": "fa3c4334433284a930c26e6f30b348935738a66e8dd56f756368c44439fe2303",
+    "reason": "Demonstrated interrupted overwrite of older FM484311 image must reject missing audio completion commit; valid committed old FM remains supported",
+    "adapters": "same simulation-only declaration ordering, wrapper and OPLL visibility/syntax adapters as parent",
+    "priorArtifactsPreserved": true
+  },
+  "checks": {
+    "transport_results.json": {
+      "cases": 51,
+      "SHA256": "8f0aaea6351d35886da8185f331f6aa7b588eb667a74a764243ca4407f9b4f77"
+    },
+    "stress_results.json": {
+      "cases": 16,
+      "SHA256": "a35b897e9f8b54cc8bb5ae4dd8eba307b6cab18b7301beb7d69cc3a71f10ee54"
+    },
+    "upgrade_results.json": {
+      "cases": 10,
+      "SHA256": "8058dceabd7a1b295cf04254b9ceff5bd371bc7444c1f2b3d057b10bca9a96bd"
+    },
+    "legacy_mapper_results.json": {
+      "cases": 28,
+      "SHA256": "06cd82dfd3767a8cd5a274abf4f1caf469032eb6b9f07b52e0ae33a2239dceeb"
+    },
+    "fm_results.json": {
+      "cases": 7,
+      "SHA256": "d4363e157e56cf562f19b092c45f97a3a694585373705d16d847a8dae91915bd"
+    },
+    "fm_modes_results.json": {
+      "cases": 7,
+      "SHA256": "330bc02b33531f3e63e7c4a6f2d28e89ff36f336652b6a8e1a0ebbc9e5779121"
+    },
+    "nativeFullFM": {
+      "shift": 0,
+      "mode": 0,
+      "exit": 0,
+      "status": "PASS",
+      "log": "matrix_s0_m0.log",
+      "passes": [
+        "PASS independent internal oracle: capture versus pinned reference words=100",
+        "PASS musical setup: all channel keys and rhythm state checked",
+        "PASS independent internal oracle: DDRAM capture versus live internals words=100",
+        "PASS independent internal oracle: restored internals versus original T words=100",
+        "PASS independent internal oracle: capture versus pinned reference words=100",
+        "PASS independent internal oracle: DDRAM capture versus live internals words=100",
+        "PASS independent internal oracle: restored internals versus original T words=100",
+        "PASS independent internal oracle: capture versus pinned reference words=100",
+        "PASS independent internal oracle: DDRAM capture versus live internals words=100",
+        "PASS independent internal oracle: restored internals versus original T words=100",
+        "PASS fullstate SHIFT=0 MODE=0 captures=3 restores=4 checks=374201 DDRread=24817 DDRwrite=21729 checkpoints=9"
+      ]
+    },
+    "exclusion_systeme.log": "a69131b1cb45a4f8a7293f937402359d1e1279cab705d555b0f738098012c8c6",
+    "exclusion_sc.log": "5dea446ca8ecf565c7d76da423e5ca6e4104685a56d3add31e76bbddbfcde8e3",
+    "interrupted_older_fm_fixed.log": "c3267c6da31cecee4e9eda566cdc3465ca82a382e9d9c22c969a76d1608b8cfd",
+    "ordering.log": "9ec9440b6b800ed4a24a0025295d048656911b1f119b5f9d4f846f0b0d46b0d2"
+  },
+  "renderedCheckpointsExact": 46,
+  "finalMemoryBytesExact": 73728,
+  "baselineCorruptionReproduced": true,
+  "matchingCandidateReferenceStreams": [
+    "N",
+    "P",
+    "Q",
+    "V",
+    "E",
+    "G",
+    "M"
+  ],
+  "residualCPUFetchDifference": {
+    "index": 5994,
+    "a": {
+      "key": "0038 f5 0 0",
+      "sourceLine": 28899,
+      "trace": "C 776326 0038 ff 0 0 1 2 00101 f5 00"
+    },
+    "b": {
+      "key": "004a 20 0 0",
+      "sourceLine": 28893,
+      "trace": "C 776102 004a b7 0 0 1 2 00101 20 02"
+    }
+  },
+  "residualVDPInternalDifference": {
+    "index": 0,
+    "a": {
+      "key": "1008002ff",
+      "sourceLine": 253,
+      "trace": "T 3712 1008002ff"
+    },
+    "b": {
+      "key": "1000002ff",
+      "sourceLine": 251,
+      "trace": "T 3683 1000002ff"
+    }
+  },
+  "intermediateWRAMDifferences": [
+    {
+      "label": "neutral5",
+      "memory": {
+        "count": 1,
+        "first": [
+          {
+            "address": "1fea",
+            "a": 74,
+            "b": 70
+          }
+        ]
+      }
+    },
+    {
+      "label": "left4",
+      "memory": {
+        "count": 4,
+        "first": [
+          {
+            "address": "1fda",
+            "a": 7,
+            "b": 0
+          },
+          {
+            "address": "1fdb",
+            "a": 128,
+            "b": 0
+          },
+          {
+            "address": "1fdd",
+            "a": 0,
+            "b": 7
+          },
+          {
+            "address": "1fea",
+            "a": 70,
+            "b": 73
+          }
+        ]
+      }
+    },
+    {
+      "label": "left8",
+      "memory": {
+        "count": 3,
+        "first": [
+          {
+            "address": "1fda",
+            "a": 7,
+            "b": 0
+          },
+          {
+            "address": "1fdb",
+            "a": 128,
+            "b": 0
+          },
+          {
+            "address": "1fdd",
+            "a": 0,
+            "b": 7
+          }
+        ]
+      }
+    },
+    {
+      "label": "right4",
+      "memory": {
+        "count": 2,
+        "first": [
+          {
+            "address": "1fda",
+            "a": 7,
+            "b": 0
+          },
+          {
+            "address": "1fdb",
+            "a": 128,
+            "b": 0
+          }
+        ]
+      }
+    },
+    {
+      "label": "right8",
+      "memory": {
+        "count": 2,
+        "first": [
+          {
+            "address": "1fda",
+            "a": 7,
+            "b": 0
+          },
+          {
+            "address": "1fdb",
+            "a": 128,
+            "b": 0
+          }
+        ]
+      }
+    },
+    {
+      "label": "right12",
+      "memory": {
+        "count": 3,
+        "first": [
+          {
+            "address": "1fda",
+            "a": 7,
+            "b": 0
+          },
+          {
+            "address": "1fdb",
+            "a": 128,
+            "b": 0
+          },
+          {
+            "address": "1fea",
+            "a": 74,
+            "b": 70
+          }
+        ]
+      }
+    },
+    {
+      "label": "right16",
+      "memory": {
+        "count": 3,
+        "first": [
+          {
+            "address": "1fe0",
+            "a": 0,
+            "b": 52
+          },
+          {
+            "address": "1fe1",
+            "a": 49,
+            "b": 48
+          },
+          {
+            "address": "1fe2",
+            "a": 155,
+            "b": 157
+          }
+        ]
+      }
+    },
+    {
+      "label": "right24",
+      "memory": {
+        "count": 1,
+        "first": [
+          {
+            "address": "1fe5",
+            "a": 48,
+            "b": 0
+          }
+        ]
+      }
+    },
+    {
+      "label": "right32",
+      "memory": {
+        "count": 1,
+        "first": [
+          {
+            "address": "1fe5",
+            "a": 48,
+            "b": 0
+          }
+        ]
+      }
+    },
+    {
+      "label": "right40",
+      "memory": {
+        "count": 1,
+        "first": [
+          {
+            "address": "1fea",
+            "a": 70,
+            "b": 73
+          }
+        ]
+      }
+    },
+    {
+      "label": "right80",
+      "memory": {
+        "count": 1,
+        "first": [
+          {
+            "address": "1fea",
+            "a": 73,
+            "b": 74
+          }
+        ]
+      }
+    },
+    {
+      "label": "down4",
+      "memory": {
+        "count": 3,
+        "first": [
+          {
+            "address": "1fda",
+            "a": 15,
+            "b": 0
+          },
+          {
+            "address": "1fdb",
+            "a": 223,
+            "b": 0
+          },
+          {
+            "address": "1fdd",
+            "a": 0,
+            "b": 7
+          }
+        ]
+      }
+    },
+    {
+      "label": "down8",
+      "memory": {
+        "count": 3,
+        "first": [
+          {
+            "address": "1fda",
+            "a": 15,
+            "b": 0
+          },
+          {
+            "address": "1fdb",
+            "a": 223,
+            "b": 0
+          },
+          {
+            "address": "1fdd",
+            "a": 0,
+            "b": 7
+          }
+        ]
+      }
+    },
+    {
+      "label": "down12",
+      "memory": {
+        "count": 3,
+        "first": [
+          {
+            "address": "1fda",
+            "a": 15,
+            "b": 0
+          },
+          {
+            "address": "1fdb",
+            "a": 223,
+            "b": 0
+          },
+          {
+            "address": "1fdd",
+            "a": 0,
+            "b": 7
+          }
+        ]
+      }
+    },
+    {
+      "label": "down16",
+      "memory": {
+        "count": 3,
+        "first": [
+          {
+            "address": "1fda",
+            "a": 15,
+            "b": 0
+          },
+          {
+            "address": "1fdb",
+            "a": 223,
+            "b": 0
+          },
+          {
+            "address": "1fdd",
+            "a": 0,
+            "b": 7
+          }
+        ]
+      }
+    },
+    {
+      "label": "clear_right4",
+      "memory": {
+        "count": 2,
+        "first": [
+          {
+            "address": "1fda",
+            "a": 15,
+            "b": 0
+          },
+          {
+            "address": "1fdb",
+            "a": 223,
+            "b": 0
+          }
+        ]
+      }
+    },
+    {
+      "label": "clear_right8",
+      "memory": {
+        "count": 2,
+        "first": [
+          {
+            "address": "1fda",
+            "a": 15,
+            "b": 0
+          },
+          {
+            "address": "1fdb",
+            "a": 223,
+            "b": 0
+          }
+        ]
+      }
+    },
+    {
+      "label": "clear_right32",
+      "memory": {
+        "count": 1,
+        "first": [
+          {
+            "address": "1fe2",
+            "a": 2,
+            "b": 1
+          }
+        ]
+      }
+    }
+  ],
+  "memory": {
+    "e_baseline": {
+      "saved": {
+        "SRAM32KSHA256": "72bcb4c802a59aae1974df38df197cfbd439c3abef83d921775aa9a061ffa334",
+        "bank0SHA256": "c4b5f6bb062c674d315182b7e7398dac9295de2462aeaf51458268243851772f",
+        "bank1SHA256": "0fbba07a833d4dcfc7024eaf313661a0ba8f80a05c6d29b8801c612e10e60dee",
+        "bytesDifferentFromSAVE": 0,
+        "physical0419": 128,
+        "physical0462": 26
+      },
+      "changed_environment": {
+        "SRAM32KSHA256": "23e9699e972026bf30666dde5c6894f4a31b48606157f0c540da44e69fd3b4d5",
+        "bank0SHA256": "d331cfeae322f803df7cd2f42f19149959f22293cbb37e6d461983900d304f58",
+        "bank1SHA256": "0fbba07a833d4dcfc7024eaf313661a0ba8f80a05c6d29b8801c612e10e60dee",
+        "bytesDifferentFromSAVE": 1479,
+        "physical0419": 0,
+        "physical0462": 18
+      },
+      "loaded": {
+        "SRAM32KSHA256": "23e9699e972026bf30666dde5c6894f4a31b48606157f0c540da44e69fd3b4d5",
+        "bank0SHA256": "d331cfeae322f803df7cd2f42f19149959f22293cbb37e6d461983900d304f58",
+        "bank1SHA256": "0fbba07a833d4dcfc7024eaf313661a0ba8f80a05c6d29b8801c612e10e60dee",
+        "bytesDifferentFromSAVE": 1479,
+        "physical0419": 0,
+        "physical0462": 18
+      },
+      "end": {
+        "SRAM32KSHA256": "23e9699e972026bf30666dde5c6894f4a31b48606157f0c540da44e69fd3b4d5",
+        "bank0SHA256": "d331cfeae322f803df7cd2f42f19149959f22293cbb37e6d461983900d304f58",
+        "bank1SHA256": "0fbba07a833d4dcfc7024eaf313661a0ba8f80a05c6d29b8801c612e10e60dee",
+        "bytesDifferentFromSAVE": 1479,
+        "physical0419": 0,
+        "physical0462": 18
+      }
+    },
+    "e_sram": {
+      "saved": {
+        "SRAM32KSHA256": "72bcb4c802a59aae1974df38df197cfbd439c3abef83d921775aa9a061ffa334",
+        "bank0SHA256": "c4b5f6bb062c674d315182b7e7398dac9295de2462aeaf51458268243851772f",
+        "bank1SHA256": "0fbba07a833d4dcfc7024eaf313661a0ba8f80a05c6d29b8801c612e10e60dee",
+        "bytesDifferentFromSAVE": 0,
+        "physical0419": 128,
+        "physical0462": 26
+      },
+      "changed_environment": {
+        "SRAM32KSHA256": "23e9699e972026bf30666dde5c6894f4a31b48606157f0c540da44e69fd3b4d5",
+        "bank0SHA256": "d331cfeae322f803df7cd2f42f19149959f22293cbb37e6d461983900d304f58",
+        "bank1SHA256": "0fbba07a833d4dcfc7024eaf313661a0ba8f80a05c6d29b8801c612e10e60dee",
+        "bytesDifferentFromSAVE": 1479,
+        "physical0419": 0,
+        "physical0462": 18
+      },
+      "loaded": {
+        "SRAM32KSHA256": "72bcb4c802a59aae1974df38df197cfbd439c3abef83d921775aa9a061ffa334",
+        "bank0SHA256": "c4b5f6bb062c674d315182b7e7398dac9295de2462aeaf51458268243851772f",
+        "bank1SHA256": "0fbba07a833d4dcfc7024eaf313661a0ba8f80a05c6d29b8801c612e10e60dee",
+        "bytesDifferentFromSAVE": 0,
+        "physical0419": 128,
+        "physical0462": 26
+      },
+      "end": {
+        "SRAM32KSHA256": "72bcb4c802a59aae1974df38df197cfbd439c3abef83d921775aa9a061ffa334",
+        "bank0SHA256": "c4b5f6bb062c674d315182b7e7398dac9295de2462aeaf51458268243851772f",
+        "bank1SHA256": "0fbba07a833d4dcfc7024eaf313661a0ba8f80a05c6d29b8801c612e10e60dee",
+        "bytesDifferentFromSAVE": 0,
+        "physical0419": 128,
+        "physical0462": 26
+      }
+    },
+    "e_reference": {
+      "saved": {
+        "SRAM32KSHA256": "72bcb4c802a59aae1974df38df197cfbd439c3abef83d921775aa9a061ffa334",
+        "bank0SHA256": "c4b5f6bb062c674d315182b7e7398dac9295de2462aeaf51458268243851772f",
+        "bank1SHA256": "0fbba07a833d4dcfc7024eaf313661a0ba8f80a05c6d29b8801c612e10e60dee",
+        "bytesDifferentFromSAVE": 0,
+        "physical0419": 128,
+        "physical0462": 26
+      },
+      "end": {
+        "SRAM32KSHA256": "72bcb4c802a59aae1974df38df197cfbd439c3abef83d921775aa9a061ffa334",
+        "bank0SHA256": "c4b5f6bb062c674d315182b7e7398dac9295de2462aeaf51458268243851772f",
+        "bank1SHA256": "0fbba07a833d4dcfc7024eaf313661a0ba8f80a05c6d29b8801c612e10e60dee",
+        "bytesDifferentFromSAVE": 0,
+        "physical0419": 128,
+        "physical0462": 26
+      }
+    }
+  }
+}

@@ -1,0 +1,7 @@
+const fs=require('fs'),p=require('path'),d=__dirname;
+const read=f=>fs.readFileSync(f,'utf8').trim().split(/\r?\n/).filter(x=>x&&x!=='name');
+const rows=[read(p.join(d,'../savestates_internal_cost_audit/registers.tsv')),read(p.join(d,'registers_candidate1.tsv'))];
+function partition(a){const own=a.map(x=>x.split('savestates:savestates_inst|')[1]).filter(x=>x&&!x.includes('|'));const counts={};for(const x of own){const stem=x.replace(/\[.*$/,'').replace(/~DUPLICATE.*$/,'');counts[stem]=(counts[stem]||0)+1;}return{own:own.length,child:a.length-own.length,counts,watchdog:own.filter(x=>x.startsWith('ddram_watchdog'))};}
+const [baseline,candidate]=rows.map(partition),changes=Object.fromEntries([...new Set([...Object.keys(baseline.counts),...Object.keys(candidate.counts)])].map(n=>[n,(candidate.counts[n]||0)-(baseline.counts[n]||0)]).filter(([,v])=>v));
+const metrics=require('./candidate1_results.json');const result={baseline,candidate,changes,controllerDelta:candidate.own-baseline.own,wholeFittedDelta:metrics.delta.registers,restOfDesignDelta:metrics.delta.registers-(candidate.own-baseline.own),note:'Whole fitted minus controller-own change includes other physical mapping/packing/duplication allocations; not extra guest-state information.'};
+fs.writeFileSync(p.join(d,'register_delta.json'),JSON.stringify(result,null,2));console.log(JSON.stringify({baselineOwn:baseline.own,candidateOwn:candidate.own,changes,wholeFittedDelta:result.wholeFittedDelta,restOfDesignDelta:result.restOfDesignDelta},null,2));

@@ -1,0 +1,2 @@
+module micro(input clk,run,load,capture,shift,input[5:0]addr,input[31:0]bus,input[2047:0]din,input[2047:0]restore,output reg[2047:0]q,output[31:0]dout);
+reg[2047:0]snap;always@(posedge clk)begin if(load)q<=restore;else if(run)q<=din;if(capture)snap<=q;else if(shift)snap<={bus,snap[2047:32]};end assign dout=snap[31:0];endmodule

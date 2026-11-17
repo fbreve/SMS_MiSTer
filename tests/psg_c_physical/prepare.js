@@ -1,0 +1,41 @@
+const fs=require('fs'),p=require('path'),cp=require('child_process'),crypto=require('crypto'),assert=require('assert');
+const d=__dirname,root=p.resolve(d,'../..'),prior=p.join(root,'tests/psg_simplification'),candidate=p.join(prior,'C'),rev='8443a0d19a88aff7a5900011bccf386daf146945';
+const hash=b=>crypto.createHash('sha256').update(b).digest('hex'),filehash=f=>hash(fs.readFileSync(f)),norm=s=>s.replace(/\r\n/g,'\n');
+const git=(args,cwd=root)=>cp.execFileSync('git',['--no-optional-locks','-c','core.safecrlf=false',...args],{cwd,maxBuffer:256*1024*1024}),text=(a,cwd)=>git(a,cwd).toString();
+const save=(f,o)=>fs.writeFileSync(p.join(d,f),JSON.stringify(o,null,2)+'\n');
+assert(!fs.existsSync(p.join(d,'input_manifest.json')),'Never overwrite a prepared comparison');
+const old=JSON.parse(fs.readFileSync(p.join(prior,'input_manifest.json'))),functional=JSON.parse(fs.readFileSync(p.join(prior,'results.json')));assert.equal(old.baseline,rev);assert.equal(text(['rev-parse','HEAD'],candidate).trim(),rev);assert.equal(text(['branch','--show-current'],candidate).trim(),'experiment/psg-c-controls');
+const diff=git(['diff','--binary'],candidate);assert.equal(hash(diff),functional.candidates.C.diffSHA256,'Reviewed C patch changed');assert.equal(hash(fs.readFileSync(p.join(prior,'C.diff'))),hash(diff));
+const changed=text(['diff','--name-only'],candidate).trim().split('\n').sort();assert.deepEqual(changed,functional.candidates.C.changedFiles);assert.equal(text(['diff','--cached'],candidate),'');assert(!text(['status','--short'],candidate).includes('??'));
+for(const [f,h]of Object.entries(old.files))assert.equal(filehash(p.join(candidate,f)),h.CSHA256,'Reviewed manifest changed: '+f);
+const testResults={};for(const [f,result]of Object.entries(functional.tests)){const s=fs.readFileSync(p.join(prior,f),'utf8');assert.equal(hash(Buffer.from(s)),result.SHA256,f);assert(s.includes('PASS ')&&!/\*\* (?:Error|Fatal)|Errors: [1-9]/.test(s),f);testResults[f]={hash:result.SHA256,pass:result.pass};}
+const token=s=>s.replace(/\/\*[\s\S]*?\*\//g,'').replace(/\/\/[^\n]*/g,'').replace(/\s+/g,'');
+for(const f of ['jt89.v','jt89_tone.v','jt89_noise.v','jt89_vol.v','jt89_mixer.v'])assert.equal(token(fs.readFileSync(p.join(candidate,'rtl/jt89',f),'utf8')),token(fs.readFileSync(p.join(prior,'sim_C',f),'utf8')),'Tested native source '+f);
+let controller=norm(fs.readFileSync(p.join(candidate,'rtl/savestates.sv'),'utf8'));for(const name of ['mapper_snap','evolution_snap']){const re=new RegExp('^reg\\s+\\[[^\\]]+\\]\\s+'+name+';\\n','m'),decl=controller.match(re)[0];controller=controller.replace(re,'').replace('// NVRAM size calculation helpers',decl+'// NVRAM size calculation helpers');}assert.equal(token(controller),token(fs.readFileSync(p.join(prior,'sim_C/controller.sv'),'utf8')));
+save('functional_revalidation.json',{baseline:rev,candidateBranch:'experiment/psg-c-controls',reviewedDiffSHA256:hash(diff),changedFiles:changed,manifestFiles:Object.keys(old.files).length,tests:testResults,note:'Read-only revalidation; old reports/generators/simulators were not rerun or rewritten. Final source token equality verified against tested controller/JT89.'});fs.writeFileSync(p.join(d,'candidate_C.diff'),diff);
+// Preserve source/report/binary contents; inventory metadata for every existing
+// workspace file, including old databases, without opening those databases.
+const preservation={head:text(['rev-parse','HEAD']).trim(),branch:text(['branch','--show-current']).trim(),refs:text(['show-ref']),diff:text(['diff','--binary']),staged:text(['diff','--cached','--binary']),indexSHA256:filehash(p.join(root,'.git/index')),files:{},contents:{},worktrees:text(['worktree','list','--porcelain'])};
+function walk(dir){for(const e of fs.readdirSync(p.join(root,dir),{withFileTypes:true})){const f=p.posix.join(dir,e.name);if(f==='tests/psg_c_physical'||f==='.git')continue;if(e.isDirectory())walk(f);else if(e.isFile()){const s=fs.statSync(p.join(root,f));preservation.files[f]={size:s.size,mtime:s.mtimeMs};if((/\.(md|json|js|ps1|sv|v|vhd|qsf|qip|qpf|sdc|do|csv|summary|diff|tcl|rpt|rbf|sof|log)$/.test(f)||e.name==='.git')&&!/(?:^|\/)(?:db|incremental_db|work|\w+_work|node_modules|\.git)(?:\/|$)/.test(f))preservation.contents[f]=filehash(p.join(root,f));}}}
+walk('');save('preservation_before.json',preservation);
+function blobs(cwd,at,prefix=''){
+ const tree=text(['ls-tree','-r',at],cwd).trim().split('\n').map(s=>s.match(/^(\d+) (\w+) (\w+)\t(.+)$/)).filter(m=>m&&m[2]==='blob');
+ const buf=cp.execFileSync('git',['--no-optional-locks','cat-file','--batch'],{cwd,input:tree.map(m=>m[3]).join('\n')+'\n',maxBuffer:256*1024*1024}),out={};let pos=0;
+ for(const m of tree){const end=buf.indexOf(10,pos),size=+buf.subarray(pos,end).toString().split(' ')[2];pos=end+1;out[prefix+m[4]]={blob:m[3],bytes:buf.subarray(pos,pos+size)};pos+=size+1;}return out;
+}
+const sub=text(['ls-tree',rev,'mist/mist-modules']).match(/160000 commit (\w+)/)[1],sources={...blobs(root,rev),...blobs(p.join(root,'mist/mist-modules'),sub,'mist/mist-modules/')};
+const config={baseline:rev,candidateDiffSHA256:hash(diff),submodule:{path:'mist/mist-modules',commit:sub},toolVersion:cp.execFileSync('C:/intelFPGA_lite/17.0/quartus/bin64/quartus_sh.exe',['--version']).toString().trim(),device:'5CSEBA6U23I7',top:'sys_top',project:'SMS',defines:['MISTER_FB=1'],buildDate:'261029',toolHashes:{},builds:{}};
+assert(config.toolVersion.includes('17.0.2 Build 602')&&config.toolVersion.includes('Lite Edition'));
+for(const exe of ['quartus_sh','quartus_map','quartus_fit','quartus_asm','quartus_sta'])config.toolHashes[exe]=filehash('C:/intelFPGA_lite/17.0/quartus/bin64/'+exe+'.exe');
+for(const seed of [1,2])for(const variant of ['A','C']){
+ const key=`seed${seed}/${variant}`,target=p.join(d,key);assert(!fs.existsSync(target),key);const inputs={};
+ for(const [f,h]of Object.entries(sources)){let b=h.bytes;if(variant==='C'&&changed.includes(f))b=fs.readFileSync(p.join(candidate,f));if(f==='SMS.qsf'&&seed===2){const s=b.toString();assert.equal((s.match(/set_global_assignment -name SEED 1/g)||[]).length,1);b=Buffer.from(s.replace('set_global_assignment -name SEED 1','set_global_assignment -name SEED 2'));}const dest=p.join(target,f);fs.mkdirSync(p.dirname(dest),{recursive:true});fs.writeFileSync(dest,b);inputs[f]={blob:h.blob,SHA256:hash(b)};}
+ const generated={'build_id.v':'`define BUILD_DATE "261029"\n','jtag.cdf':'JedecChain;\n\tFileRevision(JESD32A);\n\tDefaultMfr(6E);\n\n\tP ActionCode(Ign)\n\t\tDevice PartName(SOCVHPS) MfrSpec(OpMask(0));\n\tP ActionCode(Cfg)\n\t\tDevice PartName(5CSEBA6U23I7) Path("output_files/") File("SMS.sof") MfrSpec(OpMask(1));\nChainEnd;\n\nAlteraBegin;\n\tChainType(JTAG);\nAlteraEnd;\n'};
+ for(const[f,s]of Object.entries(generated)){fs.writeFileSync(p.join(target,f),s);inputs[f]={generated:true,SHA256:hash(Buffer.from(s))};}
+ for(const forbidden of ['db','incremental_db','output_files','map.log','fit.log','sta.log'])assert(!fs.existsSync(p.join(target,forbidden)),'Must start fresh '+key+' '+forbidden);
+ config.builds[key]={seed,variant,inputs};
+}
+for(const seed of [1,2]){const a=config.builds[`seed${seed}/A`].inputs,c=config.builds[`seed${seed}/C`].inputs;assert.deepEqual(Object.keys(a),Object.keys(c));assert.deepEqual(Object.keys(a).filter(f=>a[f].SHA256!==c[f].SHA256).sort(),changed);}
+for(const variant of ['A','C']){const a=config.builds[`seed1/${variant}`].inputs,b=config.builds[`seed2/${variant}`].inputs;assert.deepEqual(Object.keys(a).filter(f=>a[f].SHA256!==b[f].SHA256),['SMS.qsf']);}
+const equalityFiles=Object.keys(sources).filter(f=>/\.(?:qsf|qpf|qip|sdc|tcl)$/.test(f));save('configuration_equality.json',{identicalAcrossVariants:equalityFiles,seedsDifferOnlyIn:'SMS.qsf: SEED 1 versus SEED 2',allOtherInputsMatched:true,generatedInputsIdentical:true,sourceDifferences:changed,sourcePreparation:'Exact baseline Git blobs, nine reviewed uncommitted C files, pinned submodule from local objects. No database or output copied.'});
+save('input_manifest.json',config);console.log(JSON.stringify({protectedFiles:Object.keys(preservation.files).length,contentHashes:Object.keys(preservation.contents).length,sourceFiles:Object.keys(sources).length,changedFiles:changed,builds:Object.keys(config.builds),version:config.toolVersion}));

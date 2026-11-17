@@ -1,0 +1,7 @@
+The first `baseline_map.log`, `sram_map.log`, and `reference_map.log` runs are superseded pilots. They were intentionally stopped; their status JSON may still say running because the owning job was cancelled. They are not pending successful regressions and are not used to claim a graphical fix.
+
+The first warm fixture incorrectly retained WRAM on reset. Pinned master SMS.sv explicitly starts `ram_clr_run` on `raw_reset`, clears the16-KiB physical WRAM over16384 clocks, and keeps `reset_active` asserted throughout. The pilot's SRAM cache remained unchanged across its eight-frame reset. The corrected reset control subsequently also measured unchanged SRAM, so this absence of cache loss cannot be attributed solely to the WRAM-model mistake. The v3 immediate WRAM clear captured the clearing effect, though not its precise hardware duration.
+
+Its short movement sequence also did not yet qualify scrolling map updates. Cold-reference writes in the HUD name-table range are not sufficient qualification. The corrected `ys_reset_tb` uses the actual reset clear duration and extends rightward movement past the viewport, with separate `r_` output files.
+
+The cold scene qualification, the independently exported seed,43 bank-distinct transport tests, and excluded-path equivalence tests are unaffected. The ordinary-context seed's actual controller SAVE, its separate physical SRAM fixture, and both files' hashes remain valid; no old snapshot tail was reinterpreted.

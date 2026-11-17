@@ -1,0 +1,19 @@
+const fs=require('fs'),p=require('path'),assert=require('assert'),crypto=require('crypto'),d=__dirname,src=fs.readFileSync(p.join(d,'synthesis/OutputMemory_mapped.v'),'utf8'),out=p.join(d,'vendor');fs.mkdirSync(out);
+const inst=[...src.matchAll(/^([\w$]+)\s+(\\[^\s]+\s|[\w$]+)\s*\(/gm)].filter(m=>m[1]!=='module').map(m=>({type:m[1],name:m[2].trim(),start:m.index}));
+for(let i=0;i<inst.length;i++)inst[i].block=src.slice(inst[i].start,i+1<inst.length?inst[i+1].start:src.lastIndexOf('endmodule'));
+const memories=inst.filter(x=>x.type==='cyclonev_mlab_cell'),ffs=inst.filter(x=>x.type==='dffeas'&&x.name.includes('dataout_reg['));assert.equal(memories.length,20);assert.equal(ffs.length,20);
+function port(x,name){const re=new RegExp('\\.'+name+'\\(([^\\n]*)\\)');const m=x.block.match(re);assert(m,name+' '+x.name);return m[1].replace(/,$/,'').trim();}
+const groups=[memories.filter(x=>!x.name.includes('__dual')),memories.filter(x=>x.name.includes('__dual'))];for(const g of groups)g.sort((a,b)=>+a.name.match(/lutrama(\d+)/)[1]-(+b.name.match(/lutrama(\d+)/)[1]));
+const assignments=[];for(const [copy,g]of groups.entries()){
+ assert.equal(g.length,10);for(const x of g){assert.equal(port(x,'clk0'),'clk');assert.equal(port(x,'portaaddr'),port(groups[0][0],'portaaddr'));assert.equal(port(x,'ena0'),port(groups[0][0],'ena0'));assert.equal(port(x,'portbaddr'),port(g[0],'portbaddr'));assert(x.block.includes('.mixed_port_feed_through_mode = "dont care"'));assert(x.block.includes('.last_address = 18;'));}
+ assignments.push('assign '+port(g[0],'portbaddr')+' = ra'+copy+';');
+}
+assignments.push('assign '+port(memories[0],'portaaddr')+' = wa;','assign '+port(memories[0],'ena0')+' = we;');
+for(let b=0;b<10;b++){assert.equal(port(groups[0][b],'portadatain'),port(groups[1][b],'portadatain'));assignments.push('assign '+port(groups[0][b],'portadatain')+' = data['+b+'];');}
+for(const x of ffs){assert.equal(port(x,'clk'),'clk');assert.equal(port(x,'ena'),'!reset');assert.equal(port(x,'clrn'),'vcc');assert.equal(port(x,'sclr'),'gnd');const copy=x.name.includes('__dual')?1:0,bit=+x.name.match(/dataout_reg\[(\d+)\]/)[1];assignments.push('assign q'+copy+'['+bit+'] = '+port(x,'q')+';');}
+const wires=src.split(/\r?\n/).filter(x=>/^wire\s/.test(x)||/^(input|output)\s/.test(x)&&!/^input\s+clk;/.test(x)).map(x=>x.replace(/^(input|output)\s+/,'wire '));
+const aliases=src.match(/^assign [\s\S]*?;/gm)||[];
+const wrapper='`timescale 1ns/1ps\nmodule mapped_output_cut(input clk,input we,input out_en,input [4:0] wa,ra0,ra1,input [9:0] data,output [9:0] q0,q1);\n'+wires.join('\n')+'\n'+aliases.join('\n')+'\nassign reset=~out_en;assign devclrn=1\'b1;assign devpor=1\'b1;assign devoe=1\'b1;\n'+assignments.join('\n')+'\n'+inst.filter(x=>memories.includes(x)||ffs.includes(x)).map(x=>x.block).join('\n')+'\nendmodule\n';
+fs.writeFileSync(p.join(out,'mapped_output_cut.v'),wrapper);
+const sha=b=>crypto.createHash('sha256').update(b).digest('hex');fs.writeFileSync(p.join(out,'extraction.json'),JSON.stringify({originalModuleSHA256:sha(Buffer.from(src)),wholeNetlistSHA256:sha(fs.readFileSync(p.join(d,'synthesis/candidate/functional_netlist/SMS.vo'))),cutSHA256:sha(Buffer.from(wrapper)),memoryCells:20,outputFFs:20,proof:'Actual exported cell instances, defparams and signal aliases retained unchanged. Cut at common write address/data/enable, the two read addresses and output enable. Both replicas share identical write connections. Upstream address/write arbitration verified separately by independent RTL scoreboard.',cells:memories.map(x=>({name:x.name,write:port(x,'portaaddr'),read:port(x,'portbaddr'),enable:port(x,'ena0')}))},null,2)+'\n');
+console.log('PASS actual mapped-cell extraction: 20 MLAB bit slices, 20 actual output FFs, identical shared write connections and independent reads');

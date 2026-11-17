@@ -1,0 +1,167 @@
+diff --git a/rtl/savestates.sv b/tests/savestate_format_consolidation/candidate/rtl/savestates.sv
+index c32c9f0..6b11440 100644
+--- a/rtl/savestates.sv
++++ b/tests/savestate_format_consolidation/candidate/rtl/savestates.sv
+@@ -341,38 +341,31 @@ localparam [127:0] GG_RESET = 128'h00001fe00003f8000000ffa07fff00ff;
+ reg [127:0] gg_snap;
+ reg gg_word;
+ localparam ST_SAVE_MD = 7'd75, ST_LOAD_MD = 7'd76;
+-localparam [23:0] MD_EXT_MAGIC = 24'h484303;
+ reg [45:0] md_snap;
+ reg has_md_ext;
+-localparam [23:0] EEPROM_EXT_MAGIC = 24'h484304;
+ localparam [63:0] EEPROM_DESC = {15'd0,5'd16,3'd2,1'b1,8'd1,32'h45455058};
+ localparam [63:0] EEPROM_ABSENT = {24'd0,8'd1,32'h45455058};
+ localparam ST_SAVE_EE_DESC=7'd77, ST_SAVE_EE_EXT=7'd78,
+            ST_LOAD_EE_DESC=7'd79, ST_LOAD_EE_EXT=7'd80;
+ reg [127:0] eeprom_ext_snap;
+ reg eeprom_exists_snap, has_eeprom_tag, eeprom_ext_word;
+-localparam [23:0] SC_EXT_MAGIC = 24'h484305;
+ localparam ST_SAVE_SC_DESC=7'd81, ST_LOAD_SC_DESC=7'd82;
+ reg [1:0] sc_size_snap;
+ reg has_sc_tag, sc_ram_full;
+ wire [63:0] sc_descriptor = {30'd0,sc_size_snap,32'h53435235}; // SCR5
+-localparam [23:0] TAP_EXT_MAGIC = 24'h484306;
+ localparam ST_SAVE_TAP=7'd83, ST_LOAD_TAP=7'd84;
+ reg [18:0] tap_snap;
+ reg has_tap_tag;
+ // v7 adds only word 0x027: local paddle state [63:32], "PAD7" [31:0].
+-localparam [23:0] PADDLE_EXT_MAGIC = 24'h484307;
+ localparam ST_SAVE_PADDLE=7'd85, ST_LOAD_PADDLE=7'd86;
+ reg [31:0] paddle_snap;
+ reg has_paddle_tag;
+-localparam [23:0] GUN_EXT_MAGIC = 24'h484308;
+ localparam ST_SAVE_GUN0=7'd87, ST_SAVE_GUN1=7'd88, ST_LOAD_GUN0=7'd89, ST_LOAD_GUN1=7'd90;
+ reg [45:0] gun_snap;
+ reg has_gun_tag;
+ localparam [63:0] GUN_DESC = 64'h0000002e4c475538;
+ // v9: 02a payload [17] Sega evidence, [16] bank evidence, [15:0] timer.
+ // Padding [63:18] must be zero; 02b is the exact width18/MDH9 descriptor.
+-localparam [23:0] MAPPER_HISTORY_MAGIC = 24'h484309;
+ localparam [63:0] MAPPER_HISTORY_DESC = 64'h000000124d444839;
+ localparam [17:0] MAPPER_HISTORY_LEGACY = 18'h0ffff;
+ localparam ST_SAVE_HISTORY0=7'd91, ST_SAVE_HISTORY1=7'd92,
+@@ -383,8 +376,6 @@ reg has_mapper_history;
+ // and validates zero padding [63:60]. 02d validates width60 and owner "EV11".
+ // Evolution v10 and earlier lack protocol phase and are rejected before any
+ // restore writes; other mappers retain their v1-v10 compatibility paths.
+-localparam [23:0] EVOLUTION_HISTORY_MAGIC = 24'h48430a;
+-localparam [23:0] EVOLUTION_PENDING_MAGIC = 24'h48430b;
+ localparam [63:0] EVOLUTION_HISTORY_DESC = 64'h0000003c45563131;
+ localparam ST_SAVE_EVOLUTION0=7'd95, ST_SAVE_EVOLUTION1=7'd96,
+            ST_LOAD_EVOLUTION0=7'd97, ST_LOAD_EVOLUTION1=7'd98;
+@@ -434,9 +425,6 @@ wire [14:0] nvram_size_minus_1 = transfer_eeprom ? 15'd127 :
+                                                  15'd8191;
+ 
+ // v14: 02e descriptor, 02f phase/owner, 2901..2996 two sprite records.
+-localparam [23:0] RESTART_MAGIC = 24'h48430e;
+-localparam [23:0] BACKGROUND_MAGIC = 24'h48430f;
+-localparam [23:0] MIXER_MAGIC = 24'h484310;
+ localparam [23:0] FM_MAGIC = 24'h484311;
+ // Explicit owner, version17, 104 private32-bit rows. Free tail of96KiB slot.
+ localparam [63:0] FM_DESC = {16'd104,8'd17,8'd1,32'h464d5331};
+@@ -634,11 +622,9 @@ reg [229:0] z80_snap;
+ reg [2:0] nmi_snap;
+ reg [2:0] restart_snap;
+ reg has_restart_context, restart_padding_ok;
+-localparam [23:0] CPU_RESTART_MAGIC = 24'h48430d;
+ assign z80_restart_dir = restart_snap;
+ assign z80_restart_valid = has_restart_context;
+ reg has_nmi_history, nmi_padding_ok;
+-localparam [23:0] NMI_HISTORY_MAGIC = 24'h48430c;
+ assign z80_nmi_dir = nmi_snap;
+ assign z80_nmi_valid = has_nmi_history;
+ reg [135:0] vdp_snap;
+@@ -650,10 +636,8 @@ reg [159:0] evolution_snap;
+ reg [135:0] vdp2_snap;
+ // Video word extension v1: previously-written zero padding is never latch data
+ // unless the full tag and reserved bits match. Legacy snapshots restore zero.
+-localparam [23:0] HCOUNTER_MAGIC = 24'h484301; // "HC", version 1
+ // Version 2 preserves the HCounter layout and adds two local GG words (01c/01d).
+ // Bits 39:38 now give the GG payload length, exactly two 64-bit words.
+-localparam [23:0] IO_EXT_MAGIC = 24'h484302;
+ reg [383:0] cram2_snap;
+ reg  [55:0] psg2_snap;
+ reg  [31:0] io_snap;
+@@ -710,10 +694,11 @@ wire bg_word_invalid=(bg_word==2 && dout_latch[63:11]!=0) ||
+     (bg_word==0 && dout_latch[22:15]>=8'd240) ||
+     (bg_second && !systeme && dout_latch!=0);
+ // v13 inherits v12 NMI and every v11 extension location and meaning.
+-wire modern_restart_tag = dout_latch[63:40] == CPU_RESTART_MAGIC || dout_latch[63:40] == RESTART_MAGIC || (dout_latch[63:40] == BACKGROUND_MAGIC || (dout_latch[63:40] == MIXER_MAGIC || dout_latch[63:40] == FM_MAGIC));
+-wire modern_nmi_tag = dout_latch[63:40] == NMI_HISTORY_MAGIC || modern_restart_tag;
+-wire [23:0] load_ext_magic = modern_nmi_tag ? EVOLUTION_PENDING_MAGIC : dout_latch[63:40];
+-wire invalid_nmi_header = ((dout_latch[63:40] == MIXER_MAGIC || dout_latch[63:40] == FM_MAGIC) && !has_audio_ext) || modern_nmi_tag &&
++wire current_format = dout_latch[63:40] == FM_MAGIC;
++wire modern_restart_tag = current_format;
++wire modern_nmi_tag = current_format;
++wire removed_development_tag = dout_latch[63:48] == 16'h4843 && !current_format;
++wire invalid_nmi_header = removed_development_tag || ((1'b0 || dout_latch[63:40] == FM_MAGIC) && !has_audio_ext) || modern_nmi_tag &&
+                           (dout_latch[39:38] != 2'd3 ||
+                            (modern_restart_tag ? !restart_padding_ok : !nmi_padding_ok));
+ 
+@@ -1012,9 +997,9 @@ always @(*) begin
+         end
+         ST_LOAD_IO: if (!(DDRAM_DOUT_READY && dout_expected)) if (! dout_expected && ! DDRAM_BUSY) ddram_cmd_read ( base_addr + 29'h01a ) ;
+         ST_LOAD_VIDEO: if (!(DDRAM_DOUT_READY && dout_expected) && !dout_expected && !DDRAM_BUSY) begin
+-            if (!invalid_nmi_header && !((live_evolution || evolution_state) && (!evolution_state || load_ext_magic != EVOLUTION_PENDING_MAGIC || dout_latch[39:38] != 2'd3))) begin
+-            if ((load_ext_magic == IO_EXT_MAGIC && dout_latch[39:38] == 2'd2) ||
+-                    ((load_ext_magic == MD_EXT_MAGIC || load_ext_magic == EEPROM_EXT_MAGIC || load_ext_magic == SC_EXT_MAGIC || load_ext_magic == TAP_EXT_MAGIC || load_ext_magic == PADDLE_EXT_MAGIC || (load_ext_magic == GUN_EXT_MAGIC || (load_ext_magic == MAPPER_HISTORY_MAGIC || (load_ext_magic == EVOLUTION_HISTORY_MAGIC || load_ext_magic == EVOLUTION_PENDING_MAGIC)))) && dout_latch[39:38] == 2'd3)) ddram_cmd_read(base_addr + 29'h01c);
++            if (!invalid_nmi_header && !((live_evolution || evolution_state) && (!evolution_state || !current_format || dout_latch[39:38] != 2'd3))) begin
++            if ((1'b0 && dout_latch[39:38] == 2'd2) ||
++                    ((1'b0 || 1'b0 || 1'b0 || 1'b0 || 1'b0 || (1'b0 || (1'b0 || (1'b0 || current_format)))) && dout_latch[39:38] == 2'd3)) ddram_cmd_read(base_addr + 29'h01c);
+             else ddram_cmd_read(base_addr + 29'h01b);
+             end
+         end
+@@ -2304,35 +2289,35 @@ always @(posedge clk or negedge reset_n) begin
+                 dout_latch    <= DDRAM_DOUT;
+             end else if (!dout_expected && !DDRAM_BUSY) begin
+                 // v15 and older recorded transport phase, not historical T+1.
+-                if ((dout_latch[63:40] != MIXER_MAGIC && dout_latch[63:40] != FM_MAGIC)) audio_phase_snap<=0;
++                if ((1'b1 && dout_latch[63:40] != FM_MAGIC)) audio_phase_snap<=0;
+                 has_fm <= dout_latch[63:40] == FM_MAGIC;
+                 has_nmi_history <= modern_nmi_tag;
+                 has_restart_context <= modern_restart_tag;
+-                has_restart <= dout_latch[63:40] == RESTART_MAGIC || (dout_latch[63:40] == BACKGROUND_MAGIC || (dout_latch[63:40] == MIXER_MAGIC || dout_latch[63:40] == FM_MAGIC));
+-                has_background <= (dout_latch[63:40] == BACKGROUND_MAGIC || (dout_latch[63:40] == MIXER_MAGIC || dout_latch[63:40] == FM_MAGIC));
+-                has_evolution_history <= (load_ext_magic == EVOLUTION_HISTORY_MAGIC || load_ext_magic == EVOLUTION_PENDING_MAGIC) && dout_latch[39:38] == 2'd3;
+-                if (invalid_nmi_header || (live_evolution || evolution_state) && (!evolution_state || load_ext_magic != EVOLUTION_PENDING_MAGIC || dout_latch[39:38] != 2'd3)) begin
++                has_restart <= 1'b0 || (1'b0 || (1'b0 || dout_latch[63:40] == FM_MAGIC));
++                has_background <= (1'b0 || (1'b0 || dout_latch[63:40] == FM_MAGIC));
++                has_evolution_history <= (1'b0 || current_format) && dout_latch[39:38] == 2'd3;
++                if (invalid_nmi_header || (live_evolution || evolution_state) && (!evolution_state || !current_format || dout_latch[39:38] != 2'd3)) begin
+                     state <= ST_ERROR;
+                 end else begin
+                 video_snap       <= dout_latch[21:0];
+-                has_mapper_history <= (load_ext_magic == MAPPER_HISTORY_MAGIC || (load_ext_magic == EVOLUTION_HISTORY_MAGIC || load_ext_magic == EVOLUTION_PENDING_MAGIC)) && dout_latch[39:38] == 2'd3;
+-                has_gun_tag <= (load_ext_magic == GUN_EXT_MAGIC || (load_ext_magic == MAPPER_HISTORY_MAGIC || (load_ext_magic == EVOLUTION_HISTORY_MAGIC || load_ext_magic == EVOLUTION_PENDING_MAGIC))) && dout_latch[39:38] == 2'd3;
+-                has_paddle_tag <= (load_ext_magic == PADDLE_EXT_MAGIC || (load_ext_magic == GUN_EXT_MAGIC || (load_ext_magic == MAPPER_HISTORY_MAGIC || (load_ext_magic == EVOLUTION_HISTORY_MAGIC || load_ext_magic == EVOLUTION_PENDING_MAGIC)))) && dout_latch[39:38] == 2'd3;
+-                has_tap_tag <= (load_ext_magic == TAP_EXT_MAGIC || load_ext_magic == PADDLE_EXT_MAGIC || (load_ext_magic == GUN_EXT_MAGIC || (load_ext_magic == MAPPER_HISTORY_MAGIC || (load_ext_magic == EVOLUTION_HISTORY_MAGIC || load_ext_magic == EVOLUTION_PENDING_MAGIC)))) && dout_latch[39:38] == 2'd3;
+-                has_sc_tag <= (load_ext_magic == SC_EXT_MAGIC || load_ext_magic == TAP_EXT_MAGIC || load_ext_magic == PADDLE_EXT_MAGIC || (load_ext_magic == GUN_EXT_MAGIC || (load_ext_magic == MAPPER_HISTORY_MAGIC || (load_ext_magic == EVOLUTION_HISTORY_MAGIC || load_ext_magic == EVOLUTION_PENDING_MAGIC)))) && dout_latch[39:38] == 2'd3;
+-                has_eeprom_tag <= (load_ext_magic == EEPROM_EXT_MAGIC || load_ext_magic == SC_EXT_MAGIC || load_ext_magic == TAP_EXT_MAGIC || load_ext_magic == PADDLE_EXT_MAGIC || (load_ext_magic == GUN_EXT_MAGIC || (load_ext_magic == MAPPER_HISTORY_MAGIC || (load_ext_magic == EVOLUTION_HISTORY_MAGIC || load_ext_magic == EVOLUTION_PENDING_MAGIC)))) && dout_latch[39:38] == 2'd3;
+-                has_md_ext <= (load_ext_magic == MD_EXT_MAGIC || load_ext_magic == EEPROM_EXT_MAGIC || load_ext_magic == SC_EXT_MAGIC || load_ext_magic == TAP_EXT_MAGIC || load_ext_magic == PADDLE_EXT_MAGIC || (load_ext_magic == GUN_EXT_MAGIC || (load_ext_magic == MAPPER_HISTORY_MAGIC || (load_ext_magic == EVOLUTION_HISTORY_MAGIC || load_ext_magic == EVOLUTION_PENDING_MAGIC)))) && dout_latch[39:38] == 2'd3;
+-                if ((load_ext_magic == HCOUNTER_MAGIC && dout_latch[39:38] == 2'd0) ||
+-                    (load_ext_magic == IO_EXT_MAGIC && dout_latch[39:38] == 2'd2) ||
+-                    ((load_ext_magic == MD_EXT_MAGIC || load_ext_magic == EEPROM_EXT_MAGIC || load_ext_magic == SC_EXT_MAGIC || load_ext_magic == TAP_EXT_MAGIC || load_ext_magic == PADDLE_EXT_MAGIC || (load_ext_magic == GUN_EXT_MAGIC || (load_ext_magic == MAPPER_HISTORY_MAGIC || (load_ext_magic == EVOLUTION_HISTORY_MAGIC || load_ext_magic == EVOLUTION_PENDING_MAGIC)))) && dout_latch[39:38] == 2'd3)) begin
++                has_mapper_history <= (1'b0 || (1'b0 || current_format)) && dout_latch[39:38] == 2'd3;
++                has_gun_tag <= (1'b0 || (1'b0 || (1'b0 || current_format))) && dout_latch[39:38] == 2'd3;
++                has_paddle_tag <= (1'b0 || (1'b0 || (1'b0 || (1'b0 || current_format)))) && dout_latch[39:38] == 2'd3;
++                has_tap_tag <= (1'b0 || 1'b0 || (1'b0 || (1'b0 || (1'b0 || current_format)))) && dout_latch[39:38] == 2'd3;
++                has_sc_tag <= (1'b0 || 1'b0 || 1'b0 || (1'b0 || (1'b0 || (1'b0 || current_format)))) && dout_latch[39:38] == 2'd3;
++                has_eeprom_tag <= (1'b0 || 1'b0 || 1'b0 || 1'b0 || (1'b0 || (1'b0 || (1'b0 || current_format)))) && dout_latch[39:38] == 2'd3;
++                has_md_ext <= (1'b0 || 1'b0 || 1'b0 || 1'b0 || 1'b0 || (1'b0 || (1'b0 || (1'b0 || current_format)))) && dout_latch[39:38] == 2'd3;
++                if ((1'b0 && dout_latch[39:38] == 2'd0) ||
++                    (1'b0 && dout_latch[39:38] == 2'd2) ||
++                    ((1'b0 || 1'b0 || 1'b0 || 1'b0 || 1'b0 || (1'b0 || (1'b0 || (1'b0 || current_format)))) && dout_latch[39:38] == 2'd3)) begin
+                     vdp_snap[135:128] <= dout_latch[29:22];
+                     vdp2_snap[135:128] <= systeme ? dout_latch[37:30] : 8'd0;
+                 end else begin
+                     vdp_snap[135:128] <= 8'd0;
+                     vdp2_snap[135:128] <= 8'd0;
+                 end
+-                if ((load_ext_magic == IO_EXT_MAGIC && dout_latch[39:38] == 2'd2) ||
+-                    ((load_ext_magic == MD_EXT_MAGIC || load_ext_magic == EEPROM_EXT_MAGIC || load_ext_magic == SC_EXT_MAGIC || load_ext_magic == TAP_EXT_MAGIC || load_ext_magic == PADDLE_EXT_MAGIC || (load_ext_magic == GUN_EXT_MAGIC || (load_ext_magic == MAPPER_HISTORY_MAGIC || (load_ext_magic == EVOLUTION_HISTORY_MAGIC || load_ext_magic == EVOLUTION_PENDING_MAGIC)))) && dout_latch[39:38] == 2'd3)) begin
++                if ((1'b0 && dout_latch[39:38] == 2'd2) ||
++                    ((1'b0 || 1'b0 || 1'b0 || 1'b0 || 1'b0 || (1'b0 || (1'b0 || (1'b0 || current_format)))) && dout_latch[39:38] == 2'd3)) begin
+                     gg_word <= 0;
+                     ddram_read(base_addr + 29'h01c);
+                     state <= ST_LOAD_GG;

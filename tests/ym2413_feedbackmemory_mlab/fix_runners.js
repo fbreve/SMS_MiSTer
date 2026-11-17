@@ -1,0 +1,2 @@
+const fs=require('fs');for(const f of ['compile.ps1','one.ps1','campaign.ps1']){let s=fs.readFileSync(__dirname+'/'+f,'utf8').replaceAll('output_tb','feedback_tb').replaceAll('PASS OUTPUT','PASS FEEDBACK');fs.writeFileSync(__dirname+'/'+f,s);}
+const f=__dirname+'/prepare.js';let s=fs.readFileSync(f,'utf8').replace("if(f==='compile.ps1')", "text=text.replaceAll('output_tb','feedback_tb').replaceAll('PASS OUTPUT','PASS FEEDBACK');\n if(f==='compile.ps1')");fs.writeFileSync(f,s);

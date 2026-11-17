@@ -1,0 +1,11 @@
+const fs=require('fs'),p=require('path'),cp=require('child_process'),crypto=require('crypto'),assert=require('assert'),d=__dirname,root=p.resolve(d,'../..'),old=p.join(d,'../savestate_f01_opll_architecture/sim_opll');
+const sha=s=>crypto.createHash('sha256').update(s).digest('hex'),semantic=s=>s.replace(/--[^\r\n]*/g,'').replace(/\s+/g,'').toLowerCase();
+const rows=[];
+for(const f of fs.readdirSync(old).filter(f=>f.endsWith('.vhd'))){
+ const raw=cp.execFileSync('git',['show','HEAD:rtl/VM2413/'+f],{cwd:root}).toString('latin1');
+ let v=raw.replace(/\bRelease\b/g,'EGRelease').replace(/VOICE_ID_TYPE'range/gi,'0 to 37').replace(/ch_type'range/gi,'0 to 8').replace(/--[^\r\n]*/g,'');
+ const stack=[],insert=[];for(const m of v.matchAll(/\bcase\s+[^;\n]+?\bis\b|\bwhen\s+others\b|\bend\s+case\b/gi)){if(/^case/i.test(m[0]))stack.push(false);else if(/^when/i.test(m[0]))stack[stack.length-1]=true;else if(!stack.pop())insert.push(m.index);}for(const i of insert.reverse())v=v.slice(0,i)+'when others => null; '+v.slice(i);
+ const actual=fs.readFileSync(p.join(old,f),'latin1');assert.equal(semantic(v),semantic(actual),'baseline portability bridge '+f);rows.push({file:f,baselineSHA256:sha(Buffer.from(raw,'latin1')),oracleSHA256:sha(Buffer.from(actual,'latin1')),adaptedSemanticSHA256:sha(semantic(v))});
+}
+const original=fs.readFileSync(p.join(old,'opll.vhd'),'latin1'),renamed=original.replace(/entity\s+opll\s+is/i,'entity opll_reference is').replace(/end\s+opll\s*;/i,'end opll_reference;').replace(/architecture\s+rtl\s+of\s+opll\s+is/i,'architecture rtl of opll_reference is');assert.equal(fs.readFileSync(p.join(d,'opll_reference.vhd'),'latin1'),renamed);
+fs.writeFileSync(p.join(d,'oracle_source_identity.json'),JSON.stringify({passed:true,head:cp.execFileSync('git',['rev-parse','HEAD'],{cwd:root,encoding:'utf8'}).trim(),adaptations:['Release enumeration renamed EGRelease for VHDL2008','explicit finite scalar ranges for ModelSim portability','when others => null for missing std_logic meta cases; no change to legal binary execution','reference top entity renamed only','comments/whitespace ignored for semantic bridge'],rows,referenceTopSHA256:sha(Buffer.from(renamed,'latin1'))},null,2)+'\n');console.log('PASS baseline oracle bridge '+rows.length+' units; reference top rename only.');

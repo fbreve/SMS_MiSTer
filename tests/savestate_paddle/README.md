@@ -1,0 +1,24 @@
+# F10 paddle savestate evidence
+
+Production changes are limited to SMS.sv and rtl/savestates.sv. See design.md for the complete inventory, external-input boundary, exact v7 layout and legacy normalization.
+
+The baseline/ directory was copied from committed F09 52fb749 before production changes. static_checks.js verifies all 136 baseline source/settings hashes against the successful F09 build manifest and verifies that changes outside the paddle implementation are only its four savestate connections. Baseline and candidate build trees and ModelSim libraries are ignored.
+
+The initial five dynamic failures in before.log were obtained before changing production RTL. before_full.log subsequently runs the committed baseline through actual full DDRAM save/load and production I/O, reproducing three guest-visible failures. No reference instance receives restored protocol fields: references are held at the accepted freeze edge, then released under the same future external inputs and guest writes. The original paddle has no reset, so fixtures choose a legal initial divider count and establish cache/TR/history through real TH transitions. They do not seed the saved reference from a snapshot.
+
+prepare.js extracts the production paddle block verbatim apart from a fixture-only reference hold gate and moving divider declarations before use for ModelSim 10.5b. prepare_integration.js uses the production savestate FSM, actual io.vhd, production paddle logic, and (in the routed tests) the actual SMS accessory output process. The only production-controller adaptation is moving the two existing mapper/evolution declarations before their forward references. Full restore flush and guard durations remain unchanged; only the UI operation cooldown is bypassed.
+
+Replay suites:
+
+- directed.do: 896 combinations of seven positions, both regions, both input sources, both nibble phases, independent TH levels and pending edges. Checks all 32 bits and both ports every future clock, immediate edges, long idle, repeated restore and legacy normalization.
+- replay.do: 6,712 JP cases, every counter value 0..3355 in both alternating states. Each compares more than a complete subsequent 6712-clock alternation. These are the complete meaningful divider phase space; export mode does not consume the divider but its value is still preserved for future region changes.
+- modes.do: 224 JP-to-export cases, including independent TR histories inherited from mode changes.
+- ordinary.do: 1,000,000 clocks against the unmodified baseline, changing region, input source, both TH pins and position. No ordinary reset branch exists or was added.
+- Main DDRAM runs: 22 cases per stall profile, including untagged/v1-v6/old-64KiB, invalid version/count/magic/counter, current and repeated loads. Current cases preserve past cached samples despite changed raw input. All final main runs include production routing and the corrected top-level pin order; targeted routed tests add five cases per profile through the production output-cache process, including accepted-point pending TH, disabled mode, reset and later activation. Nine additional combined cases enable Master Tap and paddle together and compare both state machines through the same full DDRAM transaction in export and both JP phases.
+- regressions.ps1 and f10_*.log in the existing test directories record F07, F02, F08, F09, F03/F04, F05, original audit/controller and PSG regressions. Historical f09 and earlier logs are retained. Generators expect v7 while keeping explicit legacy formats; EEPROM, SC RAM and Master Tap include explicit v6 positive compatibility cases.
+
+The native tests use a 10ns host clock for simulation speed, with unchanged cycle counts. Hardware clk_sys is 53.693175MHz; time conversions in the review use that frequency. Raw user positions and configuration are external. Only already sampled/cache values, protocol outputs/history and local divider phase are rewound.
+
+Reproduction uses Node and ModelSim from the installed Intel FPGA Lite 17.0 tree. From the repository root, regenerate the dynamic savestate prefix using `node tests/savestate_hcounter/prepare_controller.js`, then `node tests/savestate_paddle/prepare.js` and `node tests/savestate_paddle/prepare_integration.js`. Run .do files from their owning directory. For the historical fixture, set PADDLE_BEFORE=1 when running prepare.js. The existing regression generators must be run before regressions.ps1. Use `node tests/savestate_paddle/static_checks.js` and `node tests/savestate_paddle/results.js --sim-only` to validate evidence before starting Quartus; results.js without that flag also checks the full build and records metrics.
+
+F06 remains unresolved. F11, other accessories and every older payload location remain unchanged. No commit, staging, push or PR is part of this task.

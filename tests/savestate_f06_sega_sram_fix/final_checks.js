@@ -1,0 +1,18 @@
+const fs=require('fs'),p=require('path'),cp=require('child_process'),crypto=require('crypto'),assert=require('assert'),d=__dirname;
+const sha=b=>crypto.createHash('sha256').update(b).digest('hex'),file=f=>sha(fs.readFileSync(f));
+const baseline=require('./baseline.json'),gate=require('./functional_gate.json'),build=require('./build_early_inputs.json'),result=require('./early_results.json');
+assert.equal(file('rtl/savestates.sv'),gate.sourceSHA);
+assert.equal(file(p.join(d,'functional_gate.json')),build.gateSHA);
+for(const [f,h]of Object.entries(gate.logs))assert.equal(file(p.join(d,f)),h,'frozen evidence '+f);
+for(const [f,h]of Object.entries(build.inputs))assert.equal(file(p.join(d,'quartus_early',f)),h,'built source '+f);
+for(const [f,h]of Object.entries(require('../savestate_f01_opll_fix/build_final_inputs.json').inputs))assert.equal(file(p.join(d,'../savestate_f01_opll_fix/quartus_final',f)),h,'baseline source '+f);
+assert.deepEqual(Object.entries(baseline.hashes).filter(([f,h])=>file(f)!==h).map(([f])=>f),['rtl/savestates.sv']);
+const git=args=>cp.execFileSync('git',args,{encoding:'utf8'}).trim();
+assert.equal(git(['rev-parse','HEAD']),baseline.head);assert.equal(git(['branch','--show-current']),'fix/savestate-f06-sega-sram');assert.equal(git(['diff','--cached','--stat']),'');
+assert.equal(result.candidate.M10K,488);assert.equal(result.candidate.memoryBits,3818050);assert.equal(result.candidate.DSP,39);assert.equal(result.candidate.violations,0);assert(result.candidate.setup>0&&result.candidate.hold>0);
+assert.deepEqual(result.warningDetails.newTypes,[]);assert.deepEqual(result.warningDetails.newMessages,[]);
+assert(!fs.existsSync(p.join(d,'quartus_confirmation')),'no unnecessary confirmation');
+result.classification='RESOURCE AND TIMING GATES PASSED';fs.writeFileSync(p.join(d,'early_results.json'),JSON.stringify(result,null,2)+'\n');
+const report=fs.readFileSync(p.join(d,'review.md'),'utf8');assert.equal((report.match(/^## \d+\./gm)||[]).length,57);assert(!report.includes('PENDING'));assert(report.includes('READY TO COMMIT'));
+const audit={passed:true,timeUTC:new Date().toISOString(),head:baseline.head,sourceSHA:gate.sourceSHA,gateSHA:build.gateSHA,verifiedFrozenLogs:Object.keys(gate.logs).length,builtInputs:Object.keys(build.inputs).length,baselineInputsUnchanged:true,onlyTrackedChange:'rtl/savestates.sv',stageEmpty:true,reportSHA:file(p.join(d,'review.md')),classification:'READY TO COMMIT',status:git(['status','--short']),diff:git(['diff','--stat'])};
+fs.writeFileSync(p.join(d,'final_gate.json'),JSON.stringify(audit,null,2));console.log(JSON.stringify(audit,null,2));

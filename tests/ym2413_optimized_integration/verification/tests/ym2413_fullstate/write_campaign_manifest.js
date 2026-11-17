@@ -1,0 +1,11 @@
+const fs=require('fs'),p=require('path'),c=require('crypto'),assert=require('assert'),d=__dirname;
+const hash=b=>c.createHash('sha256').update(b).digest('hex'),file=f=>fs.readFileSync(p.join(d,f));
+const sources={};
+for(const f of ['combined_tb.vhd','prepare_combined.js','prepare_native.js','instrument_oracle.js','prepare_tests.js','combined_one.ps1','combined_campaign.ps1','compile_combined.ps1','candidate_wrapper.vhd','reference_wrapper.vhd','ghdl_candidate/candidate_work-obj08.cf','ghdl_reference/reference_work-obj08.cf'])sources[f]=hash(file(f));
+for(const lib of ['native_candidate','native_reference'])for(const f of fs.readdirSync(p.join(d,lib)).filter(x=>x.endsWith('.vhd')).sort())sources[lib+'/'+f]=hash(file(lib+'/'+f));
+const tools=p.resolve(d,'../../../tools');
+const archive=fs.readdirSync(tools).find(x=>/ghdl.*\.zip$/.test(x));assert(archive,'GHDL archive');
+const m={baseline:'9873761503510e4b2c7e06600bf5515344235c2f',maxConcurrent:2,priority:'Idle',sources,ghdlExecutableSHA256:hash(fs.readFileSync(p.join(tools,'ghdl6/bin/ghdl.exe'))),archiveSHA256:hash(fs.readFileSync(p.join(tools,archive)))};
+assert(!fs.existsSync(p.join(d,'campaign_source_manifest.json')),'Refuse overwriting manifest');
+fs.writeFileSync(p.join(d,'campaign_source_manifest.json'),JSON.stringify(m,null,2));
+console.log('campaign manifest',Object.keys(sources).length,'sources; ghdl',m.ghdlExecutableSHA256.slice(0,12),'archive',m.archiveSHA256.slice(0,12));

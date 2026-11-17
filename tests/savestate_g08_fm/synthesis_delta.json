@@ -1,0 +1,63 @@
+{
+  "synthesisRegisterDelta": 37,
+  "rows": [
+    {
+      "name": "|sys_top|emu:emu|savestates:savestates_inst",
+      "baseline": {
+        "ALUTs": 7183,
+        "registers": 14907
+      },
+      "candidate": {
+        "ALUTs": 7252,
+        "registers": 14924
+      },
+      "delta": {
+        "ALUTs": 69,
+        "registers": 17
+      }
+    },
+    {
+      "name": "|sys_top|emu:emu|system:system|AudioMix:mix",
+      "baseline": {
+        "ALUTs": 59,
+        "registers": 29
+      },
+      "candidate": {
+        "ALUTs": 72,
+        "registers": 33
+      },
+      "delta": {
+        "ALUTs": 13,
+        "registers": 4
+      }
+    },
+    {
+      "name": "|sys_top|audio_out:audio_out",
+      "baseline": {
+        "ALUTs": 1560,
+        "registers": 1055
+      },
+      "candidate": {
+        "ALUTs": 1659,
+        "registers": 1071
+      },
+      "delta": {
+        "ALUTs": 99,
+        "registers": 16
+      }
+    }
+  ],
+  "removedMerges": [
+    "; audio_out:audio_out|IIR_filter:IIR_filter|inp[1,2] ; Merged with audio_out:audio_out|IIR_filter:IIR_filter|inp[0] ;",
+    "; audio_out:audio_out|cl[1,2] ; Merged with audio_out:audio_out|cl[0] ;",
+    "; audio_out:audio_out|IIR_filter:IIR_filter|inp_m[1,2] ; Merged with audio_out:audio_out|IIR_filter:IIR_filter|inp_m[0] ;",
+    "; audio_out:audio_out|cl2[1,2] ; Merged with audio_out:audio_out|cl2[0] ;",
+    "; audio_out:audio_out|cl1[1,2] ; Merged with audio_out:audio_out|cl1[0] ;",
+    "; audio_out:audio_out|cr[1,2] ; Merged with audio_out:audio_out|cr[0] ;",
+    "; emu:emu|system:system|AudioMix:mix|audio_l[1,2] ; Merged with emu:emu|system:system|AudioMix:mix|audio_l[0] ;",
+    "; audio_out:audio_out|cr2[1,2] ; Merged with audio_out:audio_out|cr2[0] ;",
+    "; audio_out:audio_out|cr1[1,2] ; Merged with audio_out:audio_out|cr1[0] ;",
+    "; emu:emu|system:system|AudioMix:mix|audio_r[1,2] ; Merged with emu:emu|system:system|AudioMix:mix|audio_r[0] ;"
+  ],
+  "explanation": "17 controller registers are16 historical sample bits plus presence. The other20 registers correspond exactly to10 former low-bit[1,2] merges: AudioMix4 and downstream audio_out16. A restored signed16-bit sample can carry independent low bits; the old arithmetic-only input had equal low three bits. No OPLL state bank, DSP or memory growth."
+}

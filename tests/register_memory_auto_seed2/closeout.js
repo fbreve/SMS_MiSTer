@@ -1,0 +1,14 @@
+const fs=require('fs'),p=require('path'),cp=require('child_process'),crypto=require('crypto'),assert=require('assert');
+const d=__dirname,root=p.resolve(d,'../..'),hash=f=>crypto.createHash('sha256').update(fs.readFileSync(f)).digest('hex'),git=(...a)=>cp.execFileSync('git',a,{cwd:root,encoding:'utf8'}).trim();
+const protectedEvidence=JSON.parse(fs.readFileSync(p.join(d,'preservation_before.json')));
+for(const [f,h]of Object.entries(protectedEvidence.files))assert.equal(hash(p.join(root,f)),h,f);
+for(const [r,h]of Object.entries(protectedEvidence.refs))assert.equal(git('rev-parse',r),h,r);
+const oldReports=JSON.parse(fs.readFileSync(p.join(root,'tests/register_memory_auto/prior_build_reports_validation.json'))).reports;
+for(const [f,h]of Object.entries(oldReports))assert.equal(hash(p.join(root,f)),h,f);
+const wt=p.join(root,'tests/register_memory_auto/worktree');
+assert.equal(cp.execFileSync('git',['diff','--numstat'],{cwd:wt,encoding:'utf8'}).trim(),'0\t1\trtl/VM2413/registermemory.vhd');
+assert.equal(cp.execFileSync('git',['rev-parse','HEAD'],{cwd:wt,encoding:'utf8'}).trim(),'8443a0d19a88aff7a5900011bccf386daf146945');
+assert.equal(cp.execFileSync('git',['branch','--show-current'],{cwd:wt,encoding:'utf8'}).trim(),'experiment/registermemory-auto-inference');
+assert.equal(git('diff','--cached','--name-only'),'');
+const result={protectedFiles:Object.keys(protectedEvidence.files).length,priorPhaseBuildReports:Object.keys(oldReports).length,protectedBranches:Object.keys(protectedEvidence.refs).length,preservationMismatches:0,registerWorktreeEdit:'Only one attribute line deleted; uncommitted',phaseMemoryExcludedFromRegisterExperiment:true,stagedFiles:0,master:git('rev-parse','master'),v19:git('rev-parse','investigate/cram-memory-inference'),investigation:git('rev-parse','investigate/synthesis-structure'),originalWorktreeStatus:git('status','--short'),worktrees:git('worktree','list','--porcelain')};
+fs.writeFileSync(p.join(d,'closeout.json'),JSON.stringify(result,null,2)+'\n');console.log(result);

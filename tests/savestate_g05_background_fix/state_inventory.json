@@ -1,0 +1,1187 @@
+{
+  "source": "rtl/vdp_background.vhd",
+  "sourceSha": "1b4b7ea8f8e3998f92ef1eb3c537f55e6be1d907d251cba7225a11a15b3807ce",
+  "capture": "All background ports are collected post-T at ARM, held by ce_pix=0 through transport and CPU preparation.",
+  "rows": [
+    {
+      "name": "tile_index",
+      "width": 9,
+      "reset": "none",
+      "enable": "M4 phase1 low8; phase2 high1; legacy phase1 low8; text holds",
+      "consumer": "M4 pattern address phase3; legacy phase2",
+      "overwrite": "low8 <=8 ordinary pixels; high1 only M4, otherwise unbounded",
+      "classification": "MUST SERIALIZE",
+      "baselineSerialized": false,
+      "baselineRestore": "zero for stored fields; aliases recompute",
+      "proposedRestore": "exact literal or bijective semantic position on ss_restore+valid; deterministic zero missing fields for legacy",
+      "freeze": "All historical assignments require ce_pix or explicit ss_restore; no autonomous wall-clock updates",
+      "firstArchitecturalObservation": "dependent fetch/data/shifter/mixer path can precede overwrite after mode change",
+      "sites": [
+        {
+          "line": 41,
+          "text": "signal tile_index\t\t: std_logic_vector (8 downto 0);"
+        },
+        {
+          "line": 202,
+          "text": "data_address              := tile_index & tile_y;"
+        },
+        {
+          "line": 217,
+          "text": "--   \"000\" -> name table  (tile_index captured at \"001\")"
+        },
+        {
+          "line": 225,
+          "text": "vram_A <= pt_address & tile_index(7 downto 0) & y(2 downto 0);"
+        },
+        {
+          "line": 229,
+          "text": "tile_index(7 downto 0) & y(2 downto 0);"
+        },
+        {
+          "line": 234,
+          "text": "vram_A <= ct_address(13 downto 6) & '0' & tile_index(7 downto 3);"
+        },
+        {
+          "line": 238,
+          "text": "((y(7 downto 6) & tile_index(7 downto 3)) and ct_address(12 downto 6)) &"
+        },
+        {
+          "line": 239,
+          "text": "tile_index(2 downto 0) & y(2 downto 0);"
+        },
+        {
+          "line": 256,
+          "text": "tile_index      <= (others => '0');"
+        },
+        {
+          "line": 290,
+          "text": "tile_index(7 downto 0) <= vram_D;"
+        },
+        {
+          "line": 292,
+          "text": "tile_index(8) <= vram_D(0);"
+        },
+        {
+          "line": 313,
+          "text": "--   \"001\" -> tile_index  <- name table byte   (addr issued at \"000\")"
+        },
+        {
+          "line": 321,
+          "text": "tile_index(7 downto 0) <= vram_D;"
+        }
+      ]
+    },
+    {
+      "name": "x",
+      "width": 8,
+      "reset": "none",
+      "enable": "increments each ce_pix; horizontal reset488 loads mode/latched-scroll value",
+      "consumer": "Every scheduler and shifter-load phase",
+      "overwrite": "Historical offset survives increments until next x488, up to342 pixels (HCounter0..295,466..511)",
+      "classification": "MUST SERIALIZE",
+      "baselineSerialized": false,
+      "baselineRestore": "normalizes using current mode and scroll",
+      "proposedRestore": "exact literal or bijective semantic position on ss_restore+valid; deterministic zero missing fields for legacy",
+      "freeze": "All historical assignments require ce_pix or explicit ss_restore; no autonomous wall-clock updates",
+      "firstArchitecturalObservation": "dependent fetch/data/shifter/mixer path can precede overwrite after mode change",
+      "sites": [
+        {
+          "line": 42,
+          "text": "signal x\t\t\t\t: std_logic_vector (7 downto 0);"
+        },
+        {
+          "line": 86,
+          "text": "x <= \"11110000\" ; -- 240"
+        },
+        {
+          "line": 88,
+          "text": "x <= 232-scroll_x_latched;"
+        },
+        {
+          "line": 90,
+          "text": "x <= \"11101000\"; -- 256-24=232"
+        },
+        {
+          "line": 95,
+          "text": "x <= \"11110000\" ; -- 240"
+        },
+        {
+          "line": 104,
+          "text": "x <= 232-scroll_x_latched;   -- temporary workaround of 1pix roll - needs better fix!"
+        },
+        {
+          "line": 106,
+          "text": "x <= \"11101000\"; -- 256-24=232"
+        },
+        {
+          "line": 109,
+          "text": "x <= x + 1;"
+        },
+        {
+          "line": 201,
+          "text": "char_address(4 downto 0) := x(7 downto 3) + 1;"
+        },
+        {
+          "line": 204,
+          "text": "case x(2 downto 0) is"
+        },
+        {
+          "line": 220,
+          "text": "case x(2 downto 0) is"
+        },
+        {
+          "line": 221,
+          "text": "when \"000\" => vram_A <= table_address & y(7 downto 3) & x(7 downto 3);"
+        },
+        {
+          "line": 288,
+          "text": "case x(2 downto 0) is"
+        },
+        {
+          "line": 319,
+          "text": "case x(2 downto 0) is"
+        },
+        {
+          "line": 375,
+          "text": "case x(2 downto 0) is"
+        }
+      ]
+    },
+    {
+      "name": "tile_y",
+      "width": 3,
+      "reset": "none",
+      "enable": "M4 phase2 captures y XOR attribute V flip; otherwise holds",
+      "consumer": "M4 pattern-address concatenation",
+      "overwrite": "<=8 M4 pixels; unbounded in other modes",
+      "classification": "MUST SERIALIZE",
+      "baselineSerialized": false,
+      "baselineRestore": "zero for stored fields; aliases recompute",
+      "proposedRestore": "exact literal or bijective semantic position on ss_restore+valid; deterministic zero missing fields for legacy",
+      "freeze": "All historical assignments require ce_pix or explicit ss_restore; no autonomous wall-clock updates",
+      "firstArchitecturalObservation": "dependent fetch/data/shifter/mixer path can precede overwrite after mode change",
+      "sites": [
+        {
+          "line": 43,
+          "text": "signal tile_y\t\t\t: std_logic_vector (2 downto 0);"
+        },
+        {
+          "line": 202,
+          "text": "data_address              := tile_index & tile_y;"
+        },
+        {
+          "line": 258,
+          "text": "tile_y          <= (others => '0');"
+        },
+        {
+          "line": 294,
+          "text": "tile_y(0)     <= y(0) xor vram_D(2);"
+        },
+        {
+          "line": 295,
+          "text": "tile_y(1)     <= y(1) xor vram_D(2);"
+        },
+        {
+          "line": 296,
+          "text": "tile_y(2)     <= y(2) xor vram_D(2);"
+        }
+      ]
+    },
+    {
+      "name": "palette",
+      "width": 1,
+      "reset": "none",
+      "enable": "M4 phase2; legacy phase4 zero; text holds",
+      "consumer": "phase7 palette_shift load",
+      "overwrite": "<=8 nontext pixels; unbounded in text",
+      "classification": "MUST SERIALIZE",
+      "baselineSerialized": false,
+      "baselineRestore": "zero for stored fields; aliases recompute",
+      "proposedRestore": "exact literal or bijective semantic position on ss_restore+valid; deterministic zero missing fields for legacy",
+      "freeze": "All historical assignments require ce_pix or explicit ss_restore; no autonomous wall-clock updates",
+      "firstArchitecturalObservation": "dependent fetch/data/shifter/mixer path can precede overwrite after mode change",
+      "sites": [
+        {
+          "line": 44,
+          "text": "signal palette\t\t\t: std_logic;"
+        },
+        {
+          "line": 259,
+          "text": "palette         <= '0';"
+        },
+        {
+          "line": 297,
+          "text": "palette       <= vram_D(3);"
+        },
+        {
+          "line": 329,
+          "text": "palette       <= '0';"
+        },
+        {
+          "line": 392,
+          "text": "palette_shift <= palette;"
+        }
+      ]
+    },
+    {
+      "name": "palette_shift",
+      "width": 1,
+      "reset": "none",
+      "enable": "nontext phase7; text holds",
+      "consumer": "Immediate bg_color[4] when nontext selected",
+      "overwrite": "<=8 nontext pixels; unbounded in text",
+      "classification": "MUST SERIALIZE",
+      "baselineSerialized": false,
+      "baselineRestore": "zero for stored fields; aliases recompute",
+      "proposedRestore": "exact literal or bijective semantic position on ss_restore+valid; deterministic zero missing fields for legacy",
+      "freeze": "All historical assignments require ce_pix or explicit ss_restore; no autonomous wall-clock updates",
+      "firstArchitecturalObservation": "first selected visible pixel can precede overwrite",
+      "sites": [
+        {
+          "line": 45,
+          "text": "signal palette_shift\t: std_logic;"
+        },
+        {
+          "line": 355,
+          "text": "palette_shift <= '0';"
+        },
+        {
+          "line": 392,
+          "text": "palette_shift <= palette;"
+        },
+        {
+          "line": 409,
+          "text": "color(4) <= '0' when text_mode='1' else palette_shift;"
+        }
+      ]
+    },
+    {
+      "name": "priority_latch",
+      "width": 1,
+      "reset": "none",
+      "enable": "M4 phase2; legacy phase4 zero; text holds",
+      "consumer": "phase7 registered priority load",
+      "overwrite": "<=8 nontext pixels; unbounded in text",
+      "classification": "MUST SERIALIZE",
+      "baselineSerialized": false,
+      "baselineRestore": "zero for stored fields; aliases recompute",
+      "proposedRestore": "exact literal or bijective semantic position on ss_restore+valid; deterministic zero missing fields for legacy",
+      "freeze": "All historical assignments require ce_pix or explicit ss_restore; no autonomous wall-clock updates",
+      "firstArchitecturalObservation": "dependent fetch/data/shifter/mixer path can precede overwrite after mode change",
+      "sites": [
+        {
+          "line": 46,
+          "text": "signal priority_latch\t: std_logic;"
+        },
+        {
+          "line": 260,
+          "text": "priority_latch  <= '0';"
+        },
+        {
+          "line": 298,
+          "text": "priority_latch<= vram_D(4);"
+        },
+        {
+          "line": 330,
+          "text": "priority_latch<= '0';"
+        },
+        {
+          "line": 393,
+          "text": "priority      <= priority_latch;"
+        }
+      ]
+    },
+    {
+      "name": "flip_x",
+      "width": 1,
+      "reset": "none",
+      "enable": "M4 phase2; legacy phase4 zero; text holds",
+      "consumer": "phase7 data orientation and plane3 source",
+      "overwrite": "<=8 nontext pixels; unbounded in text",
+      "classification": "MUST SERIALIZE",
+      "baselineSerialized": false,
+      "baselineRestore": "zero for stored fields; aliases recompute",
+      "proposedRestore": "exact literal or bijective semantic position on ss_restore+valid; deterministic zero missing fields for legacy",
+      "freeze": "All historical assignments require ce_pix or explicit ss_restore; no autonomous wall-clock updates",
+      "firstArchitecturalObservation": "dependent fetch/data/shifter/mixer path can precede overwrite after mode change",
+      "sites": [
+        {
+          "line": 47,
+          "text": "signal flip_x\t\t\t: std_logic;"
+        },
+        {
+          "line": 257,
+          "text": "flip_x          <= '0';"
+        },
+        {
+          "line": 293,
+          "text": "flip_x        <= vram_D(1);"
+        },
+        {
+          "line": 328,
+          "text": "flip_x        <= '0';"
+        },
+        {
+          "line": 377,
+          "text": "if flip_x='0' then"
+        }
+      ]
+    },
+    {
+      "name": "datac",
+      "width": 8,
+      "reset": "none",
+      "enable": "legacy phase3 only",
+      "consumer": "legacy phase4 color-plane expansion",
+      "overwrite": "<=8 legacy pixels; unbounded in M4/text",
+      "classification": "MUST SERIALIZE",
+      "baselineSerialized": false,
+      "baselineRestore": "zero for stored fields; aliases recompute",
+      "proposedRestore": "exact literal or bijective semantic position on ss_restore+valid; deterministic zero missing fields for legacy",
+      "freeze": "All historical assignments require ce_pix or explicit ss_restore; no autonomous wall-clock updates",
+      "firstArchitecturalObservation": "dependent fetch/data/shifter/mixer path can precede overwrite after mode change",
+      "sites": [
+        {
+          "line": 49,
+          "text": "-- datac holds the pattern byte in the legacy pipeline (captured at \"011\","
+        },
+        {
+          "line": 54,
+          "text": "signal datac\t\t\t: std_logic_vector(7 downto 0);"
+        },
+        {
+          "line": 218,
+          "text": "--   \"010\" -> pattern table (pattern byte captured at \"011\" into datac)"
+        },
+        {
+          "line": 265,
+          "text": "datac           <= (others => '0');"
+        },
+        {
+          "line": 314,
+          "text": "--   \"011\" -> datac       <- pattern byte       (addr issued at \"010\")"
+        },
+        {
+          "line": 318,
+          "text": "-- datac bit = 1 -> pixel is foreground; = 0 -> pixel is background."
+        },
+        {
+          "line": 324,
+          "text": "datac <= vram_D;"
+        },
+        {
+          "line": 326,
+          "text": "-- vram_D is now the color byte; datac is the pattern byte."
+        },
+        {
+          "line": 332,
+          "text": "data0(i) <= (datac(i) and vram_D(4)) or (not datac(i) and vram_D(0));"
+        },
+        {
+          "line": 333,
+          "text": "data1(i) <= (datac(i) and vram_D(5)) or (not datac(i) and vram_D(1));"
+        },
+        {
+          "line": 334,
+          "text": "data2(i) <= (datac(i) and vram_D(6)) or (not datac(i) and vram_D(2));"
+        },
+        {
+          "line": 335,
+          "text": "data3(i) <= (datac(i) and vram_D(7)) or (not datac(i) and vram_D(3));"
+        }
+      ]
+    },
+    {
+      "name": "data0",
+      "width": 8,
+      "reset": "none",
+      "enable": "M4 phase4; legacy phase4; text holds",
+      "consumer": "phase7 shifter load",
+      "overwrite": "<=8 nontext pixels; unbounded in text",
+      "classification": "MUST SERIALIZE",
+      "baselineSerialized": false,
+      "baselineRestore": "zero for stored fields; aliases recompute",
+      "proposedRestore": "exact literal or bijective semantic position on ss_restore+valid; deterministic zero missing fields for legacy",
+      "freeze": "All historical assignments require ce_pix or explicit ss_restore; no autonomous wall-clock updates",
+      "firstArchitecturalObservation": "dependent fetch/data/shifter/mixer path can precede overwrite after mode change",
+      "sites": [
+        {
+          "line": 55,
+          "text": "signal data0\t\t\t: std_logic_vector(7 downto 0);"
+        },
+        {
+          "line": 261,
+          "text": "data0           <= (others => '0');"
+        },
+        {
+          "line": 300,
+          "text": "data0 <= vram_D;"
+        },
+        {
+          "line": 332,
+          "text": "data0(i) <= (datac(i) and vram_D(4)) or (not datac(i) and vram_D(0));"
+        },
+        {
+          "line": 378,
+          "text": "shift0 <= data0;"
+        },
+        {
+          "line": 387,
+          "text": "shift0 <= data0(0)&data0(1)&data0(2)&data0(3)&data0(4)&data0(5)&data0(6)&data0(7);"
+        }
+      ]
+    },
+    {
+      "name": "data1",
+      "width": 8,
+      "reset": "none",
+      "enable": "M4 phase5; legacy phase4; text holds",
+      "consumer": "phase7 shifter load",
+      "overwrite": "<=8 nontext pixels; unbounded in text",
+      "classification": "MUST SERIALIZE",
+      "baselineSerialized": false,
+      "baselineRestore": "zero for stored fields; aliases recompute",
+      "proposedRestore": "exact literal or bijective semantic position on ss_restore+valid; deterministic zero missing fields for legacy",
+      "freeze": "All historical assignments require ce_pix or explicit ss_restore; no autonomous wall-clock updates",
+      "firstArchitecturalObservation": "dependent fetch/data/shifter/mixer path can precede overwrite after mode change",
+      "sites": [
+        {
+          "line": 56,
+          "text": "signal data1\t\t\t: std_logic_vector(7 downto 0);"
+        },
+        {
+          "line": 262,
+          "text": "data1           <= (others => '0');"
+        },
+        {
+          "line": 302,
+          "text": "data1 <= vram_D;"
+        },
+        {
+          "line": 333,
+          "text": "data1(i) <= (datac(i) and vram_D(5)) or (not datac(i) and vram_D(1));"
+        },
+        {
+          "line": 379,
+          "text": "shift1 <= data1;"
+        },
+        {
+          "line": 388,
+          "text": "shift1 <= data1(0)&data1(1)&data1(2)&data1(3)&data1(4)&data1(5)&data1(6)&data1(7);"
+        }
+      ]
+    },
+    {
+      "name": "data2",
+      "width": 8,
+      "reset": "none",
+      "enable": "M4 phase6; legacy phase4; text holds",
+      "consumer": "phase7 shifter load",
+      "overwrite": "<=8 nontext pixels; unbounded in text",
+      "classification": "MUST SERIALIZE",
+      "baselineSerialized": false,
+      "baselineRestore": "zero for stored fields; aliases recompute",
+      "proposedRestore": "exact literal or bijective semantic position on ss_restore+valid; deterministic zero missing fields for legacy",
+      "freeze": "All historical assignments require ce_pix or explicit ss_restore; no autonomous wall-clock updates",
+      "firstArchitecturalObservation": "dependent fetch/data/shifter/mixer path can precede overwrite after mode change",
+      "sites": [
+        {
+          "line": 57,
+          "text": "signal data2\t\t\t: std_logic_vector(7 downto 0);"
+        },
+        {
+          "line": 263,
+          "text": "data2           <= (others => '0');"
+        },
+        {
+          "line": 304,
+          "text": "data2 <= vram_D;"
+        },
+        {
+          "line": 334,
+          "text": "data2(i) <= (datac(i) and vram_D(6)) or (not datac(i) and vram_D(2));"
+        },
+        {
+          "line": 380,
+          "text": "shift2 <= data2;"
+        },
+        {
+          "line": 389,
+          "text": "shift2 <= data2(0)&data2(1)&data2(2)&data2(3)&data2(4)&data2(5)&data2(6)&data2(7);"
+        }
+      ]
+    },
+    {
+      "name": "data3",
+      "width": 8,
+      "reset": "none",
+      "enable": "legacy phase4; holds in M4/text",
+      "consumer": "phase7 shifter load",
+      "overwrite": "<=8 legacy pixels, otherwise unbounded",
+      "classification": "MUST SERIALIZE",
+      "baselineSerialized": false,
+      "baselineRestore": "zero for stored fields; aliases recompute",
+      "proposedRestore": "exact literal or bijective semantic position on ss_restore+valid; deterministic zero missing fields for legacy",
+      "freeze": "All historical assignments require ce_pix or explicit ss_restore; no autonomous wall-clock updates",
+      "firstArchitecturalObservation": "dependent fetch/data/shifter/mixer path can precede overwrite after mode change",
+      "sites": [
+        {
+          "line": 58,
+          "text": "signal data3\t\t\t: std_logic_vector(7 downto 0);"
+        },
+        {
+          "line": 264,
+          "text": "data3           <= (others => '0');"
+        },
+        {
+          "line": 306,
+          "text": "--\t\tdata3 <= vram_D;"
+        },
+        {
+          "line": 335,
+          "text": "data3(i) <= (datac(i) and vram_D(7)) or (not datac(i) and vram_D(3));"
+        },
+        {
+          "line": 384,
+          "text": "shift3 <= data3;"
+        }
+      ]
+    },
+    {
+      "name": "shift0",
+      "width": 8,
+      "reset": "none",
+      "enable": "nontext phase7 load, otherwise bits7:1 shift and bit0 holds; text holds",
+      "consumer": "Immediate nontext pixel via bit7",
+      "overwrite": "Full load <=8 nontext pixels; unbounded in text; shifting is not a historical overwrite",
+      "classification": "MUST SERIALIZE",
+      "baselineSerialized": false,
+      "baselineRestore": "zero for stored fields; aliases recompute",
+      "proposedRestore": "exact literal or bijective semantic position on ss_restore+valid; deterministic zero missing fields for legacy",
+      "freeze": "All historical assignments require ce_pix or explicit ss_restore; no autonomous wall-clock updates",
+      "firstArchitecturalObservation": "first selected visible pixel can precede overwrite",
+      "sites": [
+        {
+          "line": 60,
+          "text": "signal shift0\t\t\t: std_logic_vector(7 downto 0);"
+        },
+        {
+          "line": 351,
+          "text": "shift0        <= (others => '0');"
+        },
+        {
+          "line": 378,
+          "text": "shift0 <= data0;"
+        },
+        {
+          "line": 387,
+          "text": "shift0 <= data0(0)&data0(1)&data0(2)&data0(3)&data0(4)&data0(5)&data0(6)&data0(7);"
+        },
+        {
+          "line": 395,
+          "text": "shift0(7 downto 1) <= shift0(6 downto 0);"
+        },
+        {
+          "line": 405,
+          "text": "color(0) <= shift0(7) when text_mode='0' else text_fg_color(0) when text_shift(5)='1' else overscan(0);"
+        }
+      ]
+    },
+    {
+      "name": "shift1",
+      "width": 8,
+      "reset": "none",
+      "enable": "nontext phase7 load, otherwise bits7:1 shift and bit0 holds; text holds",
+      "consumer": "Immediate nontext pixel via bit7",
+      "overwrite": "Full load <=8 nontext pixels; unbounded in text; shifting is not a historical overwrite",
+      "classification": "MUST SERIALIZE",
+      "baselineSerialized": false,
+      "baselineRestore": "zero for stored fields; aliases recompute",
+      "proposedRestore": "exact literal or bijective semantic position on ss_restore+valid; deterministic zero missing fields for legacy",
+      "freeze": "All historical assignments require ce_pix or explicit ss_restore; no autonomous wall-clock updates",
+      "firstArchitecturalObservation": "first selected visible pixel can precede overwrite",
+      "sites": [
+        {
+          "line": 61,
+          "text": "signal shift1\t\t\t: std_logic_vector(7 downto 0);"
+        },
+        {
+          "line": 352,
+          "text": "shift1        <= (others => '0');"
+        },
+        {
+          "line": 379,
+          "text": "shift1 <= data1;"
+        },
+        {
+          "line": 388,
+          "text": "shift1 <= data1(0)&data1(1)&data1(2)&data1(3)&data1(4)&data1(5)&data1(6)&data1(7);"
+        },
+        {
+          "line": 396,
+          "text": "shift1(7 downto 1) <= shift1(6 downto 0);"
+        },
+        {
+          "line": 406,
+          "text": "color(1) <= shift1(7) when text_mode='0' else text_fg_color(1) when text_shift(5)='1' else overscan(1);"
+        }
+      ]
+    },
+    {
+      "name": "shift2",
+      "width": 8,
+      "reset": "none",
+      "enable": "nontext phase7 load, otherwise bits7:1 shift and bit0 holds; text holds",
+      "consumer": "Immediate nontext pixel via bit7",
+      "overwrite": "Full load <=8 nontext pixels; unbounded in text; shifting is not a historical overwrite",
+      "classification": "MUST SERIALIZE",
+      "baselineSerialized": false,
+      "baselineRestore": "zero for stored fields; aliases recompute",
+      "proposedRestore": "exact literal or bijective semantic position on ss_restore+valid; deterministic zero missing fields for legacy",
+      "freeze": "All historical assignments require ce_pix or explicit ss_restore; no autonomous wall-clock updates",
+      "firstArchitecturalObservation": "first selected visible pixel can precede overwrite",
+      "sites": [
+        {
+          "line": 62,
+          "text": "signal shift2\t\t\t: std_logic_vector(7 downto 0);"
+        },
+        {
+          "line": 353,
+          "text": "shift2        <= (others => '0');"
+        },
+        {
+          "line": 380,
+          "text": "shift2 <= data2;"
+        },
+        {
+          "line": 389,
+          "text": "shift2 <= data2(0)&data2(1)&data2(2)&data2(3)&data2(4)&data2(5)&data2(6)&data2(7);"
+        },
+        {
+          "line": 397,
+          "text": "shift2(7 downto 1) <= shift2(6 downto 0);"
+        },
+        {
+          "line": 407,
+          "text": "color(2) <= shift2(7) when text_mode='0' else text_fg_color(2) when text_shift(5)='1' else overscan(2);"
+        }
+      ]
+    },
+    {
+      "name": "shift3",
+      "width": 8,
+      "reset": "none",
+      "enable": "nontext phase7 load, otherwise bits7:1 shift and bit0 holds; text holds",
+      "consumer": "Immediate nontext pixel via bit7",
+      "overwrite": "Full load <=8 nontext pixels; unbounded in text; shifting is not a historical overwrite",
+      "classification": "MUST SERIALIZE",
+      "baselineSerialized": false,
+      "baselineRestore": "zero for stored fields; aliases recompute",
+      "proposedRestore": "exact literal or bijective semantic position on ss_restore+valid; deterministic zero missing fields for legacy",
+      "freeze": "All historical assignments require ce_pix or explicit ss_restore; no autonomous wall-clock updates",
+      "firstArchitecturalObservation": "first selected visible pixel can precede overwrite",
+      "sites": [
+        {
+          "line": 63,
+          "text": "signal shift3\t\t\t: std_logic_vector(7 downto 0);"
+        },
+        {
+          "line": 354,
+          "text": "shift3        <= (others => '0');"
+        },
+        {
+          "line": 382,
+          "text": "shift3 <= vram_D;"
+        },
+        {
+          "line": 384,
+          "text": "shift3 <= data3;"
+        },
+        {
+          "line": 390,
+          "text": "shift3 <= vram_D(0)&vram_D(1)&vram_D(2)&vram_D(3)&vram_D(4)&vram_D(5)&vram_D(6)&vram_D(7);"
+        },
+        {
+          "line": 398,
+          "text": "shift3(7 downto 1) <= shift3(6 downto 0);"
+        },
+        {
+          "line": 408,
+          "text": "color(3) <= shift3(7) when text_mode='0' else text_fg_color(3) when text_shift(5)='1' else overscan(3);"
+        }
+      ]
+    },
+    {
+      "name": "text_tile_index",
+      "width": 8,
+      "reset": "power-up0",
+      "enable": "text sx1 or phase1/column<39; nontext holds",
+      "consumer": "text sx2/phase2 address",
+      "overwrite": "<=6 active-text pixels except end window; unbounded inactive",
+      "classification": "MUST SERIALIZE",
+      "baselineSerialized": false,
+      "baselineRestore": "zero for stored fields; aliases recompute",
+      "proposedRestore": "exact literal or bijective semantic position on ss_restore+valid; deterministic zero missing fields for legacy",
+      "freeze": "All historical assignments require ce_pix or explicit ss_restore; no autonomous wall-clock updates",
+      "firstArchitecturalObservation": "dependent fetch/data/shifter/mixer path can precede overwrite after mode change",
+      "sites": [
+        {
+          "line": 66,
+          "text": "signal text_tile_index\t: std_logic_vector(7 downto 0) := (others=>'0');"
+        },
+        {
+          "line": 166,
+          "text": "vram_A <= pt_address & text_tile_index & y(2 downto 0);"
+        },
+        {
+          "line": 179,
+          "text": "vram_A <= pt_address & text_tile_index & y(2 downto 0);"
+        },
+        {
+          "line": 254,
+          "text": "text_tile_index <= (others => '0');"
+        },
+        {
+          "line": 269,
+          "text": "text_tile_index <= vram_D;"
+        },
+        {
+          "line": 276,
+          "text": "text_tile_index <= vram_D;"
+        }
+      ]
+    },
+    {
+      "name": "text_pattern",
+      "width": 8,
+      "reset": "power-up0",
+      "enable": "text sx3 or phase3/column<39; nontext holds",
+      "consumer": "bits7:2 at sx7/phase5; bits1:0 have NO consumer",
+      "overwrite": "<=6 active-text pixels except end window; unbounded inactive",
+      "classification": "MUST SERIALIZE bits7:2; BOUNDARY-IRRELEVANT bits1:0 (actually globally dead)",
+      "baselineSerialized": false,
+      "baselineRestore": "zero for stored fields; aliases recompute",
+      "proposedRestore": "exact literal or bijective semantic position on ss_restore+valid; deterministic zero missing fields for legacy",
+      "freeze": "All historical assignments require ce_pix or explicit ss_restore; no autonomous wall-clock updates",
+      "firstArchitecturalObservation": "dependent fetch/data/shifter/mixer path can precede overwrite after mode change",
+      "sites": [
+        {
+          "line": 67,
+          "text": "signal text_pattern\t\t: std_logic_vector(7 downto 0) := (others=>'0');"
+        },
+        {
+          "line": 255,
+          "text": "text_pattern    <= (others => '0');"
+        },
+        {
+          "line": 271,
+          "text": "text_pattern <= vram_D;"
+        },
+        {
+          "line": 280,
+          "text": "text_pattern <= vram_D;"
+        },
+        {
+          "line": 360,
+          "text": "text_shift <= text_pattern(7 downto 2);"
+        },
+        {
+          "line": 364,
+          "text": "text_shift <= text_pattern(7 downto 2);"
+        }
+      ]
+    },
+    {
+      "name": "text_shift",
+      "width": 6,
+      "reset": "power-up0",
+      "enable": "text sx7/phase5 load; active shift zeros; outside text window zero; nontext holds",
+      "consumer": "Immediate text pixel via bit5",
+      "overwrite": "Full load <=6 active text pixels; unbounded inactive",
+      "classification": "MUST SERIALIZE",
+      "baselineSerialized": false,
+      "baselineRestore": "zero for stored fields; aliases recompute",
+      "proposedRestore": "exact literal or bijective semantic position on ss_restore+valid; deterministic zero missing fields for legacy",
+      "freeze": "All historical assignments require ce_pix or explicit ss_restore; no autonomous wall-clock updates",
+      "firstArchitecturalObservation": "first selected visible pixel can precede overwrite",
+      "sites": [
+        {
+          "line": 65,
+          "text": "signal text_shift\t\t: std_logic_vector(5 downto 0) := (others=>'0');"
+        },
+        {
+          "line": 350,
+          "text": "text_shift    <= (others => '0');"
+        },
+        {
+          "line": 360,
+          "text": "text_shift <= text_pattern(7 downto 2);"
+        },
+        {
+          "line": 364,
+          "text": "text_shift <= text_pattern(7 downto 2);"
+        },
+        {
+          "line": 367,
+          "text": "text_shift(5 downto 1) <= text_shift(4 downto 0);"
+        },
+        {
+          "line": 368,
+          "text": "text_shift(0)          <= '0';"
+        },
+        {
+          "line": 371,
+          "text": "text_shift <= (others=>'0');"
+        },
+        {
+          "line": 405,
+          "text": "color(0) <= shift0(7) when text_mode='0' else text_fg_color(0) when text_shift(5)='1' else overscan(0);"
+        },
+        {
+          "line": 406,
+          "text": "color(1) <= shift1(7) when text_mode='0' else text_fg_color(1) when text_shift(5)='1' else overscan(1);"
+        },
+        {
+          "line": 407,
+          "text": "color(2) <= shift2(7) when text_mode='0' else text_fg_color(2) when text_shift(5)='1' else overscan(2);"
+        },
+        {
+          "line": 408,
+          "text": "color(3) <= shift3(7) when text_mode='0' else text_fg_color(3) when text_shift(5)='1' else overscan(3);"
+        }
+      ]
+    },
+    {
+      "name": "text_phase",
+      "width": 3,
+      "reset": "power-up0",
+      "enable": "text x8..246 advances modulo6; sx7/outside/nontext/line reset zero",
+      "consumer": "text name/pattern scheduling and shift-load condition",
+      "overwrite": "<=6 active text pixels; zero on next nontext/outside pixel, but may be consumed first",
+      "classification": "MUST SERIALIZE jointly as position8",
+      "baselineSerialized": false,
+      "baselineRestore": "zero for stored fields; aliases recompute",
+      "proposedRestore": "exact literal or bijective semantic position on ss_restore+valid; deterministic zero missing fields for legacy",
+      "freeze": "All historical assignments require ce_pix or explicit ss_restore; no autonomous wall-clock updates",
+      "firstArchitecturalObservation": "dependent fetch/data/shifter/mixer path can precede overwrite after mode change",
+      "sites": [
+        {
+          "line": 68,
+          "text": "signal text_phase\t\t: std_logic_vector(2 downto 0) := (others=>'0');"
+        },
+        {
+          "line": 121,
+          "text": "text_phase  <= (others=>'0');"
+        },
+        {
+          "line": 125,
+          "text": "text_phase  <= (others=>'0');"
+        },
+        {
+          "line": 128,
+          "text": "text_phase  <= \"000\";"
+        },
+        {
+          "line": 131,
+          "text": "if text_phase=\"101\" then"
+        },
+        {
+          "line": 132,
+          "text": "text_phase  <= \"000\";"
+        },
+        {
+          "line": 135,
+          "text": "text_phase <= text_phase + 1;"
+        },
+        {
+          "line": 138,
+          "text": "text_phase  <= (others=>'0');"
+        },
+        {
+          "line": 171,
+          "text": "case text_phase is"
+        },
+        {
+          "line": 273,
+          "text": "case text_phase is"
+        },
+        {
+          "line": 363,
+          "text": "if text_phase=\"101\" then"
+        }
+      ]
+    },
+    {
+      "name": "text_column",
+      "width": 6,
+      "reset": "power-up0",
+      "enable": "increments on phase5 in x8..246; otherwise same reset rules",
+      "consumer": "name address and column<39 qualifiers",
+      "overwrite": "<=240-pixel text window; may feed a fetch before reset",
+      "classification": "MUST SERIALIZE jointly as position8",
+      "baselineSerialized": false,
+      "baselineRestore": "zero for stored fields; aliases recompute",
+      "proposedRestore": "exact literal or bijective semantic position on ss_restore+valid; deterministic zero missing fields for legacy",
+      "freeze": "All historical assignments require ce_pix or explicit ss_restore; no autonomous wall-clock updates",
+      "firstArchitecturalObservation": "dependent fetch/data/shifter/mixer path can precede overwrite after mode change",
+      "sites": [
+        {
+          "line": 69,
+          "text": "signal text_column\t\t: std_logic_vector(5 downto 0) := (others=>'0');"
+        },
+        {
+          "line": 122,
+          "text": "text_column <= (others=>'0');"
+        },
+        {
+          "line": 126,
+          "text": "text_column <= (others=>'0');"
+        },
+        {
+          "line": 129,
+          "text": "text_column <= (others=>'0');"
+        },
+        {
+          "line": 133,
+          "text": "text_column <= text_column + 1;"
+        },
+        {
+          "line": 139,
+          "text": "text_column <= (others=>'0');"
+        },
+        {
+          "line": 173,
+          "text": "if text_column < \"100111\" then"
+        },
+        {
+          "line": 174,
+          "text": "text_name := (text_row * 40) + conv_integer(text_column) + 1;"
+        },
+        {
+          "line": 178,
+          "text": "if text_column < \"100111\" then"
+        },
+        {
+          "line": 275,
+          "text": "if text_column < \"100111\" then"
+        },
+        {
+          "line": 279,
+          "text": "if text_column < \"100111\" then"
+        }
+      ]
+    },
+    {
+      "name": "vram_A",
+      "width": 14,
+      "reset": "none",
+      "enable": "registered text/ordinary fetch scheduler; holds when no scheduled fetch",
+      "consumer": "Registered graphics RAM read Q, then data/metadata latch",
+      "overwrite": "<=8 nontext pixels or <=6 active text pixels; holds indefinitely outside text window",
+      "classification": "MUST SERIALIZE",
+      "baselineSerialized": false,
+      "baselineRestore": "retains discarded address",
+      "proposedRestore": "exact literal or bijective semantic position on ss_restore+valid; deterministic zero missing fields for legacy",
+      "freeze": "All historical assignments require ce_pix or explicit ss_restore; no autonomous wall-clock updates",
+      "firstArchitecturalObservation": "dependent fetch/data/shifter/mixer path can precede overwrite after mode change",
+      "sites": [
+        {
+          "line": 31,
+          "text": "vram_A:\t\t\t\tout std_logic_vector(13 downto 0);"
+        },
+        {
+          "line": 164,
+          "text": "vram_A <= table_address & conv_std_logic_vector(text_row * 40, 10);"
+        },
+        {
+          "line": 166,
+          "text": "vram_A <= pt_address & text_tile_index & y(2 downto 0);"
+        },
+        {
+          "line": 175,
+          "text": "vram_A <= table_address & conv_std_logic_vector(text_name, 10);"
+        },
+        {
+          "line": 179,
+          "text": "vram_A <= pt_address & text_tile_index & y(2 downto 0);"
+        },
+        {
+          "line": 205,
+          "text": "when \"000\" => vram_A <= char_address & \"0\";"
+        },
+        {
+          "line": 206,
+          "text": "when \"001\" => vram_A <= char_address & \"1\";"
+        },
+        {
+          "line": 207,
+          "text": "when \"011\" => vram_A <= data_address & \"00\";"
+        },
+        {
+          "line": 208,
+          "text": "when \"100\" => vram_A <= data_address & \"01\";"
+        },
+        {
+          "line": 209,
+          "text": "when \"101\" => vram_A <= data_address & \"10\";"
+        },
+        {
+          "line": 210,
+          "text": "when \"110\" => vram_A <= data_address & \"11\";"
+        },
+        {
+          "line": 221,
+          "text": "when \"000\" => vram_A <= table_address & y(7 downto 3) & x(7 downto 3);"
+        },
+        {
+          "line": 225,
+          "text": "vram_A <= pt_address & tile_index(7 downto 0) & y(2 downto 0);"
+        },
+        {
+          "line": 228,
+          "text": "vram_A <= pt_address(13) & (y(7 downto 6) and pt_address(12 downto 11)) &"
+        },
+        {
+          "line": 234,
+          "text": "vram_A <= ct_address(13 downto 6) & '0' & tile_index(7 downto 3);"
+        },
+        {
+          "line": 237,
+          "text": "vram_A <= ct_address(13) &"
+        }
+      ]
+    },
+    {
+      "name": "priority",
+      "width": 1,
+      "reset": "none",
+      "enable": "nontext phase7; text sx7/phase5/outside zero",
+      "consumer": "Immediate main mixer sprite/background arbitration",
+      "overwrite": "<=8 nontext / <=6 active-text pixels; may be consumed first",
+      "classification": "MUST SERIALIZE",
+      "baselineSerialized": false,
+      "baselineRestore": "zero for stored fields; aliases recompute",
+      "proposedRestore": "exact literal or bijective semantic position on ss_restore+valid; deterministic zero missing fields for legacy",
+      "freeze": "All historical assignments require ce_pix or explicit ss_restore; no autonomous wall-clock updates",
+      "firstArchitecturalObservation": "first selected visible pixel can precede overwrite",
+      "sites": [
+        {
+          "line": 35,
+          "text": "priority:\t\t\tout std_logic"
+        },
+        {
+          "line": 356,
+          "text": "priority      <= '0';"
+        },
+        {
+          "line": 361,
+          "text": "priority   <= '0';"
+        },
+        {
+          "line": 365,
+          "text": "priority   <= '0';"
+        },
+        {
+          "line": 372,
+          "text": "priority   <= '0';"
+        },
+        {
+          "line": 393,
+          "text": "priority      <= priority_latch;"
+        }
+      ]
+    },
+    {
+      "name": "text_mode",
+      "width": 1,
+      "reset": "combinational",
+      "enable": "raw mode decode",
+      "consumer": "scheduler and pixel selection",
+      "overwrite": "settles with restored registers, no storage",
+      "classification": "DETERMINISTICALLY RECONSTRUCTABLE",
+      "baselineSerialized": false,
+      "baselineRestore": "zero for stored fields; aliases recompute",
+      "proposedRestore": "no extra payload",
+      "freeze": "All historical assignments require ce_pix or explicit ss_restore; no autonomous wall-clock updates",
+      "firstArchitecturalObservation": "dependent fetch/data/shifter/mixer path can precede overwrite after mode change",
+      "sites": [
+        {
+          "line": 71,
+          "text": "signal text_mode\t\t: std_logic;"
+        },
+        {
+          "line": 76,
+          "text": "text_mode <= '1' when smode_M4='0' and mode_M1_raw='1' and mode_M2_raw='0' and mode_M3_raw='0' else '0';"
+        },
+        {
+          "line": 124,
+          "text": "if reset='1' or text_mode='0' then"
+        },
+        {
+          "line": 159,
+          "text": "if text_mode='1' then"
+        },
+        {
+          "line": 267,
+          "text": "if text_mode='1' then"
+        },
+        {
+          "line": 358,
+          "text": "if text_mode='1' then"
+        },
+        {
+          "line": 405,
+          "text": "color(0) <= shift0(7) when text_mode='0' else text_fg_color(0) when text_shift(5)='1' else overscan(0);"
+        },
+        {
+          "line": 406,
+          "text": "color(1) <= shift1(7) when text_mode='0' else text_fg_color(1) when text_shift(5)='1' else overscan(1);"
+        },
+        {
+          "line": 407,
+          "text": "color(2) <= shift2(7) when text_mode='0' else text_fg_color(2) when text_shift(5)='1' else overscan(2);"
+        },
+        {
+          "line": 408,
+          "text": "color(3) <= shift3(7) when text_mode='0' else text_fg_color(3) when text_shift(5)='1' else overscan(3);"
+        },
+        {
+          "line": 409,
+          "text": "color(4) <= '0' when text_mode='1' else palette_shift;"
+        }
+      ]
+    },
+    {
+      "name": "gfx1_mode",
+      "width": 1,
+      "reset": "combinational",
+      "enable": "raw mode decode",
+      "consumer": "legacy address branch",
+      "overwrite": "settles with restored registers, no storage",
+      "classification": "DETERMINISTICALLY RECONSTRUCTABLE",
+      "baselineSerialized": false,
+      "baselineRestore": "zero for stored fields; aliases recompute",
+      "proposedRestore": "no extra payload",
+      "freeze": "All historical assignments require ce_pix or explicit ss_restore; no autonomous wall-clock updates",
+      "firstArchitecturalObservation": "dependent fetch/data/shifter/mixer path can precede overwrite after mode change",
+      "sites": [
+        {
+          "line": 72,
+          "text": "signal gfx1_mode\t\t: std_logic;"
+        },
+        {
+          "line": 77,
+          "text": "gfx1_mode <= '1' when smode_M4='0' and mode_M1_raw='0' and mode_M2_raw='0' and mode_M3_raw='0' else '0';"
+        },
+        {
+          "line": 223,
+          "text": "if gfx1_mode='1' then"
+        },
+        {
+          "line": 232,
+          "text": "if gfx1_mode='1' then"
+        }
+      ]
+    }
+  ]
+}

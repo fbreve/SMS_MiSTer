@@ -1,0 +1,13 @@
+const fs=require('fs'),p=require('path'),crypto=require('crypto'),cp=require('child_process');const dir=__dirname;
+const checks=[['sanity/g01.log','PASS G01 TRACE','G01 terminal LDIR, three LOADs/36403 comparisons'],['sanity/hcounter.log','PASS: F07 fixed','F07 GG latch, eight boundaries'],['sanity/nmi/simulation.log','PASS F16 fixed','F16 capture-edge NMI, three LOADs/18403 comparisons'],['sanity/pause/simulation.log','PASS FIXED case4','F12 paused non-M1, one transfer/2552454 comparisons']];
+const sanity=checks.map(([file,marker,scope])=>{const text=fs.readFileSync(p.join(dir,file),'utf8');if(!text.includes(marker)||/\*\* (Error|Fatal|Failure)|Errors: [1-9]/.test(text))throw Error('sanity failed '+file);return{file,scope,sha256:crypto.createHash('sha256').update(fs.readFileSync(p.join(dir,file))).digest('hex')};});
+fs.writeFileSync(p.join(dir,'sanity_results.json'),JSON.stringify(sanity,null,2)+'\n');
+cp.execFileSync(process.execPath,[p.join(dir,'analyze.js'),'--final'],{stdio:'ignore'});
+const results=JSON.parse(fs.readFileSync(p.join(dir,'results.json'),'utf8'));
+if(Object.keys(results.cases).length!==9)throw Error('runtime count');
+const report=fs.readFileSync(p.join(dir,'review.md'),'utf8');for(let n=1;n<=38;n++)if(!report.includes('|'+n+' |'))throw Error('missing report item '+n);
+if(/Pending final|pending update/.test(report))throw Error('unfinished report');
+const retained=JSON.parse(fs.readFileSync(p.join(dir,'retained.json'),'utf8'));for(const r of Object.values(retained))if(crypto.createHash('sha256').update(fs.readFileSync(p.resolve(dir,r.path))).digest('hex')!==r.sha256)throw Error('previous witness changed');
+const artifacts={};function walk(folder){for(const e of fs.readdirSync(folder,{withFileTypes:true})){if(e.name.endsWith('_work')||e.name.endsWith('.wlf')||['transcript','modelsim.ini','artifact_manifest.json'].includes(e.name))continue;const q=p.join(folder,e.name);if(e.isDirectory())walk(q);else artifacts[p.relative(dir,q).replaceAll('\\','/')]=crypto.createHash('sha256').update(fs.readFileSync(q)).digest('hex');}}walk(dir);
+fs.writeFileSync(p.join(dir,'artifact_manifest.json'),JSON.stringify({head:results.head,format:13,runtimes:9,sanityRuntimes:4,productionFilesVerified:203,hashes:artifacts},null,2)+'\n');
+console.log('PASS: 9 initialized runtimes + 4 scoped sanity runtimes; all38 report items; retained witnesses and203 baseline source files unchanged; tracked/staged diff empty.');

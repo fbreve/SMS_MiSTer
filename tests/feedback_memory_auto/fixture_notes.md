@@ -1,0 +1,1 @@
+Initial flat test adapter used conversion expressions directly on VHDL93 integer ports; ModelSim rejected non-static expressions before simulation. Replaced with concurrent intermediate typed signals, preserving wiring semantics. The failed bank log and initial standalone-map attempt are retained, not qualification evidence. Production RTL unchanged.

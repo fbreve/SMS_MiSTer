@@ -1,0 +1,1 @@
+const fs=require('fs'),d=__dirname;for(const f of ['fitted.log','fitted.console.log'])fs.renameSync(d+'/vendor_fitted/'+f,d+'/vendor_fitted/extraction_syntax_failure.'+f);let s=fs.readFileSync(d+'/extract_vendor_fitted.js','utf8').replace("port(x,'portbdataout')","port(x,'portbdataout').replace(/\\)$/,'').trim()");fs.writeFileSync(d+'/extract_vendor_fitted.js',s);

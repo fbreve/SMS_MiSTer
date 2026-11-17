@@ -1,0 +1,20 @@
+Item,Class,Width per port,Disposition and evidence
+timer,A,17,Preserve exact elapsed position including terminal 80539; otherwise future timeout differs
+rises,A,3,Preserve phase 0 through saturated 4; phase 2 low identifies pad and phase 3 exposes XYZ/Mode
+th_prev,A,1,Preserve sampled TH; pending edge test saves after input change before clock
+type_prev,A,2,Preserve sampled effective type; pending MD3 to MD6 plus TH edge test distinguishes reset from rise
+timeout flag,B,0,No additional register; terminal timer comparison derives expiration
+phase decode and pins,B,6,Combinational from rises and current inputs; decode byte identical to F02
+controller_type and accessory enable,C,2,OSD configuration external; same future input contract; saved type_prev retains local history
+TH level,B,1,Derived from existing saved IO ctrl and region input; real IO restoration precedes MD restore
+IO ctrl,A,8,Already preserved in existing IO32 word 019; no duplicate new field
+region and guest routing settings,C,,External configuration; same future inputs precondition
+sms_pins and MD buttons,C,12,External controller input values; future identical inputs required
+clk and reset,C,2,Clock and external reset events; reset behavior remains original outside restore
+joya and joyb sampled frontend,B,8,Refilled each clk_sys from current inputs; settled before CPU release
+jcnt,B,2,Forced zero every clock when Master Tap disabled as required for active MD6; no MD6 private state
+old_th and tmr accessory branch,C,17,Private Master Tap or real serial controller state external to MD6; does not influence active MD6 because jcnt is forced zero
+joyser and USER_IN history,C,,External real-controller/accessory path disables MD emulation; F09 and F10 excluded
+paddle and gun state,C,,Separate accessory paths disable MD pad emulation; unchanged
+dead MD6 state,D,0,None identified
+unresolved MD6 state,E,0,None

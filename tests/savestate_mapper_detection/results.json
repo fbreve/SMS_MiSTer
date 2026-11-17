@@ -1,0 +1,981 @@
+{
+  "classification": "CONFIRMED - FIX REQUIRED",
+  "branch": "investigate/savestate-mapper-detection",
+  "head": "b61f307dcb161a6ac9a70fd544d435436807191d",
+  "trackedDiffStat": "",
+  "stagedDiffStat": "",
+  "status": "?? tests/",
+  "sourceHashes": {
+    "SMS.sv": "d76ad72d9350133eaa8414515d9531f51e794688c1e6ba0397447207fb4b3024",
+    "rtl/system.vhd": "9f68ccde0ca24f5e85ebe5c33a5bb15948da3ed5866ae47fcb707c4c0a71f446",
+    "rtl/mapper_detect.vhd": "921299c1af0c10942da4965a6da09ec523420f971bc5e5c8ec53d3b4b65928d7",
+    "rtl/mapper_ctrl.vhd": "6c69559e9842fe4631931cca01a822537186ffeae3e2f69eb462ed35b470f14f",
+    "rtl/memory_decode.vhd": "a2de44466d858d935bfe5207f0c925042aecd78fda5f40553f2820f5ee259e08",
+    "rtl/evolution_mapper.vhd": "f53b654da39daf7e3674e03857fa7a2dc25082295700ed7e1f44e10ccfc0a413",
+    "rtl/evolution_rom_address.vhd": "ba4745d1941b155e6943f198311dc7eed2825ec6f71483f931a9a860f492ea99",
+    "rtl/io.vhd": "e21336a23337416a126ed0dfbf1c20fc49ad5a1dd17bb00adf643b11fb600e6d",
+    "rtl/video.vhd": "a8fe0918542739ed44e520d9df9d32446801d3b5a8bb46e420da54fc831361c0",
+    "rtl/savestates.sv": "f48e810ecb5d0c3044d21e1feae4042b9674501017182c9ec8c4d75bb516fd83",
+    "rtl/T80/T80.vhd": "3415d4189c33cc15b7c46e569cb2cbdf209535b583dc4a4592326eaa8324a56d",
+    "rtl/T80/T80s.vhd": "0239a0fb753fb1d01dc15221f3f1c63eceeecadc8ab84e991c790ac725859819",
+    "rtl/cart_eeprom.vhd": "c16ce1b896de6eae1c782795a77d281813149e14600a80adc13c08586a8137a8",
+    "rtl/eeprom_93c46.vhd": "3e37c333a93d6e822e6ab0817fe96f91321b425c7c05466c692821996d7513c2",
+    "rtl/memory_bus.vhd": "e8ee429b182ac9367da235d69808b96c5e4d216042b1bd05dc235faf63ca0b22"
+  },
+  "canonicalLogs": 30,
+  "completeControllerOperations": 42,
+  "completedSaves": 14,
+  "completedLoads": 28,
+  "boundaryCaptures": 183,
+  "realCpuCaptures": 2,
+  "boundaryHistoryValues": [
+    65483,
+    65484,
+    65498,
+    65513,
+    65528,
+    65535
+  ],
+  "cases": [
+    {
+      "case": 0,
+      "divergent": true,
+      "captures": [
+        {
+          "clock": 92297,
+          "age": 66076,
+          "mapper": "0040000003030100",
+          "sega": 1
+        },
+        {
+          "clock": 186572,
+          "age": 66154,
+          "mapper": "0040000003070100",
+          "sega": 1
+        },
+        {
+          "clock": 1127102,
+          "age": 1006684,
+          "mapper": "0041000003030100",
+          "sega": 0
+        }
+      ],
+      "restores": [
+        {
+          "clock": 226730,
+          "mapper": "0040000003030100",
+          "segaBefore": 1
+        },
+        {
+          "clock": 1167260,
+          "mapper": "0040000003030100",
+          "segaBefore": 0
+        }
+      ],
+      "result": "# RESULT case0 ref=0040000003030100 restored=0041000003030100 ROM=00c123/008123 DATA=03/02 DAHJEE=0/1 SEGA=1/0",
+      "pairs": [
+        "# NONINJECTIVE case0 mapper=0040000003030100 sega_history=1/0",
+        "# NONINJECTIVE_FUTURE case0 reference0040000003030100 peer0041000003030100 DATA=03/02"
+      ]
+    },
+    {
+      "case": 1,
+      "divergent": true,
+      "captures": [
+        {
+          "clock": 92297,
+          "age": 66076,
+          "mapper": "0040000003030100",
+          "sega": 1
+        },
+        {
+          "clock": 186572,
+          "age": 66154,
+          "mapper": "0040000003070100",
+          "sega": 1
+        },
+        {
+          "clock": 1127102,
+          "age": 1006684,
+          "mapper": "0240000003000101",
+          "sega": 0
+        }
+      ],
+      "restores": [
+        {
+          "clock": 226730,
+          "mapper": "0040000003030100",
+          "segaBefore": 1
+        },
+        {
+          "clock": 1167260,
+          "mapper": "0040000003030100",
+          "segaBefore": 0
+        }
+      ],
+      "result": "# RESULT case1 ref=0040000003030100 restored=0240000003000101 ROM=00c123/000123 DATA=03/00 DAHJEE=0/0 SEGA=1/0",
+      "pairs": [
+        "# NONINJECTIVE case1 mapper=0040000003030100 sega_history=1/0",
+        "# NONINJECTIVE_FUTURE case1 reference0040000003030100 peer0240000003000101 DATA=03/00"
+      ]
+    },
+    {
+      "case": 2,
+      "divergent": false,
+      "captures": [
+        {
+          "clock": 92237,
+          "age": 66016,
+          "mapper": "0040000003020100",
+          "sega": 0
+        },
+        {
+          "clock": 186452,
+          "age": 66094,
+          "mapper": "0240000003300130",
+          "sega": 0
+        },
+        {
+          "clock": 1126982,
+          "age": 1006624,
+          "mapper": "0041000003020100",
+          "sega": 0
+        }
+      ],
+      "restores": [
+        {
+          "clock": 226610,
+          "mapper": "0040000003020100",
+          "segaBefore": 0
+        },
+        {
+          "clock": 1167140,
+          "mapper": "0040000003020100",
+          "segaBefore": 0
+        }
+      ],
+      "result": "# RESULT case2 ref=0041000003020100 restored=0041000003020100 ROM=008123/008123 DATA=02/02 DAHJEE=1/1 SEGA=0/0",
+      "pairs": []
+    },
+    {
+      "case": 3,
+      "divergent": false,
+      "captures": [
+        {
+          "clock": 92237,
+          "age": 66016,
+          "mapper": "0040000003020100",
+          "sega": 0
+        },
+        {
+          "clock": 186452,
+          "age": 66094,
+          "mapper": "0240000003300130",
+          "sega": 0
+        },
+        {
+          "clock": 1126982,
+          "age": 1006624,
+          "mapper": "0240000003000101",
+          "sega": 0
+        }
+      ],
+      "restores": [
+        {
+          "clock": 226610,
+          "mapper": "0040000003020100",
+          "segaBefore": 0
+        },
+        {
+          "clock": 1167140,
+          "mapper": "0040000003020100",
+          "segaBefore": 0
+        }
+      ],
+      "result": "# RESULT case3 ref=0240000003000101 restored=0240000003000101 ROM=000123/000123 DATA=00/00 DAHJEE=0/0 SEGA=0/0",
+      "pairs": []
+    },
+    {
+      "case": 4,
+      "divergent": false,
+      "captures": [
+        {
+          "clock": 92267,
+          "age": 66046,
+          "mapper": "0041000003020100",
+          "sega": 0
+        },
+        {
+          "clock": 195722,
+          "age": 66115,
+          "mapper": "0041000003020100",
+          "sega": 0
+        },
+        {
+          "clock": 1149572,
+          "age": 1019965,
+          "mapper": "0041000003020100",
+          "sega": 0
+        }
+      ],
+      "restores": [
+        {
+          "clock": 235881,
+          "mapper": "0041000003020100",
+          "segaBefore": 0
+        },
+        {
+          "clock": 1189731,
+          "mapper": "0041000003020100",
+          "segaBefore": 0
+        }
+      ],
+      "result": "# RESULT case4 ref=0041000003020100 restored=0041000003020100 ROM=008123/008123 DATA=02/02 DAHJEE=1/1 SEGA=0/0",
+      "pairs": []
+    },
+    {
+      "case": 5,
+      "divergent": false,
+      "captures": [
+        {
+          "clock": 92267,
+          "age": 66046,
+          "mapper": "0240000003000101",
+          "sega": 0
+        },
+        {
+          "clock": 186512,
+          "age": 66124,
+          "mapper": "0240000003300130",
+          "sega": 0
+        },
+        {
+          "clock": 1127042,
+          "age": 1006654,
+          "mapper": "0240000003000101",
+          "sega": 0
+        }
+      ],
+      "restores": [
+        {
+          "clock": 226670,
+          "mapper": "0240000003000101",
+          "segaBefore": 0
+        },
+        {
+          "clock": 1167200,
+          "mapper": "0240000003000101",
+          "segaBefore": 0
+        }
+      ],
+      "result": "# RESULT case5 ref=0240000003000101 restored=0240000003000101 ROM=000123/000123 DATA=00/00 DAHJEE=0/0 SEGA=0/0",
+      "pairs": []
+    },
+    {
+      "case": 6,
+      "divergent": true,
+      "captures": [
+        {
+          "clock": 6572,
+          "age": 12,
+          "mapper": "0040000003020100",
+          "sega": 0
+        },
+        {
+          "clock": 100772,
+          "age": 79,
+          "mapper": "0040000003070100",
+          "sega": 1
+        },
+        {
+          "clock": 1107302,
+          "age": 1006609,
+          "mapper": "0040000003050101",
+          "sega": 0
+        }
+      ],
+      "restores": [
+        {
+          "clock": 140930,
+          "mapper": "0040000003020100",
+          "segaBefore": 1
+        },
+        {
+          "clock": 1147460,
+          "mapper": "0040000003020100",
+          "segaBefore": 0
+        }
+      ],
+      "result": "# RESULT case6 ref=8040000003020100 restored=0040000003020101 ROM=000412/004412 DATA=00/01 DAHJEE=0/0 SEGA=0/0",
+      "pairs": []
+    },
+    {
+      "case": 7,
+      "divergent": true,
+      "captures": [
+        {
+          "clock": 9857,
+          "age": 20,
+          "mapper": "0040000003020100",
+          "sega": 0
+        },
+        {
+          "clock": 104072,
+          "age": 94,
+          "mapper": "0040000003070100",
+          "sega": 1
+        },
+        {
+          "clock": 1110602,
+          "age": 1006624,
+          "mapper": "0040000003050101",
+          "sega": 0
+        }
+      ],
+      "restores": [
+        {
+          "clock": 144230,
+          "mapper": "0040000003020100",
+          "segaBefore": 1
+        },
+        {
+          "clock": 1150760,
+          "mapper": "0040000003020100",
+          "segaBefore": 0
+        }
+      ],
+      "result": "# RESULT case7 ref=0042000003020100 restored=0040000003020101 ROM=000412/004412 DATA=00/01 DAHJEE=0/0 SEGA=0/0",
+      "pairs": []
+    },
+    {
+      "case": 8,
+      "divergent": false,
+      "captures": [
+        {
+          "clock": 26267,
+          "age": 46,
+          "mapper": "4840000003030000",
+          "sega": 0
+        },
+        {
+          "clock": 54512,
+          "age": 124,
+          "mapper": "4840000003070000",
+          "sega": 1
+        },
+        {
+          "clock": 995042,
+          "age": 940654,
+          "mapper": "4840000003050000",
+          "sega": 0
+        }
+      ],
+      "restores": [
+        {
+          "clock": 94670,
+          "mapper": "4840000003030000",
+          "segaBefore": 1
+        },
+        {
+          "clock": 1035200,
+          "mapper": "4840000003030000",
+          "segaBefore": 0
+        }
+      ],
+      "result": "# RESULT case8 ref=4840000003030000 restored=4840000003030000 ROM=00c123/00c123 DATA=03/03 DAHJEE=0/0 SEGA=0/0",
+      "pairs": []
+    },
+    {
+      "case": 9,
+      "divergent": true,
+      "captures": [
+        {
+          "clock": 26237,
+          "age": 16,
+          "mapper": "0040000003020100",
+          "sega": 0
+        },
+        {
+          "clock": 54452,
+          "age": 94,
+          "mapper": "0040000003070100",
+          "sega": 1
+        },
+        {
+          "clock": 994982,
+          "age": 940624,
+          "mapper": "0040000003050100",
+          "sega": 0
+        }
+      ],
+      "restores": [
+        {
+          "clock": 94610,
+          "mapper": "0040000003020100",
+          "segaBefore": 1
+        },
+        {
+          "clock": 1035140,
+          "mapper": "0040000003020100",
+          "segaBefore": 0
+        }
+      ],
+      "result": "# RESULT case9 ref=4840000003030000 restored=0040000003020100 ROM=00c123/008123 DATA=03/02 DAHJEE=0/0 SEGA=0/0",
+      "pairs": []
+    },
+    {
+      "case": 10,
+      "divergent": false,
+      "captures": [
+        {
+          "clock": 6602,
+          "age": 42,
+          "mapper": "0040000003020100",
+          "sega": 0
+        },
+        {
+          "clock": 100832,
+          "age": 109,
+          "mapper": "0040000003070100",
+          "sega": 1
+        },
+        {
+          "clock": 1107362,
+          "age": 1006639,
+          "mapper": "0040000003050101",
+          "sega": 0
+        }
+      ],
+      "restores": [
+        {
+          "clock": 140990,
+          "mapper": "0040000003020100",
+          "segaBefore": 1
+        },
+        {
+          "clock": 1147520,
+          "mapper": "0040000003020100",
+          "segaBefore": 0
+        }
+      ],
+      "result": "# RESULT case10 ref=0040000003020101 restored=0040000003020101 ROM=004412/004412 DATA=01/01 DAHJEE=0/0 SEGA=0/0",
+      "pairs": [
+        "# NONINJECTIVE case10 mapper=0040000003020100 sega_history=0/0",
+        "# NONINJECTIVE_FUTURE case10 reference0040000003020101 peer8040000003020100 DATA=01/00"
+      ]
+    },
+    {
+      "case": 11,
+      "divergent": false,
+      "captures": [
+        {
+          "clock": 92267,
+          "age": 66046,
+          "mapper": "0040000003020100",
+          "sega": 0
+        },
+        {
+          "clock": 186512,
+          "age": 66124,
+          "mapper": "0240000003300130",
+          "sega": 0
+        },
+        {
+          "clock": 1127042,
+          "age": 1006654,
+          "mapper": "0041000003020100",
+          "sega": 0
+        }
+      ],
+      "restores": [
+        {
+          "clock": 226670,
+          "mapper": "0040000003020100",
+          "segaBefore": 0
+        },
+        {
+          "clock": 1167200,
+          "mapper": "0040000003020100",
+          "segaBefore": 0
+        }
+      ],
+      "result": "# RESULT case11 ref=0041000003020100 restored=0041000003020100 ROM=008123/008123 DATA=02/02 DAHJEE=1/1 SEGA=0/0",
+      "pairs": []
+    }
+  ],
+  "cpu": [
+    "# PASS F13 real T80/video accepted EARLY0 clock723543 handoff_age66912 xy193/211 mapper0040000003030100 sega1 A003f REG0000c0xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx000dffff4000ffffff03",
+    "# PASS F13 real T80/video accepted EARLY1 clock657543 handoff_age912 xy91/192 mapper0040000003030100 sega1 A0007 REG0000c0xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx000dffff0800ffffff03"
+  ],
+  "edgeHistory": [
+    "# EDGE_HISTORY first_load reference4840000003030000 restored4840000003000000 ROM00c123/000123 DATA03/00",
+    "# PASS F13 edge-history MODE0 first LOAD DATA00 second LOAD DATA03 same snapshot4840000003030000",
+    "# EDGE_HISTORY first_load reference0040000003030100 restored0040000003020100 ROM00c123/008123 DATA03/02",
+    "# PASS F13 edge-history MODE1 first LOAD DATA02 second LOAD DATA03 same snapshot0040000003030100"
+  ],
+  "regressions": [
+    "banking",
+    "mapper_memory",
+    "eeprom_direct",
+    "eeprom_ddr",
+    "eeprom_persistence",
+    "sc_ram",
+    "f07_controller",
+    "f07_systeme",
+    "f08_md6",
+    "f09_tap",
+    "f10_paddle",
+    "f11_lightgun",
+    "f12_paused"
+  ],
+  "logs": [
+    {
+      "file": "case0.log",
+      "completion": [
+        "# PASS F13 case0 expected_divergence1 repeated_load stable reads6206"
+      ],
+      "warnings": [
+        "(vlib-34) Library already exists at \"work\"."
+      ]
+    },
+    {
+      "file": "case1.log",
+      "completion": [
+        "# PASS F13 case1 expected_divergence1 repeated_load stable reads6206"
+      ],
+      "warnings": [
+        "(vlib-34) Library already exists at \"work\"."
+      ]
+    },
+    {
+      "file": "case2.log",
+      "completion": [
+        "# PASS F13 case2 expected_divergence0 repeated_load stable reads6206"
+      ],
+      "warnings": [
+        "(vlib-34) Library already exists at \"work\"."
+      ]
+    },
+    {
+      "file": "case3.log",
+      "completion": [
+        "# PASS F13 case3 expected_divergence0 repeated_load stable reads6206"
+      ],
+      "warnings": [
+        "(vlib-34) Library already exists at \"work\"."
+      ]
+    },
+    {
+      "file": "case4.log",
+      "completion": [
+        "# PASS F13 case4 expected_divergence0 repeated_load stable reads8254"
+      ],
+      "warnings": [
+        "(vlib-34) Library already exists at \"work\"."
+      ]
+    },
+    {
+      "file": "case5.log",
+      "completion": [
+        "# PASS F13 case5 expected_divergence0 repeated_load stable reads6206"
+      ],
+      "warnings": [
+        "(vlib-34) Library already exists at \"work\"."
+      ]
+    },
+    {
+      "file": "case6.log",
+      "completion": [
+        "# PASS F13 case6 expected_divergence1 repeated_load stable reads6206"
+      ],
+      "warnings": [
+        "(vlib-34) Library already exists at \"work\"."
+      ]
+    },
+    {
+      "file": "case7.log",
+      "completion": [
+        "# PASS F13 case7 expected_divergence1 repeated_load stable reads6206"
+      ],
+      "warnings": [
+        "(vlib-34) Library already exists at \"work\"."
+      ]
+    },
+    {
+      "file": "case8.log",
+      "completion": [
+        "# PASS F13 case8 expected_divergence0 repeated_load stable reads6206"
+      ],
+      "warnings": [
+        "(vlib-34) Library already exists at \"work\"."
+      ]
+    },
+    {
+      "file": "case9.log",
+      "completion": [
+        "# PASS F13 case9 expected_divergence1 repeated_load stable reads6206"
+      ],
+      "warnings": [
+        "(vlib-34) Library already exists at \"work\"."
+      ]
+    },
+    {
+      "file": "case10.log",
+      "completion": [
+        "# PASS F13 case10 expected_divergence0 repeated_load stable reads6206"
+      ],
+      "warnings": [
+        "(vlib-34) Library already exists at \"work\"."
+      ]
+    },
+    {
+      "file": "case11.log",
+      "completion": [
+        "# PASS F13 case11 expected_divergence0 repeated_load stable reads6206"
+      ],
+      "warnings": [
+        "(vlib-34) Library already exists at \"work\"."
+      ]
+    },
+    {
+      "file": "boundary.log",
+      "completion": [
+        "# PASS F13 boundary sweep 183 accepted captures"
+      ],
+      "warnings": [
+        "(vlib-34) Library already exists at \"boundary_work\"."
+      ]
+    },
+    {
+      "file": "cpu0.log",
+      "completion": [
+        "# PASS F13 real T80/video accepted EARLY0 clock723543 handoff_age66912 xy193/211 mapper0040000003030100 sega1 A003f REG0000c0xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx000dffff4000ffffff03"
+      ],
+      "warnings": [
+        "(vlib-34) Library already exists at \"cpu_work\".",
+        "T80_sim.vhd(644): (vcom-1275) Arguments of overloaded \"and\" operator are not the same length (9 vs. 4).",
+        "There is an 'U'|'X'|'W'|'Z'|'-' in an arithmetic operand, the result will be 'X'(es).",
+        "There is an 'U'|'X'|'W'|'Z'|'-' in an arithmetic operand, the result will be 'X'(es)."
+      ]
+    },
+    {
+      "file": "cpu1.log",
+      "completion": [
+        "# PASS F13 real T80/video accepted EARLY1 clock657543 handoff_age912 xy91/192 mapper0040000003030100 sega1 A0007 REG0000c0xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx000dffff0800ffffff03"
+      ],
+      "warnings": [
+        "(vlib-34) Library already exists at \"cpu_work\".",
+        "T80_sim.vhd(644): (vcom-1275) Arguments of overloaded \"and\" operator are not the same length (9 vs. 4).",
+        "There is an 'U'|'X'|'W'|'Z'|'-' in an arithmetic operand, the result will be 'X'(es).",
+        "There is an 'U'|'X'|'W'|'Z'|'-' in an arithmetic operand, the result will be 'X'(es)."
+      ]
+    },
+    {
+      "file": "edge.log",
+      "completion": [
+        "# PASS F13 edge-history MODE0 first LOAD DATA00 second LOAD DATA03 same snapshot4840000003030000"
+      ],
+      "warnings": [
+        "(vlib-34) Library already exists at \"edge_work\"."
+      ]
+    },
+    {
+      "file": "boot_edge.log",
+      "completion": [
+        "# PASS F13 edge-history MODE1 first LOAD DATA02 second LOAD DATA03 same snapshot0040000003030100"
+      ],
+      "warnings": [
+        "(vlib-34) Library already exists at \"edge_work\"."
+      ]
+    },
+    {
+      "file": "reg_banking.log",
+      "completion": [
+        "# ** Note: PASS Sega, NVRAM, freeze, standard restore",
+        "# ** Note: PASS forced/static Codemasters",
+        "# ** Note: PASS Wonder Kid $8000 and gating",
+        "# ** Note: PASS Zemina and Nemesis defaults",
+        "# ** Note: PASS 4-PAK writes and trigger exclusion",
+        "# ** Note: PASS Janggun banks, reversal, paired writes and restore",
+        "# ** Note: PASS mapper_castle inhibits banking",
+        "# ** Note: PASS mapper_dahjee_a inhibits banking",
+        "# ** Note: PASS mapper_linear inhibits banking",
+        "# ** Note: PASS mapper_sega_locked inhibits banking",
+        "# ** Note: PASS systeme inhibits banking",
+        "# ** Note: PASS sc3000_en inhibits banking",
+        "# ** Note: PASS BIOS handoff, frozen handoff, restore edge suppression and BIOS Sega writes",
+        "# ** Note: PASS EEPROM priority, pulse and Janggun precedence",
+        "# ** Note: PASS Evolution restore/launch priorities and System E restore layout",
+        "# ** Note: PASS Korean anti-LDIR banking",
+        "# ** Note: PASS current mapper directed regression complete"
+      ],
+      "warnings": [
+        "(vlib-34) Library already exists at \"banking_work\"."
+      ]
+    },
+    {
+      "file": "reg_mapper_memory.log",
+      "completion": [
+        "# PASS power-up initialized FF both banks",
+        "# PASS disabled written SRAM has no ownership/persistence indicator",
+        "# PASS whole two-bank independent patterns and disable/re-enable",
+        "# PASS console soft-reset input changes DD.4, preserves mapper and both banks",
+        "# PASS reset kind0 retains both whole banks; ena0 dirty0",
+        "# PASS reset kind1 retains both whole banks; ena0 dirty0",
+        "# PASS reset kind2 retains both whole banks; ena0 dirty0",
+        "# PASS reset kind3 retains both whole banks; ena0 dirty0",
+        "# PASS reset kind4 retains both whole banks; ena0 dirty0",
+        "# PASS cartridge download without SAVE retains old physical bytes, flags zero",
+        "# PASS eject does not clear backing",
+        "# PASS writable mount sets bk_ena with SRAM disabled and no writes",
+        "# PASS core status[0] reset retains enabled persistence and dirty flags, clears visibility",
+        "# PASS save clears dirty, retains mount and both banks",
+        "# PASS host SAVE load overwrites all 32768 bytes and resets visibility",
+        "# PASS readonly mounted file does not enable bk_ena",
+        "# PASS runtime linear selection leaves prior SRAM enable latched (characterization only)",
+        "# PASS writable SAVE automatic load at ROM completion",
+        "# PASS SC explicit sizes, endpoint routing, 2K mirrors and no-cart-RAM control",
+        "# PASS SRAM ARCHITECTURE CHARACTERIZATION COMPLETE"
+      ],
+      "warnings": [
+        "(vlib-34) Library already exists at \"work\".",
+        "Warning: READ_DURING_WRITE_MODE_MIXED_PORTS is assumed as OLD_DATA"
+      ]
+    },
+    {
+      "file": "reg_eeprom_direct.log",
+      "completion": [
+        "# PASS opcode=0 initialWE=0 readAddressCase=0 every 233 cycle positions",
+        "# PASS opcode=0 initialWE=1 readAddressCase=0 every 233 cycle positions",
+        "# PASS opcode=1 initialWE=0 readAddressCase=0 every 233 cycle positions",
+        "# PASS opcode=1 initialWE=1 readAddressCase=0 every 233 cycle positions",
+        "# PASS opcode=2 initialWE=0 readAddressCase=0 every 593 cycle positions",
+        "# PASS opcode=2 initialWE=0 readAddressCase=1 every 593 cycle positions",
+        "# PASS opcode=2 initialWE=0 readAddressCase=2 every 593 cycle positions",
+        "# PASS opcode=2 initialWE=1 readAddressCase=0 every 593 cycle positions",
+        "# PASS opcode=2 initialWE=1 readAddressCase=1 every 593 cycle positions",
+        "# PASS opcode=2 initialWE=1 readAddressCase=2 every 593 cycle positions",
+        "# PASS opcode=3 initialWE=0 readAddressCase=0 every 377 cycle positions",
+        "# PASS opcode=3 initialWE=1 readAddressCase=0 every 377 cycle positions",
+        "# PASS opcode=4 initialWE=0 readAddressCase=0 every 233 cycle positions",
+        "# PASS opcode=4 initialWE=1 readAddressCase=0 every 233 cycle positions",
+        "# PASS opcode=5 initialWE=0 readAddressCase=0 every 233 cycle positions",
+        "# PASS opcode=5 initialWE=1 readAddressCase=0 every 233 cycle positions",
+        "# PASS opcode=6 initialWE=0 readAddressCase=0 every 233 cycle positions",
+        "# PASS opcode=6 initialWE=1 readAddressCase=0 every 233 cycle positions",
+        "# PASS EEPROM replay: 6642 cases, all seven encodings, every protocol/pipeline clock, exact pins/state/all128 bytes"
+      ],
+      "warnings": [
+        "(vlib-34) Library already exists at \"work\"."
+      ]
+    },
+    {
+      "file": "reg_eeprom_ddr.log",
+      "completion": [
+        "# PASS EEPROM DDRAM case0 stalls0 full1 size128",
+        "# PASS EEPROM DDRAM case1 stalls0 full1 size128",
+        "# PASS EEPROM DDRAM case2 stalls0 full1 size128",
+        "# PASS EEPROM DDRAM case3 stalls0 full1 size128",
+        "# PASS EEPROM DDRAM case17 stalls0 full1 size128",
+        "# PASS EEPROM DDRAM case18 stalls0 full1 size128",
+        "# PASS EEPROM DDRAM case19 stalls0 full1 size128",
+        "# PASS EEPROM DDRAM case20 stalls0 full1 size128",
+        "# PASS EEPROM DDRAM case21 stalls0 full1 size128",
+        "# PASS EEPROM DDRAM case22 stalls0 full1 size128",
+        "# PASS EEPROM DDRAM case23 stalls0 full1 size128",
+        "# PASS EEPROM DDRAM case4 stalls0 full0 size128",
+        "# PASS EEPROM DDRAM case5 stalls0 full0 size128",
+        "# PASS EEPROM DDRAM case6 stalls0 full0 size128",
+        "# PASS EEPROM DDRAM case7 stalls0 full0 size128",
+        "# PASS EEPROM DDRAM case8 stalls0 full0 size128",
+        "# PASS EEPROM DDRAM case9 stalls0 full0 size128",
+        "# PASS EEPROM DDRAM case10 stalls0 full0 size128",
+        "# PASS EEPROM DDRAM case11 stalls0 full0 size128",
+        "# PASS EEPROM DDRAM case12 stalls0 full0 size128",
+        "# PASS EEPROM DDRAM case13 stalls0 full0 size128",
+        "# PASS EEPROM DDRAM case14 stalls0 full0 size128",
+        "# PASS EEPROM DDRAM case15 stalls0 full0 size16384",
+        "# PASS EEPROM DDRAM case16 stalls0 full0 size128",
+        "# PASS EEPROM DDRAM: 24 cases, full protocol/backing, coherent natural reference, legacy v0-v3, invalid, SRAM, SystemE"
+      ],
+      "warnings": [
+        "(vlib-34) Library already exists at \"f11_final0_work\".",
+        "(vsim-3017) integration_tb.sv(132): [TFMPC] - Too few port connections. Expected 129, found 128.",
+        "(vsim-3722) integration_tb.sv(132): [TFMPC] - Missing connection for port 'ss_capture_progress'.",
+        "Warning: READ_DURING_WRITE_MODE_MIXED_PORTS is assumed as OLD_DATA",
+        "Warning: READ_DURING_WRITE_MODE_MIXED_PORTS is assumed as OLD_DATA"
+      ]
+    },
+    {
+      "file": "reg_eeprom_persistence.log",
+      "completion": [
+        "# PASS persistence existing SD before save",
+        "# PASS persistence queued save",
+        "# PASS persistence queued load",
+        "# PASS persistence restore autosave",
+        "# PASS persistence: existing SD/save exclusion, queued one-clock save/load, restored dirty autosave, normal guest write; 320 sectors"
+      ],
+      "warnings": [
+        "(vlib-34) Library already exists at \"persistence_work\".",
+        "(vsim-3017) persistence_tb.sv(131): [TFMPC] - Too few port connections. Expected 129, found 128.",
+        "(vsim-3722) persistence_tb.sv(131): [TFMPC] - Missing connection for port 'ss_capture_progress'."
+      ]
+    },
+    {
+      "file": "reg_sc_ram.log",
+      "completion": [
+        "# PASS F05 fullDDR cfg1 case0 bytes2048 stall0",
+        "# PASS F05 fullDDR cfg1 case1 bytes2048 stall0",
+        "# PASS F05 fullDDR cfg1 case2 bytes2048 stall0",
+        "# PASS F05 fullDDR cfg1 case3 bytes2048 stall0",
+        "# PASS F05 fullDDR cfg1 case4 bytes2048 stall0",
+        "# PASS F05 fullDDR cfg1 case5 bytes2048 stall0",
+        "# PASS F05 fullDDR cfg1 case6 bytes2048 stall0",
+        "# PASS F05 fullDDR cfg1 case7 bytes2048 stall0",
+        "# PASS F05 fullDDR cfg1 case8 bytes2048 stall0",
+        "# PASS F05 fullDDR cfg1 case9 bytes2048 stall0",
+        "# PASS F05 fullDDR cfg1 case10 bytes2048 stall0",
+        "# PASS F05 fullDDR cfg1 case11 bytes2048 stall0",
+        "# PASS F05 fullDDR cfg1 case12 bytes2048 stall0",
+        "# PASS F05 fullDDR cfg1 case13 bytes2048 stall0",
+        "# PASS F05 fullDDR cfg1 case14 bytes2048 stall0",
+        "# PASS F05 fullDDR cfg1 case15 bytes2048 stall0",
+        "# PASS F05 fullDDR cfg1 case16 bytes2048 stall0",
+        "# PASS F05 fullDDR cfg1 case17 bytes2048 stall0",
+        "# PASS F05 fullDDR cfg1 case18 bytes2048 stall0",
+        "# PASS F05 fullDDR cfg1 case19 bytes2048 stall0",
+        "# PASS F05 fullDDR cfg2 case0 bytes16384 stall0",
+        "# PASS F05 fullDDR cfg2 case1 bytes16384 stall0",
+        "# PASS F05 fullDDR cfg2 case2 bytes16384 stall0",
+        "# PASS F05 fullDDR cfg2 case3 bytes16384 stall0",
+        "# PASS F05 fullDDR cfg2 case4 bytes16384 stall0",
+        "# PASS F05 fullDDR cfg2 case5 bytes16384 stall0",
+        "# PASS F05 fullDDR cfg2 case6 bytes16384 stall0",
+        "# PASS F05 fullDDR cfg2 case7 bytes16384 stall0",
+        "# PASS F05 fullDDR cfg2 case8 bytes16384 stall0",
+        "# PASS F05 fullDDR cfg2 case9 bytes16384 stall0",
+        "# PASS F05 fullDDR cfg2 case10 bytes16384 stall0",
+        "# PASS F05 fullDDR cfg2 case11 bytes16384 stall0",
+        "# PASS F05 fullDDR cfg2 case12 bytes16384 stall0",
+        "# PASS F05 fullDDR cfg2 case13 bytes16384 stall0",
+        "# PASS F05 fullDDR cfg2 case14 bytes16384 stall0",
+        "# PASS F05 fullDDR cfg2 case15 bytes16384 stall0",
+        "# PASS F05 fullDDR cfg2 case16 bytes16384 stall0",
+        "# PASS F05 fullDDR cfg2 case17 bytes16384 stall0",
+        "# PASS F05 fullDDR cfg2 case18 bytes16384 stall0",
+        "# PASS F05 fullDDR cfg2 case19 bytes16384 stall0",
+        "# PASS F05 fullDDR cfg3 case0 bytes32768 stall0",
+        "# PASS F05 fullDDR cfg3 case1 bytes32768 stall0",
+        "# PASS F05 fullDDR cfg3 case2 bytes32768 stall0",
+        "# PASS F05 fullDDR cfg3 case3 bytes32768 stall0",
+        "# PASS F05 fullDDR cfg3 case4 bytes32768 stall0",
+        "# PASS F05 fullDDR cfg3 case5 bytes32768 stall0",
+        "# PASS F05 fullDDR cfg3 case6 bytes32768 stall0",
+        "# PASS F05 fullDDR cfg3 case7 bytes32768 stall0",
+        "# PASS F05 fullDDR cfg3 case8 bytes32768 stall0",
+        "# PASS F05 fullDDR cfg3 case9 bytes32768 stall0",
+        "# PASS F05 fullDDR cfg3 case10 bytes32768 stall0",
+        "# PASS F05 fullDDR cfg3 case11 bytes32768 stall0",
+        "# PASS F05 fullDDR cfg3 case12 bytes32768 stall0",
+        "# PASS F05 fullDDR cfg3 case13 bytes32768 stall0",
+        "# PASS F05 fullDDR cfg3 case14 bytes32768 stall0",
+        "# PASS F05 fullDDR cfg3 case15 bytes32768 stall0",
+        "# PASS F05 fullDDR cfg3 case16 bytes32768 stall0",
+        "# PASS F05 fullDDR cfg3 case17 bytes32768 stall0",
+        "# PASS F05 fullDDR cfg3 case18 bytes32768 stall0",
+        "# PASS F05 fullDDR cfg3 case19 bytes32768 stall0",
+        "# PASS SC COMPLETE"
+      ],
+      "warnings": [
+        "(vlib-34) Library already exists at \"f11_final0_work\".",
+        "(vsim-3017) integration_tb.sv(131): [TFMPC] - Too few port connections. Expected 129, found 128.",
+        "(vsim-3722) integration_tb.sv(131): [TFMPC] - Missing connection for port 'ss_capture_progress'.",
+        "Warning: READ_DURING_WRITE_MODE_MIXED_PORTS is assumed as OLD_DATA"
+      ]
+    },
+    {
+      "file": "reg_f07_controller.log",
+      "completion": [
+        "# PASS controller case 0 SystemE=0 H1=5a H2=xx writes=3105 reads=3103",
+        "# PASS controller case 1 SystemE=1 H1=5a H2=a5 writes=13389 reads=13385",
+        "# PASS controller case 2 SystemE=1 H1=00 H2=00 writes=23673 reads=23658",
+        "# PASS controller case 3 SystemE=1 H1=00 H2=00 writes=33957 reads=33931",
+        "# PASS controller case 4 SystemE=1 H1=00 H2=00 writes=44241 reads=44204",
+        "# PASS controller case 5 SystemE=1 H1=00 H2=00 writes=54525 reads=54477",
+        "# PASS controller case 6 SystemE=0 H1=00 H2=xx writes=57630 reads=57565",
+        "# PASS controller case 7 SystemE=1 H1=5a H2=a5 writes=67914 reads=67838",
+        "# PASS controller case 8 SystemE=1 H1=5a H2=a5 writes=78198 reads=78113",
+        "# PASS controller case 9 SystemE=1 H1=5a H2=a5 writes=88482 reads=88389",
+        "# PASS controller: modern SMS/System E plus previous96K, random padding, unknown version, invalid reserved, old64K"
+      ],
+      "warnings": [
+        "(vlib-34) Library already exists at \"f11_controller_work\".",
+        "(vsim-3017) controller_tb.sv(131): [TFMPC] - Too few port connections. Expected 129, found 128.",
+        "(vsim-3722) controller_tb.sv(131): [TFMPC] - Missing connection for port 'ss_capture_progress'."
+      ]
+    },
+    {
+      "file": "reg_f07_systeme.log",
+      "completion": [
+        "# PASS integrated dual VDP case 1 SystemE=1 H1=5a H2=a5 writes=10284 reads=10282",
+        "# PASS integrated dual VDP case 2 SystemE=1 H1=00 H2=00 writes=20568 reads=20555",
+        "# PASS integrated System E: two real VDPs -> DDRAM -> restore -> guest HCounter, modern and legacy96K"
+      ],
+      "warnings": [
+        "(vlib-34) Library already exists at \"f11_integration_work\".",
+        "(vsim-3017) integration_tb.sv(131): [TFMPC] - Too few port connections. Expected 129, found 128.",
+        "(vsim-3722) integration_tb.sv(131): [TFMPC] - Missing connection for port 'ss_capture_progress'.",
+        "Design size of 11421 statements exceeds ModelSim-Intel FPGA Starter Edition recommended capacity."
+      ]
+    },
+    {
+      "file": "reg_f08_md6.log",
+      "completion": [
+        "# PASS replay T=80540 cases=160 repeated snapshots; all states/pins compared"
+      ],
+      "warnings": [
+        "(vlib-34) Library already exists at \"f10_replay_work\"."
+      ]
+    },
+    {
+      "file": "reg_f09_tap.log",
+      "completion": [
+        "# PASS Master Tap directed T=8 cases=4096: state/pins exact, phases/TH/timeout/buttons, repeated restore, reset/disable, legacy"
+      ],
+      "warnings": [
+        "(vlib-34) Library already exists at \"work\"."
+      ]
+    },
+    {
+      "file": "reg_f10_paddle.log",
+      "completion": [
+        "# PASS F10 directed PHASES=0 cases=896 complete counter phases=3356 JP halves=2"
+      ],
+      "warnings": [
+        "(vlib-34) Library already exists at \"directed_work\"."
+      ]
+    },
+    {
+      "file": "reg_f11_lightgun.log",
+      "completion": [
+        "# PASS F11 ordinary baseline cycles=1000000 external input cases=8 held observations=32000"
+      ],
+      "warnings": [
+        "(vlib-34) Library already exists at \"direct_work\"."
+      ]
+    },
+    {
+      "file": "reg_f12_paused.log",
+      "completion": [
+        "# PASS FIXED case4 stall0 full0 delay6 offset0 accepts1 transfers1 checks2552454 worstLatency656884 overrideCPU7 overridePSG5"
+      ],
+      "warnings": [
+        "T80_sim.vhd(644): (vcom-1275) Arguments of overloaded \"and\" operator are not the same length (9 vs. 4)."
+      ]
+    }
+  ],
+  "F06": "unresolved; untouched",
+  "implementation": false,
+  "formatChanged": false,
+  "quartusBuild": false
+}

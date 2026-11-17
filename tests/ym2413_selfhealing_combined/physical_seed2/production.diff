@@ -1,0 +1,17 @@
+diff --git a/rtl/VM2413/temporalmixer.vhd b/rtl/VM2413/temporalmixer.vhd
+index 18574930..1512f03c 100644
+--- a/rtl/VM2413/temporalmixer.vhd
++++ b/rtl/VM2413/temporalmixer.vhd
+@@ -117,10 +117,10 @@ mute <= ss_v_mute(0);
+ ss_v_maddr(4 downto 0) := ss_wdata(5 downto 1);
+ maddr <= ss_v_maddr;
+ ss_v_mix(13 downto 0) := ss_wdata(19 downto 6);
+-mix <= ss_v_mix;
++-- Combined experiment: accumulator heals at its normal clear.
+ when 102 =>
+ ss_v_mixout(13 downto 0) := ss_wdata(13 downto 0);
+-mixout <= ss_v_mixout;
++-- Combined experiment: output heals after a complete mixer cycle.
+ when others => null; end case;
+ end if;
+ end if;

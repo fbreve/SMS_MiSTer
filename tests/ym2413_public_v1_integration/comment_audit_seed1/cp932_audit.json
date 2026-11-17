@@ -1,0 +1,421 @@
+{
+  "policy": "Read-only raw-byte inspection, strict Shift-JIS/CP932 decoding; no Latin-1 conversion",
+  "files": [
+    {
+      "file": "rtl/VM2413/attacktable.vhd",
+      "SHA256": "4c372aa4cc62fa8cb4094683e6b090748bfd7a73a6d8477c3c05c2e58bdd9773",
+      "nonASCII": [
+        {
+          "line": 44,
+          "text": "        i0      : in    std_logic_vector(  7 downto 0 );    --  符号無し 8bit (整数部 0bit, 小数部 8bit)"
+        },
+        {
+          "line": 45,
+          "text": "        i1      : in    std_logic_vector(  7 downto 0 );    --  符号付き 8bit (整数部 8bit)"
+        },
+        {
+          "line": 46,
+          "text": "        o       : buffer   std_logic_vector( 13 downto 0 )     --  符号付き14bit (整数部 8bit, 小数部 6bit)"
+        },
+        {
+          "line": 55,
+          "text": "    o       <= w_mul( 15 downto 2 );        --  bit16 は bit15 と同じなのでカット。bit1～0 (小数部) は切り捨て。"
+        },
+        {
+          "line": 69,
+          "text": "        addr    : in    std_logic_vector( 21 downto 0 );    --  小数部 15bit"
+        },
+        {
+          "line": 70,
+          "text": "        data    : buffer   std_logic_vector( 12 downto 0 )     --  小数部  6bit"
+        },
+        {
+          "line": 87,
+          "text": "            i0      : in    std_logic_vector(  7 downto 0 );    --  符号無し 8bit (整数部 0bit, 小数部 8bit)"
+        },
+        {
+          "line": 88,
+          "text": "            i1      : in    std_logic_vector(  7 downto 0 );    --  符号付き 8bit (整数部 8bit)"
+        },
+        {
+          "line": 89,
+          "text": "            o       : buffer   std_logic_vector( 13 downto 0 )     --  符号付き 8bit (整数部 8bit, 小数部 6bit)"
+        },
+        {
+          "line": 119,
+          "text": "    signal w_sub    : std_logic_vector(  7 downto 0 );  --  符号付き"
+        },
+        {
+          "line": 120,
+          "text": "    signal w_mul    : std_logic_vector( 13 downto 0 );  --  符号付き"
+        },
+        {
+          "line": 204,
+          "text": "    --  補間    (※符号をまたがる場所では 0 になるから ff_sign は気にしない）"
+        }
+      ]
+    },
+    {
+      "file": "rtl/VM2413/controller.vhd",
+      "SHA256": "b1863cdeede2d600d708092d26ed8876592bdd89102927f18e60782f5108df55",
+      "nonASCII": [
+        {
+          "line": 198,
+          "text": "    --  レジスタ設定値を保持するためのメモリ"
+        },
+        {
+          "line": 215,
+          "text": "    --  レジスタアドレスラッチ (第１ステージ)"
+        },
+        {
+          "line": 740,
+          "text": "    --  現在のスロットの音色データ読み出しアドレスラッチ (第１ステージ)"
+        }
+      ]
+    },
+    {
+      "file": "rtl/VM2413/envelopegenerator.vhd",
+      "SHA256": "f7d9fcd2c9fb1089c75403eb2d300894697ffd289b556124f31675e192a7d5ff",
+      "nonASCII": [
+        {
+          "line": 62,
+          "text": "        egout   : buffer   std_logic_vector( 12 downto 0 )     --  小数部 6bit"
+        },
+        {
+          "line": 103,
+          "text": "            addr    : in    std_logic_vector( 21 downto 0 );    -- 小数部 15bit"
+        },
+        {
+          "line": 123,
+          "text": "    signal ardata   : std_logic_vector( 12 downto 0 );  --  小数部 6bit"
+        },
+        {
+          "line": 132,
+          "text": "    --  Attack テーブル"
+        },
+        {
+          "line": 154,
+          "text": "    --  EnvelopeMemory のプリフェッチ"
+        },
+        {
+          "line": 161,
+          "text": "        variable egtmp      : std_logic_vector(db_type'high + 8 downto 0);  --  小数部 6bit"
+        }
+      ]
+    },
+    {
+      "file": "rtl/VM2413/lineartable.vhd",
+      "SHA256": "30f6b6b1e0821ce58170636f3f4e2109aa2c603de2f2226919e1a270d7125e2c",
+      "nonASCII": [
+        {
+          "line": 43,
+          "text": "        i0      : in    std_logic_vector( 5 downto 0 );     --  符号無し 6bit (小数部  6bit)"
+        },
+        {
+          "line": 44,
+          "text": "        i1      : in    std_logic_vector( 9 downto 0 );     --  符号付き10bit (整数部 10bit)"
+        },
+        {
+          "line": 45,
+          "text": "        o       : buffer   std_logic_vector( 9 downto 0 )      --  符号付き10bit (整数部 10bit)"
+        },
+        {
+          "line": 50,
+          "text": "    signal w_mul    : std_logic_vector( 16 downto 0 );      --  符号付き17bit (整数部16bit)"
+        },
+        {
+          "line": 54,
+          "text": "    o       <= w_mul( 15 downto 6 );        --  MSBカット, 小数部下位 6bitカット"
+        },
+        {
+          "line": 67,
+          "text": "        addr    : in    std_logic_vector( 13 downto 0 );    --  整数部 8bit, 小数部 6bit"
+        },
+        {
+          "line": 125,
+          "text": "    signal w_sub        : std_logic_vector(  9 downto 0 );  --  符号付き"
+        },
+        {
+          "line": 135,
+          "text": "            --  アドレス指定された次のサイクルで対応する値が出てくる（1cycle delay）"
+        },
+        {
+          "line": 149,
+          "text": "    --  補間    (※符号をまたがる場所では 0 になるから ff_sign は気にしない）"
+        }
+      ]
+    },
+    {
+      "file": "rtl/VM2413/operator.vhd",
+      "SHA256": "9949aa04f25f58a88172dd8afd25d5d68c4bdac74de1036562cf6c68a5faee7e",
+      "nonASCII": [
+        {
+          "line": 56,
+          "text": "        pgout   : in    std_logic_vector( 17 downto 0 );    --  整数部 9bit, 小数部 9bit"
+        },
+        {
+          "line": 62,
+          "text": "        opout   : buffer   std_logic_vector( 13 downto 0 )     -- 整数部 8bit, 小数部 6bit"
+        },
+        {
+          "line": 82,
+          "text": "            addr    : in    std_logic_vector( 17 downto 0 );    --  整数部 9bit, 小数部 9bit"
+        },
+        {
+          "line": 83,
+          "text": "            data    : buffer   std_logic_vector( 13 downto 0 )     --  整数部 8bit, 小数部 6bit"
+        },
+        {
+          "line": 109,
+          "text": "    --  サイン波（対数表現）--------------------------------------------------"
+        },
+        {
+          "line": 110,
+          "text": "    --  addr 指定した次々サイクルに data が出てくる"
+        },
+        {
+          "line": 113,
+          "text": "    --  addr            X 確定"
+        },
+        {
+          "line": 114,
+          "text": "    --  data                            X 確定"
+        },
+        {
+          "line": 115,
+          "text": "    --  opout                                   X 確定"
+        },
+        {
+          "line": 136,
+          "text": "        variable opout_buf  : std_logic_vector( 13 downto 0 );  --  整数部 8bit, 小数部 6bit"
+        }
+      ]
+    },
+    {
+      "file": "rtl/VM2413/outputgenerator.vhd",
+      "SHA256": "e9ba2bfe4be133288ead6d6ca7bcfc115b3c6cb6f24bc0d32caeb80338e9099c",
+      "nonASCII": [
+        {
+          "line": 123,
+          "text": "        --  符号＋絶対値 → ２の補数"
+        },
+        {
+          "line": 137,
+          "text": "        --  ２の補数 → 符号＋絶対値、ついでに 1/2 倍。ここで１ビット消失。"
+        },
+        {
+          "line": 185,
+          "text": "        addr    => opout,           --  0～127 (opout は FF の出力だからダイレクトに入れても問題ない）"
+        },
+        {
+          "line": 186,
+          "text": "        data    => li_data          --  0～511"
+        }
+      ]
+    },
+    {
+      "file": "rtl/VM2413/phasegenerator.vhd",
+      "SHA256": "722f899bd9fc20c2cf5a2742e02f989e614670cfc25d08663c5ec0d4b45c85a5",
+      "nonASCII": [
+        {
+          "line": 125,
+          "text": "        variable pgout_buf : std_logic_vector( 17 downto 0 );   --  整数部 9bit, 小数部 9bit"
+        }
+      ]
+    },
+    {
+      "file": "rtl/VM2413/registermemory.vhd",
+      "SHA256": "7bfd05abc88c933c5eb9514c00008d1f9a67d269b91650a68631693c259069f2",
+      "nonASCII": [
+        {
+          "line": 62,
+          "text": "    --  チャネル情報保持用 1read/1write の SRAM"
+        },
+        {
+          "line": 85,
+          "text": "                --  起動してすぐに RAM の内容を初期化する"
+        },
+        {
+          "line": 89,
+          "text": "                --  書き込みサイクル"
+        },
+        {
+          "line": 92,
+          "text": "            --  読み出しは常時"
+        }
+      ]
+    },
+    {
+      "file": "rtl/VM2413/sinetable.vhd",
+      "SHA256": "de17de6a1fefe703997a5fc1bd4d1c8fcce311de449b674928d9ea7e27403126",
+      "nonASCII": [
+        {
+          "line": 43,
+          "text": "        i0      : in    std_logic_vector(  8 downto 0 );    --  符号無し 9bit (整数部 0bit, 小数部 9bit)"
+        },
+        {
+          "line": 44,
+          "text": "        i1      : in    std_logic_vector( 11 downto 0 );    --  符号付き12bit (整数部 8bit, 小数部 4bit)"
+        },
+        {
+          "line": 45,
+          "text": "        o       : buffer   std_logic_vector( 13 downto 0 )     --  符号付き 7bit (整数部 8bit, 小数部 6bit)"
+        },
+        {
+          "line": 50,
+          "text": "    signal w_mul    : std_logic_vector( 21 downto 0 );      --  符号付き22bit (整数部 9bit, 小数部13bit)"
+        },
+        {
+          "line": 54,
+          "text": "    o       <= w_mul( 20 downto 7 );        --  MSBカットで 21bit, 小数部下位 7bitカット"
+        },
+        {
+          "line": 69,
+          "text": "        addr    : in    std_logic_vector( 17 downto 0 );    --  整数部 9bit, 小数部 9bit"
+        },
+        {
+          "line": 70,
+          "text": "        data    : buffer   std_logic_vector( 13 downto 0 )     --  整数部 8bit, 小数部 6bit"
+        },
+        {
+          "line": 87,
+          "text": "            i0      : in    std_logic_vector(  8 downto 0 );    --  符号無し 9bit (整数部 0bit, 小数部 9bit)"
+        },
+        {
+          "line": 88,
+          "text": "            i1      : in    std_logic_vector( 11 downto 0 );    --  符号付き 8bit (整数部 8bit)"
+        },
+        {
+          "line": 89,
+          "text": "            o       : buffer   std_logic_vector( 13 downto 0 )     --  符号無し 7bit (整数部 8bit)"
+        },
+        {
+          "line": 93,
+          "text": "    type sin_type is array (0 to 127) of std_logic_vector( 10 downto 0 );  --   整数部 7bit, 小数部 4bit"
+        },
+        {
+          "line": 129,
+          "text": "    signal ff_data0     : std_logic_vector( 10 downto 0 );  --  符号ナシ整数部 7bit, 小数部 4bit"
+        },
+        {
+          "line": 130,
+          "text": "    signal ff_data1     : std_logic_vector( 10 downto 0 );  --  符号ナシ整数部 7bit, 小数部 4bit"
+        },
+        {
+          "line": 139,
+          "text": "    signal w_sub        : std_logic_vector( 11 downto 0 );  --  符号付き整数部 8bit, 小数部 4bit"
+        },
+        {
+          "line": 140,
+          "text": "    signal w_mul        : std_logic_vector( 13 downto 0 );  --  符号付き整数部 8bit, 小数部 6bit"
+        },
+        {
+          "line": 150,
+          "text": "    w_addr1 <= \"1111111\" xor w_xor when(addr( 15 downto 9 ) = \"1111111\" )else   --  波形が循環する部分の対処"
+        },
+        {
+          "line": 153,
+          "text": "    --  波形メモリ"
+        },
+        {
+          "line": 239,
+          "text": "    --  修飾情報の遅延（波形メモリの読み出し遅延にあわせる）"
+        },
+        {
+          "line": 242,
+          "text": "    --  補間    (※符号をまたがる場所では 0 になるから ff_sign は気にしない）"
+        },
+        {
+          "line": 253,
+          "text": "    --  下位 6bit （小数部）を演算精度維持のために残す"
+        },
+        {
+          "line": 254,
+          "text": "    w_inter <= (ff_data0 & \"00\") + w_mul;   --  \"00\" は桁あわせ"
+        },
+        {
+          "line": 262,
+          "text": "    --  addr        X addr入力  X"
+        },
+        {
+          "line": 263,
+          "text": "    --  w_addr0     X 確定      X"
+        },
+        {
+          "line": 264,
+          "text": "    --  w_addr1     X 確定      X"
+        },
+        {
+          "line": 265,
+          "text": "    --  ff_data0                X 確定      X"
+        },
+        {
+          "line": 266,
+          "text": "    --  ff_data1                X 確定      X"
+        },
+        {
+          "line": 267,
+          "text": "    --  ff_sign                 X 確定      X"
+        },
+        {
+          "line": 268,
+          "text": "    --  ff_wf                   X 確定      X"
+        },
+        {
+          "line": 269,
+          "text": "    --  ff_weight               X 確定      X"
+        },
+        {
+          "line": 270,
+          "text": "    --  w_sub                   X 確定      X"
+        },
+        {
+          "line": 271,
+          "text": "    --  w_mul                   X 確定      X"
+        },
+        {
+          "line": 272,
+          "text": "    --  w_inter                 X 確定      X"
+        },
+        {
+          "line": 273,
+          "text": "    --  w_wf                    X 確定      X"
+        },
+        {
+          "line": 274,
+          "text": "    --  ff_data                             X 確定      X"
+        },
+        {
+          "line": 275,
+          "text": "    --  data                                X 確定      X"
+        },
+        {
+          "line": 279,
+          "text": "    --  Operator は、stage = 01 のときに投入した入力値に基づく出力を得る場合に"
+        },
+        {
+          "line": 280,
+          "text": "    --  stage = 11 で受け取らなければならない。"
+        },
+        {
+          "line": 282,
+          "text": "    --  アドレス指定されてから、それに対応する値が得られるまで 2cycle の遅延"
+        }
+      ]
+    },
+    {
+      "file": "rtl/VM2413/slotcounter.vhd",
+      "SHA256": "729c619a317107b6f79c7c9562aec5a11d4177c3573c75d171983ab193fba218",
+      "nonASCII": [
+        {
+          "line": 116,
+          "text": "    stage   <= ff_count( 1 downto 0 );      --  0～3 で循環"
+        },
+        {
+          "line": 117,
+          "text": "    slot    <= ff_count( 6 downto 2 );      --  0～17 で循環"
+        }
+      ]
+    }
+  ]
+}

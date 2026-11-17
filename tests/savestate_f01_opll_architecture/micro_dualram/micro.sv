@@ -1,0 +1,1 @@
+module micro(input clk,wr,bank,input[5:0]addr,raddr,input[31:0]bus,output reg[31:0]dout);(* ramstyle="M10K" *)reg[31:0]mem[0:127];always@(posedge clk)begin if(wr)mem[{bank,addr}]<=bus;dout<=mem[{!bank,raddr}];end endmodule

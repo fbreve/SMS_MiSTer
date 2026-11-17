@@ -1,0 +1,1884 @@
+[
+  {
+    "file": "rtl/vdp_main.vhd",
+    "name": "bg_vram_A",
+    "sites": [
+      {
+        "line": 65,
+        "text": "\tsignal bg_vram_A:\t\tstd_logic_vector(13 downto 0);",
+        "context": "\t\n\tsignal bg_y:\t\t\tstd_logic_vector(7 downto 0);\n\tsignal bg_vram_A:\t\tstd_logic_vector(13 downto 0);\n\tsignal bg_color:\t\tstd_logic_vector(4 downto 0);\n\tsignal bg_priority:\tstd_logic;"
+      },
+      {
+        "line": 114,
+        "text": "\t\tvram_A\t\t\t=> bg_vram_A,",
+        "context": "\t\tscreen_x\t\t\t=> x,\n\t\t\n\t\tvram_A\t\t\t=> bg_vram_A,\n\t\tvram_D\t\t\t=> vram_D,\t\t\n\t\tcolor\t\t\t\t=> bg_color,"
+      },
+      {
+        "line": 199,
+        "text": "\tvram_A <= spr_vram_A when x>=256 and x<496 else bg_vram_A;  -- Does bg only need x<504 only?",
+        "context": "\tend process;\n\t\n\tvram_A <= spr_vram_A when x>=256 and x<496 else bg_vram_A;  -- Does bg only need x<504 only?\n\tcolor <= \"000000000000\" when black_column='1' and mask_column0='1' and x>0 and x<9 else\n\t\t\tcram_D when smode_M4='1' else "
+      }
+    ]
+  },
+  {
+    "file": "rtl/vdp_main.vhd",
+    "name": "bg_color",
+    "sites": [
+      {
+        "line": 66,
+        "text": "\tsignal bg_color:\t\tstd_logic_vector(4 downto 0);",
+        "context": "\tsignal bg_y:\t\t\tstd_logic_vector(7 downto 0);\n\tsignal bg_vram_A:\t\tstd_logic_vector(13 downto 0);\n\tsignal bg_color:\t\tstd_logic_vector(4 downto 0);\n\tsignal bg_priority:\tstd_logic;\n\tsignal out_color: \tstd_logic_vector(3 downto 0) ;\t"
+      },
+      {
+        "line": 116,
+        "text": "\t\tcolor\t\t\t\t=> bg_color,",
+        "context": "\t\tvram_A\t\t\t=> bg_vram_A,\n\t\tvram_D\t\t\t=> vram_D,\t\t\n\t\tcolor\t\t\t\t=> bg_color,\n\t\tmode_M1_raw\t\t=> mode_M1_raw,\n\t\tmode_M2_raw\t\t=> mode_M2_raw,"
+      },
+      {
+        "line": 157,
+        "text": "\tprocess (x, y, mask_column0, bg_priority, spr_color, bg_color, overscan, display_on, ggres, smode_M1, smode_M3, text_mode)",
+        "context": "\t\tss_regs_set\t\t=> ss_regs_set);\n\n\tprocess (x, y, mask_column0, bg_priority, spr_color, bg_color, overscan, display_on, ggres, smode_M1, smode_M3, text_mode)\n\t\tvariable spr_active\t: boolean;\n\t\tvariable bg_active\t: boolean;"
+      },
+      {
+        "line": 173,
+        "text": "\t\t\t\tbg_active\t:= not (bg_color(3 downto 0)=\"0000\");",
+        "context": "\t\t\t\t\n\t\t\t\tspr_active\t:= text_mode='0' and not (spr_color=\"0000\");\n\t\t\t\tbg_active\t:= not (bg_color(3 downto 0)=\"0000\");\n\t\t\t\tif not spr_active and not bg_active then\n\t\t\t\t\tout_color <= overscan ;"
+      },
+      {
+        "line": 176,
+        "text": "\t\t\t\t\tcram_A <= bg_color(4)&\"0000\";",
+        "context": "\t\t\t\tif not spr_active and not bg_active then\n\t\t\t\t\tout_color <= overscan ;\n\t\t\t\t\tcram_A <= bg_color(4)&\"0000\";\n\t\t\t\t\ty1 <= '0';\n\t\t\t\telsif (bg_priority='0' and spr_active) or (bg_priority='1' and not bg_active) then"
+      },
+      {
+        "line": 182,
+        "text": "\t\t\t\t\tcram_A <= bg_color;",
+        "context": "\t\t\t\t\tcram_A <= \"1\"&spr_color;\n\t\t\t\telse\n\t\t\t\t\tcram_A <= bg_color;\n\t\t\t\t\tif bg_color(3 downto 0)=\"0000\" then\n\t\t\t\t\t\tout_color <= overscan ;"
+      },
+      {
+        "line": 183,
+        "text": "\t\t\t\t\tif bg_color(3 downto 0)=\"0000\" then",
+        "context": "\t\t\t\telse\n\t\t\t\t\tcram_A <= bg_color;\n\t\t\t\t\tif bg_color(3 downto 0)=\"0000\" then\n\t\t\t\t\t\tout_color <= overscan ;\n\t\t\t\t\telse"
+      },
+      {
+        "line": 186,
+        "text": "\t\t\t\t\t\tout_color <= bg_color(3 downto 0) ;",
+        "context": "\t\t\t\t\t\tout_color <= overscan ;\n\t\t\t\t\telse\n\t\t\t\t\t\tout_color <= bg_color(3 downto 0) ;\n\t\t\t\t\tend if;\n\t\t\t\tend if;"
+      }
+    ]
+  },
+  {
+    "file": "rtl/vdp_main.vhd",
+    "name": "bg_priority",
+    "sites": [
+      {
+        "line": 67,
+        "text": "\tsignal bg_priority:\tstd_logic;",
+        "context": "\tsignal bg_vram_A:\t\tstd_logic_vector(13 downto 0);\n\tsignal bg_color:\t\tstd_logic_vector(4 downto 0);\n\tsignal bg_priority:\tstd_logic;\n\tsignal out_color: \tstd_logic_vector(3 downto 0) ;\t\n\tsignal spr_vram_A:\tstd_logic_vector(13 downto 0);"
+      },
+      {
+        "line": 128,
+        "text": "\t\tpriority\t\t\t=> bg_priority);",
+        "context": "\t\toverscan\t\t\t=> overscan,\n\t\tss_restore\t\t\t=> ss_regs_set,\n\t\tpriority\t\t\t=> bg_priority);\n\t\t\n\tvdp_spr_inst: entity work.vdp_sprites"
+      },
+      {
+        "line": 157,
+        "text": "\tprocess (x, y, mask_column0, bg_priority, spr_color, bg_color, overscan, display_on, ggres, smode_M1, smode_M3, text_mode)",
+        "context": "\t\tss_regs_set\t\t=> ss_regs_set);\n\n\tprocess (x, y, mask_column0, bg_priority, spr_color, bg_color, overscan, display_on, ggres, smode_M1, smode_M3, text_mode)\n\t\tvariable spr_active\t: boolean;\n\t\tvariable bg_active\t: boolean;"
+      },
+      {
+        "line": 178,
+        "text": "\t\t\t\telsif (bg_priority='0' and spr_active) or (bg_priority='1' and not bg_active) then",
+        "context": "\t\t\t\t\tcram_A <= bg_color(4)&\"0000\";\n\t\t\t\t\ty1 <= '0';\n\t\t\t\telsif (bg_priority='0' and spr_active) or (bg_priority='1' and not bg_active) then\n\t\t\t\t\tout_color <= spr_color ;\n\t\t\t\t\tcram_A <= \"1\"&spr_color;"
+      }
+    ]
+  },
+  {
+    "file": "rtl/vdp_main.vhd",
+    "name": "spr_vram_A",
+    "sites": [
+      {
+        "line": 69,
+        "text": "\tsignal spr_vram_A:\tstd_logic_vector(13 downto 0);",
+        "context": "\tsignal bg_priority:\tstd_logic;\n\tsignal out_color: \tstd_logic_vector(3 downto 0) ;\t\n\tsignal spr_vram_A:\tstd_logic_vector(13 downto 0);\n\tsignal spr_color:\t\tstd_logic_vector(3 downto 0);\n\tsignal text_mode:\t\tstd_logic;"
+      },
+      {
+        "line": 152,
+        "text": "\t\tvram_A\t\t\t=> spr_vram_A,",
+        "context": "\t\tsmode_M3\t\t\t=> smode_M3,\n\t\tsmode_M4\t\t\t=> smode_M4,\n\t\tvram_A\t\t\t=> spr_vram_A,\n\t\tvram_D\t\t\t=> vram_D,\t\t\n\t\tcolor\t\t\t\t=> spr_color,"
+      },
+      {
+        "line": 199,
+        "text": "\tvram_A <= spr_vram_A when x>=256 and x<496 else bg_vram_A;  -- Does bg only need x<504 only?",
+        "context": "\tend process;\n\t\n\tvram_A <= spr_vram_A when x>=256 and x<496 else bg_vram_A;  -- Does bg only need x<504 only?\n\tcolor <= \"000000000000\" when black_column='1' and mask_column0='1' and x>0 and x<9 else\n\t\t\tcram_D when smode_M4='1' else "
+      }
+    ]
+  },
+  {
+    "file": "rtl/vdp_main.vhd",
+    "name": "spr_color",
+    "sites": [
+      {
+        "line": 70,
+        "text": "\tsignal spr_color:\t\tstd_logic_vector(3 downto 0);",
+        "context": "\tsignal out_color: \tstd_logic_vector(3 downto 0) ;\t\n\tsignal spr_vram_A:\tstd_logic_vector(13 downto 0);\n\tsignal spr_color:\t\tstd_logic_vector(3 downto 0);\n\tsignal text_mode:\t\tstd_logic;\n\t"
+      },
+      {
+        "line": 154,
+        "text": "\t\tcolor\t\t\t\t=> spr_color,",
+        "context": "\t\tvram_A\t\t\t=> spr_vram_A,\n\t\tvram_D\t\t\t=> vram_D,\t\t\n\t\tcolor\t\t\t\t=> spr_color,\n\t\tss_regs_set\t\t=> ss_regs_set);\n"
+      },
+      {
+        "line": 157,
+        "text": "\tprocess (x, y, mask_column0, bg_priority, spr_color, bg_color, overscan, display_on, ggres, smode_M1, smode_M3, text_mode)",
+        "context": "\t\tss_regs_set\t\t=> ss_regs_set);\n\n\tprocess (x, y, mask_column0, bg_priority, spr_color, bg_color, overscan, display_on, ggres, smode_M1, smode_M3, text_mode)\n\t\tvariable spr_active\t: boolean;\n\t\tvariable bg_active\t: boolean;"
+      },
+      {
+        "line": 172,
+        "text": "\t\t\t\tspr_active\t:= text_mode='0' and not (spr_color=\"0000\");",
+        "context": "\t\t\t\tor (smode_M3='1' and y<240 and ggres='0') ) then\n\t\t\t\t\n\t\t\t\tspr_active\t:= text_mode='0' and not (spr_color=\"0000\");\n\t\t\t\tbg_active\t:= not (bg_color(3 downto 0)=\"0000\");\n\t\t\t\tif not spr_active and not bg_active then"
+      },
+      {
+        "line": 179,
+        "text": "\t\t\t\t\tout_color <= spr_color ;",
+        "context": "\t\t\t\t\ty1 <= '0';\n\t\t\t\telsif (bg_priority='0' and spr_active) or (bg_priority='1' and not bg_active) then\n\t\t\t\t\tout_color <= spr_color ;\n\t\t\t\t\tcram_A <= \"1\"&spr_color;\n\t\t\t\telse"
+      },
+      {
+        "line": 180,
+        "text": "\t\t\t\t\tcram_A <= \"1\"&spr_color;",
+        "context": "\t\t\t\telsif (bg_priority='0' and spr_active) or (bg_priority='1' and not bg_active) then\n\t\t\t\t\tout_color <= spr_color ;\n\t\t\t\t\tcram_A <= \"1\"&spr_color;\n\t\t\t\telse\n\t\t\t\t\tcram_A <= bg_color;"
+      }
+    ]
+  },
+  {
+    "file": "rtl/vdp_main.vhd",
+    "name": "line_reset",
+    "sites": [
+      {
+        "line": 73,
+        "text": "\tsignal line_reset:\tstd_logic;",
+        "context": "\tsignal text_mode:\t\tstd_logic;\n\t\n\tsignal line_reset:\tstd_logic;\n \t\n\t"
+      },
+      {
+        "line": 98,
+        "text": "\tline_reset <= '1' when x=512-24 else '0'; -- offset should be 25 to please VDPTEST",
+        "context": "\t\n\t-- see vdp_background comment around line 53\n\tline_reset <= '1' when x=512-24 else '0'; -- offset should be 25 to please VDPTEST\n\t\t\n\tvdp_bg_inst: entity work.vdp_background"
+      },
+      {
+        "line": 107,
+        "text": "\t\treset\t\t\t\t=> line_reset or ss_regs_set,",
+        "context": "\t\tpt_address\t\t=> m2mg_address,\n\t\tct_address\t\t=> m2ct_address,\n\t\treset\t\t\t\t=> line_reset or ss_regs_set,\n\t\tdisable_hscroll=> disable_hscroll,\n\t\tscroll_x_latched \t\t=> bg_scroll_x,"
+      }
+    ]
+  },
+  {
+    "file": "rtl/vdp_main.vhd",
+    "name": "out_color",
+    "sites": [
+      {
+        "line": 68,
+        "text": "\tsignal out_color: \tstd_logic_vector(3 downto 0) ;\t",
+        "context": "\tsignal bg_color:\t\tstd_logic_vector(4 downto 0);\n\tsignal bg_priority:\tstd_logic;\n\tsignal out_color: \tstd_logic_vector(3 downto 0) ;\t\n\tsignal spr_vram_A:\tstd_logic_vector(13 downto 0);\n\tsignal spr_color:\t\tstd_logic_vector(3 downto 0);"
+      },
+      {
+        "line": 175,
+        "text": "\t\t\t\t\tout_color <= overscan ;",
+        "context": "\t\t\t\tbg_active\t:= not (bg_color(3 downto 0)=\"0000\");\n\t\t\t\tif not spr_active and not bg_active then\n\t\t\t\t\tout_color <= overscan ;\n\t\t\t\t\tcram_A <= bg_color(4)&\"0000\";\n\t\t\t\t\ty1 <= '0';"
+      },
+      {
+        "line": 179,
+        "text": "\t\t\t\t\tout_color <= spr_color ;",
+        "context": "\t\t\t\t\ty1 <= '0';\n\t\t\t\telsif (bg_priority='0' and spr_active) or (bg_priority='1' and not bg_active) then\n\t\t\t\t\tout_color <= spr_color ;\n\t\t\t\t\tcram_A <= \"1\"&spr_color;\n\t\t\t\telse"
+      },
+      {
+        "line": 184,
+        "text": "\t\t\t\t\t\tout_color <= overscan ;",
+        "context": "\t\t\t\t\tcram_A <= bg_color;\n\t\t\t\t\tif bg_color(3 downto 0)=\"0000\" then\n\t\t\t\t\t\tout_color <= overscan ;\n\t\t\t\t\telse\n\t\t\t\t\t\tout_color <= bg_color(3 downto 0) ;"
+      },
+      {
+        "line": 186,
+        "text": "\t\t\t\t\t\tout_color <= bg_color(3 downto 0) ;",
+        "context": "\t\t\t\t\t\tout_color <= overscan ;\n\t\t\t\t\telse\n\t\t\t\t\t\tout_color <= bg_color(3 downto 0) ;\n\t\t\t\t\tend if;\n\t\t\t\tend if;"
+      },
+      {
+        "line": 191,
+        "text": "\t\t\t\tout_color <= overscan ;",
+        "context": "\t\t\telse\n\t\t\t\tcram_A <= \"1\"&overscan;\n\t\t\t\tout_color <= overscan ;\n\t\t\tend if ;\n\t\telse"
+      },
+      {
+        "line": 195,
+        "text": "\t\t\tout_color <= overscan ;",
+        "context": "\t\telse\n\t\t\tcram_A <= \"1\"&overscan;\n\t\t\tout_color <= overscan ;\n\t\tend if;\t\t\n\tend process;"
+      },
+      {
+        "line": 203,
+        "text": "\t\t\tx\"000\" when   out_color=\"0000\" or out_color=\"0001\" else -- Transparent or Black",
+        "context": "\t\t\tcram_D when smode_M4='1' else \n\t\t\t-- How an SMS VDP handles Legacy TMS Modes to produce these values\n\t\t\tx\"000\" when   out_color=\"0000\" or out_color=\"0001\" else -- Transparent or Black\n\t\t\tX\"4A2\" when (out_color=\"0010\" and palettemode='0') else -- Medium Green\n\t\t\tX\"7E6\" when (out_color=\"0011\" and palettemode='0') else -- Light Green"
+      },
+      {
+        "line": 204,
+        "text": "\t\t\tX\"4A2\" when (out_color=\"0010\" and palettemode='0') else -- Medium Green",
+        "context": "\t\t\t-- How an SMS VDP handles Legacy TMS Modes to produce these values\n\t\t\tx\"000\" when   out_color=\"0000\" or out_color=\"0001\" else -- Transparent or Black\n\t\t\tX\"4A2\" when (out_color=\"0010\" and palettemode='0') else -- Medium Green\n\t\t\tX\"7E6\" when (out_color=\"0011\" and palettemode='0') else -- Light Green\n\t\t\tX\"F55\" when (out_color=\"0100\" and palettemode='0') else -- Dark Blue"
+      },
+      {
+        "line": 205,
+        "text": "\t\t\tX\"7E6\" when (out_color=\"0011\" and palettemode='0') else -- Light Green",
+        "context": "\t\t\tx\"000\" when   out_color=\"0000\" or out_color=\"0001\" else -- Transparent or Black\n\t\t\tX\"4A2\" when (out_color=\"0010\" and palettemode='0') else -- Medium Green\n\t\t\tX\"7E6\" when (out_color=\"0011\" and palettemode='0') else -- Light Green\n\t\t\tX\"F55\" when (out_color=\"0100\" and palettemode='0') else -- Dark Blue\n\t\t\tX\"F88\" when (out_color=\"0101\" and palettemode='0') else -- Light Blue"
+      },
+      {
+        "line": 206,
+        "text": "\t\t\tX\"F55\" when (out_color=\"0100\" and palettemode='0') else -- Dark Blue",
+        "context": "\t\t\tX\"4A2\" when (out_color=\"0010\" and palettemode='0') else -- Medium Green\n\t\t\tX\"7E6\" when (out_color=\"0011\" and palettemode='0') else -- Light Green\n\t\t\tX\"F55\" when (out_color=\"0100\" and palettemode='0') else -- Dark Blue\n\t\t\tX\"F88\" when (out_color=\"0101\" and palettemode='0') else -- Light Blue\n\t\t\tX\"55D\" when (out_color=\"0110\" and palettemode='0') else -- Dark red"
+      },
+      {
+        "line": 207,
+        "text": "\t\t\tX\"F88\" when (out_color=\"0101\" and palettemode='0') else -- Light Blue",
+        "context": "\t\t\tX\"7E6\" when (out_color=\"0011\" and palettemode='0') else -- Light Green\n\t\t\tX\"F55\" when (out_color=\"0100\" and palettemode='0') else -- Dark Blue\n\t\t\tX\"F88\" when (out_color=\"0101\" and palettemode='0') else -- Light Blue\n\t\t\tX\"55D\" when (out_color=\"0110\" and palettemode='0') else -- Dark red\n\t\t\tX\"FF4\" when (out_color=\"0111\" and palettemode='0') else -- Cyan"
+      },
+      {
+        "line": 208,
+        "text": "\t\t\tX\"55D\" when (out_color=\"0110\" and palettemode='0') else -- Dark red",
+        "context": "\t\t\tX\"F55\" when (out_color=\"0100\" and palettemode='0') else -- Dark Blue\n\t\t\tX\"F88\" when (out_color=\"0101\" and palettemode='0') else -- Light Blue\n\t\t\tX\"55D\" when (out_color=\"0110\" and palettemode='0') else -- Dark red\n\t\t\tX\"FF4\" when (out_color=\"0111\" and palettemode='0') else -- Cyan\n\t\t\tX\"55F\" when (out_color=\"1000\" and palettemode='0') else -- Medium Red"
+      },
+      {
+        "line": 209,
+        "text": "\t\t\tX\"FF4\" when (out_color=\"0111\" and palettemode='0') else -- Cyan",
+        "context": "\t\t\tX\"F88\" when (out_color=\"0101\" and palettemode='0') else -- Light Blue\n\t\t\tX\"55D\" when (out_color=\"0110\" and palettemode='0') else -- Dark red\n\t\t\tX\"FF4\" when (out_color=\"0111\" and palettemode='0') else -- Cyan\n\t\t\tX\"55F\" when (out_color=\"1000\" and palettemode='0') else -- Medium Red\n\t\t\tX\"88F\" when (out_color=\"1001\" and palettemode='0') else -- Light Red"
+      },
+      {
+        "line": 210,
+        "text": "\t\t\tX\"55F\" when (out_color=\"1000\" and palettemode='0') else -- Medium Red",
+        "context": "\t\t\tX\"55D\" when (out_color=\"0110\" and palettemode='0') else -- Dark red\n\t\t\tX\"FF4\" when (out_color=\"0111\" and palettemode='0') else -- Cyan\n\t\t\tX\"55F\" when (out_color=\"1000\" and palettemode='0') else -- Medium Red\n\t\t\tX\"88F\" when (out_color=\"1001\" and palettemode='0') else -- Light Red\n\t\t\tX\"5DD\" when (out_color=\"1010\" and palettemode='0') else -- Dark Yellow"
+      },
+      {
+        "line": 211,
+        "text": "\t\t\tX\"88F\" when (out_color=\"1001\" and palettemode='0') else -- Light Red",
+        "context": "\t\t\tX\"FF4\" when (out_color=\"0111\" and palettemode='0') else -- Cyan\n\t\t\tX\"55F\" when (out_color=\"1000\" and palettemode='0') else -- Medium Red\n\t\t\tX\"88F\" when (out_color=\"1001\" and palettemode='0') else -- Light Red\n\t\t\tX\"5DD\" when (out_color=\"1010\" and palettemode='0') else -- Dark Yellow\n\t\t\tX\"8DE\" when (out_color=\"1011\" and palettemode='0') else -- Light Yellow"
+      },
+      {
+        "line": 212,
+        "text": "\t\t\tX\"5DD\" when (out_color=\"1010\" and palettemode='0') else -- Dark Yellow",
+        "context": "\t\t\tX\"55F\" when (out_color=\"1000\" and palettemode='0') else -- Medium Red\n\t\t\tX\"88F\" when (out_color=\"1001\" and palettemode='0') else -- Light Red\n\t\t\tX\"5DD\" when (out_color=\"1010\" and palettemode='0') else -- Dark Yellow\n\t\t\tX\"8DE\" when (out_color=\"1011\" and palettemode='0') else -- Light Yellow\n\t\t\tX\"4B2\" when (out_color=\"1100\" and palettemode='0') else -- Dark Green"
+      },
+      {
+        "line": 213,
+        "text": "\t\t\tX\"8DE\" when (out_color=\"1011\" and palettemode='0') else -- Light Yellow",
+        "context": "\t\t\tX\"88F\" when (out_color=\"1001\" and palettemode='0') else -- Light Red\n\t\t\tX\"5DD\" when (out_color=\"1010\" and palettemode='0') else -- Dark Yellow\n\t\t\tX\"8DE\" when (out_color=\"1011\" and palettemode='0') else -- Light Yellow\n\t\t\tX\"4B2\" when (out_color=\"1100\" and palettemode='0') else -- Dark Green\n\t\t\tX\"A6B\" when (out_color=\"1101\" and palettemode='0') else -- Magenta"
+      },
+      {
+        "line": 214,
+        "text": "\t\t\tX\"4B2\" when (out_color=\"1100\" and palettemode='0') else -- Dark Green",
+        "context": "\t\t\tX\"5DD\" when (out_color=\"1010\" and palettemode='0') else -- Dark Yellow\n\t\t\tX\"8DE\" when (out_color=\"1011\" and palettemode='0') else -- Light Yellow\n\t\t\tX\"4B2\" when (out_color=\"1100\" and palettemode='0') else -- Dark Green\n\t\t\tX\"A6B\" when (out_color=\"1101\" and palettemode='0') else -- Magenta\n\t\t\tX\"BBB\" when (out_color=\"1110\" and palettemode='0') else -- Gray"
+      },
+      {
+        "line": 215,
+        "text": "\t\t\tX\"A6B\" when (out_color=\"1101\" and palettemode='0') else -- Magenta",
+        "context": "\t\t\tX\"8DE\" when (out_color=\"1011\" and palettemode='0') else -- Light Yellow\n\t\t\tX\"4B2\" when (out_color=\"1100\" and palettemode='0') else -- Dark Green\n\t\t\tX\"A6B\" when (out_color=\"1101\" and palettemode='0') else -- Magenta\n\t\t\tX\"BBB\" when (out_color=\"1110\" and palettemode='0') else -- Gray\n\t\t\t-- Equivalent values to original TMS chip output from SG-1000"
+      },
+      {
+        "line": 216,
+        "text": "\t\t\tX\"BBB\" when (out_color=\"1110\" and palettemode='0') else -- Gray",
+        "context": "\t\t\tX\"4B2\" when (out_color=\"1100\" and palettemode='0') else -- Dark Green\n\t\t\tX\"A6B\" when (out_color=\"1101\" and palettemode='0') else -- Magenta\n\t\t\tX\"BBB\" when (out_color=\"1110\" and palettemode='0') else -- Gray\n\t\t\t-- Equivalent values to original TMS chip output from SG-1000\n\t\t\tx\"4C2\" when (out_color=\"0010\" and palettemode='1') else -- Medium Green"
+      },
+      {
+        "line": 218,
+        "text": "\t\t\tx\"4C2\" when (out_color=\"0010\" and palettemode='1') else -- Medium Green",
+        "context": "\t\t\tX\"BBB\" when (out_color=\"1110\" and palettemode='0') else -- Gray\n\t\t\t-- Equivalent values to original TMS chip output from SG-1000\n\t\t\tx\"4C2\" when (out_color=\"0010\" and palettemode='1') else -- Medium Green\n\t\t\tx\"7D5\" when (out_color=\"0011\" and palettemode='1') else -- Light Green\n\t\t\tx\"E55\" when (out_color=\"0100\" and palettemode='1') else -- Dark Blue"
+      },
+      {
+        "line": 219,
+        "text": "\t\t\tx\"7D5\" when (out_color=\"0011\" and palettemode='1') else -- Light Green",
+        "context": "\t\t\t-- Equivalent values to original TMS chip output from SG-1000\n\t\t\tx\"4C2\" when (out_color=\"0010\" and palettemode='1') else -- Medium Green\n\t\t\tx\"7D5\" when (out_color=\"0011\" and palettemode='1') else -- Light Green\n\t\t\tx\"E55\" when (out_color=\"0100\" and palettemode='1') else -- Dark Blue\n\t\t\tx\"F77\" when (out_color=\"0101\" and palettemode='1') else -- Light Blue"
+      },
+      {
+        "line": 220,
+        "text": "\t\t\tx\"E55\" when (out_color=\"0100\" and palettemode='1') else -- Dark Blue",
+        "context": "\t\t\tx\"4C2\" when (out_color=\"0010\" and palettemode='1') else -- Medium Green\n\t\t\tx\"7D5\" when (out_color=\"0011\" and palettemode='1') else -- Light Green\n\t\t\tx\"E55\" when (out_color=\"0100\" and palettemode='1') else -- Dark Blue\n\t\t\tx\"F77\" when (out_color=\"0101\" and palettemode='1') else -- Light Blue\n\t\t\tx\"45D\" when (out_color=\"0110\" and palettemode='1') else -- Dark red"
+      },
+      {
+        "line": 221,
+        "text": "\t\t\tx\"F77\" when (out_color=\"0101\" and palettemode='1') else -- Light Blue",
+        "context": "\t\t\tx\"7D5\" when (out_color=\"0011\" and palettemode='1') else -- Light Green\n\t\t\tx\"E55\" when (out_color=\"0100\" and palettemode='1') else -- Dark Blue\n\t\t\tx\"F77\" when (out_color=\"0101\" and palettemode='1') else -- Light Blue\n\t\t\tx\"45D\" when (out_color=\"0110\" and palettemode='1') else -- Dark red\n\t\t\tx\"FE4\" when (out_color=\"0111\" and palettemode='1') else -- Cyan"
+      },
+      {
+        "line": 222,
+        "text": "\t\t\tx\"45D\" when (out_color=\"0110\" and palettemode='1') else -- Dark red",
+        "context": "\t\t\tx\"E55\" when (out_color=\"0100\" and palettemode='1') else -- Dark Blue\n\t\t\tx\"F77\" when (out_color=\"0101\" and palettemode='1') else -- Light Blue\n\t\t\tx\"45D\" when (out_color=\"0110\" and palettemode='1') else -- Dark red\n\t\t\tx\"FE4\" when (out_color=\"0111\" and palettemode='1') else -- Cyan\n\t\t\tx\"55F\" when (out_color=\"1000\" and palettemode='1') else -- Medium Red"
+      },
+      {
+        "line": 223,
+        "text": "\t\t\tx\"FE4\" when (out_color=\"0111\" and palettemode='1') else -- Cyan",
+        "context": "\t\t\tx\"F77\" when (out_color=\"0101\" and palettemode='1') else -- Light Blue\n\t\t\tx\"45D\" when (out_color=\"0110\" and palettemode='1') else -- Dark red\n\t\t\tx\"FE4\" when (out_color=\"0111\" and palettemode='1') else -- Cyan\n\t\t\tx\"55F\" when (out_color=\"1000\" and palettemode='1') else -- Medium Red\n\t\t\tx\"77F\" when (out_color=\"1001\" and palettemode='1') else -- Light Red"
+      },
+      {
+        "line": 224,
+        "text": "\t\t\tx\"55F\" when (out_color=\"1000\" and palettemode='1') else -- Medium Red",
+        "context": "\t\t\tx\"45D\" when (out_color=\"0110\" and palettemode='1') else -- Dark red\n\t\t\tx\"FE4\" when (out_color=\"0111\" and palettemode='1') else -- Cyan\n\t\t\tx\"55F\" when (out_color=\"1000\" and palettemode='1') else -- Medium Red\n\t\t\tx\"77F\" when (out_color=\"1001\" and palettemode='1') else -- Light Red\n\t\t\tx\"5CD\" when (out_color=\"1010\" and palettemode='1') else -- Dark Yellow"
+      },
+      {
+        "line": 225,
+        "text": "\t\t\tx\"77F\" when (out_color=\"1001\" and palettemode='1') else -- Light Red",
+        "context": "\t\t\tx\"FE4\" when (out_color=\"0111\" and palettemode='1') else -- Cyan\n\t\t\tx\"55F\" when (out_color=\"1000\" and palettemode='1') else -- Medium Red\n\t\t\tx\"77F\" when (out_color=\"1001\" and palettemode='1') else -- Light Red\n\t\t\tx\"5CD\" when (out_color=\"1010\" and palettemode='1') else -- Dark Yellow\n\t\t\tx\"8CE\" when (out_color=\"1011\" and palettemode='1') else -- Light Yellow"
+      },
+      {
+        "line": 226,
+        "text": "\t\t\tx\"5CD\" when (out_color=\"1010\" and palettemode='1') else -- Dark Yellow",
+        "context": "\t\t\tx\"55F\" when (out_color=\"1000\" and palettemode='1') else -- Medium Red\n\t\t\tx\"77F\" when (out_color=\"1001\" and palettemode='1') else -- Light Red\n\t\t\tx\"5CD\" when (out_color=\"1010\" and palettemode='1') else -- Dark Yellow\n\t\t\tx\"8CE\" when (out_color=\"1011\" and palettemode='1') else -- Light Yellow\n\t\t\tx\"3B2\" when (out_color=\"1100\" and palettemode='1') else -- Dark Green"
+      },
+      {
+        "line": 227,
+        "text": "\t\t\tx\"8CE\" when (out_color=\"1011\" and palettemode='1') else -- Light Yellow",
+        "context": "\t\t\tx\"77F\" when (out_color=\"1001\" and palettemode='1') else -- Light Red\n\t\t\tx\"5CD\" when (out_color=\"1010\" and palettemode='1') else -- Dark Yellow\n\t\t\tx\"8CE\" when (out_color=\"1011\" and palettemode='1') else -- Light Yellow\n\t\t\tx\"3B2\" when (out_color=\"1100\" and palettemode='1') else -- Dark Green\n\t\t\tx\"B5C\" when (out_color=\"1101\" and palettemode='1') else -- Magenta"
+      },
+      {
+        "line": 228,
+        "text": "\t\t\tx\"3B2\" when (out_color=\"1100\" and palettemode='1') else -- Dark Green",
+        "context": "\t\t\tx\"5CD\" when (out_color=\"1010\" and palettemode='1') else -- Dark Yellow\n\t\t\tx\"8CE\" when (out_color=\"1011\" and palettemode='1') else -- Light Yellow\n\t\t\tx\"3B2\" when (out_color=\"1100\" and palettemode='1') else -- Dark Green\n\t\t\tx\"B5C\" when (out_color=\"1101\" and palettemode='1') else -- Magenta\n\t\t\tx\"CCC\" when (out_color=\"1110\" and palettemode='1') else -- Gray"
+      },
+      {
+        "line": 229,
+        "text": "\t\t\tx\"B5C\" when (out_color=\"1101\" and palettemode='1') else -- Magenta",
+        "context": "\t\t\tx\"8CE\" when (out_color=\"1011\" and palettemode='1') else -- Light Yellow\n\t\t\tx\"3B2\" when (out_color=\"1100\" and palettemode='1') else -- Dark Green\n\t\t\tx\"B5C\" when (out_color=\"1101\" and palettemode='1') else -- Magenta\n\t\t\tx\"CCC\" when (out_color=\"1110\" and palettemode='1') else -- Gray\n\t\t\tx\"FFF\";                                                 -- White"
+      },
+      {
+        "line": 230,
+        "text": "\t\t\tx\"CCC\" when (out_color=\"1110\" and palettemode='1') else -- Gray",
+        "context": "\t\t\tx\"3B2\" when (out_color=\"1100\" and palettemode='1') else -- Dark Green\n\t\t\tx\"B5C\" when (out_color=\"1101\" and palettemode='1') else -- Magenta\n\t\t\tx\"CCC\" when (out_color=\"1110\" and palettemode='1') else -- Gray\n\t\t\tx\"FFF\";                                                 -- White\nend Behavioral;"
+      }
+    ]
+  },
+  {
+    "file": "rtl/vdp_main.vhd",
+    "name": "cram_A",
+    "sites": [
+      {
+        "line": 20,
+        "text": "\t\tcram_A:\t\t\t\tout std_logic_vector(4 downto 0);",
+        "context": "\t\tvram_A:\t\t\t\tout std_logic_vector(13 downto 0);\n\t\tvram_D:\t\t\t\tin  std_logic_vector(7 downto 0);\n\t\tcram_A:\t\t\t\tout std_logic_vector(4 downto 0);\n\t\tcram_D:\t\t\t\tin  std_logic_vector(11 downto 0);\n\t\t\t"
+      },
+      {
+        "line": 176,
+        "text": "\t\t\t\t\tcram_A <= bg_color(4)&\"0000\";",
+        "context": "\t\t\t\tif not spr_active and not bg_active then\n\t\t\t\t\tout_color <= overscan ;\n\t\t\t\t\tcram_A <= bg_color(4)&\"0000\";\n\t\t\t\t\ty1 <= '0';\n\t\t\t\telsif (bg_priority='0' and spr_active) or (bg_priority='1' and not bg_active) then"
+      },
+      {
+        "line": 180,
+        "text": "\t\t\t\t\tcram_A <= \"1\"&spr_color;",
+        "context": "\t\t\t\telsif (bg_priority='0' and spr_active) or (bg_priority='1' and not bg_active) then\n\t\t\t\t\tout_color <= spr_color ;\n\t\t\t\t\tcram_A <= \"1\"&spr_color;\n\t\t\t\telse\n\t\t\t\t\tcram_A <= bg_color;"
+      },
+      {
+        "line": 182,
+        "text": "\t\t\t\t\tcram_A <= bg_color;",
+        "context": "\t\t\t\t\tcram_A <= \"1\"&spr_color;\n\t\t\t\telse\n\t\t\t\t\tcram_A <= bg_color;\n\t\t\t\t\tif bg_color(3 downto 0)=\"0000\" then\n\t\t\t\t\t\tout_color <= overscan ;"
+      },
+      {
+        "line": 190,
+        "text": "\t\t\t\tcram_A <= \"1\"&overscan;",
+        "context": "\t\t\t\tend if;\n\t\t\telse\n\t\t\t\tcram_A <= \"1\"&overscan;\n\t\t\t\tout_color <= overscan ;\n\t\t\tend if ;"
+      },
+      {
+        "line": 194,
+        "text": "\t\t\tcram_A <= \"1\"&overscan;",
+        "context": "\t\t\tend if ;\n\t\telse\n\t\t\tcram_A <= \"1\"&overscan;\n\t\t\tout_color <= overscan ;\n\t\tend if;\t\t"
+      }
+    ]
+  },
+  {
+    "file": "rtl/vdp_main.vhd",
+    "name": "ss_regs_set",
+    "sites": [
+      {
+        "line": 59,
+        "text": "\t\tss_regs_set:\t\tin  STD_LOGIC := '0');",
+        "context": "\t\tspr_overflow:\t\tout std_logic;\n\t\t-- Save-state: passed through to sprite scanner reset\n\t\tss_regs_set:\t\tin  STD_LOGIC := '0');\nend vdp_main;\n"
+      },
+      {
+        "line": 107,
+        "text": "\t\treset\t\t\t\t=> line_reset or ss_regs_set,",
+        "context": "\t\tpt_address\t\t=> m2mg_address,\n\t\tct_address\t\t=> m2ct_address,\n\t\treset\t\t\t\t=> line_reset or ss_regs_set,\n\t\tdisable_hscroll=> disable_hscroll,\n\t\tscroll_x_latched \t\t=> bg_scroll_x,"
+      },
+      {
+        "line": 127,
+        "text": "\t\tss_restore\t\t\t=> ss_regs_set,",
+        "context": "\t\ttext_fg_color\t=> text_fg_color,\n\t\toverscan\t\t\t=> overscan,\n\t\tss_restore\t\t\t=> ss_regs_set,\n\t\tpriority\t\t\t=> bg_priority);\n\t\t"
+      },
+      {
+        "line": 155,
+        "text": "\t\tss_regs_set\t\t=> ss_regs_set);",
+        "context": "\t\tvram_D\t\t\t=> vram_D,\t\t\n\t\tcolor\t\t\t\t=> spr_color,\n\t\tss_regs_set\t\t=> ss_regs_set);\n\n\tprocess (x, y, mask_column0, bg_priority, spr_color, bg_color, overscan, display_on, ggres, smode_M1, smode_M3, text_mode)"
+      }
+    ]
+  },
+  {
+    "file": "rtl/vdp.vhd",
+    "name": "spr_collide",
+    "sites": [
+      {
+        "line": 128,
+        "text": "\tsignal spr_collide:\t\tstd_logic;",
+        "context": "\tsignal address_ff:\t\tstd_logic := '0';\n\tsignal to_cram:\t\t\tboolean := false;\n\tsignal spr_collide:\t\tstd_logic;\n\tsignal spr_overflow:\t\tstd_logic;\n\t"
+      },
+      {
+        "line": 259,
+        "text": "\t\tspr_collide\t\t=> spr_collide,",
+        "context": "\t\tspr_tall\t\t\t=> spr_tall,\n\t\tspr_wide\t\t\t=> spr_wide,\n\t\tspr_collide\t\t=> spr_collide,\n\t\tspr_overflow\t=> spr_overflow);\n"
+      },
+      {
+        "line": 655,
+        "text": "\t\t\t\t\t\txspr_collide_shift(0) <= spr_collide;",
+        "context": "\t\t\t\t\txspr_collide_shift(13 downto 1) <= xspr_collide_shift(12 downto 0);\n\t\t\t\t\tif (x<=256) then\n\t\t\t\t\t\txspr_collide_shift(0) <= spr_collide;\n\t\t\t\t\telse\n\t\t\t\t\t\txspr_collide_shift(0) <= '0';"
+      }
+    ]
+  },
+  {
+    "file": "rtl/vdp.vhd",
+    "name": "spr_overflow",
+    "sites": [
+      {
+        "line": 129,
+        "text": "\tsignal spr_overflow:\t\tstd_logic;",
+        "context": "\tsignal to_cram:\t\t\tboolean := false;\n\tsignal spr_collide:\t\tstd_logic;\n\tsignal spr_overflow:\t\tstd_logic;\n\t\n\t-- vram and cram lines for the cpu interface"
+      },
+      {
+        "line": 260,
+        "text": "\t\tspr_overflow\t=> spr_overflow);",
+        "context": "\t\tspr_wide\t\t\t=> spr_wide,\n\t\tspr_collide\t\t=> spr_collide,\n\t\tspr_overflow\t=> spr_overflow);\n\n    "
+      },
+      {
+        "line": 643,
+        "text": "\t\t\t\t\t\tif spr_overflow='1' and line_overflow='0' then",
+        "context": "\t\t\t\tif ce_vdp = '0' then\n\t\t\t\t\tif (x<256 or x>485) and (y<234 or y>=496) then\n\t\t\t\t\t\tif spr_overflow='1' and line_overflow='0' then\n\t\t\t\t\t\t\toverflow_flag <= '1';\n\t\t\t\t\t\t\tline_overflow <= '1';"
+      }
+    ]
+  },
+  {
+    "file": "rtl/vdp.vhd",
+    "name": "vram_cpu_WE",
+    "sites": [
+      {
+        "line": 134,
+        "text": "\tsignal vram_cpu_WE:\t\tstd_logic;",
+        "context": "\tsignal vram_cpu_A:\t\tstd_logic_vector(14 downto 0);\n\tsignal xram_cpu_A:\t\tstd_logic_vector(13 downto 0);\n\tsignal vram_cpu_WE:\t\tstd_logic;\n\tsignal cram_cpu_WE:\t\tstd_logic;\n\tsignal vram_cpu_D_out:\tstd_logic_vector(7 downto 0);"
+      },
+      {
+        "line": 267,
+        "text": "\tvram_portA_wren    <= ss_vram_WE or (vram_cpu_WE and not ss_vram_en);",
+        "context": "\t\t\t\t\t\t\t\t\t\t\t\tss_vram_A  when ss_vram_en='1' else\n\t\t\t\t\t\t\t\t\t\t\t\tvram_cpu_A;\n\tvram_portA_wren    <= ss_vram_WE or (vram_cpu_WE and not ss_vram_en);\n\tvram_portA_data    <= ss_vram_WD when ss_vram_WE='1' else cpu_write_data;\n"
+      },
+      {
+        "line": 317,
+        "text": "\tvram_cpu_WE <= data_write when (WR_direct='1' or not to_cram) else '0';",
+        "context": "\t\t\t\t\t\t\twhen gg='0' else (cpu_write_data(3 downto 0) & cram_latch);\n\tcram_cpu_WE <= data_write when to_cram and ((gg='0') or (xram_cpu_A(0)='1')) and WR_direct='0' else '0';\n\tvram_cpu_WE <= data_write when (WR_direct='1' or not to_cram) else '0';\n\tvram_cpu_A <= not se_bank & A_direct & A when WR_direct='1' else se_bank & xram_cpu_A;\n"
+      }
+    ]
+  },
+  {
+    "file": "rtl/vdp.vhd",
+    "name": "cram_cpu_WE",
+    "sites": [
+      {
+        "line": 135,
+        "text": "\tsignal cram_cpu_WE:\t\tstd_logic;",
+        "context": "\tsignal xram_cpu_A:\t\tstd_logic_vector(13 downto 0);\n\tsignal vram_cpu_WE:\t\tstd_logic;\n\tsignal cram_cpu_WE:\t\tstd_logic;\n\tsignal vram_cpu_D_out:\tstd_logic_vector(7 downto 0);\n\tsignal vram_cpu_D_out_raw: std_logic_vector(7 downto 0);  -- raw port-A output (shared with SS DMA)"
+      },
+      {
+        "line": 299,
+        "text": "\t\tcpu_WE\t\t\t=> cram_cpu_WE,",
+        "context": "\tport map (\n\t\tcpu_clk\t\t\t=> clk_sys,\n\t\tcpu_WE\t\t\t=> cram_cpu_WE,\n\t\tcpu_A \t\t\t=> cram_vdp_A_in,\n\t\tcpu_D\t\t\t\t=> cram_vdp_D_in,"
+      },
+      {
+        "line": 316,
+        "text": "\tcram_cpu_WE <= data_write when to_cram and ((gg='0') or (xram_cpu_A(0)='1')) and WR_direct='0' else '0';",
+        "context": "\t                    cpu_write_data(1 downto 0) & cpu_write_data(1 downto 0))\n\t\t\t\t\t\t\twhen gg='0' else (cpu_write_data(3 downto 0) & cram_latch);\n\tcram_cpu_WE <= data_write when to_cram and ((gg='0') or (xram_cpu_A(0)='1')) and WR_direct='0' else '0';\n\tvram_cpu_WE <= data_write when (WR_direct='1' or not to_cram) else '0';\n\tvram_cpu_A <= not se_bank & A_direct & A when WR_direct='1' else se_bank & xram_cpu_A;"
+      }
+    ]
+  },
+  {
+    "file": "rtl/vdp.vhd",
+    "name": "cram_vdp_A",
+    "sites": [
+      {
+        "line": 151,
+        "text": "\tsignal cram_vdp_A:\t\tstd_logic_vector(4 downto 0);",
+        "context": "\tsignal vram_vdp_A:\t\tstd_logic_vector(13 downto 0);\n\tsignal vram_vdp_D:\t\tstd_logic_vector(7 downto 0);\t\n\tsignal cram_vdp_A:\t\tstd_logic_vector(4 downto 0);\n\tsignal cram_vdp_D:\t\tstd_logic_vector(11 downto 0);\n\tsignal cram_vdp_A_in:\tstd_logic_vector(4 downto 0);"
+      },
+      {
+        "line": 222,
+        "text": "\t\tcram_A\t\t\t=> cram_vdp_A,",
+        "context": "\t\tvram_A\t\t\t=> vram_vdp_A,\n\t\tvram_D\t\t\t=> vram_vdp_D,\n\t\tcram_A\t\t\t=> cram_vdp_A,\n\t\tcram_D\t\t\t=> cram_vdp_D,\n\t\t\t\t"
+      },
+      {
+        "line": 303,
+        "text": "\t\tvdp_A\t\t\t\t=> cram_vdp_A,",
+        "context": "\t\tcpu_D\t\t\t\t=> cram_vdp_D_in,\n\t\tvdp_clk\t\t\t=> clk_sys,\n\t\tvdp_A\t\t\t\t=> cram_vdp_A,\n\t\tvdp_D\t\t\t\t=> cram_vdp_D,\n\t\tss_D             => ss_cram_out,"
+      }
+    ]
+  },
+  {
+    "file": "rtl/vdp.vhd",
+    "name": "cram_vdp_D",
+    "sites": [
+      {
+        "line": 152,
+        "text": "\tsignal cram_vdp_D:\t\tstd_logic_vector(11 downto 0);",
+        "context": "\tsignal vram_vdp_D:\t\tstd_logic_vector(7 downto 0);\t\n\tsignal cram_vdp_A:\t\tstd_logic_vector(4 downto 0);\n\tsignal cram_vdp_D:\t\tstd_logic_vector(11 downto 0);\n\tsignal cram_vdp_A_in:\tstd_logic_vector(4 downto 0);\n\tsignal cram_vdp_D_in:\tstd_logic_vector(11 downto 0);"
+      },
+      {
+        "line": 223,
+        "text": "\t\tcram_D\t\t\t=> cram_vdp_D,",
+        "context": "\t\tvram_D\t\t\t=> vram_vdp_D,\n\t\tcram_A\t\t\t=> cram_vdp_A,\n\t\tcram_D\t\t\t=> cram_vdp_D,\n\t\t\t\t\n\t\tx\t\t\t\t\t=> x,"
+      },
+      {
+        "line": 304,
+        "text": "\t\tvdp_D\t\t\t\t=> cram_vdp_D,",
+        "context": "\t\tvdp_clk\t\t\t=> clk_sys,\n\t\tvdp_A\t\t\t\t=> cram_vdp_A,\n\t\tvdp_D\t\t\t\t=> cram_vdp_D,\n\t\tss_D             => ss_cram_out,\n\t\tss_wr            => ss_cram_wr,"
+      }
+    ]
+  },
+  {
+    "file": "rtl/vdp.vhd",
+    "name": "vram_vdp_A",
+    "sites": [
+      {
+        "line": 149,
+        "text": "\tsignal vram_vdp_A:\t\tstd_logic_vector(13 downto 0);",
+        "context": "\t\n\t-- vram and cram lines for the video interface\n\tsignal vram_vdp_A:\t\tstd_logic_vector(13 downto 0);\n\tsignal vram_vdp_D:\t\tstd_logic_vector(7 downto 0);\t\n\tsignal cram_vdp_A:\t\tstd_logic_vector(4 downto 0);"
+      },
+      {
+        "line": 220,
+        "text": "\t\tvram_A\t\t\t=> vram_vdp_A,",
+        "context": "\t\tsp64\t\t\t\t=> sp64,\n\t\tlegacy_ext_nt\t=> legacy_ext_nt,\n\t\tvram_A\t\t\t=> vram_vdp_A,\n\t\tvram_D\t\t\t=> vram_vdp_D,\n\t\tcram_A\t\t\t=> cram_vdp_A,"
+      },
+      {
+        "line": 286,
+        "text": "      address_b\t\t=> se_bank & vram_vdp_A,",
+        "context": "\n      clock_b\t\t\t=> clk_sys,\n      address_b\t\t=> se_bank & vram_vdp_A,\n      wren_b\t\t\t=> '0',\n      data_b\t\t\t=> (others => '0'),"
+      }
+    ]
+  },
+  {
+    "file": "rtl/vdp.vhd",
+    "name": "vram_vdp_D",
+    "sites": [
+      {
+        "line": 150,
+        "text": "\tsignal vram_vdp_D:\t\tstd_logic_vector(7 downto 0);\t",
+        "context": "\t-- vram and cram lines for the video interface\n\tsignal vram_vdp_A:\t\tstd_logic_vector(13 downto 0);\n\tsignal vram_vdp_D:\t\tstd_logic_vector(7 downto 0);\t\n\tsignal cram_vdp_A:\t\tstd_logic_vector(4 downto 0);\n\tsignal cram_vdp_D:\t\tstd_logic_vector(11 downto 0);"
+      },
+      {
+        "line": 221,
+        "text": "\t\tvram_D\t\t\t=> vram_vdp_D,",
+        "context": "\t\tlegacy_ext_nt\t=> legacy_ext_nt,\n\t\tvram_A\t\t\t=> vram_vdp_A,\n\t\tvram_D\t\t\t=> vram_vdp_D,\n\t\tcram_A\t\t\t=> cram_vdp_A,\n\t\tcram_D\t\t\t=> cram_vdp_D,"
+      },
+      {
+        "line": 289,
+        "text": "      q_b\t\t\t\t=> vram_vdp_D",
+        "context": "      wren_b\t\t\t=> '0',\n      data_b\t\t\t=> (others => '0'),\n      q_b\t\t\t\t=> vram_vdp_D\n    );\n"
+      }
+    ]
+  },
+  {
+    "file": "rtl/system.vhd",
+    "name": "vdp_IRQ_n",
+    "sites": [
+      {
+        "line": 258,
+        "text": "\tsignal vdp_IRQ_n:\t\t\tstd_logic;",
+        "context": "\tsignal vdp_WR_n:\t\t\tstd_logic;\n\tsignal vdp_D_out:\t\t\tstd_logic_vector(7 downto 0);\n\tsignal vdp_IRQ_n:\t\t\tstd_logic;\n\tsignal vdp_color:\t\t\tstd_logic_vector(11 downto 0);\n--\tsignal vdp_y1:\t\t\t\tstd_logic;"
+      },
+      {
+        "line": 678,
+        "text": "\t\tIRQ_n\t\t=> vdp_IRQ_n,",
+        "context": "\t\tRD_n\t\t=> vdp_RD_n,\n\t\tWR_n\t\t=> vdp_WR_n,\n\t\tIRQ_n\t\t=> vdp_IRQ_n,\n\t\tWR_direct => vram_WR,\n\t\tA_direct\t=> A(13 downto 8),"
+      },
+      {
+        "line": 1236,
+        "text": "\tIRQ_n <= vdp_IRQ_n when systeme='0' else vdp2_IRQ_n;",
+        "context": "\tfm_WR_n  <= WR_n when IORQ_n='0' and M1_n='1' and A(7 downto 1)=\"1111000\" and mapper_evolution='0' else '1';\n\tdet_WR_n <= WR_n when IORQ_n='0' and M1_n='1' and A(7 downto 0)=x\"F2\" and mapper_evolution='0' else '1';\n\tIRQ_n <= vdp_IRQ_n when systeme='0' else vdp2_IRQ_n;\n\t\t\t\t\t\n\tvram_WR  <= not WR_n when ss_freeze = '0' and MREQ_n='0' and A(15 downto 14)=\"10\" and vdp_cpu_bank='1' and systeme='1' else '0';"
+      }
+    ]
+  },
+  {
+    "file": "rtl/system.vhd",
+    "name": "vdp2_IRQ_n",
+    "sites": [
+      {
+        "line": 264,
+        "text": "\tsignal vdp2_IRQ_n:\t\tstd_logic;",
+        "context": "\tsignal vdp2_WR_n:\t\t\tstd_logic;\n\tsignal vdp2_D_out:\t\tstd_logic_vector(7 downto 0);\n\tsignal vdp2_IRQ_n:\t\tstd_logic;\n\tsignal vdp2_color:\t\tstd_logic_vector(11 downto 0);\n\tsignal vdp2_y1:\t\t\tstd_logic;"
+      },
+      {
+        "line": 734,
+        "text": "\t\tIRQ_n\t\t=> vdp2_IRQ_n,",
+        "context": "\t\tRD_n\t\t=> vdp2_RD_n,\n\t\tWR_n\t\t=> vdp2_WR_n,\n\t\tIRQ_n\t\t=> vdp2_IRQ_n,\n\t\tWR_direct => vram2_WR,\n\t\tA_direct\t=> A(13 downto 8),"
+      },
+      {
+        "line": 1236,
+        "text": "\tIRQ_n <= vdp_IRQ_n when systeme='0' else vdp2_IRQ_n;",
+        "context": "\tfm_WR_n  <= WR_n when IORQ_n='0' and M1_n='1' and A(7 downto 1)=\"1111000\" and mapper_evolution='0' else '1';\n\tdet_WR_n <= WR_n when IORQ_n='0' and M1_n='1' and A(7 downto 0)=x\"F2\" and mapper_evolution='0' else '1';\n\tIRQ_n <= vdp_IRQ_n when systeme='0' else vdp2_IRQ_n;\n\t\t\t\t\t\n\tvram_WR  <= not WR_n when ss_freeze = '0' and MREQ_n='0' and A(15 downto 14)=\"10\" and vdp_cpu_bank='1' and systeme='1' else '0';"
+      }
+    ]
+  },
+  {
+    "file": "rtl/system.vhd",
+    "name": "vdp_RD_n",
+    "sites": [
+      {
+        "line": 255,
+        "text": "\tsignal vdp_RD_n:\t\t\tstd_logic;",
+        "context": "\tsignal ce_z80:\t\t\t\tstd_logic;\n\t\n\tsignal vdp_RD_n:\t\t\tstd_logic;\n\tsignal vdp_WR_n:\t\t\tstd_logic;\n\tsignal vdp_D_out:\t\t\tstd_logic_vector(7 downto 0);"
+      },
+      {
+        "line": 676,
+        "text": "\t\tRD_n\t\t=> vdp_RD_n,",
+        "context": "\t\t-- Bsg\t\t\t=> sg,\t\t-- sg1000\n\t\tse_bank\t=> vdp_se_bank,\n\t\tRD_n\t\t=> vdp_RD_n,\n\t\tWR_n\t\t=> vdp_WR_n,\n\t\tIRQ_n\t\t=> vdp_IRQ_n,"
+      },
+      {
+        "line": 1212,
+        "text": "\tvdp_RD_n <= RD_n when IORQ_n='0' and M1_n='1' and evolution_io_port='0' and (A(7 downto 6)=\"01\" or A(7 downto 6)=\"10\") and (A(2)='0' or systeme='0') else '1';",
+        "context": "\t                         A(7 downto 6)=\"10\" and (A(2)='0' or systeme='0') else '1';\n\tvdp2_WR_n <= WR_n when IORQ_n='0' and M1_n='1' and A(7 downto 6)=\"10\" and (A(2)='1' and systeme='1')  else '1';\n\tvdp_RD_n <= RD_n when IORQ_n='0' and M1_n='1' and evolution_io_port='0' and (A(7 downto 6)=\"01\" or A(7 downto 6)=\"10\") and (A(2)='0' or systeme='0') else '1';\n\tvdp2_RD_n <= RD_n when IORQ_n='0' and M1_n='1' and (A(7 downto 6)=\"01\" or A(7 downto 6)=\"10\") and (A(2)='1' and systeme='1') else '1';\n\tpsg_WR_n <= WR_n when IORQ_n='0' and M1_n='1' and evolution_io_port='0' and A(7 downto 6)=\"01\" and (A(2)='0' or systeme='0') else '1';"
+      }
+    ]
+  },
+  {
+    "file": "rtl/system.vhd",
+    "name": "vdp_WR_n",
+    "sites": [
+      {
+        "line": 256,
+        "text": "\tsignal vdp_WR_n:\t\t\tstd_logic;",
+        "context": "\t\n\tsignal vdp_RD_n:\t\t\tstd_logic;\n\tsignal vdp_WR_n:\t\t\tstd_logic;\n\tsignal vdp_D_out:\t\t\tstd_logic_vector(7 downto 0);\n\tsignal vdp_IRQ_n:\t\t\tstd_logic;"
+      },
+      {
+        "line": 677,
+        "text": "\t\tWR_n\t\t=> vdp_WR_n,",
+        "context": "\t\tse_bank\t=> vdp_se_bank,\n\t\tRD_n\t\t=> vdp_RD_n,\n\t\tWR_n\t\t=> vdp_WR_n,\n\t\tIRQ_n\t\t=> vdp_IRQ_n,\n\t\tWR_direct => vram_WR,"
+      },
+      {
+        "line": 1208,
+        "text": "\tvdp_WR_n <= WR_n when IORQ_n='0' and M1_n='1' and evolution_io_port='0' and",
+        "context": "\t-- glue logic\n\tbal_WR_n <= WR_n when IORQ_n='0' and M1_n='1' and A(7 downto 0)=\"00000110\" and effective_gg='1' else '1';\n\tvdp_WR_n <= WR_n when IORQ_n='0' and M1_n='1' and evolution_io_port='0' and\n\t                         not (evolution_menu_mode='1' and A(7 downto 0)=x\"89\") and\n\t                         A(7 downto 6)=\"10\" and (A(2)='0' or systeme='0') else '1';"
+      }
+    ]
+  },
+  {
+    "file": "rtl/system.vhd",
+    "name": "vdp2_RD_n",
+    "sites": [
+      {
+        "line": 261,
+        "text": "\tsignal vdp2_RD_n:\t\t\tstd_logic;",
+        "context": "\tsignal vdp_color:\t\t\tstd_logic_vector(11 downto 0);\n--\tsignal vdp_y1:\t\t\t\tstd_logic;\n\tsignal vdp2_RD_n:\t\t\tstd_logic;\n\tsignal vdp2_WR_n:\t\t\tstd_logic;\n\tsignal vdp2_D_out:\t\tstd_logic_vector(7 downto 0);"
+      },
+      {
+        "line": 732,
+        "text": "\t\tRD_n\t\t=> vdp2_RD_n,",
+        "context": "\t\t-- Bsg\t\t\t=> sg,\t\t-- sg1000\n\t\tse_bank\t=> vdp2_se_bank,\n\t\tRD_n\t\t=> vdp2_RD_n,\n\t\tWR_n\t\t=> vdp2_WR_n,\n\t\tIRQ_n\t\t=> vdp2_IRQ_n,"
+      },
+      {
+        "line": 1213,
+        "text": "\tvdp2_RD_n <= RD_n when IORQ_n='0' and M1_n='1' and (A(7 downto 6)=\"01\" or A(7 downto 6)=\"10\") and (A(2)='1' and systeme='1') else '1';",
+        "context": "\tvdp2_WR_n <= WR_n when IORQ_n='0' and M1_n='1' and A(7 downto 6)=\"10\" and (A(2)='1' and systeme='1')  else '1';\n\tvdp_RD_n <= RD_n when IORQ_n='0' and M1_n='1' and evolution_io_port='0' and (A(7 downto 6)=\"01\" or A(7 downto 6)=\"10\") and (A(2)='0' or systeme='0') else '1';\n\tvdp2_RD_n <= RD_n when IORQ_n='0' and M1_n='1' and (A(7 downto 6)=\"01\" or A(7 downto 6)=\"10\") and (A(2)='1' and systeme='1') else '1';\n\tpsg_WR_n <= WR_n when IORQ_n='0' and M1_n='1' and evolution_io_port='0' and A(7 downto 6)=\"01\" and (A(2)='0' or systeme='0') else '1';\n\tpsg2_WR_n <= WR_n when IORQ_n='0' and M1_n='1' and A(7 downto 6)=\"01\" and (A(2)='1' and systeme='1') else '1';"
+      }
+    ]
+  },
+  {
+    "file": "rtl/system.vhd",
+    "name": "vdp2_WR_n",
+    "sites": [
+      {
+        "line": 262,
+        "text": "\tsignal vdp2_WR_n:\t\t\tstd_logic;",
+        "context": "--\tsignal vdp_y1:\t\t\t\tstd_logic;\n\tsignal vdp2_RD_n:\t\t\tstd_logic;\n\tsignal vdp2_WR_n:\t\t\tstd_logic;\n\tsignal vdp2_D_out:\t\tstd_logic_vector(7 downto 0);\n\tsignal vdp2_IRQ_n:\t\tstd_logic;"
+      },
+      {
+        "line": 733,
+        "text": "\t\tWR_n\t\t=> vdp2_WR_n,",
+        "context": "\t\tse_bank\t=> vdp2_se_bank,\n\t\tRD_n\t\t=> vdp2_RD_n,\n\t\tWR_n\t\t=> vdp2_WR_n,\n\t\tIRQ_n\t\t=> vdp2_IRQ_n,\n\t\tWR_direct => vram2_WR,"
+      },
+      {
+        "line": 1211,
+        "text": "\tvdp2_WR_n <= WR_n when IORQ_n='0' and M1_n='1' and A(7 downto 6)=\"10\" and (A(2)='1' and systeme='1')  else '1';",
+        "context": "\t                         not (evolution_menu_mode='1' and A(7 downto 0)=x\"89\") and\n\t                         A(7 downto 6)=\"10\" and (A(2)='0' or systeme='0') else '1';\n\tvdp2_WR_n <= WR_n when IORQ_n='0' and M1_n='1' and A(7 downto 6)=\"10\" and (A(2)='1' and systeme='1')  else '1';\n\tvdp_RD_n <= RD_n when IORQ_n='0' and M1_n='1' and evolution_io_port='0' and (A(7 downto 6)=\"01\" or A(7 downto 6)=\"10\") and (A(2)='0' or systeme='0') else '1';\n\tvdp2_RD_n <= RD_n when IORQ_n='0' and M1_n='1' and (A(7 downto 6)=\"01\" or A(7 downto 6)=\"10\") and (A(2)='1' and systeme='1') else '1';"
+      }
+    ]
+  },
+  {
+    "file": "rtl/system.vhd",
+    "name": "vram_WR",
+    "sites": [
+      {
+        "line": 277,
+        "text": "\tsignal vram_WR:\t\t\tstd_logic;",
+        "context": "\tsignal ram_D_out:\t\t\tstd_logic_vector(7 downto 0);\n\n\tsignal vram_WR:\t\t\tstd_logic;\n\tsignal vram2_WR:\t\t\tstd_logic;\n"
+      },
+      {
+        "line": 679,
+        "text": "\t\tWR_direct => vram_WR,",
+        "context": "\t\tWR_n\t\t=> vdp_WR_n,\n\t\tIRQ_n\t\t=> vdp_IRQ_n,\n\t\tWR_direct => vram_WR,\n\t\tA_direct\t=> A(13 downto 8),\n\t\tA\t\t\t=> A(7 downto 0),"
+      },
+      {
+        "line": 1238,
+        "text": "\tvram_WR  <= not WR_n when ss_freeze = '0' and MREQ_n='0' and A(15 downto 14)=\"10\" and vdp_cpu_bank='1' and systeme='1' else '0';",
+        "context": "\tIRQ_n <= vdp_IRQ_n when systeme='0' else vdp2_IRQ_n;\n\t\t\t\t\t\n\tvram_WR  <= not WR_n when ss_freeze = '0' and MREQ_n='0' and A(15 downto 14)=\"10\" and vdp_cpu_bank='1' and systeme='1' else '0';\n\tvram2_WR  <= not WR_n when ss_freeze = '0' and MREQ_n='0' and A(15 downto 14)=\"10\" and vdp_cpu_bank='0' and systeme='1' else '0';\n\tcolor    <= vdp2_color when (vdp2_y1='1' and systeme='1' and vdp_enables(1)='0') else vdp_color when vdp_enables(0)='0' else x\"000\";"
+      }
+    ]
+  },
+  {
+    "file": "rtl/system.vhd",
+    "name": "vram2_WR",
+    "sites": [
+      {
+        "line": 278,
+        "text": "\tsignal vram2_WR:\t\t\tstd_logic;",
+        "context": "\n\tsignal vram_WR:\t\t\tstd_logic;\n\tsignal vram2_WR:\t\t\tstd_logic;\n\n\tsignal boot_rom_D_out:\tstd_logic_vector(7 downto 0);"
+      },
+      {
+        "line": 735,
+        "text": "\t\tWR_direct => vram2_WR,",
+        "context": "\t\tWR_n\t\t=> vdp2_WR_n,\n\t\tIRQ_n\t\t=> vdp2_IRQ_n,\n\t\tWR_direct => vram2_WR,\n\t\tA_direct\t=> A(13 downto 8),\n\t\tA\t\t\t=> A(7 downto 0),"
+      },
+      {
+        "line": 1239,
+        "text": "\tvram2_WR  <= not WR_n when ss_freeze = '0' and MREQ_n='0' and A(15 downto 14)=\"10\" and vdp_cpu_bank='0' and systeme='1' else '0';",
+        "context": "\t\t\t\t\t\n\tvram_WR  <= not WR_n when ss_freeze = '0' and MREQ_n='0' and A(15 downto 14)=\"10\" and vdp_cpu_bank='1' and systeme='1' else '0';\n\tvram2_WR  <= not WR_n when ss_freeze = '0' and MREQ_n='0' and A(15 downto 14)=\"10\" and vdp_cpu_bank='0' and systeme='1' else '0';\n\tcolor    <= vdp2_color when (vdp2_y1='1' and systeme='1' and vdp_enables(1)='0') else vdp_color when vdp_enables(0)='0' else x\"000\";\n"
+      }
+    ]
+  },
+  {
+    "file": "rtl/system.vhd",
+    "name": "vdp_color",
+    "sites": [
+      {
+        "line": 259,
+        "text": "\tsignal vdp_color:\t\t\tstd_logic_vector(11 downto 0);",
+        "context": "\tsignal vdp_D_out:\t\t\tstd_logic_vector(7 downto 0);\n\tsignal vdp_IRQ_n:\t\t\tstd_logic;\n\tsignal vdp_color:\t\t\tstd_logic_vector(11 downto 0);\n--\tsignal vdp_y1:\t\t\t\tstd_logic;\n\tsignal vdp2_RD_n:\t\t\tstd_logic;"
+      },
+      {
+        "line": 687,
+        "text": "\t\tcolor\t\t=> vdp_color,",
+        "context": "\t\ty\t\t\t=> y,\n\t\tvcounter_cpu=> vcounter_cpu,\n\t\tcolor\t\t=> vdp_color,\n\t\tpalettemode\t=> palettemode,\n\t\ty1\t\t\t=> open,"
+      },
+      {
+        "line": 1240,
+        "text": "\tcolor    <= vdp2_color when (vdp2_y1='1' and systeme='1' and vdp_enables(1)='0') else vdp_color when vdp_enables(0)='0' else x\"000\";",
+        "context": "\tvram_WR  <= not WR_n when ss_freeze = '0' and MREQ_n='0' and A(15 downto 14)=\"10\" and vdp_cpu_bank='1' and systeme='1' else '0';\n\tvram2_WR  <= not WR_n when ss_freeze = '0' and MREQ_n='0' and A(15 downto 14)=\"10\" and vdp_cpu_bank='0' and systeme='1' else '0';\n\tcolor    <= vdp2_color when (vdp2_y1='1' and systeme='1' and vdp_enables(1)='0') else vdp_color when vdp_enables(0)='0' else x\"000\";\n\n\tactive_bios <= '1' when (bios_en = '1' and (ext_bios_sel = '0' or ext_bios_loaded = '1')) or (gg_bios_en = '1' and ext_gg_bios_loaded = '1') else '0';"
+      }
+    ]
+  },
+  {
+    "file": "rtl/system.vhd",
+    "name": "vdp2_color",
+    "sites": [
+      {
+        "line": 265,
+        "text": "\tsignal vdp2_color:\t\tstd_logic_vector(11 downto 0);",
+        "context": "\tsignal vdp2_D_out:\t\tstd_logic_vector(7 downto 0);\n\tsignal vdp2_IRQ_n:\t\tstd_logic;\n\tsignal vdp2_color:\t\tstd_logic_vector(11 downto 0);\n\tsignal vdp2_y1:\t\t\tstd_logic;\n"
+      },
+      {
+        "line": 743,
+        "text": "\t\tcolor\t\t=> vdp2_color,",
+        "context": "\t\ty\t\t\t=> y,\n\t\tvcounter_cpu=> vcounter_cpu,\n\t\tcolor\t\t=> vdp2_color,\n\t\tpalettemode\t=> palettemode,\n\t\ty1\t\t\t=> vdp2_y1,"
+      },
+      {
+        "line": 1240,
+        "text": "\tcolor    <= vdp2_color when (vdp2_y1='1' and systeme='1' and vdp_enables(1)='0') else vdp_color when vdp_enables(0)='0' else x\"000\";",
+        "context": "\tvram_WR  <= not WR_n when ss_freeze = '0' and MREQ_n='0' and A(15 downto 14)=\"10\" and vdp_cpu_bank='1' and systeme='1' else '0';\n\tvram2_WR  <= not WR_n when ss_freeze = '0' and MREQ_n='0' and A(15 downto 14)=\"10\" and vdp_cpu_bank='0' and systeme='1' else '0';\n\tcolor    <= vdp2_color when (vdp2_y1='1' and systeme='1' and vdp_enables(1)='0') else vdp_color when vdp_enables(0)='0' else x\"000\";\n\n\tactive_bios <= '1' when (bios_en = '1' and (ext_bios_sel = '0' or ext_bios_loaded = '1')) or (gg_bios_en = '1' and ext_gg_bios_loaded = '1') else '0';"
+      }
+    ]
+  },
+  {
+    "file": "rtl/system.vhd",
+    "name": "vdp_se_bank",
+    "sites": [
+      {
+        "line": 323,
+        "text": "\tsignal vdp_se_bank:\t\tstd_logic := '0';",
+        "context": "\tsignal bank3:\t\t\t\tstd_logic_vector(7 downto 0);\n  \n\tsignal vdp_se_bank:\t\tstd_logic := '0';\n\tsignal vdp2_se_bank:\t\tstd_logic := '0';\n\tsignal vdp_cpu_bank:\t\tstd_logic := '0';"
+      },
+      {
+        "line": 675,
+        "text": "\t\tse_bank\t=> vdp_se_bank,",
+        "context": "\t\tggres\t\t\t=> ggres,\n\t\t-- Bsg\t\t\t=> sg,\t\t-- sg1000\n\t\tse_bank\t=> vdp_se_bank,\n\t\tRD_n\t\t=> vdp_RD_n,\n\t\tWR_n\t\t=> vdp_WR_n,"
+      },
+      {
+        "line": 895,
+        "text": "\t\tvdp1_bank => vdp_se_bank,",
+        "context": "\t\tD_out\t\t=> io_D_out,\n\t\tHL_out\t=> HL,\n\t\tvdp1_bank => vdp_se_bank,\n\t\tvdp2_bank => vdp2_se_bank,\n\t\tvdp_cpu_bank => vdp_cpu_bank,"
+      },
+      {
+        "line": 1515,
+        "text": "\t                          vdp_se_bank & vdp2_se_bank & vdp_cpu_bank & '0' & rom_bank when systeme='1' else",
+        "context": "\n\tmapper_out(7 downto 0) <= evolution_bank61 when mapper_evolution = '1' else\n\t                          vdp_se_bank & vdp2_se_bank & vdp_cpu_bank & '0' & rom_bank when systeme='1' else\n\t                          jang_rev1 & \"0\" & jang_bank1 when mapper_janggun = '1' else\n\t                          bank0;"
+      }
+    ]
+  },
+  {
+    "file": "rtl/system.vhd",
+    "name": "vdp2_se_bank",
+    "sites": [
+      {
+        "line": 324,
+        "text": "\tsignal vdp2_se_bank:\t\tstd_logic := '0';",
+        "context": "  \n\tsignal vdp_se_bank:\t\tstd_logic := '0';\n\tsignal vdp2_se_bank:\t\tstd_logic := '0';\n\tsignal vdp_cpu_bank:\t\tstd_logic := '0';\n"
+      },
+      {
+        "line": 731,
+        "text": "\t\tse_bank\t=> vdp2_se_bank,",
+        "context": "\t\tggres\t\t\t=> ggres,\n\t\t-- Bsg\t\t\t=> sg,\t\t-- sg1000\n\t\tse_bank\t=> vdp2_se_bank,\n\t\tRD_n\t\t=> vdp2_RD_n,\n\t\tWR_n\t\t=> vdp2_WR_n,"
+      },
+      {
+        "line": 896,
+        "text": "\t\tvdp2_bank => vdp2_se_bank,",
+        "context": "\t\tHL_out\t=> HL,\n\t\tvdp1_bank => vdp_se_bank,\n\t\tvdp2_bank => vdp2_se_bank,\n\t\tvdp_cpu_bank => vdp_cpu_bank,\n\t\trom_bank => rom_bank,"
+      },
+      {
+        "line": 1515,
+        "text": "\t                          vdp_se_bank & vdp2_se_bank & vdp_cpu_bank & '0' & rom_bank when systeme='1' else",
+        "context": "\n\tmapper_out(7 downto 0) <= evolution_bank61 when mapper_evolution = '1' else\n\t                          vdp_se_bank & vdp2_se_bank & vdp_cpu_bank & '0' & rom_bank when systeme='1' else\n\t                          jang_rev1 & \"0\" & jang_bank1 when mapper_janggun = '1' else\n\t                          bank0;"
+      }
+    ]
+  },
+  {
+    "file": "rtl/video.vhd",
+    "name": "video_state_in",
+    "sites": [
+      {
+        "line": 21,
+        "text": "\t\tvideo_state_in:  in  std_logic_vector(21 downto 0) := (others => '0');",
+        "context": "\t\t\n\t\tvideo_state_out: out std_logic_vector(21 downto 0);\n\t\tvideo_state_in:  in  std_logic_vector(21 downto 0) := (others => '0');\n\t\tvideo_state_set: in  std_logic := '0';\n\t\t"
+      },
+      {
+        "line": 56,
+        "text": "\t\t\t\thcount <= video_state_in(21 downto 13);",
+        "context": "\t\tif rising_edge(clk) then\n\t\t\tif video_state_set = '1' then\n\t\t\t\thcount <= video_state_in(21 downto 13);\n\t\t\t\tvcount <= video_state_in(12 downto 4);\n\t\t\t\thsync_reg <= video_state_in(3);"
+      },
+      {
+        "line": 57,
+        "text": "\t\t\t\tvcount <= video_state_in(12 downto 4);",
+        "context": "\t\t\tif video_state_set = '1' then\n\t\t\t\thcount <= video_state_in(21 downto 13);\n\t\t\t\tvcount <= video_state_in(12 downto 4);\n\t\t\t\thsync_reg <= video_state_in(3);\n\t\t\t\tvsync_reg <= video_state_in(2);"
+      },
+      {
+        "line": 58,
+        "text": "\t\t\t\thsync_reg <= video_state_in(3);",
+        "context": "\t\t\t\thcount <= video_state_in(21 downto 13);\n\t\t\t\tvcount <= video_state_in(12 downto 4);\n\t\t\t\thsync_reg <= video_state_in(3);\n\t\t\t\tvsync_reg <= video_state_in(2);\n\t\t\t\t"
+      },
+      {
+        "line": 59,
+        "text": "\t\t\t\tvsync_reg <= video_state_in(2);",
+        "context": "\t\t\t\tvcount <= video_state_in(12 downto 4);\n\t\t\t\thsync_reg <= video_state_in(3);\n\t\t\t\tvsync_reg <= video_state_in(2);\n\t\t\t\t\n\t\t\t\t-- Reconstruct CPU VCounter based on whether restored position is in early transition window (486..487)"
+      },
+      {
+        "line": 62,
+        "text": "\t\t\t\tif (video_state_in(21 downto 13) = conv_std_logic_vector(486, 9) or",
+        "context": "\t\t\t\t\n\t\t\t\t-- Reconstruct CPU VCounter based on whether restored position is in early transition window (486..487)\n\t\t\t\tif (video_state_in(21 downto 13) = conv_std_logic_vector(486, 9) or\n\t\t\t\t    video_state_in(21 downto 13) = conv_std_logic_vector(487, 9)) then\n\t\t\t\t\tif pal = '1' then"
+      },
+      {
+        "line": 63,
+        "text": "\t\t\t\t    video_state_in(21 downto 13) = conv_std_logic_vector(487, 9)) then",
+        "context": "\t\t\t\t-- Reconstruct CPU VCounter based on whether restored position is in early transition window (486..487)\n\t\t\t\tif (video_state_in(21 downto 13) = conv_std_logic_vector(486, 9) or\n\t\t\t\t    video_state_in(21 downto 13) = conv_std_logic_vector(487, 9)) then\n\t\t\t\t\tif pal = '1' then\n\t\t\t\t\t\tif smode_M1 = '1' and smode_M2 = '1' then"
+      },
+      {
+        "line": 66,
+        "text": "\t\t\t\t\t\t\tif video_state_in(12 downto 4) = 258 then",
+        "context": "\t\t\t\t\tif pal = '1' then\n\t\t\t\t\t\tif smode_M1 = '1' and smode_M2 = '1' then\n\t\t\t\t\t\t\tif video_state_in(12 downto 4) = 258 then\n\t\t\t\t\t\t\t\tvcounter_cpu_reg <= conv_std_logic_vector(458, 9);\n\t\t\t\t\t\t\telse"
+      },
+      {
+        "line": 69,
+        "text": "\t\t\t\t\t\t\t\tvcounter_cpu_reg <= video_state_in(12 downto 4) + 1;",
+        "context": "\t\t\t\t\t\t\t\tvcounter_cpu_reg <= conv_std_logic_vector(458, 9);\n\t\t\t\t\t\t\telse\n\t\t\t\t\t\t\t\tvcounter_cpu_reg <= video_state_in(12 downto 4) + 1;\n\t\t\t\t\t\t\tend if;\n\t\t\t\t\t\telsif smode_M3 = '1' and smode_M2 = '1' then"
+      },
+      {
+        "line": 72,
+        "text": "\t\t\t\t\t\t\tif video_state_in(12 downto 4) = 266 then",
+        "context": "\t\t\t\t\t\t\tend if;\n\t\t\t\t\t\telsif smode_M3 = '1' and smode_M2 = '1' then\n\t\t\t\t\t\t\tif video_state_in(12 downto 4) = 266 then\n\t\t\t\t\t\t\t\tvcounter_cpu_reg <= conv_std_logic_vector(482, 9);\n\t\t\t\t\t\t\telse"
+      },
+      {
+        "line": 75,
+        "text": "\t\t\t\t\t\t\t\tvcounter_cpu_reg <= video_state_in(12 downto 4) + 1;",
+        "context": "\t\t\t\t\t\t\t\tvcounter_cpu_reg <= conv_std_logic_vector(482, 9);\n\t\t\t\t\t\t\telse\n\t\t\t\t\t\t\t\tvcounter_cpu_reg <= video_state_in(12 downto 4) + 1;\n\t\t\t\t\t\t\tend if;\n\t\t\t\t\t\telse"
+      },
+      {
+        "line": 78,
+        "text": "\t\t\t\t\t\t\tif video_state_in(12 downto 4) = 242 then",
+        "context": "\t\t\t\t\t\t\tend if;\n\t\t\t\t\t\telse\n\t\t\t\t\t\t\tif video_state_in(12 downto 4) = 242 then\n\t\t\t\t\t\t\t\tvcounter_cpu_reg <= conv_std_logic_vector(442, 9);\n\t\t\t\t\t\t\telse"
+      },
+      {
+        "line": 81,
+        "text": "\t\t\t\t\t\t\t\tvcounter_cpu_reg <= video_state_in(12 downto 4) + 1;",
+        "context": "\t\t\t\t\t\t\t\tvcounter_cpu_reg <= conv_std_logic_vector(442, 9);\n\t\t\t\t\t\t\telse\n\t\t\t\t\t\t\t\tvcounter_cpu_reg <= video_state_in(12 downto 4) + 1;\n\t\t\t\t\t\t\tend if;\n\t\t\t\t\t\tend if;"
+      },
+      {
+        "line": 86,
+        "text": "\t\t\t\t\t\t\tif video_state_in(12 downto 4) = 234 then",
+        "context": "\t\t\t\t\telse\n\t\t\t\t\t\tif smode_M1 = '1' and smode_M2 = '1' then\n\t\t\t\t\t\t\tif video_state_in(12 downto 4) = 234 then\n\t\t\t\t\t\t\t\tvcounter_cpu_reg <= conv_std_logic_vector(485, 9);\n\t\t\t\t\t\t\telse"
+      },
+      {
+        "line": 89,
+        "text": "\t\t\t\t\t\t\t\tvcounter_cpu_reg <= video_state_in(12 downto 4) + 1;",
+        "context": "\t\t\t\t\t\t\t\tvcounter_cpu_reg <= conv_std_logic_vector(485, 9);\n\t\t\t\t\t\t\telse\n\t\t\t\t\t\t\t\tvcounter_cpu_reg <= video_state_in(12 downto 4) + 1;\n\t\t\t\t\t\t\tend if;\n\t\t\t\t\t\telsif smode_M3 = '1' and smode_M2 = '1' then"
+      },
+      {
+        "line": 92,
+        "text": "\t\t\t\t\t\t\tif video_state_in(12 downto 4) = 261 then",
+        "context": "\t\t\t\t\t\t\tend if;\n\t\t\t\t\t\telsif smode_M3 = '1' and smode_M2 = '1' then\n\t\t\t\t\t\t\tif video_state_in(12 downto 4) = 261 then\n\t\t\t\t\t\t\t\tvcounter_cpu_reg <= (others => '0');\n\t\t\t\t\t\t\telse"
+      },
+      {
+        "line": 95,
+        "text": "\t\t\t\t\t\t\t\tvcounter_cpu_reg <= video_state_in(12 downto 4) + 1;",
+        "context": "\t\t\t\t\t\t\t\tvcounter_cpu_reg <= (others => '0');\n\t\t\t\t\t\t\telse\n\t\t\t\t\t\t\t\tvcounter_cpu_reg <= video_state_in(12 downto 4) + 1;\n\t\t\t\t\t\t\tend if;\n\t\t\t\t\t\telse"
+      },
+      {
+        "line": 98,
+        "text": "\t\t\t\t\t\t\tif video_state_in(12 downto 4) = 218 then",
+        "context": "\t\t\t\t\t\t\tend if;\n\t\t\t\t\t\telse\n\t\t\t\t\t\t\tif video_state_in(12 downto 4) = 218 then\n\t\t\t\t\t\t\t\tvcounter_cpu_reg <= conv_std_logic_vector(469, 9);\n\t\t\t\t\t\t\telse"
+      },
+      {
+        "line": 101,
+        "text": "\t\t\t\t\t\t\t\tvcounter_cpu_reg <= video_state_in(12 downto 4) + 1;",
+        "context": "\t\t\t\t\t\t\t\tvcounter_cpu_reg <= conv_std_logic_vector(469, 9);\n\t\t\t\t\t\t\telse\n\t\t\t\t\t\t\t\tvcounter_cpu_reg <= video_state_in(12 downto 4) + 1;\n\t\t\t\t\t\t\tend if;\n\t\t\t\t\t\tend if;"
+      },
+      {
+        "line": 106,
+        "text": "\t\t\t\t\tvcounter_cpu_reg <= video_state_in(12 downto 4);",
+        "context": "\t\t\t\t\tend if;\n\t\t\t\telse\n\t\t\t\t\tvcounter_cpu_reg <= video_state_in(12 downto 4);\n\t\t\t\tend if;\n\t\t\telsif ce_pix = '1' then"
+      },
+      {
+        "line": 278,
+        "text": "\t\t\t\thblank_reg <= video_state_in(1);",
+        "context": "\t\tif rising_edge(clk) then\n\t\t\tif video_state_set = '1' then\n\t\t\t\thblank_reg <= video_state_in(1);\n\t\t\t\tvblank_reg <= video_state_in(0);\n\t\t\telsif ce_pix = '1' then"
+      },
+      {
+        "line": 279,
+        "text": "\t\t\t\tvblank_reg <= video_state_in(0);",
+        "context": "\t\t\tif video_state_set = '1' then\n\t\t\t\thblank_reg <= video_state_in(1);\n\t\t\t\tvblank_reg <= video_state_in(0);\n\t\t\telsif ce_pix = '1' then\n\t\t\t\tif (hcount=hbl_end) then"
+      }
+    ]
+  },
+  {
+    "file": "rtl/video.vhd",
+    "name": "video_state_set",
+    "sites": [
+      {
+        "line": 22,
+        "text": "\t\tvideo_state_set: in  std_logic := '0';",
+        "context": "\t\tvideo_state_out: out std_logic_vector(21 downto 0);\n\t\tvideo_state_in:  in  std_logic_vector(21 downto 0) := (others => '0');\n\t\tvideo_state_set: in  std_logic := '0';\n\t\t\n\t\tx: \t\t\t\tout std_logic_vector(8 downto 0);"
+      },
+      {
+        "line": 55,
+        "text": "\t\t\tif video_state_set = '1' then",
+        "context": "\tbegin\n\t\tif rising_edge(clk) then\n\t\t\tif video_state_set = '1' then\n\t\t\t\thcount <= video_state_in(21 downto 13);\n\t\t\t\tvcount <= video_state_in(12 downto 4);"
+      },
+      {
+        "line": 277,
+        "text": "\t\t\tif video_state_set = '1' then",
+        "context": "\tbegin\n\t\tif rising_edge(clk) then\n\t\t\tif video_state_set = '1' then\n\t\t\t\thblank_reg <= video_state_in(1);\n\t\t\t\tvblank_reg <= video_state_in(0);"
+      }
+    ]
+  },
+  {
+    "file": "rtl/video.vhd",
+    "name": "video_state_out",
+    "sites": [
+      {
+        "line": 20,
+        "text": "\t\tvideo_state_out: out std_logic_vector(21 downto 0);",
+        "context": "\t\tsmode_M4:\t\tin\t std_logic;\n\t\t\n\t\tvideo_state_out: out std_logic_vector(21 downto 0);\n\t\tvideo_state_in:  in  std_logic_vector(21 downto 0) := (others => '0');\n\t\tvideo_state_set: in  std_logic := '0';"
+      },
+      {
+        "line": 249,
+        "text": "\tvideo_state_out <= hcount & vcount & hsync_reg & vsync_reg & hblank_reg & vblank_reg;",
+        "context": "\tvblank <= vblank_reg;\n\t\n\tvideo_state_out <= hcount & vcount & hsync_reg & vsync_reg & hblank_reg & vblank_reg;\n\n\t\t\tvbl_st  <= conv_std_logic_vector(184,9) when (smode_M1='1' and smode_M2='1' and ggres='1')"
+      }
+    ]
+  },
+  {
+    "file": "rtl/video.vhd",
+    "name": "hcount",
+    "sites": [
+      {
+        "line": 35,
+        "text": "\tsignal hcount:\t\t\tstd_logic_vector(8 downto 0) := (others => '0');",
+        "context": "architecture Behavioral of video is\n\n\tsignal hcount:\t\t\tstd_logic_vector(8 downto 0) := (others => '0');\n\tsignal vcount:\t\t\tstd_logic_vector(8 downto 0) := (others => '0');\n\t"
+      },
+      {
+        "line": 56,
+        "text": "\t\t\t\thcount <= video_state_in(21 downto 13);",
+        "context": "\t\tif rising_edge(clk) then\n\t\t\tif video_state_set = '1' then\n\t\t\t\thcount <= video_state_in(21 downto 13);\n\t\t\t\tvcount <= video_state_in(12 downto 4);\n\t\t\t\thsync_reg <= video_state_in(3);"
+      },
+      {
+        "line": 110,
+        "text": "\t\t\t\tif hcount = conv_std_logic_vector(VCOUNT_CPU_UPDATE_HCOUNT, 9) then",
+        "context": "\t\t\telsif ce_pix = '1' then\n\t\t\t\t-- CPU-visible VCounter changes before the internal line counter.\n\t\t\t\tif hcount = conv_std_logic_vector(VCOUNT_CPU_UPDATE_HCOUNT, 9) then\n\t\t\t\t\tif pal = '1' then\n\t\t\t\t\t\tif smode_M1 = '1' and smode_M2 = '1' then"
+      },
+      {
+        "line": 165,
+        "text": "\t\t\t\tif hcount=487\tthen",
+        "context": "\t\t\t\tend if;\n\n\t\t\t\tif hcount=487\tthen\n\t\t\t\t\tvcount <= vcount + 1;\n\t\t\t\t\tif pal = '1' then"
+      },
+      {
+        "line": 227,
+        "text": "\t\t\t\thcount <= hcount + 1;",
+        "context": "\t\t\t\tend if;\n\n\t\t\t\thcount <= hcount + 1;\n\t\t\t\t-- HCounter: 0-295, 466-511 = 342 steps\n\t\t\t\tif hcount = 295 then"
+      },
+      {
+        "line": 229,
+        "text": "\t\t\t\tif hcount = 295 then",
+        "context": "\t\t\t\thcount <= hcount + 1;\n\t\t\t\t-- HCounter: 0-295, 466-511 = 342 steps\n\t\t\t\tif hcount = 295 then\n\t\t\t\t\thcount <= conv_std_logic_vector(466,9);\n\t\t\t\tend if;"
+      },
+      {
+        "line": 230,
+        "text": "\t\t\t\t\thcount <= conv_std_logic_vector(466,9);",
+        "context": "\t\t\t\t-- HCounter: 0-295, 466-511 = 342 steps\n\t\t\t\tif hcount = 295 then\n\t\t\t\t\thcount <= conv_std_logic_vector(466,9);\n\t\t\t\tend if;\n\t\t\t\tif hcount = 280 then"
+      },
+      {
+        "line": 232,
+        "text": "\t\t\t\tif hcount = 280 then",
+        "context": "\t\t\t\t\thcount <= conv_std_logic_vector(466,9);\n\t\t\t\tend if;\n\t\t\t\tif hcount = 280 then\n\t\t\t\t\thsync_reg <= '1';\n\t\t\t\telsif hcount = 474 then"
+      },
+      {
+        "line": 234,
+        "text": "\t\t\t\telsif hcount = 474 then",
+        "context": "\t\t\t\tif hcount = 280 then\n\t\t\t\t\thsync_reg <= '1';\n\t\t\t\telsif hcount = 474 then\n\t\t\t\t\thsync_reg <= '0';\n\t\t\t\tend if;"
+      },
+      {
+        "line": 241,
+        "text": "\tx\t<= hcount;",
+        "context": "\tend process;\n\n\tx\t<= hcount;\n\ty\t<= vcount;\n\tvcounter_cpu <= vcounter_cpu_reg(7 downto 0);"
+      },
+      {
+        "line": 249,
+        "text": "\tvideo_state_out <= hcount & vcount & hsync_reg & vsync_reg & hblank_reg & vblank_reg;",
+        "context": "\tvblank <= vblank_reg;\n\t\n\tvideo_state_out <= hcount & vcount & hsync_reg & vsync_reg & hblank_reg & vblank_reg;\n\n\t\t\tvbl_st  <= conv_std_logic_vector(184,9) when (smode_M1='1' and smode_M2='1' and ggres='1')"
+      },
+      {
+        "line": 281,
+        "text": "\t\t\t\tif (hcount=hbl_end) then",
+        "context": "\t\t\t\tvblank_reg <= video_state_in(0);\n\t\t\telsif ce_pix = '1' then\n\t\t\t\tif (hcount=hbl_end) then\n\t\t\t\t\thblank_reg <= '0';\n\t\t\t\telsif (hcount=hbl_st) then"
+      },
+      {
+        "line": 283,
+        "text": "\t\t\t\telsif (hcount=hbl_st) then",
+        "context": "\t\t\t\tif (hcount=hbl_end) then\n\t\t\t\t\thblank_reg <= '0';\n\t\t\t\telsif (hcount=hbl_st) then\n\t\t\t\t\thblank_reg <= '1';\n\t\t\t\tend if;"
+      }
+    ]
+  },
+  {
+    "file": "rtl/video.vhd",
+    "name": "vcount",
+    "sites": [
+      {
+        "line": 36,
+        "text": "\tsignal vcount:\t\t\tstd_logic_vector(8 downto 0) := (others => '0');",
+        "context": "\n\tsignal hcount:\t\t\tstd_logic_vector(8 downto 0) := (others => '0');\n\tsignal vcount:\t\t\tstd_logic_vector(8 downto 0) := (others => '0');\n\t\n\t-- CPU-visible VCounter advances two pixel ticks before vcount/y updates"
+      },
+      {
+        "line": 57,
+        "text": "\t\t\t\tvcount <= video_state_in(12 downto 4);",
+        "context": "\t\t\tif video_state_set = '1' then\n\t\t\t\thcount <= video_state_in(21 downto 13);\n\t\t\t\tvcount <= video_state_in(12 downto 4);\n\t\t\t\thsync_reg <= video_state_in(3);\n\t\t\t\tvsync_reg <= video_state_in(2);"
+      },
+      {
+        "line": 114,
+        "text": "\t\t\t\t\t\t\tif vcount = 258 then",
+        "context": "\t\t\t\t\t\tif smode_M1 = '1' and smode_M2 = '1' then\n\t\t\t\t\t\t\t-- PAL 224-line mode\n\t\t\t\t\t\t\tif vcount = 258 then\n\t\t\t\t\t\t\t\tvcounter_cpu_reg <= conv_std_logic_vector(458, 9);\n\t\t\t\t\t\t\telse"
+      },
+      {
+        "line": 117,
+        "text": "\t\t\t\t\t\t\t\tvcounter_cpu_reg <= vcount + 1;",
+        "context": "\t\t\t\t\t\t\t\tvcounter_cpu_reg <= conv_std_logic_vector(458, 9);\n\t\t\t\t\t\t\telse\n\t\t\t\t\t\t\t\tvcounter_cpu_reg <= vcount + 1;\n\t\t\t\t\t\t\tend if;\n"
+      },
+      {
+        "line": 122,
+        "text": "\t\t\t\t\t\t\tif vcount = 266 then",
+        "context": "\t\t\t\t\t\telsif smode_M3 = '1' and smode_M2 = '1' then\n\t\t\t\t\t\t\t-- PAL 240-line mode\n\t\t\t\t\t\t\tif vcount = 266 then\n\t\t\t\t\t\t\t\tvcounter_cpu_reg <= conv_std_logic_vector(482, 9);\n\t\t\t\t\t\t\telse"
+      },
+      {
+        "line": 125,
+        "text": "\t\t\t\t\t\t\t\tvcounter_cpu_reg <= vcount + 1;",
+        "context": "\t\t\t\t\t\t\t\tvcounter_cpu_reg <= conv_std_logic_vector(482, 9);\n\t\t\t\t\t\t\telse\n\t\t\t\t\t\t\t\tvcounter_cpu_reg <= vcount + 1;\n\t\t\t\t\t\t\tend if;\n"
+      },
+      {
+        "line": 130,
+        "text": "\t\t\t\t\t\t\tif vcount = 242 then",
+        "context": "\t\t\t\t\t\telse\n\t\t\t\t\t\t\t-- PAL 192-line mode\n\t\t\t\t\t\t\tif vcount = 242 then\n\t\t\t\t\t\t\t\tvcounter_cpu_reg <= conv_std_logic_vector(442, 9);\n\t\t\t\t\t\t\telse"
+      },
+      {
+        "line": 133,
+        "text": "\t\t\t\t\t\t\t\tvcounter_cpu_reg <= vcount + 1;",
+        "context": "\t\t\t\t\t\t\t\tvcounter_cpu_reg <= conv_std_logic_vector(442, 9);\n\t\t\t\t\t\t\telse\n\t\t\t\t\t\t\t\tvcounter_cpu_reg <= vcount + 1;\n\t\t\t\t\t\t\tend if;\n\t\t\t\t\t\tend if;"
+      },
+      {
+        "line": 140,
+        "text": "\t\t\t\t\t\t\tif vcount = 234 then",
+        "context": "\t\t\t\t\t\tif smode_M1 = '1' and smode_M2 = '1' then\n\t\t\t\t\t\t\t-- NTSC 224-line mode\n\t\t\t\t\t\t\tif vcount = 234 then\n\t\t\t\t\t\t\t\tvcounter_cpu_reg <= conv_std_logic_vector(485, 9);\n\t\t\t\t\t\t\telse"
+      },
+      {
+        "line": 143,
+        "text": "\t\t\t\t\t\t\t\tvcounter_cpu_reg <= vcount + 1;",
+        "context": "\t\t\t\t\t\t\t\tvcounter_cpu_reg <= conv_std_logic_vector(485, 9);\n\t\t\t\t\t\t\telse\n\t\t\t\t\t\t\t\tvcounter_cpu_reg <= vcount + 1;\n\t\t\t\t\t\t\tend if;\n"
+      },
+      {
+        "line": 148,
+        "text": "\t\t\t\t\t\t\tif vcount = 261 then",
+        "context": "\t\t\t\t\t\telsif smode_M3 = '1' and smode_M2 = '1' then\n\t\t\t\t\t\t\t-- NTSC 240-line mode\n\t\t\t\t\t\t\tif vcount = 261 then\n\t\t\t\t\t\t\t\tvcounter_cpu_reg <= (others => '0');\n\t\t\t\t\t\t\telse"
+      },
+      {
+        "line": 151,
+        "text": "\t\t\t\t\t\t\t\tvcounter_cpu_reg <= vcount + 1;",
+        "context": "\t\t\t\t\t\t\t\tvcounter_cpu_reg <= (others => '0');\n\t\t\t\t\t\t\telse\n\t\t\t\t\t\t\t\tvcounter_cpu_reg <= vcount + 1;\n\t\t\t\t\t\t\tend if;\n"
+      },
+      {
+        "line": 156,
+        "text": "\t\t\t\t\t\t\tif vcount = 218 then",
+        "context": "\t\t\t\t\t\telse\n\t\t\t\t\t\t\t-- NTSC 192-line mode\n\t\t\t\t\t\t\tif vcount = 218 then\n\t\t\t\t\t\t\t\tvcounter_cpu_reg <= conv_std_logic_vector(469, 9);\n\t\t\t\t\t\t\telse"
+      },
+      {
+        "line": 159,
+        "text": "\t\t\t\t\t\t\t\tvcounter_cpu_reg <= vcount + 1;",
+        "context": "\t\t\t\t\t\t\t\tvcounter_cpu_reg <= conv_std_logic_vector(469, 9);\n\t\t\t\t\t\t\telse\n\t\t\t\t\t\t\t\tvcounter_cpu_reg <= vcount + 1;\n\t\t\t\t\t\t\tend if;\n\t\t\t\t\t\tend if;"
+      },
+      {
+        "line": 166,
+        "text": "\t\t\t\t\tvcount <= vcount + 1;",
+        "context": "\n\t\t\t\tif hcount=487\tthen\n\t\t\t\t\tvcount <= vcount + 1;\n\t\t\t\t\tif pal = '1' then\n\t\t\t\t\t\t-- VCounter: 0-258, 458-511 = 313 steps"
+      },
+      {
+        "line": 170,
+        "text": "\t\t\t\t\t\t\tif vcount = 258 then",
+        "context": "\t\t\t\t\t\t-- VCounter: 0-258, 458-511 = 313 steps\n\t\t\t\t\t\tif smode_M1='1' and smode_M2='1' then\n\t\t\t\t\t\t\tif vcount = 258 then\n\t\t\t\t\t\t\t\tvcount <= conv_std_logic_vector(458,9); \n\t\t\t\t\t\t\telsif vcount = 461 then"
+      },
+      {
+        "line": 171,
+        "text": "\t\t\t\t\t\t\t\tvcount <= conv_std_logic_vector(458,9); ",
+        "context": "\t\t\t\t\t\tif smode_M1='1' and smode_M2='1' then\n\t\t\t\t\t\t\tif vcount = 258 then\n\t\t\t\t\t\t\t\tvcount <= conv_std_logic_vector(458,9); \n\t\t\t\t\t\t\telsif vcount = 461 then\n\t\t\t\t\t\t\t\tvsync_reg <= '1';"
+      },
+      {
+        "line": 172,
+        "text": "\t\t\t\t\t\t\telsif vcount = 461 then",
+        "context": "\t\t\t\t\t\t\tif vcount = 258 then\n\t\t\t\t\t\t\t\tvcount <= conv_std_logic_vector(458,9); \n\t\t\t\t\t\t\telsif vcount = 461 then\n\t\t\t\t\t\t\t\tvsync_reg <= '1';\n\t\t\t\t\t\t\telsif vcount = 464 then"
+      },
+      {
+        "line": 174,
+        "text": "\t\t\t\t\t\t\telsif vcount = 464 then",
+        "context": "\t\t\t\t\t\t\telsif vcount = 461 then\n\t\t\t\t\t\t\t\tvsync_reg <= '1';\n\t\t\t\t\t\t\telsif vcount = 464 then\n\t\t\t\t\t\t\t\tvsync_reg <= '0';\n\t\t\t\t\t\t\tend if;"
+      },
+      {
+        "line": 178,
+        "text": "\t\t\t\t\t\t\tif vcount = 266 then",
+        "context": "\t\t\t\t\t\t\tend if;\n\t\t\t\t\t\telsif smode_M3='1' and smode_M2='1' then\n\t\t\t\t\t\t\tif vcount = 266 then\n\t\t\t\t\t\t\t\tvcount <= conv_std_logic_vector(482,9);\n\t\t\t\t\t\t\telsif vcount = 482 then"
+      },
+      {
+        "line": 179,
+        "text": "\t\t\t\t\t\t\t\tvcount <= conv_std_logic_vector(482,9);",
+        "context": "\t\t\t\t\t\telsif smode_M3='1' and smode_M2='1' then\n\t\t\t\t\t\t\tif vcount = 266 then\n\t\t\t\t\t\t\t\tvcount <= conv_std_logic_vector(482,9);\n\t\t\t\t\t\t\telsif vcount = 482 then\n\t\t\t\t\t\t\t\tvsync_reg <= '1';"
+      },
+      {
+        "line": 180,
+        "text": "\t\t\t\t\t\t\telsif vcount = 482 then",
+        "context": "\t\t\t\t\t\t\tif vcount = 266 then\n\t\t\t\t\t\t\t\tvcount <= conv_std_logic_vector(482,9);\n\t\t\t\t\t\t\telsif vcount = 482 then\n\t\t\t\t\t\t\t\tvsync_reg <= '1';\n\t\t\t\t\t\t\telsif vcount = 485 then"
+      },
+      {
+        "line": 182,
+        "text": "\t\t\t\t\t\t\telsif vcount = 485 then",
+        "context": "\t\t\t\t\t\t\telsif vcount = 482 then\n\t\t\t\t\t\t\t\tvsync_reg <= '1';\n\t\t\t\t\t\t\telsif vcount = 485 then\n\t\t\t\t\t\t\t\tvsync_reg <= '0';\n\t\t\t\t\t\t\tend if;"
+      },
+      {
+        "line": 187,
+        "text": "\t\t\t\t\t\t\tif vcount = 242 then",
+        "context": "\t\t\t\t\t\telse\n\t\t\t\t\t\t-- VCounter: 0-242, 442-511 = 313 steps\n\t\t\t\t\t\t\tif vcount = 242 then\n\t\t\t\t\t\t\t\tvcount <= conv_std_logic_vector(442,9);\n\t\t\t\t\t\t\telsif vcount = 442 then"
+      },
+      {
+        "line": 188,
+        "text": "\t\t\t\t\t\t\t\tvcount <= conv_std_logic_vector(442,9);",
+        "context": "\t\t\t\t\t\t-- VCounter: 0-242, 442-511 = 313 steps\n\t\t\t\t\t\t\tif vcount = 242 then\n\t\t\t\t\t\t\t\tvcount <= conv_std_logic_vector(442,9);\n\t\t\t\t\t\t\telsif vcount = 442 then\n\t\t\t\t\t\t\t\tvsync_reg <= '1';"
+      },
+      {
+        "line": 189,
+        "text": "\t\t\t\t\t\t\telsif vcount = 442 then",
+        "context": "\t\t\t\t\t\t\tif vcount = 242 then\n\t\t\t\t\t\t\t\tvcount <= conv_std_logic_vector(442,9);\n\t\t\t\t\t\t\telsif vcount = 442 then\n\t\t\t\t\t\t\t\tvsync_reg <= '1';\n\t\t\t\t\t\t\telsif vcount = 445 then"
+      },
+      {
+        "line": 191,
+        "text": "\t\t\t\t\t\t\telsif vcount = 445 then",
+        "context": "\t\t\t\t\t\t\telsif vcount = 442 then\n\t\t\t\t\t\t\t\tvsync_reg <= '1';\n\t\t\t\t\t\t\telsif vcount = 445 then\n\t\t\t\t\t\t\t\tvsync_reg <= '0';\n\t\t\t\t\t\t\tend if;"
+      },
+      {
+        "line": 198,
+        "text": "\t\t\t\t\t\t\tif vcount = 234 then ",
+        "context": "\t\t\t\t\t-- NTSC mode 224 lines ...\n\t\t\t\t\t\tif smode_M1='1' and smode_M2='1' then\n\t\t\t\t\t\t\tif vcount = 234 then \n\t\t\t\t\t\t\t\tvcount <= conv_std_logic_vector(485,9);\n\t\t\t\t\t\t\telsif vcount = 487 then"
+      },
+      {
+        "line": 199,
+        "text": "\t\t\t\t\t\t\t\tvcount <= conv_std_logic_vector(485,9);",
+        "context": "\t\t\t\t\t\tif smode_M1='1' and smode_M2='1' then\n\t\t\t\t\t\t\tif vcount = 234 then \n\t\t\t\t\t\t\t\tvcount <= conv_std_logic_vector(485,9);\n\t\t\t\t\t\t\telsif vcount = 487 then\n\t\t\t\t\t\t\t\tvsync_reg <= '1';"
+      },
+      {
+        "line": 200,
+        "text": "\t\t\t\t\t\t\telsif vcount = 487 then",
+        "context": "\t\t\t\t\t\t\tif vcount = 234 then \n\t\t\t\t\t\t\t\tvcount <= conv_std_logic_vector(485,9);\n\t\t\t\t\t\t\telsif vcount = 487 then\n\t\t\t\t\t\t\t\tvsync_reg <= '1';\n\t\t\t\t\t\t\telsif vcount = 490 then"
+      },
+      {
+        "line": 202,
+        "text": "\t\t\t\t\t\t\telsif vcount = 490 then",
+        "context": "\t\t\t\t\t\t\telsif vcount = 487 then\n\t\t\t\t\t\t\t\tvsync_reg <= '1';\n\t\t\t\t\t\t\telsif vcount = 490 then\n\t\t\t\t\t\t\t\tvsync_reg <= '0';\n\t\t\t\t\t\t\tend if;"
+      },
+      {
+        "line": 207,
+        "text": "\t\t\t\t\t\t\tif vcount = 261 then -- needs to be > 240 to generate an IRQ",
+        "context": "\t\t\t\t\t-- NTSC mode 240 lines -- this mode is not suposed to work anyway\n\t\t\t\t\telsif smode_M3='1' and smode_M2='1' then \n\t\t\t\t\t\t\tif vcount = 261 then -- needs to be > 240 to generate an IRQ\n\t\t\t\t\t\t\t\tvcount <= conv_std_logic_vector(0,9);\n\t\t\t\t\t\t\telsif vcount = 257 then"
+      },
+      {
+        "line": 208,
+        "text": "\t\t\t\t\t\t\t\tvcount <= conv_std_logic_vector(0,9);",
+        "context": "\t\t\t\t\telsif smode_M3='1' and smode_M2='1' then \n\t\t\t\t\t\t\tif vcount = 261 then -- needs to be > 240 to generate an IRQ\n\t\t\t\t\t\t\t\tvcount <= conv_std_logic_vector(0,9);\n\t\t\t\t\t\t\telsif vcount = 257 then\n\t\t\t\t\t\t\t\tvsync_reg <= '1';"
+      },
+      {
+        "line": 209,
+        "text": "\t\t\t\t\t\t\telsif vcount = 257 then",
+        "context": "\t\t\t\t\t\t\tif vcount = 261 then -- needs to be > 240 to generate an IRQ\n\t\t\t\t\t\t\t\tvcount <= conv_std_logic_vector(0,9);\n\t\t\t\t\t\t\telsif vcount = 257 then\n\t\t\t\t\t\t\t\tvsync_reg <= '1';\n\t\t\t\t\t\t\telsif vcount = 260 then"
+      },
+      {
+        "line": 211,
+        "text": "\t\t\t\t\t\t\telsif vcount = 260 then",
+        "context": "\t\t\t\t\t\t\telsif vcount = 257 then\n\t\t\t\t\t\t\t\tvsync_reg <= '1';\n\t\t\t\t\t\t\telsif vcount = 260 then\n\t\t\t\t\t\t\t\tvsync_reg <= '0';\n\t\t\t\t\t\t\tend if;"
+      },
+      {
+        "line": 216,
+        "text": "\t\t\t\t\t\t\tif vcount = 218 then",
+        "context": "\t\t\t\t\t\telse\n\t\t\t\t\t\t-- VCounter: 0-218, 469-511 = 262 steps\n\t\t\t\t\t\t\tif vcount = 218 then\n\t\t\t\t\t\t\t\tvcount <= conv_std_logic_vector(469,9);\n\t\t\t\t\t\t\telsif vcount = 471 then"
+      },
+      {
+        "line": 217,
+        "text": "\t\t\t\t\t\t\t\tvcount <= conv_std_logic_vector(469,9);",
+        "context": "\t\t\t\t\t\t-- VCounter: 0-218, 469-511 = 262 steps\n\t\t\t\t\t\t\tif vcount = 218 then\n\t\t\t\t\t\t\t\tvcount <= conv_std_logic_vector(469,9);\n\t\t\t\t\t\t\telsif vcount = 471 then\n\t\t\t\t\t\t\t\tvsync_reg <= '1';"
+      },
+      {
+        "line": 218,
+        "text": "\t\t\t\t\t\t\telsif vcount = 471 then",
+        "context": "\t\t\t\t\t\t\tif vcount = 218 then\n\t\t\t\t\t\t\t\tvcount <= conv_std_logic_vector(469,9);\n\t\t\t\t\t\t\telsif vcount = 471 then\n\t\t\t\t\t\t\t\tvsync_reg <= '1';\n\t\t\t\t\t\t\telsif vcount = 474 then"
+      },
+      {
+        "line": 220,
+        "text": "\t\t\t\t\t\t\telsif vcount = 474 then",
+        "context": "\t\t\t\t\t\t\telsif vcount = 471 then\n\t\t\t\t\t\t\t\tvsync_reg <= '1';\n\t\t\t\t\t\t\telsif vcount = 474 then\n\t\t\t\t\t\t\t\tvsync_reg <= '0';\n\t\t\t\t\t\t\tend if;"
+      },
+      {
+        "line": 242,
+        "text": "\ty\t<= vcount;",
+        "context": "\n\tx\t<= hcount;\n\ty\t<= vcount;\n\tvcounter_cpu <= vcounter_cpu_reg(7 downto 0);\n\thsync <= hsync_reg;"
+      },
+      {
+        "line": 249,
+        "text": "\tvideo_state_out <= hcount & vcount & hsync_reg & vsync_reg & hblank_reg & vblank_reg;",
+        "context": "\tvblank <= vblank_reg;\n\t\n\tvideo_state_out <= hcount & vcount & hsync_reg & vsync_reg & hblank_reg & vblank_reg;\n\n\t\t\tvbl_st  <= conv_std_logic_vector(184,9) when (smode_M1='1' and smode_M2='1' and ggres='1')"
+      },
+      {
+        "line": 287,
+        "text": "\t\t\t\tif (vcount=vbl_end) then",
+        "context": "\t\t\t\tend if;\n\t\t\t\t\n\t\t\t\tif (vcount=vbl_end) then\n\t\t\t\t\tvblank_reg <= '0';\n\t\t\t\telsif (vcount=vbl_st) then"
+      },
+      {
+        "line": 289,
+        "text": "\t\t\t\telsif (vcount=vbl_st) then",
+        "context": "\t\t\t\tif (vcount=vbl_end) then\n\t\t\t\t\tvblank_reg <= '0';\n\t\t\t\telsif (vcount=vbl_st) then\n\t\t\t\t\tvblank_reg <= '1';\n\t\t\t\tend if;"
+      }
+    ]
+  },
+  {
+    "file": "rtl/video.vhd",
+    "name": "vcounter_cpu_reg",
+    "sites": [
+      {
+        "line": 41,
+        "text": "\tsignal vcounter_cpu_reg : std_logic_vector(8 downto 0) := (others => '0');",
+        "context": "\t-- at hcount=487. VDPTEST accepts hcount=484/485 and rejects 486.\n\tconstant VCOUNT_CPU_UPDATE_HCOUNT : integer := 485;\n\tsignal vcounter_cpu_reg : std_logic_vector(8 downto 0) := (others => '0');\n\t\n\tsignal hsync_reg:\t\tstd_logic := '0';"
+      },
+      {
+        "line": 67,
+        "text": "\t\t\t\t\t\t\t\tvcounter_cpu_reg <= conv_std_logic_vector(458, 9);",
+        "context": "\t\t\t\t\t\tif smode_M1 = '1' and smode_M2 = '1' then\n\t\t\t\t\t\t\tif video_state_in(12 downto 4) = 258 then\n\t\t\t\t\t\t\t\tvcounter_cpu_reg <= conv_std_logic_vector(458, 9);\n\t\t\t\t\t\t\telse\n\t\t\t\t\t\t\t\tvcounter_cpu_reg <= video_state_in(12 downto 4) + 1;"
+      },
+      {
+        "line": 69,
+        "text": "\t\t\t\t\t\t\t\tvcounter_cpu_reg <= video_state_in(12 downto 4) + 1;",
+        "context": "\t\t\t\t\t\t\t\tvcounter_cpu_reg <= conv_std_logic_vector(458, 9);\n\t\t\t\t\t\t\telse\n\t\t\t\t\t\t\t\tvcounter_cpu_reg <= video_state_in(12 downto 4) + 1;\n\t\t\t\t\t\t\tend if;\n\t\t\t\t\t\telsif smode_M3 = '1' and smode_M2 = '1' then"
+      },
+      {
+        "line": 73,
+        "text": "\t\t\t\t\t\t\t\tvcounter_cpu_reg <= conv_std_logic_vector(482, 9);",
+        "context": "\t\t\t\t\t\telsif smode_M3 = '1' and smode_M2 = '1' then\n\t\t\t\t\t\t\tif video_state_in(12 downto 4) = 266 then\n\t\t\t\t\t\t\t\tvcounter_cpu_reg <= conv_std_logic_vector(482, 9);\n\t\t\t\t\t\t\telse\n\t\t\t\t\t\t\t\tvcounter_cpu_reg <= video_state_in(12 downto 4) + 1;"
+      },
+      {
+        "line": 75,
+        "text": "\t\t\t\t\t\t\t\tvcounter_cpu_reg <= video_state_in(12 downto 4) + 1;",
+        "context": "\t\t\t\t\t\t\t\tvcounter_cpu_reg <= conv_std_logic_vector(482, 9);\n\t\t\t\t\t\t\telse\n\t\t\t\t\t\t\t\tvcounter_cpu_reg <= video_state_in(12 downto 4) + 1;\n\t\t\t\t\t\t\tend if;\n\t\t\t\t\t\telse"
+      },
+      {
+        "line": 79,
+        "text": "\t\t\t\t\t\t\t\tvcounter_cpu_reg <= conv_std_logic_vector(442, 9);",
+        "context": "\t\t\t\t\t\telse\n\t\t\t\t\t\t\tif video_state_in(12 downto 4) = 242 then\n\t\t\t\t\t\t\t\tvcounter_cpu_reg <= conv_std_logic_vector(442, 9);\n\t\t\t\t\t\t\telse\n\t\t\t\t\t\t\t\tvcounter_cpu_reg <= video_state_in(12 downto 4) + 1;"
+      },
+      {
+        "line": 81,
+        "text": "\t\t\t\t\t\t\t\tvcounter_cpu_reg <= video_state_in(12 downto 4) + 1;",
+        "context": "\t\t\t\t\t\t\t\tvcounter_cpu_reg <= conv_std_logic_vector(442, 9);\n\t\t\t\t\t\t\telse\n\t\t\t\t\t\t\t\tvcounter_cpu_reg <= video_state_in(12 downto 4) + 1;\n\t\t\t\t\t\t\tend if;\n\t\t\t\t\t\tend if;"
+      },
+      {
+        "line": 87,
+        "text": "\t\t\t\t\t\t\t\tvcounter_cpu_reg <= conv_std_logic_vector(485, 9);",
+        "context": "\t\t\t\t\t\tif smode_M1 = '1' and smode_M2 = '1' then\n\t\t\t\t\t\t\tif video_state_in(12 downto 4) = 234 then\n\t\t\t\t\t\t\t\tvcounter_cpu_reg <= conv_std_logic_vector(485, 9);\n\t\t\t\t\t\t\telse\n\t\t\t\t\t\t\t\tvcounter_cpu_reg <= video_state_in(12 downto 4) + 1;"
+      },
+      {
+        "line": 89,
+        "text": "\t\t\t\t\t\t\t\tvcounter_cpu_reg <= video_state_in(12 downto 4) + 1;",
+        "context": "\t\t\t\t\t\t\t\tvcounter_cpu_reg <= conv_std_logic_vector(485, 9);\n\t\t\t\t\t\t\telse\n\t\t\t\t\t\t\t\tvcounter_cpu_reg <= video_state_in(12 downto 4) + 1;\n\t\t\t\t\t\t\tend if;\n\t\t\t\t\t\telsif smode_M3 = '1' and smode_M2 = '1' then"
+      },
+      {
+        "line": 93,
+        "text": "\t\t\t\t\t\t\t\tvcounter_cpu_reg <= (others => '0');",
+        "context": "\t\t\t\t\t\telsif smode_M3 = '1' and smode_M2 = '1' then\n\t\t\t\t\t\t\tif video_state_in(12 downto 4) = 261 then\n\t\t\t\t\t\t\t\tvcounter_cpu_reg <= (others => '0');\n\t\t\t\t\t\t\telse\n\t\t\t\t\t\t\t\tvcounter_cpu_reg <= video_state_in(12 downto 4) + 1;"
+      },
+      {
+        "line": 95,
+        "text": "\t\t\t\t\t\t\t\tvcounter_cpu_reg <= video_state_in(12 downto 4) + 1;",
+        "context": "\t\t\t\t\t\t\t\tvcounter_cpu_reg <= (others => '0');\n\t\t\t\t\t\t\telse\n\t\t\t\t\t\t\t\tvcounter_cpu_reg <= video_state_in(12 downto 4) + 1;\n\t\t\t\t\t\t\tend if;\n\t\t\t\t\t\telse"
+      },
+      {
+        "line": 99,
+        "text": "\t\t\t\t\t\t\t\tvcounter_cpu_reg <= conv_std_logic_vector(469, 9);",
+        "context": "\t\t\t\t\t\telse\n\t\t\t\t\t\t\tif video_state_in(12 downto 4) = 218 then\n\t\t\t\t\t\t\t\tvcounter_cpu_reg <= conv_std_logic_vector(469, 9);\n\t\t\t\t\t\t\telse\n\t\t\t\t\t\t\t\tvcounter_cpu_reg <= video_state_in(12 downto 4) + 1;"
+      },
+      {
+        "line": 101,
+        "text": "\t\t\t\t\t\t\t\tvcounter_cpu_reg <= video_state_in(12 downto 4) + 1;",
+        "context": "\t\t\t\t\t\t\t\tvcounter_cpu_reg <= conv_std_logic_vector(469, 9);\n\t\t\t\t\t\t\telse\n\t\t\t\t\t\t\t\tvcounter_cpu_reg <= video_state_in(12 downto 4) + 1;\n\t\t\t\t\t\t\tend if;\n\t\t\t\t\t\tend if;"
+      },
+      {
+        "line": 106,
+        "text": "\t\t\t\t\tvcounter_cpu_reg <= video_state_in(12 downto 4);",
+        "context": "\t\t\t\t\tend if;\n\t\t\t\telse\n\t\t\t\t\tvcounter_cpu_reg <= video_state_in(12 downto 4);\n\t\t\t\tend if;\n\t\t\telsif ce_pix = '1' then"
+      },
+      {
+        "line": 115,
+        "text": "\t\t\t\t\t\t\t\tvcounter_cpu_reg <= conv_std_logic_vector(458, 9);",
+        "context": "\t\t\t\t\t\t\t-- PAL 224-line mode\n\t\t\t\t\t\t\tif vcount = 258 then\n\t\t\t\t\t\t\t\tvcounter_cpu_reg <= conv_std_logic_vector(458, 9);\n\t\t\t\t\t\t\telse\n\t\t\t\t\t\t\t\tvcounter_cpu_reg <= vcount + 1;"
+      },
+      {
+        "line": 117,
+        "text": "\t\t\t\t\t\t\t\tvcounter_cpu_reg <= vcount + 1;",
+        "context": "\t\t\t\t\t\t\t\tvcounter_cpu_reg <= conv_std_logic_vector(458, 9);\n\t\t\t\t\t\t\telse\n\t\t\t\t\t\t\t\tvcounter_cpu_reg <= vcount + 1;\n\t\t\t\t\t\t\tend if;\n"
+      },
+      {
+        "line": 123,
+        "text": "\t\t\t\t\t\t\t\tvcounter_cpu_reg <= conv_std_logic_vector(482, 9);",
+        "context": "\t\t\t\t\t\t\t-- PAL 240-line mode\n\t\t\t\t\t\t\tif vcount = 266 then\n\t\t\t\t\t\t\t\tvcounter_cpu_reg <= conv_std_logic_vector(482, 9);\n\t\t\t\t\t\t\telse\n\t\t\t\t\t\t\t\tvcounter_cpu_reg <= vcount + 1;"
+      },
+      {
+        "line": 125,
+        "text": "\t\t\t\t\t\t\t\tvcounter_cpu_reg <= vcount + 1;",
+        "context": "\t\t\t\t\t\t\t\tvcounter_cpu_reg <= conv_std_logic_vector(482, 9);\n\t\t\t\t\t\t\telse\n\t\t\t\t\t\t\t\tvcounter_cpu_reg <= vcount + 1;\n\t\t\t\t\t\t\tend if;\n"
+      },
+      {
+        "line": 131,
+        "text": "\t\t\t\t\t\t\t\tvcounter_cpu_reg <= conv_std_logic_vector(442, 9);",
+        "context": "\t\t\t\t\t\t\t-- PAL 192-line mode\n\t\t\t\t\t\t\tif vcount = 242 then\n\t\t\t\t\t\t\t\tvcounter_cpu_reg <= conv_std_logic_vector(442, 9);\n\t\t\t\t\t\t\telse\n\t\t\t\t\t\t\t\tvcounter_cpu_reg <= vcount + 1;"
+      },
+      {
+        "line": 133,
+        "text": "\t\t\t\t\t\t\t\tvcounter_cpu_reg <= vcount + 1;",
+        "context": "\t\t\t\t\t\t\t\tvcounter_cpu_reg <= conv_std_logic_vector(442, 9);\n\t\t\t\t\t\t\telse\n\t\t\t\t\t\t\t\tvcounter_cpu_reg <= vcount + 1;\n\t\t\t\t\t\t\tend if;\n\t\t\t\t\t\tend if;"
+      },
+      {
+        "line": 141,
+        "text": "\t\t\t\t\t\t\t\tvcounter_cpu_reg <= conv_std_logic_vector(485, 9);",
+        "context": "\t\t\t\t\t\t\t-- NTSC 224-line mode\n\t\t\t\t\t\t\tif vcount = 234 then\n\t\t\t\t\t\t\t\tvcounter_cpu_reg <= conv_std_logic_vector(485, 9);\n\t\t\t\t\t\t\telse\n\t\t\t\t\t\t\t\tvcounter_cpu_reg <= vcount + 1;"
+      },
+      {
+        "line": 143,
+        "text": "\t\t\t\t\t\t\t\tvcounter_cpu_reg <= vcount + 1;",
+        "context": "\t\t\t\t\t\t\t\tvcounter_cpu_reg <= conv_std_logic_vector(485, 9);\n\t\t\t\t\t\t\telse\n\t\t\t\t\t\t\t\tvcounter_cpu_reg <= vcount + 1;\n\t\t\t\t\t\t\tend if;\n"
+      },
+      {
+        "line": 149,
+        "text": "\t\t\t\t\t\t\t\tvcounter_cpu_reg <= (others => '0');",
+        "context": "\t\t\t\t\t\t\t-- NTSC 240-line mode\n\t\t\t\t\t\t\tif vcount = 261 then\n\t\t\t\t\t\t\t\tvcounter_cpu_reg <= (others => '0');\n\t\t\t\t\t\t\telse\n\t\t\t\t\t\t\t\tvcounter_cpu_reg <= vcount + 1;"
+      },
+      {
+        "line": 151,
+        "text": "\t\t\t\t\t\t\t\tvcounter_cpu_reg <= vcount + 1;",
+        "context": "\t\t\t\t\t\t\t\tvcounter_cpu_reg <= (others => '0');\n\t\t\t\t\t\t\telse\n\t\t\t\t\t\t\t\tvcounter_cpu_reg <= vcount + 1;\n\t\t\t\t\t\t\tend if;\n"
+      },
+      {
+        "line": 157,
+        "text": "\t\t\t\t\t\t\t\tvcounter_cpu_reg <= conv_std_logic_vector(469, 9);",
+        "context": "\t\t\t\t\t\t\t-- NTSC 192-line mode\n\t\t\t\t\t\t\tif vcount = 218 then\n\t\t\t\t\t\t\t\tvcounter_cpu_reg <= conv_std_logic_vector(469, 9);\n\t\t\t\t\t\t\telse\n\t\t\t\t\t\t\t\tvcounter_cpu_reg <= vcount + 1;"
+      },
+      {
+        "line": 159,
+        "text": "\t\t\t\t\t\t\t\tvcounter_cpu_reg <= vcount + 1;",
+        "context": "\t\t\t\t\t\t\t\tvcounter_cpu_reg <= conv_std_logic_vector(469, 9);\n\t\t\t\t\t\t\telse\n\t\t\t\t\t\t\t\tvcounter_cpu_reg <= vcount + 1;\n\t\t\t\t\t\t\tend if;\n\t\t\t\t\t\tend if;"
+      },
+      {
+        "line": 243,
+        "text": "\tvcounter_cpu <= vcounter_cpu_reg(7 downto 0);",
+        "context": "\tx\t<= hcount;\n\ty\t<= vcount;\n\tvcounter_cpu <= vcounter_cpu_reg(7 downto 0);\n\thsync <= hsync_reg;\n\tvsync <= vsync_reg;"
+      }
+    ]
+  },
+  {
+    "file": "rtl/savestates.sv",
+    "name": "vdp_snap",
+    "sites": [
+      {
+        "line": 443,
+        "text": "reg [135:0] vdp_snap;",
+        "context": "assign z80_nmi_dir = nmi_snap;\nassign z80_nmi_valid = has_nmi_history;\nreg [135:0] vdp_snap;\nreg [383:0] cram_snap;\nreg  [55:0] psg_snap;"
+      },
+      {
+        "line": 471,
+        "text": "                         vdp_snap[135:128], video_snap};",
+        "context": "wire [63:0] video_word = {CPU_RESTART_MAGIC, 2'd3,\n                         systeme ? vdp2_snap[135:128] : 8'd0,\n                         vdp_snap[135:128], video_snap};\n\n// VRAM DMA pipelining: address issued, wait 2 clocks for data"
+      },
+      {
+        "line": 603,
+        "text": "                    1'b0: ddram_cmd_write ( base_addr + 29'd6 , vdp_snap [ 63 : 0 ] , 8'hFF ) ;",
+        "context": "            if (! DDRAM_BUSY) begin\n                case (vdp_idx [ 0 ])\n                    1'b0: ddram_cmd_write ( base_addr + 29'd6 , vdp_snap [ 63 : 0 ] , 8'hFF ) ;\n                    1'b1: ddram_cmd_write ( base_addr + 29'd7 , vdp_snap [ 127 : 64 ] , 8'hFF ) ;\n                endcase"
+      },
+      {
+        "line": 604,
+        "text": "                    1'b1: ddram_cmd_write ( base_addr + 29'd7 , vdp_snap [ 127 : 64 ] , 8'hFF ) ;",
+        "context": "                case (vdp_idx [ 0 ])\n                    1'b0: ddram_cmd_write ( base_addr + 29'd6 , vdp_snap [ 63 : 0 ] , 8'hFF ) ;\n                    1'b1: ddram_cmd_write ( base_addr + 29'd7 , vdp_snap [ 127 : 64 ] , 8'hFF ) ;\n                endcase\n            end"
+      },
+      {
+        "line": 1078,
+        "text": "            vdp_snap    <= vdp_regs;",
+        "context": "            // with the internal x/y counters (which also advanced on the boundary tick\n            // and are not saved/restored, but merely frozen).\n            vdp_snap    <= vdp_regs;\n            cram_snap   <= cram_out;\n            psg_snap    <= psg_out;"
+      },
+      {
+        "line": 1213,
+        "text": "                    1'b0: ddram_write(base_addr + 29'd6, vdp_snap[63:0],   8'hFF);",
+        "context": "            if (!DDRAM_BUSY) begin\n                case (vdp_idx[0])\n                    1'b0: ddram_write(base_addr + 29'd6, vdp_snap[63:0],   8'hFF);\n                    1'b1: ddram_write(base_addr + 29'd7, vdp_snap[127:64], 8'hFF);\n                endcase"
+      },
+      {
+        "line": 1214,
+        "text": "                    1'b1: ddram_write(base_addr + 29'd7, vdp_snap[127:64], 8'hFF);",
+        "context": "                case (vdp_idx[0])\n                    1'b0: ddram_write(base_addr + 29'd6, vdp_snap[63:0],   8'hFF);\n                    1'b1: ddram_write(base_addr + 29'd7, vdp_snap[127:64], 8'hFF);\n                endcase\n                if (vdp_idx[0] == 1) begin"
+      },
+      {
+        "line": 1715,
+        "text": "                vdp_snap[135:128] <= 8'd0;",
+        "context": "                has_restart_context <= 0; restart_snap <= 0; restart_padding_ok <= 1;\n                // Old 64KB files bypass ST_LOAD_VIDEO entirely.\n                vdp_snap[135:128] <= 8'd0;\n                vdp2_snap[135:128] <= 8'd0;\n                gg_snap <= GG_RESET;"
+      },
+      {
+        "line": 1810,
+        "text": "                    1'b0: begin vdp_snap[63:0]   <= dout_latch; ddram_read(base_addr + 29'd7); end",
+        "context": "            end else if (!dout_expected && !DDRAM_BUSY) begin\n                case (vdp_idx[0])\n                    1'b0: begin vdp_snap[63:0]   <= dout_latch; ddram_read(base_addr + 29'd7); end\n                    1'b1: begin vdp_snap[127:64]  <= dout_latch; ddram_read(base_addr + 29'd8); end\n                endcase"
+      },
+      {
+        "line": 1811,
+        "text": "                    1'b1: begin vdp_snap[127:64]  <= dout_latch; ddram_read(base_addr + 29'd8); end",
+        "context": "                case (vdp_idx[0])\n                    1'b0: begin vdp_snap[63:0]   <= dout_latch; ddram_read(base_addr + 29'd7); end\n                    1'b1: begin vdp_snap[127:64]  <= dout_latch; ddram_read(base_addr + 29'd8); end\n                endcase\n                if (vdp_idx[0]) begin"
+      },
+      {
+        "line": 1969,
+        "text": "                    vdp_snap[135:128] <= dout_latch[29:22];",
+        "context": "                    (load_ext_magic == IO_EXT_MAGIC && dout_latch[39:38] == 2'd2) ||\n                    ((load_ext_magic == MD_EXT_MAGIC || load_ext_magic == EEPROM_EXT_MAGIC || load_ext_magic == SC_EXT_MAGIC || load_ext_magic == TAP_EXT_MAGIC || load_ext_magic == PADDLE_EXT_MAGIC || (load_ext_magic == GUN_EXT_MAGIC || (load_ext_magic == MAPPER_HISTORY_MAGIC || (load_ext_magic == EVOLUTION_HISTORY_MAGIC || load_ext_magic == EVOLUTION_PENDING_MAGIC)))) && dout_latch[39:38] == 2'd3)) begin\n                    vdp_snap[135:128] <= dout_latch[29:22];\n                    vdp2_snap[135:128] <= systeme ? dout_latch[37:30] : 8'd0;\n                end else begin"
+      },
+      {
+        "line": 1972,
+        "text": "                    vdp_snap[135:128] <= 8'd0;",
+        "context": "                    vdp2_snap[135:128] <= systeme ? dout_latch[37:30] : 8'd0;\n                end else begin\n                    vdp_snap[135:128] <= 8'd0;\n                    vdp2_snap[135:128] <= 8'd0;\n                end"
+      },
+      {
+        "line": 2426,
+        "text": "                vdp_regs_in  <= vdp_snap;",
+        "context": "                z80_dir      <= z80_snap;\n                z80_set      <= 1;\n                vdp_regs_in  <= vdp_snap;\n                vdp_regs_set <= 1;\n                psg_in       <= psg_snap;"
+      }
+    ]
+  },
+  {
+    "file": "rtl/savestates.sv",
+    "name": "vdp2_snap",
+    "sites": [
+      {
+        "line": 449,
+        "text": "reg [135:0] vdp2_snap;",
+        "context": "reg [159:0] evolution_snap;\n// System E latching buffers\nreg [135:0] vdp2_snap;\n// Video word extension v1: previously-written zero padding is never latch data\n// unless the full tag and reserved bits match. Legacy snapshots restore zero."
+      },
+      {
+        "line": 470,
+        "text": "                         systeme ? vdp2_snap[135:128] : 8'd0,",
+        "context": "// [16:0] timer, [19:17] rises, [20] TH history, [22:21] type history.\nwire [63:0] video_word = {CPU_RESTART_MAGIC, 2'd3,\n                         systeme ? vdp2_snap[135:128] : 8'd0,\n                         vdp_snap[135:128], video_snap};\n"
+      },
+      {
+        "line": 670,
+        "text": "                    1'b0: ddram_cmd_write ( base_addr + 29'h10 , vdp2_snap [ 63 : 0 ] , 8'hFF ) ;",
+        "context": "            if (! DDRAM_BUSY) begin\n                case (vdp_idx [ 0 ])\n                    1'b0: ddram_cmd_write ( base_addr + 29'h10 , vdp2_snap [ 63 : 0 ] , 8'hFF ) ;\n                    1'b1: ddram_cmd_write ( base_addr + 29'h11 , vdp2_snap [ 127 : 64 ] , 8'hFF ) ;\n                endcase"
+      },
+      {
+        "line": 671,
+        "text": "                    1'b1: ddram_cmd_write ( base_addr + 29'h11 , vdp2_snap [ 127 : 64 ] , 8'hFF ) ;",
+        "context": "                case (vdp_idx [ 0 ])\n                    1'b0: ddram_cmd_write ( base_addr + 29'h10 , vdp2_snap [ 63 : 0 ] , 8'hFF ) ;\n                    1'b1: ddram_cmd_write ( base_addr + 29'h11 , vdp2_snap [ 127 : 64 ] , 8'hFF ) ;\n                endcase\n            end"
+      },
+      {
+        "line": 1086,
+        "text": "                vdp2_snap   <= vdp2_regs;",
+        "context": "            evolution_snap <= evolution_out;\n            if (systeme) begin\n                vdp2_snap   <= vdp2_regs;\n                cram2_snap  <= cram2_out;\n                psg2_snap   <= psg2_out;"
+      },
+      {
+        "line": 1388,
+        "text": "                    1'b0: ddram_write(base_addr + 29'h10, vdp2_snap[63:0],   8'hFF);",
+        "context": "            if (!DDRAM_BUSY) begin\n                case (vdp_idx[0])\n                    1'b0: ddram_write(base_addr + 29'h10, vdp2_snap[63:0],   8'hFF);\n                    1'b1: ddram_write(base_addr + 29'h11, vdp2_snap[127:64], 8'hFF);\n                endcase"
+      },
+      {
+        "line": 1389,
+        "text": "                    1'b1: ddram_write(base_addr + 29'h11, vdp2_snap[127:64], 8'hFF);",
+        "context": "                case (vdp_idx[0])\n                    1'b0: ddram_write(base_addr + 29'h10, vdp2_snap[63:0],   8'hFF);\n                    1'b1: ddram_write(base_addr + 29'h11, vdp2_snap[127:64], 8'hFF);\n                endcase\n                if (vdp_idx[0] == 1) begin"
+      },
+      {
+        "line": 1716,
+        "text": "                vdp2_snap[135:128] <= 8'd0;",
+        "context": "                // Old 64KB files bypass ST_LOAD_VIDEO entirely.\n                vdp_snap[135:128] <= 8'd0;\n                vdp2_snap[135:128] <= 8'd0;\n                gg_snap <= GG_RESET;\n                md_snap <= 0; md_valid <= 0; has_md_ext <= 0;"
+      },
+      {
+        "line": 1970,
+        "text": "                    vdp2_snap[135:128] <= systeme ? dout_latch[37:30] : 8'd0;",
+        "context": "                    ((load_ext_magic == MD_EXT_MAGIC || load_ext_magic == EEPROM_EXT_MAGIC || load_ext_magic == SC_EXT_MAGIC || load_ext_magic == TAP_EXT_MAGIC || load_ext_magic == PADDLE_EXT_MAGIC || (load_ext_magic == GUN_EXT_MAGIC || (load_ext_magic == MAPPER_HISTORY_MAGIC || (load_ext_magic == EVOLUTION_HISTORY_MAGIC || load_ext_magic == EVOLUTION_PENDING_MAGIC)))) && dout_latch[39:38] == 2'd3)) begin\n                    vdp_snap[135:128] <= dout_latch[29:22];\n                    vdp2_snap[135:128] <= systeme ? dout_latch[37:30] : 8'd0;\n                end else begin\n                    vdp_snap[135:128] <= 8'd0;"
+      },
+      {
+        "line": 1973,
+        "text": "                    vdp2_snap[135:128] <= 8'd0;",
+        "context": "                end else begin\n                    vdp_snap[135:128] <= 8'd0;\n                    vdp2_snap[135:128] <= 8'd0;\n                end\n                if ((load_ext_magic == IO_EXT_MAGIC && dout_latch[39:38] == 2'd2) ||"
+      },
+      {
+        "line": 2205,
+        "text": "                        vdp2_snap[63:0] <= dout_latch;",
+        "context": "                case (cram_idx)\n                    3'd0: begin\n                        vdp2_snap[63:0] <= dout_latch;\n                        cram_idx <= 3'd1;\n                        ddram_read(base_addr + 29'h11);"
+      },
+      {
+        "line": 2210,
+        "text": "                        vdp2_snap[127:64] <= dout_latch;",
+        "context": "                    end\n                    3'd1: begin\n                        vdp2_snap[127:64] <= dout_latch;\n                        cram_idx <= 3'd0;\n                        ddram_read(base_addr + 29'h12);"
+      },
+      {
+        "line": 2445,
+        "text": "                    vdp2_regs_in  <= vdp2_snap;",
+        "context": "                // System E: restore second VDP/PSG\n                if (systeme) begin\n                    vdp2_regs_in  <= vdp2_snap;\n                    vdp2_regs_set <= 1;\n                    psg2_in       <= psg2_snap;"
+      }
+    ]
+  },
+  {
+    "file": "rtl/savestates.sv",
+    "name": "cram_snap",
+    "sites": [
+      {
+        "line": 444,
+        "text": "reg [383:0] cram_snap;",
+        "context": "assign z80_nmi_valid = has_nmi_history;\nreg [135:0] vdp_snap;\nreg [383:0] cram_snap;\nreg  [55:0] psg_snap;\nreg  [63:0] mapper_snap;"
+      },
+      {
+        "line": 611,
+        "text": "                    3'd0: ddram_cmd_write ( base_addr + 29'd8 , cram_snap [ 63 : 0 ] , 8'hFF ) ;",
+        "context": "            if (! DDRAM_BUSY) begin\n                case (cram_idx)\n                    3'd0: ddram_cmd_write ( base_addr + 29'd8 , cram_snap [ 63 : 0 ] , 8'hFF ) ;\n                    3'd1: ddram_cmd_write ( base_addr + 29'd9 , cram_snap [ 127 : 64 ] , 8'hFF ) ;\n                    3'd2: ddram_cmd_write ( base_addr + 29'd10 , cram_snap [ 191 : 128 ] , 8'hFF ) ;"
+      },
+      {
+        "line": 612,
+        "text": "                    3'd1: ddram_cmd_write ( base_addr + 29'd9 , cram_snap [ 127 : 64 ] , 8'hFF ) ;",
+        "context": "                case (cram_idx)\n                    3'd0: ddram_cmd_write ( base_addr + 29'd8 , cram_snap [ 63 : 0 ] , 8'hFF ) ;\n                    3'd1: ddram_cmd_write ( base_addr + 29'd9 , cram_snap [ 127 : 64 ] , 8'hFF ) ;\n                    3'd2: ddram_cmd_write ( base_addr + 29'd10 , cram_snap [ 191 : 128 ] , 8'hFF ) ;\n                    3'd3: ddram_cmd_write ( base_addr + 29'd11 , cram_snap [ 255 : 192 ] , 8'hFF ) ;"
+      },
+      {
+        "line": 613,
+        "text": "                    3'd2: ddram_cmd_write ( base_addr + 29'd10 , cram_snap [ 191 : 128 ] , 8'hFF ) ;",
+        "context": "                    3'd0: ddram_cmd_write ( base_addr + 29'd8 , cram_snap [ 63 : 0 ] , 8'hFF ) ;\n                    3'd1: ddram_cmd_write ( base_addr + 29'd9 , cram_snap [ 127 : 64 ] , 8'hFF ) ;\n                    3'd2: ddram_cmd_write ( base_addr + 29'd10 , cram_snap [ 191 : 128 ] , 8'hFF ) ;\n                    3'd3: ddram_cmd_write ( base_addr + 29'd11 , cram_snap [ 255 : 192 ] , 8'hFF ) ;\n                    3'd4: ddram_cmd_write ( base_addr + 29'd12 , cram_snap [ 319 : 256 ] , 8'hFF ) ;"
+      },
+      {
+        "line": 614,
+        "text": "                    3'd3: ddram_cmd_write ( base_addr + 29'd11 , cram_snap [ 255 : 192 ] , 8'hFF ) ;",
+        "context": "                    3'd1: ddram_cmd_write ( base_addr + 29'd9 , cram_snap [ 127 : 64 ] , 8'hFF ) ;\n                    3'd2: ddram_cmd_write ( base_addr + 29'd10 , cram_snap [ 191 : 128 ] , 8'hFF ) ;\n                    3'd3: ddram_cmd_write ( base_addr + 29'd11 , cram_snap [ 255 : 192 ] , 8'hFF ) ;\n                    3'd4: ddram_cmd_write ( base_addr + 29'd12 , cram_snap [ 319 : 256 ] , 8'hFF ) ;\n                    3'd5: ddram_cmd_write ( base_addr + 29'd13 , cram_snap [ 383 : 320 ] , 8'hFF ) ;"
+      },
+      {
+        "line": 615,
+        "text": "                    3'd4: ddram_cmd_write ( base_addr + 29'd12 , cram_snap [ 319 : 256 ] , 8'hFF ) ;",
+        "context": "                    3'd2: ddram_cmd_write ( base_addr + 29'd10 , cram_snap [ 191 : 128 ] , 8'hFF ) ;\n                    3'd3: ddram_cmd_write ( base_addr + 29'd11 , cram_snap [ 255 : 192 ] , 8'hFF ) ;\n                    3'd4: ddram_cmd_write ( base_addr + 29'd12 , cram_snap [ 319 : 256 ] , 8'hFF ) ;\n                    3'd5: ddram_cmd_write ( base_addr + 29'd13 , cram_snap [ 383 : 320 ] , 8'hFF ) ;\n                    default: begin end"
+      },
+      {
+        "line": 616,
+        "text": "                    3'd5: ddram_cmd_write ( base_addr + 29'd13 , cram_snap [ 383 : 320 ] , 8'hFF ) ;",
+        "context": "                    3'd3: ddram_cmd_write ( base_addr + 29'd11 , cram_snap [ 255 : 192 ] , 8'hFF ) ;\n                    3'd4: ddram_cmd_write ( base_addr + 29'd12 , cram_snap [ 319 : 256 ] , 8'hFF ) ;\n                    3'd5: ddram_cmd_write ( base_addr + 29'd13 , cram_snap [ 383 : 320 ] , 8'hFF ) ;\n                    default: begin end\n                endcase"
+      },
+      {
+        "line": 1079,
+        "text": "            cram_snap   <= cram_out;",
+        "context": "            // and are not saved/restored, but merely frozen).\n            vdp_snap    <= vdp_regs;\n            cram_snap   <= cram_out;\n            psg_snap    <= psg_out;\n            mapper_snap <= mapper_out;"
+      },
+      {
+        "line": 1228,
+        "text": "                    3'd0: ddram_write(base_addr + 29'd8,  cram_snap[63:0],    8'hFF);",
+        "context": "            if (!DDRAM_BUSY) begin\n                case (cram_idx)\n                    3'd0: ddram_write(base_addr + 29'd8,  cram_snap[63:0],    8'hFF);\n                    3'd1: ddram_write(base_addr + 29'd9,  cram_snap[127:64],  8'hFF);\n                    3'd2: ddram_write(base_addr + 29'd10, cram_snap[191:128], 8'hFF);"
+      },
+      {
+        "line": 1229,
+        "text": "                    3'd1: ddram_write(base_addr + 29'd9,  cram_snap[127:64],  8'hFF);",
+        "context": "                case (cram_idx)\n                    3'd0: ddram_write(base_addr + 29'd8,  cram_snap[63:0],    8'hFF);\n                    3'd1: ddram_write(base_addr + 29'd9,  cram_snap[127:64],  8'hFF);\n                    3'd2: ddram_write(base_addr + 29'd10, cram_snap[191:128], 8'hFF);\n                    3'd3: ddram_write(base_addr + 29'd11, cram_snap[255:192], 8'hFF);"
+      },
+      {
+        "line": 1230,
+        "text": "                    3'd2: ddram_write(base_addr + 29'd10, cram_snap[191:128], 8'hFF);",
+        "context": "                    3'd0: ddram_write(base_addr + 29'd8,  cram_snap[63:0],    8'hFF);\n                    3'd1: ddram_write(base_addr + 29'd9,  cram_snap[127:64],  8'hFF);\n                    3'd2: ddram_write(base_addr + 29'd10, cram_snap[191:128], 8'hFF);\n                    3'd3: ddram_write(base_addr + 29'd11, cram_snap[255:192], 8'hFF);\n                    3'd4: ddram_write(base_addr + 29'd12, cram_snap[319:256], 8'hFF);"
+      },
+      {
+        "line": 1231,
+        "text": "                    3'd3: ddram_write(base_addr + 29'd11, cram_snap[255:192], 8'hFF);",
+        "context": "                    3'd1: ddram_write(base_addr + 29'd9,  cram_snap[127:64],  8'hFF);\n                    3'd2: ddram_write(base_addr + 29'd10, cram_snap[191:128], 8'hFF);\n                    3'd3: ddram_write(base_addr + 29'd11, cram_snap[255:192], 8'hFF);\n                    3'd4: ddram_write(base_addr + 29'd12, cram_snap[319:256], 8'hFF);\n                    3'd5: ddram_write(base_addr + 29'd13, cram_snap[383:320], 8'hFF);"
+      },
+      {
+        "line": 1232,
+        "text": "                    3'd4: ddram_write(base_addr + 29'd12, cram_snap[319:256], 8'hFF);",
+        "context": "                    3'd2: ddram_write(base_addr + 29'd10, cram_snap[191:128], 8'hFF);\n                    3'd3: ddram_write(base_addr + 29'd11, cram_snap[255:192], 8'hFF);\n                    3'd4: ddram_write(base_addr + 29'd12, cram_snap[319:256], 8'hFF);\n                    3'd5: ddram_write(base_addr + 29'd13, cram_snap[383:320], 8'hFF);\n                    default: ;"
+      },
+      {
+        "line": 1233,
+        "text": "                    3'd5: ddram_write(base_addr + 29'd13, cram_snap[383:320], 8'hFF);",
+        "context": "                    3'd3: ddram_write(base_addr + 29'd11, cram_snap[255:192], 8'hFF);\n                    3'd4: ddram_write(base_addr + 29'd12, cram_snap[319:256], 8'hFF);\n                    3'd5: ddram_write(base_addr + 29'd13, cram_snap[383:320], 8'hFF);\n                    default: ;\n                endcase"
+      },
+      {
+        "line": 1830,
+        "text": "                    3'd0: begin cram_snap[63:0]    <= dout_latch; ddram_read(base_addr + 29'd9);  end",
+        "context": "            end else if (!dout_expected && !DDRAM_BUSY) begin\n                case (cram_idx)\n                    3'd0: begin cram_snap[63:0]    <= dout_latch; ddram_read(base_addr + 29'd9);  end\n                    3'd1: begin cram_snap[127:64]  <= dout_latch; ddram_read(base_addr + 29'd10); end\n                    3'd2: begin cram_snap[191:128] <= dout_latch; ddram_read(base_addr + 29'd11); end"
+      },
+      {
+        "line": 1831,
+        "text": "                    3'd1: begin cram_snap[127:64]  <= dout_latch; ddram_read(base_addr + 29'd10); end",
+        "context": "                case (cram_idx)\n                    3'd0: begin cram_snap[63:0]    <= dout_latch; ddram_read(base_addr + 29'd9);  end\n                    3'd1: begin cram_snap[127:64]  <= dout_latch; ddram_read(base_addr + 29'd10); end\n                    3'd2: begin cram_snap[191:128] <= dout_latch; ddram_read(base_addr + 29'd11); end\n                    3'd3: begin cram_snap[255:192] <= dout_latch; ddram_read(base_addr + 29'd12); end"
+      },
+      {
+        "line": 1832,
+        "text": "                    3'd2: begin cram_snap[191:128] <= dout_latch; ddram_read(base_addr + 29'd11); end",
+        "context": "                    3'd0: begin cram_snap[63:0]    <= dout_latch; ddram_read(base_addr + 29'd9);  end\n                    3'd1: begin cram_snap[127:64]  <= dout_latch; ddram_read(base_addr + 29'd10); end\n                    3'd2: begin cram_snap[191:128] <= dout_latch; ddram_read(base_addr + 29'd11); end\n                    3'd3: begin cram_snap[255:192] <= dout_latch; ddram_read(base_addr + 29'd12); end\n                    3'd4: begin cram_snap[319:256] <= dout_latch; ddram_read(base_addr + 29'd13); end"
+      },
+      {
+        "line": 1833,
+        "text": "                    3'd3: begin cram_snap[255:192] <= dout_latch; ddram_read(base_addr + 29'd12); end",
+        "context": "                    3'd1: begin cram_snap[127:64]  <= dout_latch; ddram_read(base_addr + 29'd10); end\n                    3'd2: begin cram_snap[191:128] <= dout_latch; ddram_read(base_addr + 29'd11); end\n                    3'd3: begin cram_snap[255:192] <= dout_latch; ddram_read(base_addr + 29'd12); end\n                    3'd4: begin cram_snap[319:256] <= dout_latch; ddram_read(base_addr + 29'd13); end\n                    3'd5: begin cram_snap[383:320] <= dout_latch; ddram_read(base_addr + 29'd14); end"
+      },
+      {
+        "line": 1834,
+        "text": "                    3'd4: begin cram_snap[319:256] <= dout_latch; ddram_read(base_addr + 29'd13); end",
+        "context": "                    3'd2: begin cram_snap[191:128] <= dout_latch; ddram_read(base_addr + 29'd11); end\n                    3'd3: begin cram_snap[255:192] <= dout_latch; ddram_read(base_addr + 29'd12); end\n                    3'd4: begin cram_snap[319:256] <= dout_latch; ddram_read(base_addr + 29'd13); end\n                    3'd5: begin cram_snap[383:320] <= dout_latch; ddram_read(base_addr + 29'd14); end\n                    default: ;"
+      },
+      {
+        "line": 1835,
+        "text": "                    3'd5: begin cram_snap[383:320] <= dout_latch; ddram_read(base_addr + 29'd14); end",
+        "context": "                    3'd3: begin cram_snap[255:192] <= dout_latch; ddram_read(base_addr + 29'd12); end\n                    3'd4: begin cram_snap[319:256] <= dout_latch; ddram_read(base_addr + 29'd13); end\n                    3'd5: begin cram_snap[383:320] <= dout_latch; ddram_read(base_addr + 29'd14); end\n                    default: ;\n                endcase"
+      },
+      {
+        "line": 2454,
+        "text": "            cram_D  <= cram_snap[12*cram_entry +: 12];",
+        "context": "            cram_wr <= 1;\n            cram_A  <= cram_entry;\n            cram_D  <= cram_snap[12*cram_entry +: 12];\n            // Write CRAM2 in parallel when System E\n            if (systeme) begin"
+      }
+    ]
+  },
+  {
+    "file": "rtl/savestates.sv",
+    "name": "cram2_snap",
+    "sites": [
+      {
+        "line": 456,
+        "text": "reg [383:0] cram2_snap;",
+        "context": "// Bits 39:38 now give the GG payload length, exactly two 64-bit words.\nlocalparam [23:0] IO_EXT_MAGIC = 24'h484302;\nreg [383:0] cram2_snap;\nreg  [55:0] psg2_snap;\nreg  [31:0] io_snap;"
+      },
+      {
+        "line": 678,
+        "text": "                    3'd0: ddram_cmd_write ( base_addr + 29'h12 , cram2_snap [ 63 : 0 ] , 8'hFF ) ;",
+        "context": "            if (! DDRAM_BUSY) begin\n                case (cram_idx)\n                    3'd0: ddram_cmd_write ( base_addr + 29'h12 , cram2_snap [ 63 : 0 ] , 8'hFF ) ;\n                    3'd1: ddram_cmd_write ( base_addr + 29'h13 , cram2_snap [ 127 : 64 ] , 8'hFF ) ;\n                    3'd2: ddram_cmd_write ( base_addr + 29'h14 , cram2_snap [ 191 : 128 ] , 8'hFF ) ;"
+      },
+      {
+        "line": 679,
+        "text": "                    3'd1: ddram_cmd_write ( base_addr + 29'h13 , cram2_snap [ 127 : 64 ] , 8'hFF ) ;",
+        "context": "                case (cram_idx)\n                    3'd0: ddram_cmd_write ( base_addr + 29'h12 , cram2_snap [ 63 : 0 ] , 8'hFF ) ;\n                    3'd1: ddram_cmd_write ( base_addr + 29'h13 , cram2_snap [ 127 : 64 ] , 8'hFF ) ;\n                    3'd2: ddram_cmd_write ( base_addr + 29'h14 , cram2_snap [ 191 : 128 ] , 8'hFF ) ;\n                    3'd3: ddram_cmd_write ( base_addr + 29'h15 , cram2_snap [ 255 : 192 ] , 8'hFF ) ;"
+      },
+      {
+        "line": 680,
+        "text": "                    3'd2: ddram_cmd_write ( base_addr + 29'h14 , cram2_snap [ 191 : 128 ] , 8'hFF ) ;",
+        "context": "                    3'd0: ddram_cmd_write ( base_addr + 29'h12 , cram2_snap [ 63 : 0 ] , 8'hFF ) ;\n                    3'd1: ddram_cmd_write ( base_addr + 29'h13 , cram2_snap [ 127 : 64 ] , 8'hFF ) ;\n                    3'd2: ddram_cmd_write ( base_addr + 29'h14 , cram2_snap [ 191 : 128 ] , 8'hFF ) ;\n                    3'd3: ddram_cmd_write ( base_addr + 29'h15 , cram2_snap [ 255 : 192 ] , 8'hFF ) ;\n                    3'd4: ddram_cmd_write ( base_addr + 29'h16 , cram2_snap [ 319 : 256 ] , 8'hFF ) ;"
+      },
+      {
+        "line": 681,
+        "text": "                    3'd3: ddram_cmd_write ( base_addr + 29'h15 , cram2_snap [ 255 : 192 ] , 8'hFF ) ;",
+        "context": "                    3'd1: ddram_cmd_write ( base_addr + 29'h13 , cram2_snap [ 127 : 64 ] , 8'hFF ) ;\n                    3'd2: ddram_cmd_write ( base_addr + 29'h14 , cram2_snap [ 191 : 128 ] , 8'hFF ) ;\n                    3'd3: ddram_cmd_write ( base_addr + 29'h15 , cram2_snap [ 255 : 192 ] , 8'hFF ) ;\n                    3'd4: ddram_cmd_write ( base_addr + 29'h16 , cram2_snap [ 319 : 256 ] , 8'hFF ) ;\n                    3'd5: ddram_cmd_write ( base_addr + 29'h17 , cram2_snap [ 383 : 320 ] , 8'hFF ) ;"
+      },
+      {
+        "line": 682,
+        "text": "                    3'd4: ddram_cmd_write ( base_addr + 29'h16 , cram2_snap [ 319 : 256 ] , 8'hFF ) ;",
+        "context": "                    3'd2: ddram_cmd_write ( base_addr + 29'h14 , cram2_snap [ 191 : 128 ] , 8'hFF ) ;\n                    3'd3: ddram_cmd_write ( base_addr + 29'h15 , cram2_snap [ 255 : 192 ] , 8'hFF ) ;\n                    3'd4: ddram_cmd_write ( base_addr + 29'h16 , cram2_snap [ 319 : 256 ] , 8'hFF ) ;\n                    3'd5: ddram_cmd_write ( base_addr + 29'h17 , cram2_snap [ 383 : 320 ] , 8'hFF ) ;\n                    default: begin end"
+      },
+      {
+        "line": 683,
+        "text": "                    3'd5: ddram_cmd_write ( base_addr + 29'h17 , cram2_snap [ 383 : 320 ] , 8'hFF ) ;",
+        "context": "                    3'd3: ddram_cmd_write ( base_addr + 29'h15 , cram2_snap [ 255 : 192 ] , 8'hFF ) ;\n                    3'd4: ddram_cmd_write ( base_addr + 29'h16 , cram2_snap [ 319 : 256 ] , 8'hFF ) ;\n                    3'd5: ddram_cmd_write ( base_addr + 29'h17 , cram2_snap [ 383 : 320 ] , 8'hFF ) ;\n                    default: begin end\n                endcase"
+      },
+      {
+        "line": 1087,
+        "text": "                cram2_snap  <= cram2_out;",
+        "context": "            if (systeme) begin\n                vdp2_snap   <= vdp2_regs;\n                cram2_snap  <= cram2_out;\n                psg2_snap   <= psg2_out;\n            end"
+      },
+      {
+        "line": 1403,
+        "text": "                    3'd0: ddram_write(base_addr + 29'h12, cram2_snap[ 63:  0], 8'hFF);",
+        "context": "            if (!DDRAM_BUSY) begin\n                case (cram_idx)\n                    3'd0: ddram_write(base_addr + 29'h12, cram2_snap[ 63:  0], 8'hFF);\n                    3'd1: ddram_write(base_addr + 29'h13, cram2_snap[127: 64], 8'hFF);\n                    3'd2: ddram_write(base_addr + 29'h14, cram2_snap[191:128], 8'hFF);"
+      },
+      {
+        "line": 1404,
+        "text": "                    3'd1: ddram_write(base_addr + 29'h13, cram2_snap[127: 64], 8'hFF);",
+        "context": "                case (cram_idx)\n                    3'd0: ddram_write(base_addr + 29'h12, cram2_snap[ 63:  0], 8'hFF);\n                    3'd1: ddram_write(base_addr + 29'h13, cram2_snap[127: 64], 8'hFF);\n                    3'd2: ddram_write(base_addr + 29'h14, cram2_snap[191:128], 8'hFF);\n                    3'd3: ddram_write(base_addr + 29'h15, cram2_snap[255:192], 8'hFF);"
+      },
+      {
+        "line": 1405,
+        "text": "                    3'd2: ddram_write(base_addr + 29'h14, cram2_snap[191:128], 8'hFF);",
+        "context": "                    3'd0: ddram_write(base_addr + 29'h12, cram2_snap[ 63:  0], 8'hFF);\n                    3'd1: ddram_write(base_addr + 29'h13, cram2_snap[127: 64], 8'hFF);\n                    3'd2: ddram_write(base_addr + 29'h14, cram2_snap[191:128], 8'hFF);\n                    3'd3: ddram_write(base_addr + 29'h15, cram2_snap[255:192], 8'hFF);\n                    3'd4: ddram_write(base_addr + 29'h16, cram2_snap[319:256], 8'hFF);"
+      },
+      {
+        "line": 1406,
+        "text": "                    3'd3: ddram_write(base_addr + 29'h15, cram2_snap[255:192], 8'hFF);",
+        "context": "                    3'd1: ddram_write(base_addr + 29'h13, cram2_snap[127: 64], 8'hFF);\n                    3'd2: ddram_write(base_addr + 29'h14, cram2_snap[191:128], 8'hFF);\n                    3'd3: ddram_write(base_addr + 29'h15, cram2_snap[255:192], 8'hFF);\n                    3'd4: ddram_write(base_addr + 29'h16, cram2_snap[319:256], 8'hFF);\n                    3'd5: ddram_write(base_addr + 29'h17, cram2_snap[383:320], 8'hFF);"
+      },
+      {
+        "line": 1407,
+        "text": "                    3'd4: ddram_write(base_addr + 29'h16, cram2_snap[319:256], 8'hFF);",
+        "context": "                    3'd2: ddram_write(base_addr + 29'h14, cram2_snap[191:128], 8'hFF);\n                    3'd3: ddram_write(base_addr + 29'h15, cram2_snap[255:192], 8'hFF);\n                    3'd4: ddram_write(base_addr + 29'h16, cram2_snap[319:256], 8'hFF);\n                    3'd5: ddram_write(base_addr + 29'h17, cram2_snap[383:320], 8'hFF);\n                    default: ;"
+      },
+      {
+        "line": 1408,
+        "text": "                    3'd5: ddram_write(base_addr + 29'h17, cram2_snap[383:320], 8'hFF);",
+        "context": "                    3'd3: ddram_write(base_addr + 29'h15, cram2_snap[255:192], 8'hFF);\n                    3'd4: ddram_write(base_addr + 29'h16, cram2_snap[319:256], 8'hFF);\n                    3'd5: ddram_write(base_addr + 29'h17, cram2_snap[383:320], 8'hFF);\n                    default: ;\n                endcase"
+      },
+      {
+        "line": 2227,
+        "text": "                    3'd0: begin cram2_snap[ 63:  0] <= dout_latch; cram_idx <= 3'd1; ddram_read(base_addr + 29'h13); end",
+        "context": "            end else if (!dout_expected && !DDRAM_BUSY) begin\n                case (cram_idx)\n                    3'd0: begin cram2_snap[ 63:  0] <= dout_latch; cram_idx <= 3'd1; ddram_read(base_addr + 29'h13); end\n                    3'd1: begin cram2_snap[127: 64] <= dout_latch; cram_idx <= 3'd2; ddram_read(base_addr + 29'h14); end\n                    3'd2: begin cram2_snap[191:128] <= dout_latch; cram_idx <= 3'd3; ddram_read(base_addr + 29'h15); end"
+      },
+      {
+        "line": 2228,
+        "text": "                    3'd1: begin cram2_snap[127: 64] <= dout_latch; cram_idx <= 3'd2; ddram_read(base_addr + 29'h14); end",
+        "context": "                case (cram_idx)\n                    3'd0: begin cram2_snap[ 63:  0] <= dout_latch; cram_idx <= 3'd1; ddram_read(base_addr + 29'h13); end\n                    3'd1: begin cram2_snap[127: 64] <= dout_latch; cram_idx <= 3'd2; ddram_read(base_addr + 29'h14); end\n                    3'd2: begin cram2_snap[191:128] <= dout_latch; cram_idx <= 3'd3; ddram_read(base_addr + 29'h15); end\n                    3'd3: begin cram2_snap[255:192] <= dout_latch; cram_idx <= 3'd4; ddram_read(base_addr + 29'h16); end"
+      },
+      {
+        "line": 2229,
+        "text": "                    3'd2: begin cram2_snap[191:128] <= dout_latch; cram_idx <= 3'd3; ddram_read(base_addr + 29'h15); end",
+        "context": "                    3'd0: begin cram2_snap[ 63:  0] <= dout_latch; cram_idx <= 3'd1; ddram_read(base_addr + 29'h13); end\n                    3'd1: begin cram2_snap[127: 64] <= dout_latch; cram_idx <= 3'd2; ddram_read(base_addr + 29'h14); end\n                    3'd2: begin cram2_snap[191:128] <= dout_latch; cram_idx <= 3'd3; ddram_read(base_addr + 29'h15); end\n                    3'd3: begin cram2_snap[255:192] <= dout_latch; cram_idx <= 3'd4; ddram_read(base_addr + 29'h16); end\n                    3'd4: begin cram2_snap[319:256] <= dout_latch; cram_idx <= 3'd5; ddram_read(base_addr + 29'h17); end"
+      },
+      {
+        "line": 2230,
+        "text": "                    3'd3: begin cram2_snap[255:192] <= dout_latch; cram_idx <= 3'd4; ddram_read(base_addr + 29'h16); end",
+        "context": "                    3'd1: begin cram2_snap[127: 64] <= dout_latch; cram_idx <= 3'd2; ddram_read(base_addr + 29'h14); end\n                    3'd2: begin cram2_snap[191:128] <= dout_latch; cram_idx <= 3'd3; ddram_read(base_addr + 29'h15); end\n                    3'd3: begin cram2_snap[255:192] <= dout_latch; cram_idx <= 3'd4; ddram_read(base_addr + 29'h16); end\n                    3'd4: begin cram2_snap[319:256] <= dout_latch; cram_idx <= 3'd5; ddram_read(base_addr + 29'h17); end\n                    3'd5: begin"
+      },
+      {
+        "line": 2231,
+        "text": "                    3'd4: begin cram2_snap[319:256] <= dout_latch; cram_idx <= 3'd5; ddram_read(base_addr + 29'h17); end",
+        "context": "                    3'd2: begin cram2_snap[191:128] <= dout_latch; cram_idx <= 3'd3; ddram_read(base_addr + 29'h15); end\n                    3'd3: begin cram2_snap[255:192] <= dout_latch; cram_idx <= 3'd4; ddram_read(base_addr + 29'h16); end\n                    3'd4: begin cram2_snap[319:256] <= dout_latch; cram_idx <= 3'd5; ddram_read(base_addr + 29'h17); end\n                    3'd5: begin\n                        cram2_snap[383:320] <= dout_latch;"
+      },
+      {
+        "line": 2233,
+        "text": "                        cram2_snap[383:320] <= dout_latch;",
+        "context": "                    3'd4: begin cram2_snap[319:256] <= dout_latch; cram_idx <= 3'd5; ddram_read(base_addr + 29'h17); end\n                    3'd5: begin\n                        cram2_snap[383:320] <= dout_latch;\n                        cram_idx <= 3'd0;\n                        ddram_read(base_addr + 29'h18);"
+      },
+      {
+        "line": 2459,
+        "text": "                cram2_D  <= cram2_snap[12*cram_entry +: 12];",
+        "context": "                cram2_wr <= 1;\n                cram2_A  <= cram_entry;\n                cram2_D  <= cram2_snap[12*cram_entry +: 12];\n            end\n            if (cram_entry == 31) begin"
+      }
+    ]
+  },
+  {
+    "file": "rtl/savestates.sv",
+    "name": "video_snap",
+    "sites": [
+      {
+        "line": 459,
+        "text": "reg  [21:0] video_snap;",
+        "context": "reg  [55:0] psg2_snap;\nreg  [31:0] io_snap;\nreg  [21:0] video_snap;\nreg  [63:0] eeprom_snap;\n// Version 3 retains v1/v2 fields and adds word 01e after the two GG words."
+      },
+      {
+        "line": 471,
+        "text": "                         vdp_snap[135:128], video_snap};",
+        "context": "wire [63:0] video_word = {CPU_RESTART_MAGIC, 2'd3,\n                         systeme ? vdp2_snap[135:128] : 8'd0,\n                         vdp_snap[135:128], video_snap};\n\n// VRAM DMA pipelining: address issued, wait 2 clocks for data"
+      },
+      {
+        "line": 963,
+        "text": "        video_snap      <= 22'd0;",
+        "context": "        video_state_in  <= 22'd0;\n        video_state_set <= 0;\n        video_snap      <= 22'd0;\n        dout_expected   <= 0;\n        ddram_watchdog  <= 0;"
+      },
+      {
+        "line": 1092,
+        "text": "            video_snap       <= video_state_out;",
+        "context": "            io_snap          <= io_out;\n            gg_snap          <= gg_out;\n            video_snap       <= video_state_out;\n\n            "
+      },
+      {
+        "line": 1958,
+        "text": "                video_snap       <= dout_latch[21:0];",
+        "context": "                    state <= ST_ERROR;\n                end else begin\n                video_snap       <= dout_latch[21:0];\n                has_mapper_history <= (load_ext_magic == MAPPER_HISTORY_MAGIC || (load_ext_magic == EVOLUTION_HISTORY_MAGIC || load_ext_magic == EVOLUTION_PENDING_MAGIC)) && dout_latch[39:38] == 2'd3;\n                has_gun_tag <= (load_ext_magic == GUN_EXT_MAGIC || (load_ext_magic == MAPPER_HISTORY_MAGIC || (load_ext_magic == EVOLUTION_HISTORY_MAGIC || load_ext_magic == EVOLUTION_PENDING_MAGIC))) && dout_latch[39:38] == 2'd3;"
+      },
+      {
+        "line": 2440,
+        "text": "                    video_state_in  <= video_snap;",
+        "context": "                    io_in        <= io_snap;\n                    io_set       <= 1;\n                    video_state_in  <= video_snap;\n                    video_state_set <= 1;\n                end"
+      },
+      {
+        "line": 2505,
+        "text": "            end else if (is_old_format || (video_state_out[21:4] == video_snap[21:4]) || (align_timeout >= 22'd2200000)) begin",
+        "context": "                unfreeze_cnt <= unfreeze_cnt + 8'd1;\n                ss_freeze <= 1;\n            end else if (is_old_format || (video_state_out[21:4] == video_snap[21:4]) || (align_timeout >= 22'd2200000)) begin\n                if (!cpu_ce && !vdp_ce && !pix_ce && !sp_ce) begin\n                    ss_freeze    <= 0;"
+      }
+    ]
+  },
+  {
+    "file": "rtl/savestates.sv",
+    "name": "vdp_regs_set",
+    "sites": [
+      {
+        "line": 75,
+        "text": "    output reg        vdp_regs_set,",
+        "context": "    input     [135:0] vdp_regs,\n    output reg [135:0] vdp_regs_in,\n    output reg        vdp_regs_set,\n\n    // ---- CRAM ----"
+      },
+      {
+        "line": 928,
+        "text": "        vdp_regs_set    <= 0;",
+        "context": "        cur_bios_mode   <= 0;\n        z80_set         <= 0;\n        vdp_regs_set    <= 0;\n        cram_wr         <= 0;\n        psg_set         <= 0;"
+      },
+      {
+        "line": 984,
+        "text": "        vdp_regs_set <= 0;",
+        "context": "        // default: clear one-cycle strobes\n        z80_set      <= 0;\n        vdp_regs_set <= 0;\n        cram_wr      <= 0;\n        psg_set      <= 0;"
+      },
+      {
+        "line": 2427,
+        "text": "                vdp_regs_set <= 1;",
+        "context": "                z80_set      <= 1;\n                vdp_regs_in  <= vdp_snap;\n                vdp_regs_set <= 1;\n                psg_in       <= psg_snap;\n                psg_set      <= 1;"
+      }
+    ]
+  },
+  {
+    "file": "rtl/savestates.sv",
+    "name": "vdp2_regs_set",
+    "sites": [
+      {
+        "line": 174,
+        "text": "    output reg        vdp2_regs_set,",
+        "context": "    input     [135:0] vdp2_regs,\n    output reg [135:0] vdp2_regs_in,\n    output reg        vdp2_regs_set,\n\n    // ---- CRAM2 (System E second VDP colour RAM) ----"
+      },
+      {
+        "line": 942,
+        "text": "        vdp2_regs_set   <= 0;",
+        "context": "        nvram_WE        <= 0;\n        nvram_load_active <= 0;\n        vdp2_regs_set   <= 0;\n        cram2_wr        <= 0;\n        psg2_set        <= 0;"
+      },
+      {
+        "line": 994,
+        "text": "        vdp2_regs_set <= 0;",
+        "context": "        wram_WE      <= 0;\n        nvram_WE     <= 0;\n        vdp2_regs_set <= 0;\n        cram2_wr     <= 0;\n        psg2_set     <= 0;"
+      },
+      {
+        "line": 2446,
+        "text": "                    vdp2_regs_set <= 1;",
+        "context": "                if (systeme) begin\n                    vdp2_regs_in  <= vdp2_snap;\n                    vdp2_regs_set <= 1;\n                    psg2_in       <= psg2_snap;\n                    psg2_set      <= 1;"
+      }
+    ]
+  }
+]

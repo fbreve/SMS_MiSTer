@@ -1,0 +1,45 @@
+const fs=require('fs'),path=require('path'),cp=require('child_process'),crypto=require('crypto');
+const dir=__dirname,root=path.resolve(dir,'../..');
+const read=f=>{const b=fs.readFileSync(path.resolve(dir,f));return b[0]===255&&b[1]===254?b.subarray(2).toString('utf16le'):b.toString('utf8');};
+const git=(...a)=>cp.execFileSync('git',a,{cwd:root,encoding:'utf8'}),sha=b=>crypto.createHash('sha256').update(b).digest('hex');
+const checks=[['replay.log','PASS replay T=64 cases=2560'],['replay_real.log','PASS replay T=80540 cases=160'],['integration.log','PASS MD DDRAM both real-timeout pads'],['../savestate_hcounter/f08_sms.log','PASS: F07 fixed'],['../savestate_hcounter/f08_gg.log','PASS: F07 fixed'],['../savestate_hcounter/f08_controller.log','PASS controller case 8'],['../savestate_hcounter/f08_integration.log','PASS integrated System E'],['../savestate_gg_io/f08_after.log','PASS F02 local replay: 24'],['../savestate_gg_io/f08_integration.log','PASS F02 DDRAM integration: 13'],['../savestate_gg_io/f08_integration_stalls.log','PASS F02 DDRAM integration: 13'],['../savestate_coverage/f08_regression.log','PASS md_gap_tb'],['../savestate_coverage/f08_psg.log','PASS PSG replay: 128'],['static.log','136 committed F02 build inputs verified']];
+const tests={};for(const [f,marker]of checks){const s=read(f);if(!s.includes(marker)||/\*\* (Failure|Fatal|Error)/.test(s))throw Error('Incomplete/failing '+f);tests[f]={pass:true,sha256:sha(fs.readFileSync(path.resolve(dir,f)))};}
+for(const [f,marker]of [['original_before.log','CONFIRMED MD6 gap'],['characterize_before.log','PASS characterization T=64'],['characterize_real_before.log','PASS characterization T=80540'],['integration_before.log','CONFIRMED real DDRAM F08 T=80540']])if(!read(f).includes(marker))throw Error('Missing before proof '+f);
+const previous=JSON.parse(read('F02_reference.json')),baseline=previous.build;
+const sources={};for(const f of Object.keys(previous.inputs)){
+ const current=fs.readFileSync(path.join(root,f)),built=fs.readFileSync(path.join(dir,'candidate',f));
+ if(!current.equals(built))throw Error('Built/current source mismatch '+f);
+ sources[f]={F02:previous.inputs[f],F08:sha(current)};
+}
+if(!fs.readFileSync(path.join(dir,'candidate/build_id.v')).equals(fs.readFileSync(path.join(root,'tests/savestate_gg_io/candidate/build_id.v'))))throw Error('Build dates/settings not comparable');
+const log=read('candidate/compile.log'),fit=read('candidate/output_files/SMS.fit.summary'),sta=read('candidate/output_files/SMS.sta.summary');
+if(!log.includes('Quartus Prime Full Compilation was successful')||!fit.includes('Fitter Status : Successful'))throw Error('Build incomplete');
+const timing=[...sta.matchAll(/Type\s*:\s*([^\r\n]+)\r?\nSlack\s*:\s*(-?[\d.]+)\r?\nTNS\s*:\s*(-?[\d.]+)/g)].map(m=>({type:m[1],slack:+m[2],tns:+m[3]}));
+if(!timing.length)throw Error('No timing');
+const val=(label,source=fit)=>{const m=source.match(new RegExp(label+'[^:\\r\\n]*:\\s*([\\d,]+)'));return m?Number(m[1].replaceAll(',','')):null;};
+const normalize=l=>l.trim().replace(/ File:.*$/,'').replace(/ at [^(\s]+\(\d+\)/g,' at SOURCE(LINE)').replace(/Z:\/tests\/savestate_(?:gg_io|md6)\/candidate\//gi,'BUILD/');
+const warnings=s=>[...new Set(s.split(/\r?\n/).filter(l=>/^\s*(Critical )?Warning \(\d+\):/.test(l)).map(normalize))];
+const critical=s=>[...new Set(s.split(/\r?\n/).filter(l=>l.includes('Critical Warning')).map(normalize))];
+const oldlog=read('../savestate_gg_io/candidate/compile.log'),oldwarnings=warnings(oldlog),currentwarnings=warnings(log);
+const candidate={alms:val('Logic utilization'),registers:val('Total registers'),memoryBits:val('Total block memory bits'),ramBlocks:val('Total RAM Blocks'),dspBlocks:val('Total DSP Blocks'),timing,criticalWarnings:critical(log)};
+for(const k of ['alms','registers','memoryBits','ramBlocks','dspBlocks'])if(candidate[k]===null)throw Error('Missing resource '+k);
+const min=(b,t)=>Math.min(...b.timing.filter(x=>x.type.startsWith(t)).map(x=>x.slack));
+const delta=Object.fromEntries(['alms','registers','memoryBits','ramBlocks','dspBlocks'].map(k=>[k,candidate[k]-baseline[k]]));
+const result={base:previous.commit,branch:git('branch','--show-current').trim(),sources,tests,baseline,candidate,delta,worstSlack:{F02Setup:min(baseline,'Setup'),F02Hold:min(baseline,'Hold'),F08Setup:min(candidate,'Setup'),F08Hold:min(candidate,'Hold')},negativeTiming:timing.filter(t=>t.slack<0||t.tns<0),newWarnings:currentwarnings.filter(w=>!oldwarnings.includes(w)),removedWarnings:oldwarnings.filter(w=>!currentwarnings.includes(w)),newCriticalWarnings:critical(log).filter(w=>!critical(oldlog).includes(w)),warningCounts:{F02:oldwarnings.length,F08:currentwarnings.length,F02Critical:critical(oldlog).length,F08Critical:critical(log).length}};
+result.testInputs=Object.fromEntries(fs.readdirSync(dir).filter(f=>/\.(js|sv|do|csv)$/.test(f)&&!f.endsWith('savestates_sim.sv')).map(f=>[f,sha(fs.readFileSync(path.join(dir,f)))]));
+fs.writeFileSync(path.join(dir,'results.json'),JSON.stringify(result,null,2));
+for(const ext of ['fit','sta'])fs.copyFileSync(path.join(dir,'candidate/output_files/SMS.'+ext+'.summary'),path.join(dir,'candidate_'+ext+'.summary'));
+for(const [f,args]of [['production.diff',['diff']],['git_status.txt',['status','--short']],['diff_stat.txt',['diff','--stat']]])fs.writeFileSync(path.join(dir,f),git(...args));
+if(git('diff','--cached','--name-only').trim())throw Error('Unexpected staged files');
+let review=read('review.md').split('\n## Final signoff')[0];
+review+=`\n## Final signoff\n\nQuartus 17.0.2 full compilation, synthesis and fitter succeeded on Cyclone V 5CSEBA6U23I7 with unchanged seed 1/settings. The candidate is a fresh complete build, compared against the existing successful F02 build whose 136 source/settings inputs were byte-verified against committed ${previous.commit}. The generated build ID also matches.\n\n`;
+review+='| Resource | Committed F02 | F08 | Delta |\n|---|---:|---:|---:|\n';
+for(const k of ['alms','registers','memoryBits','ramBlocks','dspBlocks'])review+=`| ${k} | ${baseline[k]} | ${candidate[k]} | ${delta[k]>=0?'+':''}${delta[k]} |\n`;
+review+=`\nWorst setup: ${result.worstSlack.F08Setup} ns (F02 ${result.worstSlack.F02Setup} ns). Worst hold: ${result.worstSlack.F08Hold} ns (F02 ${result.worstSlack.F02Hold} ns). Negative slack/nonzero negative TNS summaries: ${result.negativeTiming.length}. Full per-clock summaries are in candidate_sta.summary and results.json.\n\n`;
+review+=`New normalized numbered warnings: ${result.newWarnings.length}; new critical warnings: ${result.newCriticalWarnings.length}. Distinct critical warnings F02/F08: ${result.warningCounts.F02Critical}/${result.warningCounts.F08Critical}; distinct numbered warnings F02/F08: ${result.warningCounts.F02}/${result.warningCounts.F08}.\n\n`;
+if(result.newWarnings.length)review+='```text\n'+result.newWarnings.join('\n')+'\n```\n\n';
+review+='All required local and full-transfer tests passed, including unchanged expected EEPROM-gap coverage. No other finding was fixed. P1/P2 fields remain independent; F07 and F02 field positions are retained. Complete production diff was reviewed; there is no staged content. Test changes comprise this focused directory, the converted audit MD fixture/generator, and F07/F02 format expectations plus explicit v2 coverage and F02 optional stalls. Generated Quartus data remains under ignored candidate/baseline directories.\n\n';
+review+='`git diff --stat`:\n\n```text\n'+git('diff','--stat')+'```\n\n`git status --short`:\n\n```text\n'+git('status','--short')+'```\n\n';
+review+=(result.negativeTiming.length?'**NOT READY**: timing violations require review.':'**READY TO COMMIT**: F08 implementation, compatibility, simulations, synthesis/fitter and timing checks pass.')+' No commit, push, or PR has been performed.\n';
+fs.writeFileSync(path.join(dir,'review.md'),review);
+console.log(JSON.stringify({delta,worstSlack:result.worstSlack,negativeTiming:result.negativeTiming,newWarnings:result.newWarnings,warningCounts:result.warningCounts},null,2));

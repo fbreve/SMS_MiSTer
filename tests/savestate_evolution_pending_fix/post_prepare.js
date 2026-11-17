@@ -1,0 +1,43 @@
+const fs=require('fs'),path=require('path'),d=__dirname,r=path.resolve(d,'../..'),old=path.join(r,'tests/savestate_evolution_selector_fix');
+const read=(dir,n)=>fs.readFileSync(path.join(dir,n),'utf8'),write=(n,s)=>fs.writeFileSync(path.join(d,n),s);
+const versions=s=>s.replaceAll('48430b','48430c').replaceAll('48430a','48430b').replaceAll('0000003945563130','0000003c45563131');
+// Run prepare.js first. Its observation-only adapter comes from current RTL.
+for(const n of ['evolution_machine.sv','evolution_banked_machine.sv'])write(n,read(d,n).replace('input clk,reset_n,','input clk,reset_n,freeze,').replace('.ss_in(ein)',".ss_freeze(freeze===1'b1),.ss_in(ein)"));
+let t=read(d,'directed_tb.sv');
+t=t.replace('loaded(.clk(clk)', 'loaded(.freeze(ss_freeze),.clk(clk)').replace('reference(.clk(clk)',"reference(.freeze(1'b0),.clk(clk)");
+t=t.replace('if(ext0!==ext1||map0!==map1||phase0[2]!==1', 'if(ext0[152:0]!==ext1[152:0]||map0!==map1||phase0[2]!==1');
+t=t.replace('if(trajectory[pos]!==observed&&first_state<0)begin', 'if(trajectory[pos]!==observed)$fatal(1,"Reference trajectory differs at sample%0d",pos);\n  if(trajectory[pos]!==observed&&first_state<0)begin');
+t=t.replace('if(pos!=trace_len||first_state<0||first_flash<0)', 'if(pos!=trace_len||first_state>=0||first_flash>=0)');
+t=t.replace('if(pa0===pa1)$fatal(1,"Expected guest-visible lost operation");','if(pa0!==pa1)$fatal(1,"Future Flash mismatch");');
+t=t.replace('if(CASE==2&&pulses0-lp0!=0)', 'if(CASE==2&&pulses0-lp0!=1)');
+t=t.replace('if(ext0!==evolution_in||map0!==mapper_in)', 'if(ext0!==evolution_in||map0!==mapper_in||{phase0[2],phase0[3],phase0[4]}!==evolution_in[155:153])');
+write('directed_tb.sv',t);
+let c=read(d,'cpu_tb.sv').replace("(accepted_saved_armed?8'h00:8'h28)","8'h28");
+c=c.replace('parameter OFFSET=0;','parameter OFFSET=0; parameter HOST_CHANGE=0;');
+c=c.replace(' for(integer iteration=0;', ' if(HOST_CHANGE)host_turbo=1;\n for(integer iteration=0;');
+c=c.replace('wait(first_after);repeat(200)tick;', 'wait(first_after);repeat(200)tick;if(HOST_CHANGE&&host_turbo!==1)$fatal(1,"Host turbo rolled backward");');
+c=c.replace('mapped(.clk(clk)','mapped(.freeze(ss_freeze),.clk(clk)');
+c=c.replace('integer accepts=0,',`integer launch_count=0,launch_before_load=0;\nalways @(posedge clk)if(launch)begin launch_count=launch_count+1;$display("LAUNCH_TIMING cycle%0d frozen=%b A=%h stage=%0d count=%0d",cycle,ss_freeze,addr,stage,launch_count);if(ss_freeze||addr!==16'h0020)$fatal(1,"Launch committed before target fetch");end\ninteger accepts=0,`);
+c=c.replace('stage=1;repeat(300+iteration*71)tick;operation(0);','stage=1;repeat(300+iteration*71)tick;launch_before_load=launch_count;operation(0);');
+c=c.replace('wait(first_after);repeat(200)tick;', 'wait(first_after);repeat(200)tick;if(launch_count-launch_before_load!=(savedmap[15:8]==0?1:0))$fatal(1,"Launch lost or duplicated");');
+c=c.replace('if(accepted_saved_armed)begin if(mode!==0||game!==0)$fatal(1,"expected lost pending commit");end\n else ', '');
+c=c.replace('V10 map=', 'V11 map=');
+c=c.replace('if(evolution_out!==evolution_in||mapper_out!==mapper_in)', 'if(evolution_out!==evolution_in||mapper_out!==mapper_in||{phase[2],phase[3],phase[4]}!==evolution_in[155:153])');write('cpu_tb.sv',c);
+write('turbo_cpu.do',read(d,'cpu.do').replaceAll('pending_cpu_work','turbo_cpu_work').replace(' -gOFFSET=', ' -gHOST_CHANGE=1 -gOFFSET='));
+for(const n of ['evolution_fixed_tb.sv','f13_history_tb.sv'])write(n,versions(read(d,n)));
+for(const n of ['format_tb.sv','format.do','compat_tb.sv','compat.do','regressions.ps1','refresh_model.js'])write(n,read(old,n));
+write('format.do',read(d,'format.do').replace('evolution_machine.sv','regression_machine.sv'));
+let f=versions(read(d,'format_tb.sv'));
+f=f.replace('formatcase<30','formatcase<31');
+f=f.replace('17,18,19,20,21,22,23:mem[\'h2c][57+formatcase-17]=1;',"17,18,19,20:mem['h2c][60+formatcase-17]=1;\n   21,22,23:mem['h2c][57+formatcase-21]=1;");
+f=f.replace("case(formatcase)","case(formatcase)\n   30:begin mem['h1a][63:40]=24'h48430a;mem['h2d]=64'h0000003945563130;end");
+f=f.replace('formatcase!=0&&formatcase!=26&&formatcase!=27','formatcase!=0&&formatcase!=26&&formatcase!=27&&(formatcase<21||formatcase>23)');
+f=f.replace("{snapshot['h2c],snapshot['h1b],snapshot['h19][63:32]}","{mem['h2c],mem['h1b],mem['h19][63:32]}");
+// Changing EV10 to EV11 owner is now correct; wrong owner test stays distinct.
+f=f.replace("14:mem['h2d][31:0]=32'h45563131", "14:mem['h2d][31:0]=32'h45563130");
+f=f.replace('cases30','cases31');write('format_tb.sv',f);
+let compat=versions(read(d,'compat_tb.sv'));
+compat=compat.replace("24:begin mem['h1a][63:40]=24'h484309", "24:begin mem['h2d]=64'h0000003945563130;mem['h1a][63:40]=24'h48430a");write('compat_tb.sv',compat);
+for(const folder of fs.readdirSync(path.join(old,'regressions'))){const source=path.join(old,'regressions',folder);if(!fs.statSync(source).isDirectory())continue;const dest=path.join(d,'regressions',folder);fs.mkdirSync(dest,{recursive:true});for(const e of fs.readdirSync(source,{withFileTypes:true}))if(e.isFile()&&/\.(sv|vhd|v|do|mif)$/.test(e.name)){let s=read(source,e.name);if(/\.(sv|do)$/.test(e.name))s=versions(s);if(e.name==='savestates_sim.sv')s=read(d,'savestates_sim.sv');fs.writeFileSync(path.join(dest,e.name),s);}}
+fs.mkdirSync(path.join(d,'rtl'),{recursive:true});for(const n of fs.readdirSync(path.join(r,'rtl')))if(n.endsWith('.mif'))fs.copyFileSync(path.join(r,'rtl',n),path.join(d,'rtl',n));
+console.log('Prepared F15 equality regressions, v11 format and legacy tests.');

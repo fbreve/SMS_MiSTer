@@ -1,0 +1,21 @@
+const fs=require('fs'),path=require('path'),cp=require('child_process'),crypto=require('crypto'),assert=require('assert'),d=__dirname,r=path.resolve(d,'../..');
+const read=n=>{let b=fs.readFileSync(path.join(d,n));return b[0]===255&&b[1]===254?b.toString('utf16le'):b.toString()},j=JSON.parse(read('results.json'));
+assert.equal(j.completedRuns,314);assert.equal(j.saveOnly.pairs,157);assert.equal(j.saveOnly.exact,141);assert.equal(j.saveOnly.architecturalEqual,146);assert.equal(j.saveOnly.suffixEqual,155);
+assert(j.saveOnly.differences.every(x=>x.externalEdgeAfterCapture));assert(j.saveOnly.semantic.length===2&&j.saveOnly.semantic.every(x=>x.equal&&x.steps===430));
+assert(j.images.length===6&&j.images.every(x=>!x.unknown&&x.words===12288));assert(j.imagePairs.length===15&&j.imagePairs.every(x=>x.equal));
+const check=(name,expr)=>assert(expr, name),counts=n=>[...read(n).matchAll(/LOAD_SUFFIX iter\d+ count=(\d+)/g)].map(m=>+m[1]);
+for(const n of ['sync_pending.log','proof_s0_e-60_w5_r2.log','proof_s0_e-15_w0_r2.log','multi_pending_entry.log','causal_dir.log','old_held.log','old_fresh.log','ei_replay.log','prefix_replay.log','halt_replay.log'])check(n+' three losses',JSON.stringify(counts(n))==='[0,0,0]');
+for(const n of ['proof_s1_e-120_w0_r2.log','proof_s1_e-60_w0_r2.log'])check(n+' history leak',JSON.stringify(counts(n))==='[1,0,0]');
+check('Old alone changes future',read('old_held.log').includes('SAVE_SUFFIX count=1')&&read('old_fresh.log').includes('SAVE_SUFFIX count=2'));
+check('pending and entry both reachable',/ACCEPT op1.*State=18a0/.test(read('multi_pending_entry.log')));
+check('DIR clears frozen pending',/DIR_BEFORE iter1.*State=10b0/.test(read('causal_dir.log'))&&/DIR_AFTER iter1.*State=0090/.test(read('causal_dir.log')));
+const regpass=read('regress.out').match(/PASS /g)||[];assert.equal(regpass.length,19);check('regression runner no error',read('regress.err').trim()==='');
+for(const c of JSON.parse(read('cases_sync.json'))){const s=read(c.label+'.log');check(c.label,s.includes('PASS F16')&&!/\*\* (Error|Fatal|Failure)|Errors: [1-9]/.test(s));}
+check('all directed loads recorded',j.replays.filter(x=>x.loads.length===3).length===16);
+const git=(...a)=>cp.execFileSync('git',a,{cwd:r}),head=git('rev-parse','HEAD').toString().trim(),branch=git('branch','--show-current').toString().trim();assert(head.startsWith('d1df590'));assert.equal(branch,'investigate/savestate-cpu-nmi');assert.equal(git('diff','--name-only').toString(),'');assert.equal(git('diff','--cached','--name-only').toString(),'');
+const sha=b=>crypto.createHash('sha256').update(b).digest('hex'),canonical=b=>b.includes(0)?b:Buffer.from(b.toString('utf8').replace(/\r\n/g,'\n')),files=git('ls-files','-z','SMS.sv','rtl').toString().split('\0').filter(Boolean),hashes=files.map(n=>{const original=git('show','HEAD:'+n),worktree=fs.readFileSync(path.join(r,n)),base=sha(canonical(original)),current=sha(canonical(worktree));assert.equal(base,current,n);return{file:n,normalization:original.includes(0)?'binary':'LF',baseline:base,current,worktreeRawSha256:sha(worktree)};});
+fs.writeFileSync(path.join(d,'source_hashes.json'),JSON.stringify({head,branch,files:hashes},null,2));
+const status=`branch: ${branch}\nHEAD: ${head}\n\ngit diff --stat:\n${git('diff','--stat')}\ngit diff --cached --stat:\n${git('diff','--cached','--stat')}\ngit status --short:\n${git('status','--short')}\nNo production or staged diff. No Quartus invocation.\n`;
+fs.writeFileSync(path.join(d,'repository_status.txt'),status);
+fs.writeFileSync(path.join(d,'verification.json'),JSON.stringify({classification:'CONFIRMED - FIX REQUIRED',canonicalTimingRuns:314,timingPairs:157,pairedEnabledSteps:67510,fullIdenticalKnownImages:6,imagePairs:15,directedReplayScenarios:16,directedLoads:48,existingRegressions:19,productionSourceFilesUnchanged:hashes.length,head,branch,allAssertionsPassed:true},null,2));
+console.log(`PASS evidence verification: 314 timing runs, 16 directed replays / 48 LOADs, 19 regressions, ${hashes.length} production hashes unchanged.`);

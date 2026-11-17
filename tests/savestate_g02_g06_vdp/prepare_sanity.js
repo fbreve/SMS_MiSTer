@@ -1,0 +1,10 @@
+const fs=require('fs'),p=require('path');const root=p.resolve(__dirname,'../..');
+const out=p.join(__dirname,'sanity');fs.mkdirSync(out,{recursive:true});
+const old=p.join(root,'tests/savestate_g01_cpu_restart_fix');
+for(const f of ['T80_integrated.vhd','T80s_integrated.vhd','mapper_ctrl_observed.vhd','savestates_integrated.sv','mapping.sv','integrated_machine.sv','trace_tb.sv','io_instance.sv'])fs.copyFileSync(p.join(old,f),p.join(out,f));
+let d=fs.readFileSync(p.join(old,'trace.do'),'utf8').replaceAll('../../rtl','../../../rtl');
+d=d.replace(/vsim -c[^\r\n]+/,'vsim -c -t 1ps trace_work.fixed_tb -gPROGRAM=18 -gOFFSET=2570 -gPERIOD=15 -gSYS=0 -gCAPTURES=0 -gSIGNATURE=1 -gINTCASE=0');
+fs.writeFileSync(p.join(out,'g01.do'),d);
+fs.copyFileSync(p.join(root,'tests/savestate_hcounter/hcounter_tb.vhd'),p.join(out,'hcounter_tb.vhd'));
+let h=fs.readFileSync(p.join(root,'tests/savestate_hcounter/vdp.do'),'utf8').replaceAll('../../rtl','../../../rtl').replaceAll('vlib work','vlib hcounter_work').replace('vcom -2008','vcom -work hcounter_work -2008').replace('work.hcounter_tb','hcounter_work.hcounter_tb').replace('-gexpect_fixed=$env(HCOUNTER_FIXED)','-gexpect_fixed=true').replace('-ggg_mode=$env(HCOUNTER_GG)','-ggg_mode=1');
+fs.writeFileSync(p.join(out,'hcounter.do'),h);

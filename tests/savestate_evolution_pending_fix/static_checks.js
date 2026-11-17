@@ -1,0 +1,18 @@
+const fs=require('fs'),path=require('path'),cp=require('child_process'),d=__dirname,r=path.resolve(d,'../..');
+const read=n=>fs.readFileSync(path.join(r,n),'utf8').replaceAll('\r',''),old=n=>cp.execFileSync('git',['show','HEAD:'+n],{cwd:r,encoding:'utf8'}).replaceAll('\r','');
+const assert=(x,m)=>{if(!x)throw Error(m);};
+const writes=s=>s.match(/ddram_(?:cmd_)?write\s*\([^;]+;/g).map(x=>x.replace(/\s/g,''));
+const before=writes(old('rtl/savestates.sv')),after=writes(read('rtl/savestates.sv'));
+assert(before.length===after.length,'New serialized words');
+const changed=[];before.forEach((s,i)=>{if(s!==after[i]){assert(s.includes("29'h02c")&&after[i].includes("29'h02c"),'Moved/changed prior payload '+s);changed.push({before:s,after:after[i]});}});assert(changed.length===2,'Both command preview and accepted write widened');
+let e=read('rtl/evolution_mapper.vhd');
+assert(e.includes("switch_pending            <= '0';"),'pending remains drained');
+assert(e.includes('switch_armed              <= ss_in(153);')&&e.includes('record_read_pending_r      <= ss_in(154);')&&e.includes('menu_launch_armed_r        <= ss_in(155);'),'phase field wiring');
+assert(e.includes("elsif enable = '1' and ss_freeze = '0' then"),'freeze holds ordinary bus observation');
+assert(e.includes("old_m1_n                  <= '0';"),'restore M1 derived from T80 DIR');
+assert(read('rtl/system.vhd').includes('ss_freeze   => ss_freeze,'),'production freeze connection');
+const ss=read('rtl/savestates.sv');assert(ss.includes("64'h0000003c45563131")&&ss.includes("24'h48430b")&&ss.includes('dout_latch[63:60] == 0'),'validation');
+assert(ss.includes("24'h48430a"),'non-Evolution v10 inheritance');
+const f14tail=old('rtl/evolution_mapper.vhd').split('prior_candidate_bank61_r & candidate_bank61_r &')[1],newtail=e.split('prior_candidate_bank61_r & candidate_bank61_r &')[1];assert(f14tail===newtail,'F14 and old96 export meanings');
+for(const n of ['rtl/mapper_detect.vhd','rtl/mapper_ctrl.vhd','rtl/evolution_rom_address.vhd','SMS.sv'])assert(read(n)===old(n),'unrelated production change '+n);
+fs.writeFileSync(path.join(d,'static_checks.json'),JSON.stringify({pass:true,serializedWordsUnchanged:true,changedPayloadWrites:changed,F14AndOld96Unchanged:true,restoreM1:0,phaseBits:3,liveEvolutionRegistersAdded:0,snapshotAndRestoreBitsAdded:6},null,2)+'\n');console.log('PASS static scope/layout/F13/F14/preview checks');

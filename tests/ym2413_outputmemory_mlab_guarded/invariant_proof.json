@@ -1,0 +1,32 @@
+{
+  "PASS": true,
+  "transitionCases": 360,
+  "knownVersion17ProducerCommits": [
+    "9873761503510e4b2c7e06600bf5515344235c2f",
+    "1b2a52d87d2659c908d4f9f846416d14bfd85bea",
+    "854761c3d4ab3f6d5c5d0dda00b4682c1523c443",
+    "7fcd5e12847eedf9e97a44dc937c3dbac3205f7c"
+  ],
+  "liveVersion17Producers": [
+    "C:/Users/fbrev/Documents/Diversos/Dev/SMS_MiSTer/tests/ym2413_feedbackmemory_mlab/worktree",
+    "C:/Users/fbrev/Documents/Diversos/Dev/SMS_MiSTer/tests/ym2413_outputmemory_mlab/worktree",
+    "C:/Users/fbrev/Documents/Diversos/Dev/SMS_MiSTer/tests/ym2413_outputmemory_mlab_guarded/worktree",
+    "C:/Users/fbrev/Documents/Diversos/Dev/SMS_MiSTer/tests/ym2413_registermemory_auto/worktree",
+    "C:/Users/fbrev/Documents/Diversos/Dev/SMS_MiSTer/tests/ym2413_registermemory_mlab/worktree",
+    "C:/Users/fbrev/Documents/Diversos/Dev/SMS_MiSTer/tests/ym2413_selfhealing_combined/worktree",
+    "C:/Users/fbrev/Documents/Diversos/Dev/SMS_MiSTer/tests/ym2413_selfhealing_mix/worktree",
+    "C:/Users/fbrev/Documents/Diversos/Dev/SMS_MiSTer/tests/ym2413_selfhealing_mixout/worktree",
+    "C:/Users/fbrev/Documents/Diversos/Dev/SMS_MiSTer/tests/ym2413_v19_fullstate/worktree"
+  ],
+  "predicate": "!word100[1] || word78[1:0]==0",
+  "induction": [
+    "reset/legacy count71 and mo_wr0",
+    "stage3 sets mo_wr and advances count to stage0",
+    "stage0 clears mo_wr before stage1",
+    "other stages preserve mo_wr, which must already be zero",
+    "hold/CE gaps preserve both fields",
+    "delay8 preserves stage modulo4",
+    "CAP_READ/CAP_STORE traverse all104 words while hold remains asserted"
+  ],
+  "compatibility": "All known coherent producers from reset, supported legacy initialization or an invariant-preserving full LOAD satisfy the predicate. Arbitrary previously accepted incoherent LOAD/resave chains and unknown external producers are not certified."
+}

@@ -1,0 +1,31 @@
+diff --git a/rtl/savestates.sv b/rtl/savestates.sv
+index aea4a228..ac816573 100644
+--- a/rtl/savestates.sv
++++ b/rtl/savestates.sv
+@@ -758,7 +758,8 @@ always @(*) begin
+         end
+         ST_LOAD_IO: if (!(DDRAM_DOUT_READY && dout_expected)) if (! dout_expected && ! DDRAM_BUSY) ddram_cmd_read ( base_addr + 29'h01a ) ;
+         ST_LOAD_VIDEO: if (!(DDRAM_DOUT_READY && dout_expected)) if (!dout_expected && !DDRAM_BUSY)
+-            if(!fm_video_tag || dout_latch[39:22]==0)
++            if(!fm_video_tag || (dout_latch[39:22]==0 && has_audio_ext &&
++               (dout_latch[63:40]!=FM_SRAM_MAGIC || (!is_old_format && sram_eligible))))
+                 ddram_cmd_read(base_addr+(fm_video_tag?FM_DESC_ADDR:29'h01b));
+         ST_LOAD_EEPROM: begin
+             if (!(DDRAM_DOUT_READY && dout_expected)) begin
+@@ -1788,11 +1789,12 @@ always @(posedge clk or negedge reset_n) begin
+                 video_snap       <= dout_latch[21:0];
+                 has_fm <= fm_video_tag;
+                 has_full_sram <= dout_latch[63:40]==FM_SRAM_MAGIC;
+-                // Audio presence commits only after SRAM transfer has finished.
+-                // Refuse incomplete images instead of treating stale bytes as SRAM.
+-                if ((fm_video_tag && dout_latch[39:22]!=0) ||
++                // Both owned FM tags require the audio completion commit. An
++                // interrupted overwrite can still have the older FM-only tag.
++                // Untagged legacy images retain their existing fallback path.
++                if ((fm_video_tag && (dout_latch[39:22]!=0 || !has_audio_ext)) ||
+                     (dout_latch[63:40]==FM_SRAM_MAGIC &&
+-                     (is_old_format || !has_audio_ext || !sram_eligible))) state<=ST_ERROR;
++                     (is_old_format || !sram_eligible))) state<=ST_ERROR;
+                 else begin
+                     ddram_read(base_addr+(fm_video_tag?FM_DESC_ADDR:29'h01b));
+                     state<=fm_video_tag?ST_FM_LOAD_DESC:ST_LOAD_EEPROM;

@@ -1,0 +1,70 @@
+{
+  "revisions": {
+    "baseline": "ab09fdf41221c9e3e77eee87264a125ba43021fe",
+    "candidate": "28ead01f7f8709ddda5dc4a63206b9921cb757e0"
+  },
+  "inputs": {
+    "controller_baseline.sv": "e79ca8dedfde095ea4ba64a5a9c6acf8d5c97053530b2edc87a4c6fe5b677968",
+    "controller_candidate.sv": "c2868c94888f824a75a0073095bc09532289bbdc63c33a5bd423e4ff03a52b2a",
+    "directed_tb.sv": "082b874bcff812c5476869da3f738360f8f747054d9c38dd54d9c66d97597a8c",
+    "existing_tb.sv": "17c35cb95b6827c2e87c1370b707d036e0c5edb34edce442b37e6bc0c2b1d4f9",
+    "focused.do": "6056107249f673f10e2d49c0cebe72e93fe58232a47744c514f59cf52feee051",
+    "focused_tb.sv": "ac9e80be95333b3cc555b0f9b1cbda1138c5229aaab7c72d22796887575517d9",
+    "targeted.do": "8b175d7e9b0096283c97d68bbc0361897ac5edd578cab990265f6cf2423fac86",
+    "targeted_tb.sv": "3b1e1de8006b0eb07c503de72b4106360b994a7a86ad42d97c70c5ea96b93a54"
+  },
+  "tests": [
+    {
+      "name": "existing",
+      "pass": true,
+      "cycles": 8482683,
+      "operations": 16,
+      "writes": 57580,
+      "reads": 57564,
+      "logSha256": "57c4495520bcec4639ad8722d75042806f71818edf0f1272b7c79e161a3267d7",
+      "summary": [
+        "# PASS savestate controller differential cycles=8482683 output_checks=8482683 outputs=58 operations=16 restored=8 DDRwrites=57580 DDRreads=57564 busy=218975 SMS/SystemE BIOS/cart slots0..3"
+      ]
+    },
+    {
+      "name": "focused",
+      "pass": true,
+      "cycles": 2518648,
+      "operations": 24,
+      "writes": 181956,
+      "reads": 0,
+      "logSha256": "74b2b8c5571954c5199d52aa931ab19ea2877fe5228b955dc20aab1cac0df515",
+      "summary": [
+        "# PASS savestate controller differential cycles=2518648 output_checks=2518648 outputs=58 operations=24 restored=0 DDRwrites=181956 DDRreads=0 busy=1082903 SMS/SystemE BIOS/cart slots0..3",
+        "# PASS focused held=376239 busy7=876837 transitions=682"
+      ]
+    },
+    {
+      "name": "targeted",
+      "pass": true,
+      "cycles": 1393111,
+      "operations": 8,
+      "writes": 60652,
+      "reads": 0,
+      "logSha256": "860ebc4cdb606de7a705508acb18aa050ae41be7be6171094533aca88cf9ec1a",
+      "summary": [
+        "# PASS savestate controller differential cycles=1393111 output_checks=1393111 outputs=58 operations=8 restored=0 DDRwrites=60652 DDRreads=0 busy=845824 SMS/SystemE BIOS/cart slots0..3",
+        "# FINAL_WORD state=17 pre=8 registered=8",
+        "# FINAL_WORD state=18 pre=8 registered=8",
+        "# FINAL_WORD state=35 pre=3 registered=3",
+        "# FINAL_WORD state=45 pre=4 registered=4",
+        "# FINAL_WORD state=52 pre=4 registered=4",
+        "# FINAL_WORD state=53 pre=4 registered=4",
+        "# PASS targeted held=543744 busy7=845824 transitions=228"
+      ]
+    }
+  ],
+  "scripts": {
+    "prepare.js": "a5e2db29904e16d7b726a03094cded82edc9e9c598044824306c214db8fdf6d4",
+    "prepare_focused.js": "1fca70964653e5e28047cb7a780072ab155823bdb1d4b524d2f9a6fdc82158d2",
+    "prepare_targeted.js": "9e2f473925eb2de123f42e5aa68741e76e7d479c47122f80310ae0960463992d",
+    "run.ps1": "6e898df604d7ef8a1437b3671bf3537ba553daa1c381cbabb8b01b8a82fbe458",
+    "verify.js": "611de6631219428757d267367081f29d17ad22cd5799fbfb5d9a69c79628ed1d",
+    "fixtures/regression_tb.sv": "90f1cbe5e8dbca36117ca8d05f714e897f1fb28a440901a5748b69011b996c99"
+  }
+}

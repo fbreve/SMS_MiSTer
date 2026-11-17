@@ -1,0 +1,12 @@
+const fs=require('fs'),p=require('path'),cp=require('child_process'),crypto=require('crypto'),assert=require('assert'),d=__dirname,root=p.resolve(d,'../..');
+const git=args=>cp.execFileSync('git',args,{cwd:root,encoding:'utf8',maxBuffer:32*1024*1024}).trim(),sha=b=>crypto.createHash('sha256').update(b).digest('hex');
+assert.equal(git(['branch','--show-current']),'investigate/savestate-format-consolidation');assert.equal(git(['diff','--name-only']),'');assert.equal(git(['diff','--cached','--name-only']),'');
+const reports=['savestate_resource_growth','savestate_sprite_resource_optimization','savestate_f01_opll_architecture','savestate_f01_opll_fix','savestate_g06_sequential_architecture'].map(n=>'tests/'+n+'/review.md'),hashes={};
+for(const f of git(['ls-files','-z']).split('\0'))if(fs.existsSync(p.join(root,f))&&fs.statSync(p.join(root,f)).isFile())hashes[f]=sha(fs.readFileSync(p.join(root,f)));
+const old=require('../savestate_f01_opll_fix/build_final_inputs.json');for(const[f,h]of Object.entries(old.inputs))assert.equal(sha(fs.readFileSync(p.join(root,f))),h,'exact production baseline '+f);
+const out={head:git(['rev-parse','HEAD']),branch:git(['branch','--show-current']),format:17,hashes,reports:Object.fromEntries(reports.map(f=>[f,sha(fs.readFileSync(p.join(root,f)))])),baseline:require('../savestate_g06_sequential_architecture/A_results.json').baseline,initialStatus:git(['status','--short']),buildInputs:old.inputs,buildIdSHA:old.buildIdSHA};
+fs.writeFileSync(p.join(d,'baseline.json'),JSON.stringify(out,null,2)+'\n');
+fs.mkdirSync(p.join(d,'history'),{recursive:true});
+for(const [name,rev]of [['public64','4d364780502d1c5d212ad06962a44341c3bbfeaf'],['public96','3ae7eec9cc2a9e02f824771e2e5652f5992ed906'],['master','8443a0d19a88aff7a5900011bccf386daf146945']])fs.writeFileSync(p.join(d,'history',name+'_savestates.sv'),git(['show',rev+':rtl/savestates.sv'])+'\n');
+fs.writeFileSync(p.join(d,'history/development_commits.txt'),git(['log','--reverse','--first-parent','--format=%H %cI %s','8443a0d..HEAD'])+'\n');
+console.log({head:out.head,productionFiles:Object.keys(hashes).length,baselineInputs:Object.keys(old.inputs).length});

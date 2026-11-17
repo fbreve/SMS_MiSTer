@@ -1,0 +1,7 @@
+const fs=require('fs'),p=require('path'),crypto=require('crypto'),assert=require('assert'),d=__dirname,file=p.join(d,'regression_manifest.json'),rows=JSON.parse(fs.readFileSync(file));
+const source={g02:'savestate_g05_background_fix/integrated_g02',g03:'savestate_g05_background_fix/integrated_g03',g04:'savestate_g05_background_fix/integrated_g04',phases:'savestate_g05_background_fix/integrated_stalls',guest_q:'savestate_g05_background_fix/integrated_q',dual:'savestate_g05_background_fix/integrated_dual_irq',g05_targeted:'savestate_g08_release_fix/vdp_original'};
+for(const r of rows.filter(r=>!r.reference&&source[r.family])){
+ const original=p.join(d,'..',source[r.family],r.sourceName||r.name),dst=p.join(d,r.family,r.name),text=fs.readFileSync(p.join(d,r.family,'vdp_tb.sv'),'utf8');
+ for(const m of text.matchAll(/\$fopen\("([^"]+)"\s*,\s*([^;\n]*?)\)/g)){if(!/"r"/.test(m[2]))continue;const name=m[1],target=p.join(dst,name),prior=p.join(original,name);assert(fs.existsSync(prior),'Missing retained input '+prior);if(!fs.existsSync(target)){fs.copyFileSync(prior,target);console.log('Copied missing input '+r.family+'/'+r.name+'/'+name);}const hash=crypto.createHash('sha256').update(fs.readFileSync(prior)).digest('hex');assert.equal(crypto.createHash('sha256').update(fs.readFileSync(target)).digest('hex'),hash,'Oracle identity '+target);if(!r.fixtures.some(x=>x.file===name))r.fixtures.push({file:name,sha256:hash});}
+}
+fs.writeFileSync(file,JSON.stringify(rows,null,2));

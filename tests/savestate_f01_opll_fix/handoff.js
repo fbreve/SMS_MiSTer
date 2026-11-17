@@ -1,0 +1,13 @@
+const fs=require('fs'),p=require('path'),assert=require('assert'),crypto=require('crypto'),d=__dirname;
+const sha=b=>crypto.createHash('sha256').update(b).digest('hex');
+const map=require('./state_map.json');const field=(rows,name)=>{const slice=map.rows.find(r=>r.module==='tm'&&r.signal===name).slices[0];return (rows[slice.word]>>>slice.wordLo)&((1<<slice.width)-1);};
+const cases=['current_case0_final','native','loop','pending','random_1','random_5'];
+const witnesses=cases.map(name=>{
+ const bytes=fs.readFileSync(p.join(d,name,'image_save.hex'));let cursor=0,words=[];
+ for(const line of bytes.toString().split(/\r?\n/)){for(const t of line.replace(/\/\/.*$/,'').trim().split(/\s+/).filter(Boolean)){if(t[0]==='@')cursor=parseInt(t.slice(1),16);else{assert(/^[0-9a-f]{1,16}$/i.test(t));words[cursor++]=BigInt('0x'+t);}}}
+ assert.equal(words.length,12288);assert.equal(words[0x2997],0x00681101464d5331n);
+ const rows=[];for(let i=0;i<104;i++)rows.push(Number((words[0x2998+(i>>1)]>>BigInt(32*(i&1)))&0xffffffffn));
+ const reference=fs.readFileSync(p.join(d,name,'reference.dat'));const observations=reference.toString().trim().split(/\r?\n/).slice(0,20).map((l,hostOffset)=>{const t=l.trim().split(/\s+/);assert.equal(t.length,7);return {hostOffset,mixedLeftHex:t[0].slice(0,4),mixedRightHex:t[0].slice(4),psgConfigHex:t[1],psgExtendedHex:t[2],psgDivider:parseInt(t[3],16),psgRawHex:t[4],clockPhase:parseInt(t[5],16),rawFM14Hex:t[6]};});
+ return {name,imageTextSHA256:sha(bytes),referenceSHA256:sha(reference),rows:rows.map(x=>x.toString(16).padStart(8,'0')),baseCounter:rows[78]&127,rawFMAtCapture:field(rows,'mixout'),partialSum14:field(rows,'mix'),memoryAddress:field(rows,'maddr'),mute:field(rows,'mute'),nativePhase:Number(words[0x2f]&3n),psgCapturedConsumption:Number((words[0x2f]>>3n)&1n),audioMixNextChannel:Number((words[0x20]>>45n)&1n),firstReferenceObservations:observations};
+});
+fs.writeFileSync(p.join(d,'handoff.json'),JSON.stringify({classification:'G08.FM OPEN; F01 raw-OPLL oracle only',contract:'First retained sample is valid immediately after coherent local restore; compare from first resumed host edge. A new raw FM update occurs on pre-edge xena && baseCounter==70. Use native phase and actual system.ce_cpu gate, not a synthesized periodic strobe. Word2f bit3 belongs to PSG only. Production clamp/shift and AudioMix sampling require a separate G08.FM investigation.',referenceColumns:['mixed L/R packed32','PSG configuration','PSG extended state','PSG divider hexadecimal','PSG raw','native clock phase hexadecimal','raw FM14'],witnesses},null,2)+'\n');console.log('Retained '+witnesses.length+' restored-state and first-output handoff witnesses.');

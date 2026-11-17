@@ -1,0 +1,10 @@
+const fs=require('fs'),p=require('path'),d=__dirname,cases=[],add=(id,args={})=>cases.push({id,args:{DUAL:3,BOOT:1200,N:6000,REPLAYS:3,...args}});
+for(const mode of [3,4,0])for(const offset of [0,1,6,7,8,9,10,14,15,20,24,29])add(`timing_m${mode}_${offset}`,{DUAL:mode,WAIT_WINDOW:1,REQUEST_DELAY:offset,REPLAYS:1});
+for(const tac of [0,3,7])add('tac_'+tac,{TAC:tac});
+for(const stall of [1,2,3])add('transport_'+stall,{STALL:stall,LATENCY:stall===3?29:3,REPLAYS:1});
+for(const banks of [0,1,2,3])add('systeme_transfer_'+banks,{DUAL:0,TRANSFER:1,BANKS:banks,ROMBANK:banks*5,PATTERN:banks,REPLAYS:1});
+for(const pat of [0,1,2])add('ordinary_transfer_'+pat,{TRANSFER:1,PATTERN:pat,STALL:pat,LATENCY:pat===2?29:1,REPLAYS:1});
+for(const hist of [0,1])add('history_'+hist,{CACHEHISTORY:1,HIST:hist,TRANSFER:1,N:12000});
+add('full_flush',{REPLAYS:1});cases.at(-1).fullFlush=true;
+fs.writeFileSync(p.join(d,'cases.json'),JSON.stringify(cases,null,2)+'\n');
+console.log(cases.length+' current integration cases');

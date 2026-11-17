@@ -1,0 +1,152 @@
+# F12 System E pause / savestate fix
+
+Branch fix/savestate-systeme-pause; committed F11 base dcbe06d5527f96d3fb172472aaed44c3845a1e43. This report covers the authorized F12 change only.
+
+## 1. Root causes
+
+The F11 base cleared all three System E host pause/transition flags on every savestate freeze and on its release handoff. This discarded naturally reachable pending transitions and resumed a logically paused CPU/PSGs. The capture controller waited for an unprefixed M1/MREQ boundary using raw pixel enables, while an already paused CPU could hold a nonqualifying bus indefinitely. Clearing pause after freeze could not repair that pre-freeze stall. LOAD used the same destructive clear of the current UI phase. Under the authorized contract, absence of a historical UI phase in the payload is intentional and is not itself a defect.
+
+## 2. Causal state and signals
+
+| Role | State / signal | Treatment |
+|---|---|---|
+| Current external level | swap-selected raw joystick bit 8 | Remains current; never serialized |
+| Host edge history | joy8_r | Samples every host clock, including transport |
+| Logical UI phase | se_paused, se_pause_pending, se_unpause_pending | Retained through save/load transport |
+| Beam edge history | VBlank_r, ss_freeze_r / ss_unfreeze | Track live signals; release handoff suppresses transport-only VBlank application |
+| Capture progress | ss_capture_progress | New combinational controller output; no snapshot or persistent payload |
+| Actual execution gate | se_pause_exec_gate | Logical pause AND NOT capture progress |
+| Presentation gate | se_pause_gate | Original logical pause, including dimming; no override flash |
+
+## 3. Capture liveness solution
+
+The dedicated progress output is true only for System E, in ST_WAIT_BOUNDARY, with storage idle, VBlank high, x<256, and a bus that is not yet a normal unprefixed M1/MREQ fetch. A paused CPU then receives its normal pixel-enable ticks and the CPU-facing PSG/IO/FM path receives its normal CPU enables. Progress drops immediately when the bus qualifies, or when the window closes, before accepted capture and freeze. An already qualifying paused bus needs no extra execution. The original acceptance predicate and CPU snapshot timing are unchanged. All 14 tested stopped instruction phases complete without external unpause.
+
+## 4. Authorized host/UI contract
+
+Pause remains external host/UI state. The user explicitly authorized: “Allow bounded, coherent CPU/PSG progress solely to reach capture; preserve logical host Pause and document that exception to exact reference equivalence.” A paused non-M1 capture therefore has an explicit bounded-progress exception to a reference that executes zero ticks. The tests do not call that counterfactual zero-progress equivalence. Running, pending, and already qualifying paused saves retain ordinary save-only equivalence. Current UI phase is retained on LOAD; historical raw levels or phase are never rewound from a slot.
+
+## 5. Transitions during capture seeking
+
+Fresh physical edges and genuine VBlank transitions are processed normally while seeking. The override changes execution gating, never the logical flags. CPU execution includes its normal memory/I/O side effects when completing the interrupted instruction. CPU-facing peripherals use the same production enable path; VDPs retain their existing independent progression. The independent reference has its own request latch and CPU bus predicate, rather than copying the DUT override output. It detects missing, excessive, or mistimed execution.
+
+## 6. Transitions during frozen transport
+
+New host edges inside ss_freeze are consumed by live joy8_r tracking and are intentionally not queued or replayed. A button held through release creates no synthetic edge. Preexisting pending transitions are retained, and raw transport-only VBlank edges cannot apply them. On the first release handoff, only VBlank transition application is suppressed; a fresh post-release button edge is accepted. VBlank_r continues tracking, so subsequent genuine edges use current beam history. The process sweep checks both directions, held levels and offsets on both sides of freeze/release; actual controller cases 22–24 additionally cover held physical input and fresh subsequent toggles.
+
+## 7. Repeated LOAD
+
+Current UI phase is deliberately different from save-time phase in the repeated-load tests: case 7 retains current paused state, case 8 retains running state despite a saved pending pause, case 20 retains pending unpause, case 21 retains pending pause, and case 24 retains paused state with a physical input held through both loads. Two loads per case compare 128 samples from the FIRST native CPU and PSG enables, including full CPU register output, address/control, write-qualified data-out, PSG configuration/counters/divider/audio. No initial enable is skipped. Fresh release/repress after held-input loading is recognized. The original historical-phase mismatch reproducers remain permanent evidence; they are not reinterpreted as a requirement to serialize host phase.
+
+## 8. Serialization decision
+
+No serialization is required. Logical UI phase stays in its existing live registers. The new override is derived from the current controller/bus/window; no local emulated snapshot state was added. Raw level and edge history remain current. A test initially compared an unused CPU data-out value during read cycles; registers, active address and controls were equal. That invalid read-cycle data is not a reason to serialize CPU state. No T80, PSG, VDP or accessory payload implementation was changed.
+
+## 9. Format compatibility
+
+The format remains v8. Marker 484308, count/tag rules, gun descriptor/payload, slot stride, 96 KiB layout, word count, and all existing offsets are untouched. The controller diff adds only a non-payload output and its combinational decode. Current v8 and untagged/v1–v7, malformed/future metadata and old64 compatibility checks pass. The same current-UI policy applies across formats; no version-dependent host pause state exists. Development-format consolidation is outside this change.
+
+## 10. Files changed
+
+Production: SMS.sv and rtl/savestates.sv only. Evidence: this directory's baseline sources, permanent pre-fix runner, production logic fixtures, controller/phase/stall/edge runners, process boundary sweep, regression runner, source/build manifests, logs, collectors and reports. The prior F12 investigation and committed F11 candidate build are preserved. The active mapper review was not modified.
+
+## 11. Exact RTL changes
+
+SMS removes ss_freeze/ss_unfreeze from logical phase reset, holds transition application while frozen, suppresses release-only VBlank edges, and splits presentation pause from execution pause. The execution gate connects to both system.ce_cpu and system.se_pause; all existing VDP/pixel/sprite transport gates remain unchanged. Savestates exposes ss_capture_progress from its existing WAIT state and bus predicate. There is no new FSM state, payload field or architectural snapshot register, and no unrelated refactoring. See production.diff for the complete diff.
+
+## 12. Save-only equivalence
+
+63 production-controller scenarios complete 85 transfers, with 127,761,338 comparison observations across the scenarios. Actual T80 register/bus and JT89 state/audio comparisons run before capture and after release. Regular cases compare one million post-release host clocks; the systematic stopped-phase cases compare ten thousand. The full System E cases continue through further physical pause/unpause toggles. The cancelled-pending CPU/PSG divergences disappear. Qualifying pause executes zero override ticks; nonqualifying pause matches the explicitly authorized capture-progress reference.
+
+## 13. Capture liveness results
+
+The permanent pre-fix non-M1 case stays in state 37 for 1,800,000 clocks and needs external unpause. The fixed counterpart completes autonomously, retaining logical Pause. Reset release phases 6+10*k, k=0..13, exercise a complete INC-A/JP instruction-loop period using real T80 buses and real button/VBlank transitions. No pause flags, CPU buses, capture predicates or FSM state are forced. Only UI cooldown is bypassed. Every tested phase completes, including the original held non-M1 bus.
+
+## 14. Worst observed capture latency
+
+656,905 host clocks from request to acceptance. This includes waiting for the eligible VBlank/x window. Across the 14 stopped phases, the largest temporary execution is 9 CPU ticks and 6 PSG enables. These are measured bounds for the tested instruction phases, not a universal bound for arbitrary software or indefinitely busy storage. The progress output is checked continuously for window/predicate violations and is zero at freeze.
+
+## 15. Boundary coverage
+
+1,600 direct production-pause-process cases: four phases, seven timing anchors, seven cycle offsets, two pulse/held patterns and four transport durations (1,568), plus 32 fixed-level cases. These are process-level timing checks, not 1,600 full controller transfers. Fourteen additional coupled T80/controller scenarios place physical edges after request, after actual override assertion, inside actual transport, immediately after actual release and in repeated sequences. Core case 2 supplies the last-host-cycle acceptance edge. Three held-input controller cases cover pre-capture hold, frozen-only hold and held repeated LOAD. These complement the 14 stopped bus phases and the four-profile transport matrix.
+
+## 16. CPU coherence
+
+Two production T80s execute the same deterministic ROM. Save-only compares the complete 230-bit output and buses every observed host clock, with strict four-state equality. Repeated loads compare native-tick register/address/control progression and data-out only when WR is active; undefined read-cycle data-out is not a bus write. The reference seeks using its own bus and preserves logical phase. CPU/IO and PSG/FM enable connections are inspected together. The ROM does not claim commercial-game or interrupt-program coverage, and unrelated CPU microcycle/NMI findings were not changed.
+
+## 17. PSG coherence
+
+Both live production JT89 PSGs and the reference agree in configuration, extended state, divider and sound output. Their ordinary rate remains ce_cpu, while System E CPU rate remains ce_pix. Temporary progress uses those original divider phases, rather than issuing independent extra peripheral ticks. Frozen transport is quiescent and pending UI transitions cannot consume its raw video duration. Repeated replay starts at release and scores every native enable. PSG holding retains the current sample/counters; it does not add a new mute policy. The separate 128-case PSG replay also passes.
+
+## 18. Dual-VDP coherence
+
+Two full System E scenarios instantiate two DUT and two reference production VDPs, actual T80s, PSGs and video timing. Both 136-bit VDP architectural outputs and beam timing remain equal through save-only and later pause/unpause toggles, including the formerly stalled CPU phase. VDP enables are never overridden by host pause progress. The existing F07 System E DDRAM integration independently verifies current-format guest HCounter 5A/A5 and legacy normalization on both VDPs. Uninitialized VRAM/read/render fields appear as X and are compared strictly; no rendered-image/commercial-ROM equivalence is claimed.
+
+## 19. Transport duration and stalls
+
+Profiles are no stalls, deterministic busy windows, seeded randomized busy windows and deliberately long stalls (2020 busy clocks per 2048). Six key pause/load scenarios run across the three additional profiles. The longest observed transport is 8,800,330 host clocks. Current phase and subsequent CPU/PSG execution satisfy the same reference rules regardless of duration; LOAD uses current phase rather than a historical slot flag. Test-driver fixes are documented in README.md and do not change production behavior.
+
+## 20. Existing regressions
+
+All 36 selected runs pass: F07 current/legacy controller and actual System E dual-VDP restore; F02 GG direct and two DDRAM profiles; F08 real-time MD6 and DDRAM; F09 short/real timeout, ordinary and DDRAM Tap; F10 directed, all phases, modes, ordinary, main DDRAM and four compatibility targets; F03/F04 EEPROM direct, DDRAM and persistence; F05 SC RAM DDRAM, negative controls and persistence; F11 ordinary/current-input, two actual-CPU save-only, two restore-order and four format-profile runs; PSG replay. Four F11 format runs cover 72 loads across the format matrix. Existing T80 width/Starter capacity warnings and unused-output warnings in preexisting non-pause fixture instances remain visible. Quartus warning comparison is reported separately below.
+
+## 21. F06
+
+F06 remains intentionally unresolved. Its cartridge RAM banking/snapshot visibility predicate was not modified. SC RAM and EEPROM regressions do not constitute a claim that F06 is fixed.
+
+## 22. Protected findings and scope
+
+F13–F16 are untouched. Production VDP, T80/NMI, PSG, IO, mapper, memory and accessory modules were not edited. F07–F11 payloads and restore ordering remain intact and their selected regressions pass. No fixes for F01–F11 were implemented. Pause remains current host/UI state.
+
+## 23. Quartus result
+
+The established full Quartus 17.0 flow completed successfully, including synthesis, fitting, assembly and TimeQuest. The isolated candidate uses the F11 framework/settings/build ID and 136 captured input files; source hashes are checked against the working tree and candidate. The retained F11 baseline's 134 committed files match dcbe06d; two manifest-only backup files are recorded separately. No generated Quartus artifact is staged. See candidate/compile.log and build_sources.json.
+
+## 24. Setup, hold and violations
+
+| Metric | Committed F11 | F12 |
+|---|---:|---:|
+| Worst setup slack (ns) | 0.408 | 0.525 |
+| Worst hold slack (ns) | 0.158 | 0.245 |
+| Negative slack/TNS summary categories | 0 | 0 |
+
+All reported clock groups and timing categories are retained in results.json.
+
+## 25. Resource comparison
+
+| Resource | Committed F11 | F12 | Delta |
+|---|---:|---:|---:|
+| ALMs | 27,369 | 27,189 | -180 |
+| Fitted registers | 36,598 | 36,649 | +51 |
+| Synthesis registers | 35,716 | 35,716 | 0 |
+| Block memory bits | 3,809,858 | 3,809,858 | 0 |
+| RAM blocks | 487 | 487 | 0 |
+| DSP blocks | 39 | 39 | 0 |
+
+The change adds control decoding and gate selection, not snapshot storage or memories. Synthesis remains at 35,716 registers, with zero new architectural/snapshot state. The fitted +51 registers (about 0.14%) are a post-synthesis physical optimization/retiming/packing difference. Per-entity fitted register changes sum to +51 and include unchanged scaler/HQ2x hierarchies; see resource_analysis.json. ALMs decrease by 180; no unexpectedly large resource increase remains unexplained.
+
+## 26. Warnings
+
+New normalized Quartus warning identities: 0. Distinct warnings: 84 baseline / 84 candidate; critical warnings: 38 / 38. Quartus reports 100 total warnings in the full flow. No new warning identities were introduced.
+
+## 27. git diff --stat
+
+```text
+ SMS.sv            | 21 +++++++++++++++------
+ rtl/savestates.sv |  8 ++++++++
+ 2 files changed, 23 insertions(+), 6 deletions(-)
+```
+
+## 28. git status --short
+
+```text
+ M SMS.sv
+ M rtl/savestates.sv
+?? tests/
+```
+
+The untracked tests/ entry includes prior evidence as well as this task. Nothing is staged, committed, pushed or submitted as a PR.
+
+## 29. Recommendation
+
+**READY TO COMMIT.** All 105 selected simulation logs and the 1,600-case process sweep complete; production scope and unchanged v8 format are checked; full compilation passes with no timing violations or new warning identities. The bounded-progress exception is explicitly authorized and documented. No commit, push or PR was created.

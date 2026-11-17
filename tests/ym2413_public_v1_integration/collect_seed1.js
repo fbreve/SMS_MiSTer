@@ -1,0 +1,28 @@
+const fs=require('fs'),p=require('path'),vm=require('vm'),c=require('crypto'),assert=require('assert');
+const d=__dirname,root=p.resolve(d,'../..'),seed=p.join(d,'quartus_seed1'),dir=p.join(seed,'v1'),out=p.join(dir,'output_files');
+const hash=f=>c.createHash('sha256').update(fs.readFileSync(f)).digest('hex');
+const read=f=>fs.readFileSync(f,'utf8');
+// Use the validated report parser without executing the historical collector's writes.
+const parser=read(p.join(root,'tests/ym2413_b1_c1_seed_study/collect_study.js')).split('const study =')[0]+'\nmodule.exports=parseVariant;';
+const context={require,__dirname:p.join(root,'tests/ym2413_b1_c1_seed_study'),module:{exports:{}}};vm.runInNewContext(parser,context);
+const result=context.module.exports(dir);assert(result.complete);
+const c1=JSON.parse(read(p.join(root,'tests/ym2413_b1_c1_seed_study/study_results.json'))).seeds[0].c1;
+const rows=s=>s.split(/\r?\n/).filter(x=>x.startsWith(';')).map(x=>x.split(';').slice(1,-1).map(x=>x.trim()));
+const fit=read(p.join(out,'SMS.fit.rpt')),map=read(p.join(out,'SMS.map.rpt'));
+const ram=rows(fit.slice(fit.indexOf('; Fitter RAM Summary ')).split(/\r?\n\s*\r?\n/)[0]),header=ram.find(x=>x.includes('MLAB cells')&&x.includes('M10K blocks'));
+const entries=ram.filter(x=>/^\d+$/.test(x[header.indexOf('MLAB cells')])&&/^\d+$/.test(x[header.indexOf('M10K blocks')]));
+result.OutputMemoryRAM=entries.filter(x=>/OutputMemory:Mmem/.test(x[0]));
+result.logicMemoryEvidence=map.split(/\r?\n/).filter(x=>/Info \(276006\)/.test(x)&&/RegisterMemory|FeedbackMemory/.test(x));
+const memoryOK=result.MLABcells===20&&result.MLABbits===380&&result.M10K===c1.M10K&&result.OutputMemoryRAM.reduce((s,x)=>s+ +x[header.indexOf('MLAB cells')],0)===20&&result.logicMemoryEvidence.length===2&&result.logicMemoryEvidence.every(x=>x.includes('"logic" being set as ramstyle'))&&!entries.some(x=>/RegisterMemory|FeedbackMemory/.test(x[0]));
+const timingOK=result.setupSlack>0&&result.holdSlack>0&&result.timing.every(x=>x.slack>0&&x.tns===0);
+const refSettings=read(p.join(root,'tests/ym2413_b1_c1_seed_study/seed1/c1/expanded_settings.txt'));
+const normalize=s=>s.replace(/W:[\\/](?:c1|v1)/gi,'<BUILD>').trim().split(/\r?\n/).sort();
+assert.deepEqual(normalize(read(p.join(dir,'expanded_settings.txt'))),normalize(refSettings),'Expanded settings differ');
+const metrics=['neededALMs','placedALMs','fittedRegisters','mappedRegisters','MLABcells','MLABbits','M10K','DSP','setupSlack','setupTNS','holdSlack','holdTNS'];
+const comparison=Object.fromEntries(metrics.map(k=>[k,{C1:c1[k],publicV1:result[k],delta:result[k]-c1[k]}]));
+const report={status:memoryOK&&timingOK?'PASS':'STOP_REGRESSION',memoryOK,timingOK,seed:1,version:'Quartus Prime 17.0.2 Build 602',device:'5CSEBA6U23I7',result,comparison,rbf:{path:p.join(out,'SMS.rbf'),SHA256:hash(p.join(out,'SMS.rbf')),bytes:fs.statSync(p.join(out,'SMS.rbf')).size},note:'Timing applies to constrained paths only. Existing unconstrained/ignored-SDC reports are preserved.'};
+fs.writeFileSync(p.join(seed,'results.json'),JSON.stringify(report,null,2)+'\n',{flag:'wx'});
+const lines=['# Public v1 seed-1 Quartus results','','Status: '+report.status,'','| Metric | C1 seed 1 | Public v1 seed 1 | Delta |','| --- | --- | --- | --- |',...metrics.map(k=>`| ${k} | ${comparison[k].C1} | ${comparison[k].publicV1} | ${comparison[k].delta} |`),'','RBF: `'+report.rbf.path+'`','SHA-256: `'+report.rbf.SHA256+'`','','Warnings, all timing groups, critical paths and report hashes are in results.json. '+report.note];
+fs.writeFileSync(p.join(seed,'RESULTS.md'),lines.join('\n')+'\n',{flag:'wx'});
+console.log(JSON.stringify({status:report.status,comparison,rbf:report.rbf},null,2));
+if(!memoryOK||!timingOK)process.exitCode=2;

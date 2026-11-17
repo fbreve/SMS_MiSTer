@@ -1,0 +1,261 @@
+commit 8ffd15e2a7e530c0d77b07c6eeae3e8dc0aa0c8a
+Author:     Fabricio Breve <fbreve@gmail.com>
+AuthorDate: Thu Oct 22 20:17:38 2026 -0300
+Commit:     Fabricio Breve <fbreve@gmail.com>
+CommitDate: Thu Oct 22 20:17:38 2026 -0300
+
+    Preserve CPU restart context across savestates
+    
+    Preserve the prefix and EI restart context required for exact CPU execution after savestate restore.
+    
+    Extend the tagged savestate format to version 13 and restore the instruction context needed by the canonical T80 restart sequence.
+    
+    Prevent prefixed instructions and EI interrupt-delay state from being lost across LOAD, including block instructions such as LDIR.
+    
+    Add accepted-boundary, prefix, block-instruction, EI, HALT, repeated-load, and CPU restart regression coverage.
+
+diff --git a/SMS.sv b/SMS.sv
+index 2b1d191..15df2b5 100644
+--- a/SMS.sv
++++ b/SMS.sv
+@@ -860,12 +860,14 @@ wire [7:0]  ss_ddram_be;
+ wire        ss_ddram_we;
+ wire        ss_ddram_rd;
+ wire [229:0] ss_z80_reg, ss_z80_dir;
++wire [2:0] ss_z80_restart, ss_z80_restart_dir;
++wire ss_z80_restart_valid;
+ wire [2:0] ss_z80_nmi, ss_z80_nmi_dir;
+ wire ss_z80_nmi_valid, ss_z80_nmi_hold;
+ wire         ss_z80_set;
+ wire         ss_z80_m1_n;
+ wire         ss_z80_mreq_n;   // low = normal opcode fetch, high = interrupt ack
+-wire   [1:0] ss_z80_iset;     // "00" = clean instruction boundary (no prefix)
++wire   [1:0] ss_z80_iset;     // "00" = eligible fetch; pending decoder context is saved separately
+ wire [135:0] ss_vdp_regs, ss_vdp_regs_in;
+ wire         ss_vdp_regs_set;
+ wire [383:0] ss_vdp_cram;
+@@ -1135,6 +1137,8 @@ system #(63) system
+ 
+ 	// Save-state interface
+ 	.z80_reg_out (ss_z80_reg),
++    .z80_restart_out(ss_z80_restart), .z80_restart_dir(ss_z80_restart_dir),
++    .z80_restart_valid(ss_z80_restart_valid),
+     .z80_nmi_out(ss_z80_nmi), .z80_nmi_dir(ss_z80_nmi_dir),
+     .z80_nmi_valid(ss_z80_nmi_valid), .z80_nmi_hold(ss_z80_nmi_hold),
+ 	.z80_dir     (ss_z80_dir),
+@@ -1241,6 +1245,8 @@ savestates savestates_inst (
+ 	.x               (x),
+ 	// Z80
+ 	.z80_reg         (ss_z80_reg),
++    .z80_restart(ss_z80_restart), .z80_restart_dir(ss_z80_restart_dir),
++    .z80_restart_valid(ss_z80_restart_valid),
+     .z80_nmi(ss_z80_nmi), .z80_nmi_dir(ss_z80_nmi_dir),
+     .z80_nmi_valid(ss_z80_nmi_valid), .z80_nmi_hold(ss_z80_nmi_hold),
+ 	.z80_dir         (ss_z80_dir),
+diff --git a/rtl/T80/T80.vhd b/rtl/T80/T80.vhd
+index f65b31a..f9493b6 100644
+--- a/rtl/T80/T80.vhd
++++ b/rtl/T80/T80.vhd
+@@ -126,6 +126,10 @@ entity T80 is
+         NMISet     : in std_logic := '0';
+         NMILegacy  : in std_logic := '0';
+         NMIHold    : in std_logic := '0';
++        -- Pre-fetch semantic context: ordinary, CB, ED, DD, FD, EI.
++        RestartContext : out std_logic_vector(2 downto 0);
++        RestartDIR     : in std_logic_vector(2 downto 0) := "000";
++        RestartValid   : in std_logic := '0';
+ 		DIRSet     : in  std_logic := '0';
+ 		DIR        : in  std_logic_vector(229 downto 0) := (others => '0'); -- Halt_FF, Alternate, WZ, IFF2, IFF1, IM, IY, HL', DE', BC', IX, HL, DE, BC, PC, SP, R, I, F', A', F, A
+ 		-- Prefix/instruction-set state: '00'=no prefix (clean save point)
+@@ -271,6 +275,14 @@ begin
+ 	ISet_out <= ISet;
+ 
+     NMIState <= (NMI_s or (OldNMI_n and not NMI_n)) & NMICycle & NMI_n;
++    -- Only consumed at the accepted ISet=00, MC1/T2 boundary. T1 has
++    -- drained general writeback; T2 still consumes the preceding IR's
++    -- prefix selection and EI action before installing the fetched opcode.
++    RestartContext <= "001" when IR=x"CB" else
++                      "010" when IR=x"ED" else
++                      "011" when IR=x"DD" else
++                      "100" when IR=x"FD" else
++                      "101" when IR=x"FB" else "000";
+ 	REG <= Halt_FF & Alternate & WZ & IntE_FF2 & IntE_FF1 & IStatus & DOR & std_logic_vector(PC) & std_logic_vector(SP) & std_logic_vector(R) & I & Fp & Ap & F & ACC when Alternate = '0'
+ 			 else Halt_FF & Alternate & WZ & IntE_FF2 & IntE_FF1 & IStatus & DOR(127 downto 112) & DOR(47 downto 0) & DOR(63 downto 48) & DOR(111 downto 64) &
+ 						std_logic_vector(PC) & std_logic_vector(SP) & std_logic_vector(R) & I & Fp & Ap & F & ACC;
+@@ -443,7 +455,19 @@ begin
+ 				XY_State <= "00";
+ 				XY_Ind <= '0';
+ 				Alternate <= DIR(228);
+-				IR <= "00000000";
++                -- Seed the predecessor class for historical T2. Legacy files
++                -- have no such history and retain ordinary normalization.
++                IR <= x"00";
++                if RestartValid='1' then
++                    case RestartDIR is
++                        when "001" => IR <= x"CB";
++                        when "010" => IR <= x"ED";
++                        when "011" => IR <= x"DD";
++                        when "100" => IR <= x"FD";
++                        when "101" => IR <= x"FB";
++                        when others => null;
++                    end case;
++                end if;
+ 				MCycles <= "001";
+ 				DO <= "00000000";
+ 				Read_To_Reg_r <= "00000";
+diff --git a/rtl/savestates.sv b/rtl/savestates.sv
+index c8bb0fd..def1b44 100644
+--- a/rtl/savestates.sv
++++ b/rtl/savestates.sv
+@@ -5,7 +5,8 @@
+ //   Word 0x000: MiSTer SS control word [31:0]=change_det, [63:32]=size_in_32b_words
+ //   Word 0x001: [31:0]=magic ("SMS1"/"SMSB"), [63:32]=game signature
+ //   Word 0x002-0x005: Z80 REG[229:0]; v12 word5[40:38]=NMI pending/entry/Old,
+-//                   word5[63:41]=zero. v12 tag=48430c, subtype=3 at word01a.
++//                   v13 word5[43:41]=pre-T2 decoder class; [63:44]=zero.
++//                   v13 tag=48430d, subtype=3 at word01a. v12 has zero [63:41].
+ //   Word 0x006-0x007: VDP regs [127:0] (2 × 64-bit words)
+ //   Word 0x008-0x00D: CRAM [383:0]     (6 × 64-bit words)
+ //   Word 0x00E:       PSG  [55:0]      (1 × 64-bit word, upper 8 bits unused)
+@@ -44,6 +45,9 @@ module savestates (
+     input       [8:0] x,
+ 
+     // ---- Z80 snapshot / restore ----
++    input       [2:0] z80_restart,     // pre-T2 decoder class, not the new opcode
++    output      [2:0] z80_restart_dir,
++    output            z80_restart_valid,
+     input       [2:0] z80_nmi,         // normalized post-sample history at accepted MC1/T2
+     output      [2:0] z80_nmi_dir,
+     output            z80_nmi_valid,
+@@ -427,6 +431,11 @@ reg  [21:0] align_timeout;
+ // Latching buffers for multi-word state
+ reg [229:0] z80_snap;
+ reg [2:0] nmi_snap;
++reg [2:0] restart_snap;
++reg has_restart_context, restart_padding_ok;
++localparam [23:0] CPU_RESTART_MAGIC = 24'h48430d;
++assign z80_restart_dir = restart_snap;
++assign z80_restart_valid = has_restart_context;
+ reg has_nmi_history, nmi_padding_ok;
+ localparam [23:0] NMI_HISTORY_MAGIC = 24'h48430c;
+ assign z80_nmi_dir = nmi_snap;
+@@ -457,7 +466,7 @@ reg  [63:0] eeprom_snap;
+ // SC payload shares 0d01..1d00, never the System E or EEPROM regions.
+ // 01e: [22:0] P1, [45:23] P2, [63:46] zero. Per port:
+ // [16:0] timer, [19:17] rises, [20] TH history, [22:21] type history.
+-wire [63:0] video_word = {NMI_HISTORY_MAGIC, 2'd3,
++wire [63:0] video_word = {CPU_RESTART_MAGIC, 2'd3,
+                          systeme ? vdp2_snap[135:128] : 8'd0,
+                          vdp_snap[135:128], video_snap};
+ 
+@@ -496,10 +505,12 @@ reg         nvram_d_latched;
+ 
+ // Shared latch for DDRAM read data (LOAD path)
+ reg [63:0]  dout_latch;
+-// v12 inherits every v11 extension location and meaning.
+-wire [23:0] load_ext_magic = dout_latch[63:40] == NMI_HISTORY_MAGIC ? EVOLUTION_PENDING_MAGIC : dout_latch[63:40];
+-wire invalid_nmi_header = dout_latch[63:40] == NMI_HISTORY_MAGIC &&
+-                          (dout_latch[39:38] != 2'd3 || !nmi_padding_ok);
++// v13 inherits v12 NMI and every v11 extension location and meaning.
++wire modern_nmi_tag = dout_latch[63:40] == NMI_HISTORY_MAGIC || dout_latch[63:40] == CPU_RESTART_MAGIC;
++wire [23:0] load_ext_magic = modern_nmi_tag ? EVOLUTION_PENDING_MAGIC : dout_latch[63:40];
++wire invalid_nmi_header = modern_nmi_tag &&
++                          (dout_latch[39:38] != 2'd3 ||
++                           (dout_latch[63:40] == CPU_RESTART_MAGIC ? !restart_padding_ok : !nmi_padding_ok));
+ 
+ // Guard flag: set when a ddram_read is issued, cleared when DOUT_READY is consumed.
+ // Prevents stale DOUT_READY pulses (from pre-freeze scaler reads) from
+@@ -581,7 +592,7 @@ always @(*) begin
+                     3'd0: ddram_cmd_write ( base_addr + 29'd2 , z80_snap [ 63 : 0 ] , 8'hFF ) ;
+                     3'd1: ddram_cmd_write ( base_addr + 29'd3 , z80_snap [ 127 : 64 ] , 8'hFF ) ;
+                     3'd2: ddram_cmd_write ( base_addr + 29'd4 , z80_snap [ 191 : 128 ] , 8'hFF ) ;
+-                    3'd3: ddram_cmd_write ( base_addr + 29'd5 , { 23'd0, nmi_snap, z80_snap [ 229 : 192 ] } , 8'hFF ) ;
++                    3'd3: ddram_cmd_write ( base_addr + 29'd5 , {20'd0, restart_snap, nmi_snap, z80_snap[229:192]} , 8'hFF ) ;
+                     default: begin end
+                 endcase
+             end
+@@ -908,6 +919,7 @@ always @(posedge clk or negedge reset_n) begin
+         state           <= ST_IDLE;
+         ss_freeze       <= 0;
+         z80_nmi_hold <= 0; nmi_snap <= 3'b001; has_nmi_history <= 0; nmi_padding_ok <= 1;
++        has_restart_context <= 0; restart_snap <= 0; restart_padding_ok <= 1;
+         ss_change_det   <= 0;
+         cur_magic       <= MAGIC;
+         cur_game_id     <= 0;
+@@ -1033,7 +1045,8 @@ always @(posedge clk or negedge reset_n) begin
+             // raster-timing inconsistencies.
+             //   - M1_n low  : opcode-fetch machine cycle
+             //   - MREQ_n low: normal memory read (not interrupt acknowledge)
+-            //   - ISet=00   : no prefix active (not mid-way through CB/DD/ED/FD sequence)
++            //   - ISet=00   : eligible fetch; previous IR may still carry a pending
++            //                  prefix/EI class, captured separately in v13.
+             //   - cpu_ce     : only act on an actual CPU tick, not on held bus
+             //                  levels between ticks.
+             if (!storage_busy && cpu_ce && !z80_m1_n && !z80_mreq_n && z80_iset == 2'b00 && vblank && x < 9'd256) begin
+@@ -1047,6 +1060,7 @@ always @(posedge clk or negedge reset_n) begin
+                 // incremented), creating non-deterministic loads that skip an instruction.
+                 z80_snap    <= z80_reg;
+                 nmi_snap <= z80_nmi;
++                restart_snap <= z80_restart;
+                 if (!do_save) z80_nmi_hold <= 1;
+                 state       <= ST_ARM_FREEZE;
+             end
+@@ -1183,7 +1197,7 @@ always @(posedge clk or negedge reset_n) begin
+                     3'd0: ddram_write(base_addr + 29'd2, z80_snap[63:0],    8'hFF);
+                     3'd1: ddram_write(base_addr + 29'd3, z80_snap[127:64],  8'hFF);
+                     3'd2: ddram_write(base_addr + 29'd4, z80_snap[191:128], 8'hFF);
+-                    3'd3: ddram_write(base_addr + 29'd5, {23'd0, nmi_snap, z80_snap[229:192]}, 8'hFF);
++                    3'd3: ddram_write(base_addr + 29'd5, {20'd0, restart_snap, nmi_snap, z80_snap[229:192]}, 8'hFF);
+                 endcase
+                 if (cpu_idx == 3) begin
+                     state   <= ST_SAVE_VDP0;
+@@ -1696,6 +1710,7 @@ always @(posedge clk or negedge reset_n) begin
+         ST_LOAD_HDR_RD: begin
+             if (!DDRAM_BUSY) begin
+                 has_nmi_history <= 0; nmi_snap <= 3'b001; nmi_padding_ok <= 1;
++                has_restart_context <= 0; restart_snap <= 0; restart_padding_ok <= 1;
+                 // Old 64KB files bypass ST_LOAD_VIDEO entirely.
+                 vdp_snap[135:128] <= 8'd0;
+                 vdp2_snap[135:128] <= 8'd0;
+@@ -1764,6 +1779,8 @@ always @(posedge clk or negedge reset_n) begin
+                     3'd2: begin z80_snap[191:128] <= dout_latch; ddram_read(base_addr + 29'd5); end
+                     3'd3: begin
+                         nmi_snap <= dout_latch[40:38];
++                        restart_snap <= dout_latch[43:41];
++                        restart_padding_ok <= dout_latch[63:44] == 0 && dout_latch[43:41] <= 3'd5;
+                         nmi_padding_ok <= dout_latch[63:41] == 0;
+                         if (is_old_format) begin
+                             z80_snap[211:192] <= dout_latch[19:0];
+@@ -1932,7 +1949,8 @@ always @(posedge clk or negedge reset_n) begin
+                 dout_expected <= 0;
+                 dout_latch    <= DDRAM_DOUT;
+             end else if (!dout_expected && !DDRAM_BUSY) begin
+-                has_nmi_history <= dout_latch[63:40] == NMI_HISTORY_MAGIC;
++                has_nmi_history <= modern_nmi_tag;
++                has_restart_context <= dout_latch[63:40] == CPU_RESTART_MAGIC;
+                 has_evolution_history <= (load_ext_magic == EVOLUTION_HISTORY_MAGIC || load_ext_magic == EVOLUTION_PENDING_MAGIC) && dout_latch[39:38] == 2'd3;
+                 if (invalid_nmi_header || (live_evolution || evolution_state) && (!evolution_state || load_ext_magic != EVOLUTION_PENDING_MAGIC || dout_latch[39:38] != 2'd3)) begin
+                     state <= ST_ERROR;
+diff --git a/rtl/system.vhd b/rtl/system.vhd
+index 126cc72..dd590a4 100644
+--- a/rtl/system.vhd
++++ b/rtl/system.vhd
+@@ -149,6 +149,9 @@ entity system is
+ 		-- Save-state interface
+ 		z80_reg_out  : out STD_LOGIC_VECTOR(229 downto 0);
+ 		z80_dir      : in  STD_LOGIC_VECTOR(229 downto 0) := (others => '0');
++        z80_restart_out : out STD_LOGIC_VECTOR(2 downto 0);
++        z80_restart_dir : in STD_LOGIC_VECTOR(2 downto 0) := "000";
++        z80_restart_valid : in STD_LOGIC := '0';
+         z80_nmi_out : out STD_LOGIC_VECTOR(2 downto 0);
+         z80_nmi_dir : in STD_LOGIC_VECTOR(2 downto 0) := "001";
+         z80_nmi_valid : in STD_LOGIC := '0';
+@@ -632,6 +635,8 @@ begin
+ 		DI			=> GENIE_DI,
+ 		DO			=> D_in,
+ 		REG    => z80_reg_out,
++        RestartContext => z80_restart_out, RestartDIR => z80_restart_dir,
++        RestartValid => z80_restart_valid,
+ 		NMIState => z80_nmi_out, NMIDIR => z80_nmi_dir, NMIValid => z80_nmi_valid,
+         NMIEnable => '1', NMIHold => z80_nmi_hold, NMIReplay => nmi_replay_hold,
+         DIRSet => z80_set,

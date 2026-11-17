@@ -1,0 +1,16 @@
+const fs=require('fs'),p=require('path'),cp=require('child_process'),c=require('crypto'),assert=require('assert'),d=__dirname,logs=p.join(d,'worktree/tests/ym2413_fullstate/logs');
+const sha=b=>c.createHash('sha256').update(b).digest('hex'),read=f=>{const b=fs.readFileSync(f);return b.toString(b[0]===255&&b[1]===254?'utf16le':'utf8');};
+cp.execFileSync('node',[p.join(d,'verify.js')],{stdio:'inherit'});
+let checks=0,pendingMo=0,pendingFb=0,controllerPending=0;const phases=[],envelopes=new Set();
+for(let i=0;i<72;i++){
+ const name='phase_'+i,log=read(p.join(logs,name+'.stdout.log'));assert.equal(read(p.join(logs,name+'.exitcode')).trim(),'0');assert(log.includes('PASS OUTPUT ALL loads=2 shift='+i+' raw_checks='));assert(!/assertion (failure|error)/.test(log));
+ const follows=[...log.matchAll(/PASS EXACT LOAD shift=(\d+) pass=(\d+) follow_ns=(\d+) checks=(\d+)/g)];assert.equal(follows.length,2);for(const [j,m]of follows.entries()){assert.equal(+m[1],i);assert.equal(+m[2],j);assert(+m[3]>=115000000);}
+ const pipeline=[...log.matchAll(/PASS OUTPUT PIPELINE shift=(\d+) pass=(\d+) mo_wr='([01])' fb_wr='([01])' nonzero_feedback=(true|false)/g)];assert.equal(pipeline.length,2);assert(pipeline.some(x=>x[5]==='true'),'Nonzero feedback '+i);for(const m of pipeline){pendingMo+=+m[3];pendingFb+=+m[4];}
+ for(const m of log.matchAll(/PASS SAVE shift=(\d+) pass=(\d+) pending='([01])' envelope=(\d+)/g)){controllerPending+=+m[3];envelopes.add(+m[4]);}
+ const raw=+log.match(/raw_checks=(\d+)/)[1];checks+=raw;phases.push({shift:i,LOADs:2,followup_ns:follows.map(x=>+x[3]),rawChecks:raw,nonzeroFeedback:true,pendingOutput:pipeline.map(x=>({mo:+x[3],fb:+x[4]})),stdoutSHA256:sha(fs.readFileSync(p.join(logs,name+'.stdout.log')))});
+}
+assert(pendingMo>0&&pendingFb>0,'Pending OutputGenerator word100 coverage');assert(envelopes.size===4,'Envelope state coverage');
+const priorities=fs.readdirSync(logs).filter(x=>x.endsWith('.priority.log'));for(const f of priorities){const text=read(p.join(logs,f));assert(/Priority=Idle ParentPriority=Idle/.test(text));assert(/VerifiedIdleSamples=[1-9]\d*/.test(text));}
+const bank=read(p.join(logs,'output_bank.stdout.log'));assert(bank.includes('PASS OUTPUT BANK'));assert.equal(read(p.join(logs,'output_bank.exitcode')).trim(),'0');
+const results={PASS:true,baseline:'9873761503510e4b2c7e06600bf5515344235c2f',productionChange:'OutputMemory ramstyle logic -> MLAB only; entry18 and all state preserved',LOADs:144,rawStateAndAudioChecks:checks,phases,pendingOutputWrites:pendingMo,pendingFeedbackWrites:pendingFb,controllerPendingWrites:controllerPending,envelopeStates:[...envelopes].sort(),bank:{PASS:true,summary:bank.match(/PASS OUTPUT BANK[^\r\n]+/)[0]},priority:{verifiedInvocations:priorities.length,maxConcurrentGhdl:4,priority:'Idle'},synthesis:'NOT RUN',scope:'Independent bank scoreboard, complete internal-state SAVE expectations, differential state/audio and read-port checks; no self-healing allowance'};
+fs.writeFileSync(p.join(d,'functional_results.json'),JSON.stringify(results,null,2)+'\n');console.log(JSON.stringify({PASS:true,LOADs:144,rawChecks:checks,pendingMo,pendingFb,envelopes:[...envelopes],bank:results.bank,priority:results.priority},null,2));

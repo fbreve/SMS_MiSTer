@@ -1,0 +1,14 @@
+const fs=require('fs'),p=require('path'),assert=require('assert'),d=__dirname;
+let s=fs.readFileSync(p.join(d,'baseline/fm_tb.sv'),'utf8').replace('CHARACTERIZE=1','CHARACTERIZE=0');
+s=s.replace('wire[15:0]al,ar,rl,rr_audio;','wire[15:0]rl,rr_audio;').replace('wire[135:0]refvdp_regs','wire[15:0]al,ar;wire[135:0]refvdp_regs');
+s=s.replace('wire[135:0]refvdp_regs','wire[15:0]last_sample_in;wire last_sample_valid;wire[135:0]refvdp_regs');
+s=s.replace('savestates dut (','savestates dut (.audio_last_out(audio_phase_out ? al : ar),.audio_last_in(last_sample_in),.audio_last_valid(last_sample_valid),');
+assert(s.includes('.audio_last_out('));
+s=s.replace('AudioMix mix(.clk','AudioMix mix(.ss_last_sample(last_sample_in),.ss_last_valid(last_sample_valid),.clk');
+fs.writeFileSync(p.join(d,'candidate_tb.sv'),s);
+fs.writeFileSync(p.join(d,'candidate_controller.sv'),require('../savestate_g06_g10_fix/controller_adapter')(p.join(d,'candidate/rtl/savestates.sv')));
+let c=fs.readFileSync(p.join(d,'baseline/compile.do'),'utf8').replaceAll('fm_work','fm_candidate_work').replace('../../rtl/AudioMix.vhd','candidate/rtl/AudioMix.vhd').replace('savestates_sim.sv','candidate_controller.sv').replace('fm_tb.sv','candidate_tb.sv');fs.writeFileSync(p.join(d,'candidate_compile.do'),c);
+fs.mkdirSync(p.join(d,'candidate_case70'),{recursive:true});for(const f of ['reference.dat','rom.hex'])fs.copyFileSync(p.join(d,'p70_s0_fm1_stall0',f),p.join(d,'candidate_case70',f));
+fs.writeFileSync(p.join(d,'candidate_run.do'),`onerror {quit -code 1}\nonbreak {quit -code 1}\nvsim -L fm_candidate_work -L original_work -t 1ps -voptargs=+acc fm_candidate_work.fm_tb -gPHASE=70 -gREF=0 -gFM_ONLY=1 -g/fm_tb/dut/TB_FAST=1\nset NumericStdNoWarnings 1\nset StdArithNoWarnings 1\nrun -all\nquit -code 0\n`);
+let ps=fs.readFileSync(p.join(d,'causal.ps1'),'utf8').replaceAll('causal_compile','candidate_compile').replaceAll('fm_causal_work','fm_candidate_work').replace('Push-Location causal','Push-Location candidate_case70').replace('do ../causal_run.do','do ../candidate_run.do').replace('PASS CAUSAL CACHE ONLY','PASS ISOLATED CANDIDATE');
+fs.writeFileSync(p.join(d,'candidate.ps1'),ps);

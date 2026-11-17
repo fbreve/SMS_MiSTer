@@ -1,0 +1,32 @@
+{
+  "baseline_paths_setup": {
+    "slack": 0.105,
+    "from": "shadowmask:HDMI_shadowmask|dout[20]",
+    "to": "osd:hdmi_osd|nrdout1[20]"
+  },
+  "baseline_paths_hold": {
+    "slack": 0.206,
+    "from": "ascal:ascal|o_poly_phase_b.t1[8]",
+    "to": "ascal:ascal|o_poly_phase_b2.t1[8]"
+  },
+  "early_paths_setup": {
+    "slack": 0.366,
+    "from": "ascal:ascal|o_vacpt[5]",
+    "to": "ascal:ascal|o_vpixq_pre[2].r[3]"
+  },
+  "early_paths_hold": {
+    "slack": 0.234,
+    "from": "emu:emu|system:system|vdp:vdp2_inst|vdp_main:vdp_main_inst|vdp_sprites:vdp_spr_inst|vpd_sprite_shifter:\\shifters:31:shifter|shift0[6]",
+    "to": "emu:emu|system:system|vdp:vdp2_inst|vdp_main:vdp_main_inst|vdp_sprites:vdp_spr_inst|vpd_sprite_shifter:\\shifters:31:shifter|shift0[7]"
+  },
+  "baseline_emu_setup": {
+    "slack": 0.635,
+    "from": "emu:emu|sdram:ram|sd_dat[8]",
+    "to": "emu:emu|system:system|T80s:z80_inst|T80:u0|IR[4]"
+  },
+  "early_emu_setup": {
+    "slack": 0.983,
+    "from": "emu:emu|ce_cpu",
+    "to": "emu:emu|sdram:ram|q[0]"
+  }
+}

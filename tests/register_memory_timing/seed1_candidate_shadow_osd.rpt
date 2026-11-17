@@ -1,0 +1,661 @@
+----------------
+; Command Info ;
+----------------
+Report Timing: Found 3 setup paths (0 violated).  Worst case slack is 0.146 
+
+Tcl Command:
+    report_timing -setup -show_routing -file Z:/family_candidate_shadow_osd.rpt -from [get_registers {*HDMI_shadowmask|*vid_rtl_0*}] -to [get_registers {*hdmi_osd|osd_div*}] -nworst 2 -npaths 5 -detail full_path
+
+Options:
+    -from [get_registers {*HDMI_shadowmask|*vid_rtl_0*}] 
+    -to [get_registers {*hdmi_osd|osd_div*}] 
+    -setup 
+    -nworst 2 
+    -npaths 5 
+    -show_routing 
+    -detail full_path 
+    -file {Z:/family_candidate_shadow_osd.rpt} 
+
+Delay Model:
+    Slow 1100mV 100C Model
+
++------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------+
+; Summary of Paths                                                                                                                                                                                                                                                                                                                                                             ;
++-------+---------------------------------------------------------------------------------------------------------------------------+-------------------------+-----------------------------------------------------------------------------------+-----------------------------------------------------------------------------------+--------------+------------+------------+
+; Slack ; From Node                                                                                                                 ; To Node                 ; Launch Clock                                                                      ; Latch Clock                                                                       ; Relationship ; Clock Skew ; Data Delay ;
++-------+---------------------------------------------------------------------------------------------------------------------------+-------------------------+-----------------------------------------------------------------------------------+-----------------------------------------------------------------------------------+--------------+------------+------------+
+; 0.146 ; shadowmask:HDMI_shadowmask|altshift_taps:vid_rtl_0|shift_taps_0vu:auto_generated|altsyncram_pr91:altsyncram4|ram_block5a0 ; osd:hdmi_osd|osd_div[2] ; pll_hdmi|pll_hdmi_inst|altera_pll_i|cyclonev_pll|counter[0].output_counter|divclk ; pll_hdmi|pll_hdmi_inst|altera_pll_i|cyclonev_pll|counter[0].output_counter|divclk ; 6.732        ; -0.685     ; 5.701      ;
+; 0.198 ; shadowmask:HDMI_shadowmask|altshift_taps:vid_rtl_0|shift_taps_0vu:auto_generated|altsyncram_pr91:altsyncram4|ram_block5a0 ; osd:hdmi_osd|osd_div[1] ; pll_hdmi|pll_hdmi_inst|altera_pll_i|cyclonev_pll|counter[0].output_counter|divclk ; pll_hdmi|pll_hdmi_inst|altera_pll_i|cyclonev_pll|counter[0].output_counter|divclk ; 6.732        ; -0.683     ; 5.651      ;
+; 0.568 ; shadowmask:HDMI_shadowmask|altshift_taps:vid_rtl_0|shift_taps_0vu:auto_generated|altsyncram_pr91:altsyncram4|ram_block5a0 ; osd:hdmi_osd|osd_div[0] ; pll_hdmi|pll_hdmi_inst|altera_pll_i|cyclonev_pll|counter[0].output_counter|divclk ; pll_hdmi|pll_hdmi_inst|altera_pll_i|cyclonev_pll|counter[0].output_counter|divclk ; 6.732        ; -0.689     ; 5.275      ;
++-------+---------------------------------------------------------------------------------------------------------------------------+-------------------------+-----------------------------------------------------------------------------------+-----------------------------------------------------------------------------------+--------------+------------+------------+
+
+Path #1: Setup slack is 0.146 
+===============================================================================
++------------------------------------------------------------------------------------------------------------------------------------------------+
+; Path Summary                                                                                                                                   ;
++--------------------+---------------------------------------------------------------------------------------------------------------------------+
+; Property           ; Value                                                                                                                     ;
++--------------------+---------------------------------------------------------------------------------------------------------------------------+
+; From Node          ; shadowmask:HDMI_shadowmask|altshift_taps:vid_rtl_0|shift_taps_0vu:auto_generated|altsyncram_pr91:altsyncram4|ram_block5a0 ;
+; To Node            ; osd:hdmi_osd|osd_div[2]                                                                                                   ;
+; Launch Clock       ; pll_hdmi|pll_hdmi_inst|altera_pll_i|cyclonev_pll|counter[0].output_counter|divclk                                         ;
+; Latch Clock        ; pll_hdmi|pll_hdmi_inst|altera_pll_i|cyclonev_pll|counter[0].output_counter|divclk                                         ;
+; Data Arrival Time  ; 14.552                                                                                                                    ;
+; Data Required Time ; 14.698                                                                                                                    ;
+; Slack              ; 0.146                                                                                                                     ;
++--------------------+---------------------------------------------------------------------------------------------------------------------------+
+
++--------------------------------------------------------------------------------------+
+; Statistics                                                                           ;
++------------------------+--------+-------+-------------+------------+--------+--------+
+; Property               ; Value  ; Count ; Total Delay ; % of Total ; Min    ; Max    ;
++------------------------+--------+-------+-------------+------------+--------+--------+
+; Setup Relationship     ; 6.732  ;       ;             ;            ;        ;        ;
+; Clock Skew             ; -0.685 ;       ;             ;            ;        ;        ;
+; Data Delay             ; 5.701  ;       ;             ;            ;        ;        ;
+; Number of Logic Levels ;        ; 2     ;             ;            ;        ;        ;
+; Physical Delays        ;        ;       ;             ;            ;        ;        ;
+;  Arrival Path          ;        ;       ;             ;            ;        ;        ;
+;   Clock                ;        ;       ;             ;            ;        ;        ;
+;    IC                  ;        ; 6     ; -0.001      ; 0          ; -0.001 ; 0.000  ;
+;    Cell                ;        ; 6     ; 4.031       ; 46         ; 0.185  ; 1.745  ;
+;    Routing Element     ;        ; 38    ; 4.821       ; 54         ; 0.000  ; 1.077  ;
+;   Data                 ;        ;       ;             ;            ;        ;        ;
+;    IC                  ;        ; 3     ; 0.002       ; 0          ; 0.000  ; 0.002  ;
+;    Cell                ;        ; 4     ; 1.265       ; 22         ; 0.025  ; 0.504  ;
+;    uTco                ;        ; 1     ; 0.000       ; 0          ; 0.000  ; 0.000  ;
+;    Routing Element     ;        ; 25    ; 4.434       ; 78         ; 0.000  ; 0.437  ;
+;  Required Path         ;        ;       ;             ;            ;        ;        ;
+;   Clock                ;        ;       ;             ;            ;        ;        ;
+;    IC                  ;        ; 6     ; 0.000       ; 0          ; 0.000  ; 0.000  ;
+;    Cell                ;        ; 5     ; 3.302       ; 45         ; 0.279  ; 1.466  ;
+;    PLL Compensation    ;        ; 1     ; -0.151      ; 0          ; -0.151 ; -0.151 ;
+;    Routing Element     ;        ; 38    ; 4.049       ; 55         ; 0.000  ; 0.778  ;
++------------------------+--------+-------+-------------+------------+--------+--------+
+Note: Negative delays are omitted from totals when calculating percentages
+
++------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------+
+; Data Arrival Path                                                                                                                                                                                                ;
++----------+----------+----+------+--------+-------------------------------------------+---------------------------------------------------------------------------------------------------------------------------+
+; Total    ; Incr     ; RF ; Type ; Fanout ; Location                                  ; Element                                                                                                                   ;
++----------+----------+----+------+--------+-------------------------------------------+---------------------------------------------------------------------------------------------------------------------------+
+; 0.000    ; 0.000    ;    ;      ;        ;                                           ; launch edge time                                                                                                          ;
+; 8.851    ; 8.851    ;    ;      ;        ;                                           ; clock path                                                                                                                ;
+;   0.000  ;   0.000  ;    ;      ;        ;                                           ; source latency                                                                                                            ;
+;   0.000  ;   0.000  ;    ;      ; 1      ; PIN_V11                                   ; FPGA_CLK1_50                                                                                                              ;
+;   0.000  ;   0.000  ;    ; RE   ; 1      ; IOPAD_X32_Y0_N0                           ; ARRIAV_IO_PAD                                                                                                             ;
+;   0.000  ;   0.000  ;    ; RE   ; 1      ; IO_PAD_OUTPUT_X32_Y0_N0_I1                ; IO_PAD_OUTPUT                                                                                                             ;
+;   0.000  ;   0.000  ;    ; RE   ; 1      ; IO_INPUT_BUFFER_INPUT_X32_Y0_N1_I0        ; IO_INPUT_BUFFER_INPUT                                                                                                     ;
+;   0.000  ;   0.000  ; RR ; IC   ; 1      ; IOIBUF_X32_Y0_N1                          ; FPGA_CLK1_50~input|i                                                                                                      ;
+;   0.761  ;   0.761  ; RR ; CELL ; 2      ; IOIBUF_X32_Y0_N1                          ; FPGA_CLK1_50~input|o                                                                                                      ;
+;   0.761  ;   0.000  ;    ; RE   ; 1      ; IOIBUF_X32_Y0_N1                          ; ARRIAV_IO_IBUF                                                                                                            ;
+;   0.761  ;   0.000  ;    ; RE   ; 1      ; IO_INPUT_BUFFER_OUTPUT_X32_Y0_N1_I2       ; IO_INPUT_BUFFER_OUTPUT                                                                                                    ;
+;   0.761  ;   0.000  ;    ; RE   ; 1      ; IO_RE_X32_Y0_N0_I96                       ; IO_RE                                                                                                                     ;
+;   1.260  ;   0.499  ;    ; RE   ; 2      ; IO_RE_X32_Y0_N0_I66                       ; IO_RE                                                                                                                     ;
+;   2.086  ;   0.826  ;    ; RE   ; 1      ; FF_PLL_RE_X0_Y0_N0_I3                     ; FF_PLL_RE                                                                                                                 ;
+;   2.086  ;   0.000  ;    ; RE   ; 1      ; F_PLL_BLOCK_RE_X0_Y0_N0_I2                ; F_PLL_BLOCK_RE                                                                                                            ;
+;   2.086  ;   0.000  ;    ; RE   ; 1      ; PLL_REFCLK_SELECT_INPUT_X0_Y7_N0_I2       ; PLL_REFCLK_SELECT_INPUT                                                                                                   ;
+;   2.086  ;   0.000  ; RR ; IC   ; 1      ; PLLREFCLKSELECT_X0_Y7_N0                  ; pll_hdmi|pll_hdmi_inst|altera_pll_i|cyclonev_pll|fpll_0|REFCLK_SELECT|clkin[0]                                            ;
+;   2.419  ;   0.333  ; RR ; CELL ; 1      ; PLLREFCLKSELECT_X0_Y7_N0                  ; pll_hdmi|pll_hdmi_inst|altera_pll_i|cyclonev_pll|fpll_0|REFCLK_SELECT|clkout                                              ;
+;   2.419  ;   0.000  ;    ; RE   ; 2      ; PLLREFCLKSELECT_X0_Y7_N0                  ; CYCLONEV_PLL_REFCLK_SELECT                                                                                                ;
+;   2.419  ;   0.000  ;    ; RE   ; 1      ; PLL_REFCLK_SELECT_OUTPUT_X0_Y7_N0_I15     ; PLL_REFCLK_SELECT_OUTPUT                                                                                                  ;
+;   2.419  ;   0.000  ;    ; RE   ; 1      ; FRACTIONAL_PLL_INPUT_X0_Y1_N0_I7          ; FRACTIONAL_PLL_INPUT                                                                                                      ;
+;   2.419  ;   0.000  ; RR ; IC   ; 10     ; FRACTIONALPLL_X0_Y1_N0                    ; pll_hdmi|pll_hdmi_inst|altera_pll_i|cyclonev_pll|fpll_0|fpll|refclkin                                                     ;
+;   2.604  ;   0.185  ; RR ; CELL ; 1      ; FRACTIONALPLL_X0_Y1_N0                    ; pll_hdmi|pll_hdmi_inst|altera_pll_i|cyclonev_pll|fpll_0|fpll|vcoph[0]                                                     ;
+;   2.604  ;   0.000  ;    ; RE   ; 20     ; FRACTIONALPLL_X0_Y1_N0                    ; CYCLONEV_FRACTIONAL_PLL                                                                                                   ;
+;   2.604  ;   0.000  ;    ; RE   ; 1      ; FRACTIONAL_PLL_OUTPUT_X0_Y1_N0_I19        ; FRACTIONAL_PLL_OUTPUT                                                                                                     ;
+;   2.604  ;   0.000  ;    ; RE   ; 1      ; F_PLL_BLOCK_RE_X0_Y0_N0_I109              ; F_PLL_BLOCK_RE                                                                                                            ;
+;   2.604  ;   0.000  ;    ; RE   ; 1      ; PLL_OUTPUT_COUNTER_INPUT_X0_Y5_N1_I7      ; PLL_OUTPUT_COUNTER_INPUT                                                                                                  ;
+;   2.604  ;   0.000  ; RR ; IC   ; 1      ; PLLOUTPUTCOUNTER_X0_Y5_N1                 ; pll_hdmi|pll_hdmi_inst|altera_pll_i|cyclonev_pll|counter[0].output_counter|vco0ph[0]                                      ;
+;   4.349  ;   1.745  ; RR ; CELL ; 3      ; PLLOUTPUTCOUNTER_X0_Y5_N1                 ; pll_hdmi|pll_hdmi_inst|altera_pll_i|cyclonev_pll|counter[0].output_counter|divclk                                         ;
+;   4.349  ;   0.000  ;    ; RE   ; 1      ; PLLOUTPUTCOUNTER_X0_Y5_N1                 ; CYCLONEV_PLL_OUTPUT_COUNTER                                                                                               ;
+;   4.349  ;   0.000  ;    ; RE   ; 1      ; PLL_OUTPUT_COUNTER_OUTPUT_X0_Y5_N1_I16    ; PLL_OUTPUT_COUNTER_OUTPUT                                                                                                 ;
+;   4.878  ;   0.529  ;    ; RE   ; 1      ; FF_PLL_RE_X0_Y0_N0_I106                   ; FF_PLL_RE                                                                                                                 ;
+;   5.491  ;   0.613  ;    ; RE   ; 3      ; CLKBUF_CLUSTER_RE_X42_Y0_N0_I1623         ; CLKBUF_CLUSTER_RE                                                                                                         ;
+;   5.491  ;   0.000  ;    ; RE   ; 1      ; CLKBUF_CLUSTER_RE_X42_Y0_N0_I495          ; CLKBUF_CLUSTER_RE                                                                                                         ;
+;   5.491  ;   0.000  ;    ; RE   ; 1      ; GCLK_CLUSTER_RE_X42_Y0_N0_I10             ; GCLK_CLUSTER_RE                                                                                                           ;
+;   5.491  ;   0.000  ;    ; RE   ; 1      ; CLKBUFBLOCK_INPUT_X42_Y0_N1_I0            ; CLKBUFBLOCK_INPUT                                                                                                         ;
+;   5.491  ;   0.000  ; RR ; IC   ; 1      ; CLKCTRL_G4                                ; pll_hdmi|pll_hdmi_inst|altera_pll_i|cyclonev_pll|divclk[0]~CLKENA0|inclk                                                  ;
+;   5.795  ;   0.304  ; RR ; CELL ; 3699   ; CLKCTRL_G4                                ; pll_hdmi|pll_hdmi_inst|altera_pll_i|cyclonev_pll|divclk[0]~CLKENA0|outclk                                                 ;
+;   5.795  ;   0.000  ;    ; RE   ; 1      ; CLKCTRL_G4                                ; ARRIAV_CLKBUF                                                                                                             ;
+;   5.795  ;   0.000  ;    ; RE   ; 1      ; CLKBUFBLOCK_OUTPUT_X42_Y0_N1_I2           ; CLKBUFBLOCK_OUTPUT                                                                                                        ;
+;   5.795  ;   0.000  ;    ; RE   ; 1      ; GCLK_CLUSTER_RE_X42_Y0_N0_I12             ; GCLK_CLUSTER_RE                                                                                                           ;
+;   5.795  ;   0.000  ;    ; RE   ; 1      ; CLKBUF_CLUSTER_RE_X42_Y0_N0_I415          ; CLKBUF_CLUSTER_RE                                                                                                         ;
+;   6.872  ;   1.077  ;    ; RE   ; 6      ; GLOBAL_CLOCK_X0_Y36_N0_I4                 ; GLOBAL_CLOCK                                                                                                              ;
+;   7.020  ;   0.148  ;    ; RE   ; 22     ; SPINE_CLOCK_X15_Y59_N0_I20                ; SPINE_CLOCK                                                                                                               ;
+;   7.406  ;   0.386  ;    ; RE   ; 1      ; SCLK_TO_ROWCLK_BUF_X15_Y65_N0_I120        ; SCLK_TO_ROWCLK_BUF                                                                                                        ;
+;   7.490  ;   0.084  ;    ; RE   ; 2      ; SCLK_TO_ROWCLK_BUF_X15_Y65_N0_I123        ; SCLK_TO_ROWCLK_BUF                                                                                                        ;
+;   7.917  ;   0.427  ;    ; RE   ; 3      ; LAB_CLK_X0_Y65_N0_I2                      ; LAB_CLK                                                                                                                   ;
+;   8.052  ;   0.135  ;    ; RE   ; 1      ; BLK_CLK_BUF_X14_Y65_N0_I2                 ; BLK_CLK_BUF                                                                                                               ;
+;   8.098  ;   0.046  ;    ; RE   ; 2      ; ROWCLKSEL_PREBUF_X14_Y65_N0_I2            ; ROWCLKSEL_PREBUF                                                                                                          ;
+;   8.149  ;   0.051  ;    ; RE   ; 1      ; ROWCLKSEL_X14_Y65_N0_I1                   ; ROWCLKSEL                                                                                                                 ;
+;   8.149  ;   0.000  ;    ; RE   ; 1      ; GLOBAL_LOCAL_SEL_X14_Y65_N0_I1            ; GLOBAL_LOCAL_SEL                                                                                                          ;
+;   8.149  ;   0.000  ;    ; RE   ; 1      ; M10K_INPUT_X14_Y65_N0_I1                  ; M10K_INPUT                                                                                                                ;
+;   8.148  ;   -0.001 ; RR ; IC   ; 40     ; M10K_X14_Y65_N0                           ; HDMI_shadowmask|vid_rtl_0|auto_generated|altsyncram4|ram_block5a0|clk1                                                    ;
+;   8.851  ;   0.703  ; RR ; CELL ; 1      ; M10K_X14_Y65_N0                           ; shadowmask:HDMI_shadowmask|altshift_taps:vid_rtl_0|shift_taps_0vu:auto_generated|altsyncram_pr91:altsyncram4|ram_block5a0 ;
+; 14.552   ; 5.701    ;    ;      ;        ;                                           ; data path                                                                                                                 ;
+;   8.851  ;   0.000  ;    ; uTco ; 1      ; M10K_X14_Y65_N0                           ; shadowmask:HDMI_shadowmask|altshift_taps:vid_rtl_0|shift_taps_0vu:auto_generated|altsyncram_pr91:altsyncram4|ram_block5a0 ;
+;   8.876  ;   0.025  ; FF ; CELL ; 18     ; M10K_X14_Y65_N0                           ; HDMI_shadowmask|vid_rtl_0|auto_generated|altsyncram4|ram_block5a0|portbdataout[0]                                         ;
+;   8.876  ;   0.000  ;    ; RE   ; 40     ; M10K_X14_Y65_N0                           ; STRATIXV_RAM                                                                                                              ;
+;   9.010  ;   0.134  ;    ; RE   ; 1      ; M20K_BUFFER_X14_Y65_N0_I0                 ; MEDIUM_EAB_BUFFER                                                                                                         ;
+;   9.229  ;   0.219  ;    ; RE   ; 1      ; R6_X9_Y65_N0_I202                         ; H_SEG6                                                                                                                    ;
+;   9.229  ;   0.000  ;    ; RE   ; 1      ; R14_C12_INTERCONNECT_DRIVER_X12_Y65_N0_I1 ; WIRE_MUX                                                                                                                  ;
+;   9.575  ;   0.346  ;    ; RE   ; 1      ; C12_X12_Y53_N0_I1                         ; V_SEG12                                                                                                                   ;
+;   9.575  ;   0.000  ;    ; RE   ; 1      ; R14_C12_INTERCONNECT_DRIVER_X12_Y53_N0_I0 ; WIRE_MUX                                                                                                                  ;
+;   9.979  ;   0.404  ;    ; RE   ; 1      ; C12_X12_Y41_N0_I1                         ; V_SEG12                                                                                                                   ;
+;   9.979  ;   0.000  ;    ; RE   ; 1      ; R14_C12_INTERCONNECT_DRIVER_X12_Y41_N0_I0 ; WIRE_MUX                                                                                                                  ;
+;   10.416 ;   0.437  ;    ; RE   ; 1      ; C12_X12_Y29_N0_I1                         ; V_SEG12                                                                                                                   ;
+;   10.416 ;   0.000  ;    ; RE   ; 1      ; R14_C12_INTERCONNECT_DRIVER_X12_Y32_N0_I1 ; WIRE_MUX                                                                                                                  ;
+;   10.819 ;   0.403  ;    ; RE   ; 2      ; C12_X12_Y20_N0_I1                         ; V_SEG12                                                                                                                   ;
+;   11.121 ;   0.302  ;    ; RE   ; 1      ; C2_X12_Y18_N0_I12                         ; V_SEG2                                                                                                                    ;
+;   11.344 ;   0.223  ;    ; RE   ; 1      ; C2_X12_Y16_N0_I12                         ; V_SEG2                                                                                                                    ;
+;   11.562 ;   0.218  ;    ; RE   ; 3      ; R3_X10_Y16_N0_I15                         ; H_SEG3                                                                                                                    ;
+;   11.723 ;   0.161  ;    ; RE   ; 2      ; LOCAL_INTERCONNECT_X10_Y16_N0_I23         ; LAB_LINE                                                                                                                  ;
+;   11.844 ;   0.121  ;    ; RE   ; 1      ; BLOCK_INPUT_MUX_X10_Y16_N0_I37            ; LEIM_INPUT                                                                                                                ;
+;   11.846 ;   0.002  ; FF ; IC   ; 1      ; LABCELL_X10_Y16_N27                       ; hdmi_osd|always3~5|datac                                                                                                  ;
+;   12.322 ;   0.476  ; FF ; CELL ; 72     ; LABCELL_X10_Y16_N27                       ; hdmi_osd|always3~5|combout                                                                                                ;
+;   12.322 ;   0.000  ;    ; RE   ; 1      ; LABCELL_X10_Y16_N27                       ; ARRIAV_LCELL_COMB                                                                                                         ;
+;   12.386 ;   0.064  ;    ; RE   ; 1      ; LE_BUFFER_X10_Y16_N0_I18                  ; LE_BUFFER                                                                                                                 ;
+;   12.683 ;   0.297  ;    ; RE   ; 6      ; C4_X10_Y12_N0_I7                          ; V_SEG4                                                                                                                    ;
+;   12.990 ;   0.307  ;    ; RE   ; 1      ; R3_X8_Y12_N0_I14                          ; H_SEG3                                                                                                                    ;
+;   13.225 ;   0.235  ;    ; RE   ; 3      ; C4_X7_Y8_N0_I5                            ; V_SEG4                                                                                                                    ;
+;   13.497 ;   0.272  ;    ; RE   ; 1      ; R3_X8_Y11_N0_I2                           ; H_SEG3                                                                                                                    ;
+;   13.665 ;   0.168  ;    ; RE   ; 3      ; LOCAL_INTERCONNECT_X10_Y11_N0_I20         ; LAB_LINE                                                                                                                  ;
+;   13.788 ;   0.123  ;    ; RE   ; 1      ; BLOCK_INPUT_MUX_X10_Y11_N0_I45            ; LEIM_INPUT                                                                                                                ;
+;   13.788 ;   0.000  ; FF ; IC   ; 1      ; LABCELL_X10_Y11_N30                       ; hdmi_osd|osd_div~2|datad                                                                                                  ;
+;   14.292 ;   0.504  ; FF ; CELL ; 1      ; LABCELL_X10_Y11_N30                       ; hdmi_osd|osd_div~2|combout                                                                                                ;
+;   14.292 ;   0.000  ;    ; RE   ; 1      ; LABCELL_X10_Y11_N30                       ; ARRIAV_LCELL_COMB                                                                                                         ;
+;   14.292 ;   0.000  ; FF ; IC   ; 1      ; FF_X10_Y11_N31                            ; hdmi_osd|osd_div[2]|d                                                                                                     ;
+;   14.552 ;   0.260  ; FF ; CELL ; 1      ; FF_X10_Y11_N31                            ; osd:hdmi_osd|osd_div[2]                                                                                                   ;
++----------+----------+----+------+--------+-------------------------------------------+---------------------------------------------------------------------------------------------------------------------------+
+
++--------------------------------------------------------------------------------------------------------------------------------------------------------------------------+
+; Data Required Path                                                                                                                                                       ;
++----------+----------+----+------+--------+----------------------------------------+--------------------------------------------------------------------------------------+
+; Total    ; Incr     ; RF ; Type ; Fanout ; Location                               ; Element                                                                              ;
++----------+----------+----+------+--------+----------------------------------------+--------------------------------------------------------------------------------------+
+; 6.732    ; 6.732    ;    ;      ;        ;                                        ; latch edge time                                                                      ;
+; 14.898   ; 8.166    ;    ;      ;        ;                                        ; clock path                                                                           ;
+;   6.732  ;   0.000  ;    ;      ;        ;                                        ; source latency                                                                       ;
+;   6.732  ;   0.000  ;    ;      ; 1      ; PIN_V11                                ; FPGA_CLK1_50                                                                         ;
+;   6.732  ;   0.000  ;    ; RE   ; 1      ; IOPAD_X32_Y0_N0                        ; ARRIAV_IO_PAD                                                                        ;
+;   6.732  ;   0.000  ;    ; RE   ; 1      ; IO_PAD_OUTPUT_X32_Y0_N0_I1             ; IO_PAD_OUTPUT                                                                        ;
+;   6.732  ;   0.000  ;    ; RE   ; 1      ; IO_INPUT_BUFFER_INPUT_X32_Y0_N1_I0     ; IO_INPUT_BUFFER_INPUT                                                                ;
+;   6.732  ;   0.000  ; RR ; IC   ; 1      ; IOIBUF_X32_Y0_N1                       ; FPGA_CLK1_50~input|i                                                                 ;
+;   7.493  ;   0.761  ; RR ; CELL ; 2      ; IOIBUF_X32_Y0_N1                       ; FPGA_CLK1_50~input|o                                                                 ;
+;   7.493  ;   0.000  ;    ; RE   ; 1      ; IOIBUF_X32_Y0_N1                       ; ARRIAV_IO_IBUF                                                                       ;
+;   7.493  ;   0.000  ;    ; RE   ; 1      ; IO_INPUT_BUFFER_OUTPUT_X32_Y0_N1_I2    ; IO_INPUT_BUFFER_OUTPUT                                                               ;
+;   7.493  ;   0.000  ;    ; RE   ; 1      ; IO_RE_X32_Y0_N0_I96                    ; IO_RE                                                                                ;
+;   7.876  ;   0.383  ;    ; RE   ; 2      ; IO_RE_X32_Y0_N0_I66                    ; IO_RE                                                                                ;
+;   8.654  ;   0.778  ;    ; RE   ; 1      ; FF_PLL_RE_X0_Y0_N0_I3                  ; FF_PLL_RE                                                                            ;
+;   8.654  ;   0.000  ;    ; RE   ; 1      ; F_PLL_BLOCK_RE_X0_Y0_N0_I2             ; F_PLL_BLOCK_RE                                                                       ;
+;   8.654  ;   0.000  ;    ; RE   ; 1      ; PLL_REFCLK_SELECT_INPUT_X0_Y7_N0_I2    ; PLL_REFCLK_SELECT_INPUT                                                              ;
+;   8.654  ;   0.000  ; RR ; IC   ; 1      ; PLLREFCLKSELECT_X0_Y7_N0               ; pll_hdmi|pll_hdmi_inst|altera_pll_i|cyclonev_pll|fpll_0|REFCLK_SELECT|clkin[0]       ;
+;   8.962  ;   0.308  ; RR ; CELL ; 1      ; PLLREFCLKSELECT_X0_Y7_N0               ; pll_hdmi|pll_hdmi_inst|altera_pll_i|cyclonev_pll|fpll_0|REFCLK_SELECT|clkout         ;
+;   8.962  ;   0.000  ;    ; RE   ; 2      ; PLLREFCLKSELECT_X0_Y7_N0               ; CYCLONEV_PLL_REFCLK_SELECT                                                           ;
+;   8.962  ;   0.000  ;    ; RE   ; 1      ; PLL_REFCLK_SELECT_OUTPUT_X0_Y7_N0_I15  ; PLL_REFCLK_SELECT_OUTPUT                                                             ;
+;   8.962  ;   0.000  ;    ; RE   ; 1      ; FRACTIONAL_PLL_INPUT_X0_Y1_N0_I7       ; FRACTIONAL_PLL_INPUT                                                                 ;
+;   8.962  ;   0.000  ; RR ; IC   ; 10     ; FRACTIONALPLL_X0_Y1_N0                 ; pll_hdmi|pll_hdmi_inst|altera_pll_i|cyclonev_pll|fpll_0|fpll|refclkin                ;
+;   8.811  ;   -0.151 ; RR ; COMP ; 1      ; FRACTIONALPLL_X0_Y1_N0                 ; pll_hdmi|pll_hdmi_inst|altera_pll_i|cyclonev_pll|fpll_0|fpll|vcoph[0]                ;
+;   8.811  ;   0.000  ;    ; RE   ; 20     ; FRACTIONALPLL_X0_Y1_N0                 ; CYCLONEV_FRACTIONAL_PLL                                                              ;
+;   8.811  ;   0.000  ;    ; RE   ; 1      ; FRACTIONAL_PLL_OUTPUT_X0_Y1_N0_I19     ; FRACTIONAL_PLL_OUTPUT                                                                ;
+;   8.811  ;   0.000  ;    ; RE   ; 1      ; F_PLL_BLOCK_RE_X0_Y0_N0_I109           ; F_PLL_BLOCK_RE                                                                       ;
+;   8.811  ;   0.000  ;    ; RE   ; 1      ; PLL_OUTPUT_COUNTER_INPUT_X0_Y5_N1_I7   ; PLL_OUTPUT_COUNTER_INPUT                                                             ;
+;   8.811  ;   0.000  ; RR ; IC   ; 1      ; PLLOUTPUTCOUNTER_X0_Y5_N1              ; pll_hdmi|pll_hdmi_inst|altera_pll_i|cyclonev_pll|counter[0].output_counter|vco0ph[0] ;
+;   10.277 ;   1.466  ; RR ; CELL ; 3      ; PLLOUTPUTCOUNTER_X0_Y5_N1              ; pll_hdmi|pll_hdmi_inst|altera_pll_i|cyclonev_pll|counter[0].output_counter|divclk    ;
+;   10.277 ;   0.000  ;    ; RE   ; 1      ; PLLOUTPUTCOUNTER_X0_Y5_N1              ; CYCLONEV_PLL_OUTPUT_COUNTER                                                          ;
+;   10.277 ;   0.000  ;    ; RE   ; 1      ; PLL_OUTPUT_COUNTER_OUTPUT_X0_Y5_N1_I16 ; PLL_OUTPUT_COUNTER_OUTPUT                                                            ;
+;   10.704 ;   0.427  ;    ; RE   ; 1      ; FF_PLL_RE_X0_Y0_N0_I106                ; FF_PLL_RE                                                                            ;
+;   11.282 ;   0.578  ;    ; RE   ; 3      ; CLKBUF_CLUSTER_RE_X42_Y0_N0_I1623      ; CLKBUF_CLUSTER_RE                                                                    ;
+;   11.282 ;   0.000  ;    ; RE   ; 1      ; CLKBUF_CLUSTER_RE_X42_Y0_N0_I495       ; CLKBUF_CLUSTER_RE                                                                    ;
+;   11.282 ;   0.000  ;    ; RE   ; 1      ; GCLK_CLUSTER_RE_X42_Y0_N0_I10          ; GCLK_CLUSTER_RE                                                                      ;
+;   11.282 ;   0.000  ;    ; RE   ; 1      ; CLKBUFBLOCK_INPUT_X42_Y0_N1_I0         ; CLKBUFBLOCK_INPUT                                                                    ;
+;   11.282 ;   0.000  ; RR ; IC   ; 1      ; CLKCTRL_G4                             ; pll_hdmi|pll_hdmi_inst|altera_pll_i|cyclonev_pll|divclk[0]~CLKENA0|inclk             ;
+;   11.561 ;   0.279  ; RR ; CELL ; 3699   ; CLKCTRL_G4                             ; pll_hdmi|pll_hdmi_inst|altera_pll_i|cyclonev_pll|divclk[0]~CLKENA0|outclk            ;
+;   11.561 ;   0.000  ;    ; RE   ; 1      ; CLKCTRL_G4                             ; ARRIAV_CLKBUF                                                                        ;
+;   11.561 ;   0.000  ;    ; RE   ; 1      ; CLKBUFBLOCK_OUTPUT_X42_Y0_N1_I2        ; CLKBUFBLOCK_OUTPUT                                                                   ;
+;   11.561 ;   0.000  ;    ; RE   ; 1      ; GCLK_CLUSTER_RE_X42_Y0_N0_I12          ; GCLK_CLUSTER_RE                                                                      ;
+;   11.561 ;   0.000  ;    ; RE   ; 1      ; CLKBUF_CLUSTER_RE_X42_Y0_N0_I415       ; CLKBUF_CLUSTER_RE                                                                    ;
+;   12.263 ;   0.702  ;    ; RE   ; 6      ; GLOBAL_CLOCK_X0_Y36_N0_I4              ; GLOBAL_CLOCK                                                                         ;
+;   12.399 ;   0.136  ;    ; RE   ; 7      ; SPINE_CLOCK_X15_Y0_N0_I20              ; SPINE_CLOCK                                                                          ;
+;   12.745 ;   0.346  ;    ; RE   ; 1      ; SCLK_TO_ROWCLK_BUF_X15_Y11_N0_I120     ; SCLK_TO_ROWCLK_BUF                                                                   ;
+;   12.814 ;   0.069  ;    ; RE   ; 1      ; SCLK_TO_ROWCLK_BUF_X15_Y11_N0_I123     ; SCLK_TO_ROWCLK_BUF                                                                   ;
+;   13.227 ;   0.413  ;    ; RE   ; 10     ; LAB_CLK_X0_Y11_N0_I2                   ; LAB_CLK                                                                              ;
+;   13.354 ;   0.127  ;    ; RE   ; 1      ; BLK_CLK_BUF_X10_Y11_N0_I2              ; BLK_CLK_BUF                                                                          ;
+;   13.398 ;   0.044  ;    ; RE   ; 1      ; ROWCLKSEL_PREBUF_X10_Y11_N0_I2         ; ROWCLKSEL_PREBUF                                                                     ;
+;   13.444 ;   0.046  ;    ; RE   ; 1      ; ROWCLKSEL_X10_Y11_N0_I0                ; ROWCLKSEL                                                                            ;
+;   13.444 ;   0.000  ;    ; RE   ; 1      ; GLOBAL_LOCAL_SEL_X10_Y11_N0_I0         ; GLOBAL_LOCAL_SEL                                                                     ;
+;   13.444 ;   0.000  ;    ; RE   ; 4      ; LAB_INPUT_X10_Y11_N0_I0                ; LAB_INPUT                                                                            ;
+;   13.444 ;   0.000  ; RR ; IC   ; 1      ; FF_X10_Y11_N31                         ; hdmi_osd|osd_div[2]|clk                                                              ;
+;   13.932 ;   0.488  ; RR ; CELL ; 1      ; FF_X10_Y11_N31                         ; osd:hdmi_osd|osd_div[2]                                                              ;
+;   14.898 ;   0.966  ;    ;      ;        ;                                        ; clock pessimism removed                                                              ;
+; 14.698   ; -0.200   ;    ;      ;        ;                                        ; clock uncertainty                                                                    ;
+; 14.698   ; 0.000    ;    ; uTsu ; 1      ; FF_X10_Y11_N31                         ; osd:hdmi_osd|osd_div[2]                                                              ;
++----------+----------+----+------+--------+----------------------------------------+--------------------------------------------------------------------------------------+
+
+----------------------------
+; Extra Fitter Information ;
+----------------------------
+HTML report is unavailable in plain text report export.
+
+
+Path #2: Setup slack is 0.198 
+===============================================================================
++------------------------------------------------------------------------------------------------------------------------------------------------+
+; Path Summary                                                                                                                                   ;
++--------------------+---------------------------------------------------------------------------------------------------------------------------+
+; Property           ; Value                                                                                                                     ;
++--------------------+---------------------------------------------------------------------------------------------------------------------------+
+; From Node          ; shadowmask:HDMI_shadowmask|altshift_taps:vid_rtl_0|shift_taps_0vu:auto_generated|altsyncram_pr91:altsyncram4|ram_block5a0 ;
+; To Node            ; osd:hdmi_osd|osd_div[1]                                                                                                   ;
+; Launch Clock       ; pll_hdmi|pll_hdmi_inst|altera_pll_i|cyclonev_pll|counter[0].output_counter|divclk                                         ;
+; Latch Clock        ; pll_hdmi|pll_hdmi_inst|altera_pll_i|cyclonev_pll|counter[0].output_counter|divclk                                         ;
+; Data Arrival Time  ; 14.502                                                                                                                    ;
+; Data Required Time ; 14.700                                                                                                                    ;
+; Slack              ; 0.198                                                                                                                     ;
++--------------------+---------------------------------------------------------------------------------------------------------------------------+
+
++--------------------------------------------------------------------------------------+
+; Statistics                                                                           ;
++------------------------+--------+-------+-------------+------------+--------+--------+
+; Property               ; Value  ; Count ; Total Delay ; % of Total ; Min    ; Max    ;
++------------------------+--------+-------+-------------+------------+--------+--------+
+; Setup Relationship     ; 6.732  ;       ;             ;            ;        ;        ;
+; Clock Skew             ; -0.683 ;       ;             ;            ;        ;        ;
+; Data Delay             ; 5.651  ;       ;             ;            ;        ;        ;
+; Number of Logic Levels ;        ; 2     ;             ;            ;        ;        ;
+; Physical Delays        ;        ;       ;             ;            ;        ;        ;
+;  Arrival Path          ;        ;       ;             ;            ;        ;        ;
+;   Clock                ;        ;       ;             ;            ;        ;        ;
+;    IC                  ;        ; 6     ; -0.001      ; 0          ; -0.001 ; 0.000  ;
+;    Cell                ;        ; 6     ; 4.031       ; 46         ; 0.185  ; 1.745  ;
+;    Routing Element     ;        ; 38    ; 4.821       ; 54         ; 0.000  ; 1.077  ;
+;   Data                 ;        ;       ;             ;            ;        ;        ;
+;    IC                  ;        ; 3     ; 0.001       ; 0          ; -0.001 ; 0.002  ;
+;    Cell                ;        ; 4     ; 1.234       ; 22         ; 0.025  ; 0.476  ;
+;    uTco                ;        ; 1     ; 0.000       ; 0          ; 0.000  ; 0.000  ;
+;    Routing Element     ;        ; 25    ; 4.416       ; 78         ; 0.000  ; 0.437  ;
+;  Required Path         ;        ;       ;             ;            ;        ;        ;
+;   Clock                ;        ;       ;             ;            ;        ;        ;
+;    IC                  ;        ; 6     ; 0.000       ; 0          ; 0.000  ; 0.000  ;
+;    Cell                ;        ; 5     ; 3.304       ; 45         ; 0.279  ; 1.466  ;
+;    PLL Compensation    ;        ; 1     ; -0.151      ; 0          ; -0.151 ; -0.151 ;
+;    Routing Element     ;        ; 38    ; 4.049       ; 55         ; 0.000  ; 0.778  ;
++------------------------+--------+-------+-------------+------------+--------+--------+
+Note: Negative delays are omitted from totals when calculating percentages
+
++------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------+
+; Data Arrival Path                                                                                                                                                                                                ;
++----------+----------+----+------+--------+-------------------------------------------+---------------------------------------------------------------------------------------------------------------------------+
+; Total    ; Incr     ; RF ; Type ; Fanout ; Location                                  ; Element                                                                                                                   ;
++----------+----------+----+------+--------+-------------------------------------------+---------------------------------------------------------------------------------------------------------------------------+
+; 0.000    ; 0.000    ;    ;      ;        ;                                           ; launch edge time                                                                                                          ;
+; 8.851    ; 8.851    ;    ;      ;        ;                                           ; clock path                                                                                                                ;
+;   0.000  ;   0.000  ;    ;      ;        ;                                           ; source latency                                                                                                            ;
+;   0.000  ;   0.000  ;    ;      ; 1      ; PIN_V11                                   ; FPGA_CLK1_50                                                                                                              ;
+;   0.000  ;   0.000  ;    ; RE   ; 1      ; IOPAD_X32_Y0_N0                           ; ARRIAV_IO_PAD                                                                                                             ;
+;   0.000  ;   0.000  ;    ; RE   ; 1      ; IO_PAD_OUTPUT_X32_Y0_N0_I1                ; IO_PAD_OUTPUT                                                                                                             ;
+;   0.000  ;   0.000  ;    ; RE   ; 1      ; IO_INPUT_BUFFER_INPUT_X32_Y0_N1_I0        ; IO_INPUT_BUFFER_INPUT                                                                                                     ;
+;   0.000  ;   0.000  ; RR ; IC   ; 1      ; IOIBUF_X32_Y0_N1                          ; FPGA_CLK1_50~input|i                                                                                                      ;
+;   0.761  ;   0.761  ; RR ; CELL ; 2      ; IOIBUF_X32_Y0_N1                          ; FPGA_CLK1_50~input|o                                                                                                      ;
+;   0.761  ;   0.000  ;    ; RE   ; 1      ; IOIBUF_X32_Y0_N1                          ; ARRIAV_IO_IBUF                                                                                                            ;
+;   0.761  ;   0.000  ;    ; RE   ; 1      ; IO_INPUT_BUFFER_OUTPUT_X32_Y0_N1_I2       ; IO_INPUT_BUFFER_OUTPUT                                                                                                    ;
+;   0.761  ;   0.000  ;    ; RE   ; 1      ; IO_RE_X32_Y0_N0_I96                       ; IO_RE                                                                                                                     ;
+;   1.260  ;   0.499  ;    ; RE   ; 2      ; IO_RE_X32_Y0_N0_I66                       ; IO_RE                                                                                                                     ;
+;   2.086  ;   0.826  ;    ; RE   ; 1      ; FF_PLL_RE_X0_Y0_N0_I3                     ; FF_PLL_RE                                                                                                                 ;
+;   2.086  ;   0.000  ;    ; RE   ; 1      ; F_PLL_BLOCK_RE_X0_Y0_N0_I2                ; F_PLL_BLOCK_RE                                                                                                            ;
+;   2.086  ;   0.000  ;    ; RE   ; 1      ; PLL_REFCLK_SELECT_INPUT_X0_Y7_N0_I2       ; PLL_REFCLK_SELECT_INPUT                                                                                                   ;
+;   2.086  ;   0.000  ; RR ; IC   ; 1      ; PLLREFCLKSELECT_X0_Y7_N0                  ; pll_hdmi|pll_hdmi_inst|altera_pll_i|cyclonev_pll|fpll_0|REFCLK_SELECT|clkin[0]                                            ;
+;   2.419  ;   0.333  ; RR ; CELL ; 1      ; PLLREFCLKSELECT_X0_Y7_N0                  ; pll_hdmi|pll_hdmi_inst|altera_pll_i|cyclonev_pll|fpll_0|REFCLK_SELECT|clkout                                              ;
+;   2.419  ;   0.000  ;    ; RE   ; 2      ; PLLREFCLKSELECT_X0_Y7_N0                  ; CYCLONEV_PLL_REFCLK_SELECT                                                                                                ;
+;   2.419  ;   0.000  ;    ; RE   ; 1      ; PLL_REFCLK_SELECT_OUTPUT_X0_Y7_N0_I15     ; PLL_REFCLK_SELECT_OUTPUT                                                                                                  ;
+;   2.419  ;   0.000  ;    ; RE   ; 1      ; FRACTIONAL_PLL_INPUT_X0_Y1_N0_I7          ; FRACTIONAL_PLL_INPUT                                                                                                      ;
+;   2.419  ;   0.000  ; RR ; IC   ; 10     ; FRACTIONALPLL_X0_Y1_N0                    ; pll_hdmi|pll_hdmi_inst|altera_pll_i|cyclonev_pll|fpll_0|fpll|refclkin                                                     ;
+;   2.604  ;   0.185  ; RR ; CELL ; 1      ; FRACTIONALPLL_X0_Y1_N0                    ; pll_hdmi|pll_hdmi_inst|altera_pll_i|cyclonev_pll|fpll_0|fpll|vcoph[0]                                                     ;
+;   2.604  ;   0.000  ;    ; RE   ; 20     ; FRACTIONALPLL_X0_Y1_N0                    ; CYCLONEV_FRACTIONAL_PLL                                                                                                   ;
+;   2.604  ;   0.000  ;    ; RE   ; 1      ; FRACTIONAL_PLL_OUTPUT_X0_Y1_N0_I19        ; FRACTIONAL_PLL_OUTPUT                                                                                                     ;
+;   2.604  ;   0.000  ;    ; RE   ; 1      ; F_PLL_BLOCK_RE_X0_Y0_N0_I109              ; F_PLL_BLOCK_RE                                                                                                            ;
+;   2.604  ;   0.000  ;    ; RE   ; 1      ; PLL_OUTPUT_COUNTER_INPUT_X0_Y5_N1_I7      ; PLL_OUTPUT_COUNTER_INPUT                                                                                                  ;
+;   2.604  ;   0.000  ; RR ; IC   ; 1      ; PLLOUTPUTCOUNTER_X0_Y5_N1                 ; pll_hdmi|pll_hdmi_inst|altera_pll_i|cyclonev_pll|counter[0].output_counter|vco0ph[0]                                      ;
+;   4.349  ;   1.745  ; RR ; CELL ; 3      ; PLLOUTPUTCOUNTER_X0_Y5_N1                 ; pll_hdmi|pll_hdmi_inst|altera_pll_i|cyclonev_pll|counter[0].output_counter|divclk                                         ;
+;   4.349  ;   0.000  ;    ; RE   ; 1      ; PLLOUTPUTCOUNTER_X0_Y5_N1                 ; CYCLONEV_PLL_OUTPUT_COUNTER                                                                                               ;
+;   4.349  ;   0.000  ;    ; RE   ; 1      ; PLL_OUTPUT_COUNTER_OUTPUT_X0_Y5_N1_I16    ; PLL_OUTPUT_COUNTER_OUTPUT                                                                                                 ;
+;   4.878  ;   0.529  ;    ; RE   ; 1      ; FF_PLL_RE_X0_Y0_N0_I106                   ; FF_PLL_RE                                                                                                                 ;
+;   5.491  ;   0.613  ;    ; RE   ; 3      ; CLKBUF_CLUSTER_RE_X42_Y0_N0_I1623         ; CLKBUF_CLUSTER_RE                                                                                                         ;
+;   5.491  ;   0.000  ;    ; RE   ; 1      ; CLKBUF_CLUSTER_RE_X42_Y0_N0_I495          ; CLKBUF_CLUSTER_RE                                                                                                         ;
+;   5.491  ;   0.000  ;    ; RE   ; 1      ; GCLK_CLUSTER_RE_X42_Y0_N0_I10             ; GCLK_CLUSTER_RE                                                                                                           ;
+;   5.491  ;   0.000  ;    ; RE   ; 1      ; CLKBUFBLOCK_INPUT_X42_Y0_N1_I0            ; CLKBUFBLOCK_INPUT                                                                                                         ;
+;   5.491  ;   0.000  ; RR ; IC   ; 1      ; CLKCTRL_G4                                ; pll_hdmi|pll_hdmi_inst|altera_pll_i|cyclonev_pll|divclk[0]~CLKENA0|inclk                                                  ;
+;   5.795  ;   0.304  ; RR ; CELL ; 3699   ; CLKCTRL_G4                                ; pll_hdmi|pll_hdmi_inst|altera_pll_i|cyclonev_pll|divclk[0]~CLKENA0|outclk                                                 ;
+;   5.795  ;   0.000  ;    ; RE   ; 1      ; CLKCTRL_G4                                ; ARRIAV_CLKBUF                                                                                                             ;
+;   5.795  ;   0.000  ;    ; RE   ; 1      ; CLKBUFBLOCK_OUTPUT_X42_Y0_N1_I2           ; CLKBUFBLOCK_OUTPUT                                                                                                        ;
+;   5.795  ;   0.000  ;    ; RE   ; 1      ; GCLK_CLUSTER_RE_X42_Y0_N0_I12             ; GCLK_CLUSTER_RE                                                                                                           ;
+;   5.795  ;   0.000  ;    ; RE   ; 1      ; CLKBUF_CLUSTER_RE_X42_Y0_N0_I415          ; CLKBUF_CLUSTER_RE                                                                                                         ;
+;   6.872  ;   1.077  ;    ; RE   ; 6      ; GLOBAL_CLOCK_X0_Y36_N0_I4                 ; GLOBAL_CLOCK                                                                                                              ;
+;   7.020  ;   0.148  ;    ; RE   ; 22     ; SPINE_CLOCK_X15_Y59_N0_I20                ; SPINE_CLOCK                                                                                                               ;
+;   7.406  ;   0.386  ;    ; RE   ; 1      ; SCLK_TO_ROWCLK_BUF_X15_Y65_N0_I120        ; SCLK_TO_ROWCLK_BUF                                                                                                        ;
+;   7.490  ;   0.084  ;    ; RE   ; 2      ; SCLK_TO_ROWCLK_BUF_X15_Y65_N0_I123        ; SCLK_TO_ROWCLK_BUF                                                                                                        ;
+;   7.917  ;   0.427  ;    ; RE   ; 3      ; LAB_CLK_X0_Y65_N0_I2                      ; LAB_CLK                                                                                                                   ;
+;   8.052  ;   0.135  ;    ; RE   ; 1      ; BLK_CLK_BUF_X14_Y65_N0_I2                 ; BLK_CLK_BUF                                                                                                               ;
+;   8.098  ;   0.046  ;    ; RE   ; 2      ; ROWCLKSEL_PREBUF_X14_Y65_N0_I2            ; ROWCLKSEL_PREBUF                                                                                                          ;
+;   8.149  ;   0.051  ;    ; RE   ; 1      ; ROWCLKSEL_X14_Y65_N0_I1                   ; ROWCLKSEL                                                                                                                 ;
+;   8.149  ;   0.000  ;    ; RE   ; 1      ; GLOBAL_LOCAL_SEL_X14_Y65_N0_I1            ; GLOBAL_LOCAL_SEL                                                                                                          ;
+;   8.149  ;   0.000  ;    ; RE   ; 1      ; M10K_INPUT_X14_Y65_N0_I1                  ; M10K_INPUT                                                                                                                ;
+;   8.148  ;   -0.001 ; RR ; IC   ; 40     ; M10K_X14_Y65_N0                           ; HDMI_shadowmask|vid_rtl_0|auto_generated|altsyncram4|ram_block5a0|clk1                                                    ;
+;   8.851  ;   0.703  ; RR ; CELL ; 1      ; M10K_X14_Y65_N0                           ; shadowmask:HDMI_shadowmask|altshift_taps:vid_rtl_0|shift_taps_0vu:auto_generated|altsyncram_pr91:altsyncram4|ram_block5a0 ;
+; 14.502   ; 5.651    ;    ;      ;        ;                                           ; data path                                                                                                                 ;
+;   8.851  ;   0.000  ;    ; uTco ; 1      ; M10K_X14_Y65_N0                           ; shadowmask:HDMI_shadowmask|altshift_taps:vid_rtl_0|shift_taps_0vu:auto_generated|altsyncram_pr91:altsyncram4|ram_block5a0 ;
+;   8.876  ;   0.025  ; FF ; CELL ; 18     ; M10K_X14_Y65_N0                           ; HDMI_shadowmask|vid_rtl_0|auto_generated|altsyncram4|ram_block5a0|portbdataout[0]                                         ;
+;   8.876  ;   0.000  ;    ; RE   ; 40     ; M10K_X14_Y65_N0                           ; STRATIXV_RAM                                                                                                              ;
+;   9.010  ;   0.134  ;    ; RE   ; 1      ; M20K_BUFFER_X14_Y65_N0_I0                 ; MEDIUM_EAB_BUFFER                                                                                                         ;
+;   9.229  ;   0.219  ;    ; RE   ; 1      ; R6_X9_Y65_N0_I202                         ; H_SEG6                                                                                                                    ;
+;   9.229  ;   0.000  ;    ; RE   ; 1      ; R14_C12_INTERCONNECT_DRIVER_X12_Y65_N0_I1 ; WIRE_MUX                                                                                                                  ;
+;   9.575  ;   0.346  ;    ; RE   ; 1      ; C12_X12_Y53_N0_I1                         ; V_SEG12                                                                                                                   ;
+;   9.575  ;   0.000  ;    ; RE   ; 1      ; R14_C12_INTERCONNECT_DRIVER_X12_Y53_N0_I0 ; WIRE_MUX                                                                                                                  ;
+;   9.979  ;   0.404  ;    ; RE   ; 1      ; C12_X12_Y41_N0_I1                         ; V_SEG12                                                                                                                   ;
+;   9.979  ;   0.000  ;    ; RE   ; 1      ; R14_C12_INTERCONNECT_DRIVER_X12_Y41_N0_I0 ; WIRE_MUX                                                                                                                  ;
+;   10.416 ;   0.437  ;    ; RE   ; 1      ; C12_X12_Y29_N0_I1                         ; V_SEG12                                                                                                                   ;
+;   10.416 ;   0.000  ;    ; RE   ; 1      ; R14_C12_INTERCONNECT_DRIVER_X12_Y32_N0_I1 ; WIRE_MUX                                                                                                                  ;
+;   10.819 ;   0.403  ;    ; RE   ; 2      ; C12_X12_Y20_N0_I1                         ; V_SEG12                                                                                                                   ;
+;   11.121 ;   0.302  ;    ; RE   ; 1      ; C2_X12_Y18_N0_I12                         ; V_SEG2                                                                                                                    ;
+;   11.344 ;   0.223  ;    ; RE   ; 1      ; C2_X12_Y16_N0_I12                         ; V_SEG2                                                                                                                    ;
+;   11.562 ;   0.218  ;    ; RE   ; 3      ; R3_X10_Y16_N0_I15                         ; H_SEG3                                                                                                                    ;
+;   11.723 ;   0.161  ;    ; RE   ; 2      ; LOCAL_INTERCONNECT_X10_Y16_N0_I23         ; LAB_LINE                                                                                                                  ;
+;   11.844 ;   0.121  ;    ; RE   ; 1      ; BLOCK_INPUT_MUX_X10_Y16_N0_I37            ; LEIM_INPUT                                                                                                                ;
+;   11.846 ;   0.002  ; FF ; IC   ; 1      ; LABCELL_X10_Y16_N27                       ; hdmi_osd|always3~5|datac                                                                                                  ;
+;   12.322 ;   0.476  ; FF ; CELL ; 72     ; LABCELL_X10_Y16_N27                       ; hdmi_osd|always3~5|combout                                                                                                ;
+;   12.322 ;   0.000  ;    ; RE   ; 1      ; LABCELL_X10_Y16_N27                       ; ARRIAV_LCELL_COMB                                                                                                         ;
+;   12.386 ;   0.064  ;    ; RE   ; 1      ; LE_BUFFER_X10_Y16_N0_I18                  ; LE_BUFFER                                                                                                                 ;
+;   12.683 ;   0.297  ;    ; RE   ; 6      ; C4_X10_Y12_N0_I7                          ; V_SEG4                                                                                                                    ;
+;   12.990 ;   0.307  ;    ; RE   ; 1      ; R3_X8_Y12_N0_I14                          ; H_SEG3                                                                                                                    ;
+;   13.225 ;   0.235  ;    ; RE   ; 3      ; C4_X7_Y8_N0_I5                            ; V_SEG4                                                                                                                    ;
+;   13.497 ;   0.272  ;    ; RE   ; 1      ; R3_X8_Y11_N0_I2                           ; H_SEG3                                                                                                                    ;
+;   13.649 ;   0.152  ;    ; RE   ; 3      ; LOCAL_INTERCONNECT_X10_Y11_N0_I20         ; LAB_LINE                                                                                                                  ;
+;   13.770 ;   0.121  ;    ; RE   ; 1      ; BLOCK_INPUT_MUX_X10_Y11_N0_I21            ; LEIM_INPUT                                                                                                                ;
+;   13.769 ;   -0.001 ; FF ; IC   ; 1      ; LABCELL_X10_Y11_N15                       ; hdmi_osd|osd_div~1|datac                                                                                                  ;
+;   14.240 ;   0.471  ; FF ; CELL ; 1      ; LABCELL_X10_Y11_N15                       ; hdmi_osd|osd_div~1|combout                                                                                                ;
+;   14.240 ;   0.000  ;    ; RE   ; 1      ; LABCELL_X10_Y11_N15                       ; ARRIAV_LCELL_COMB                                                                                                         ;
+;   14.240 ;   0.000  ; FF ; IC   ; 1      ; FF_X10_Y11_N17                            ; hdmi_osd|osd_div[1]|d                                                                                                     ;
+;   14.502 ;   0.262  ; FF ; CELL ; 1      ; FF_X10_Y11_N17                            ; osd:hdmi_osd|osd_div[1]                                                                                                   ;
++----------+----------+----+------+--------+-------------------------------------------+---------------------------------------------------------------------------------------------------------------------------+
+
++--------------------------------------------------------------------------------------------------------------------------------------------------------------------------+
+; Data Required Path                                                                                                                                                       ;
++----------+----------+----+------+--------+----------------------------------------+--------------------------------------------------------------------------------------+
+; Total    ; Incr     ; RF ; Type ; Fanout ; Location                               ; Element                                                                              ;
++----------+----------+----+------+--------+----------------------------------------+--------------------------------------------------------------------------------------+
+; 6.732    ; 6.732    ;    ;      ;        ;                                        ; latch edge time                                                                      ;
+; 14.900   ; 8.168    ;    ;      ;        ;                                        ; clock path                                                                           ;
+;   6.732  ;   0.000  ;    ;      ;        ;                                        ; source latency                                                                       ;
+;   6.732  ;   0.000  ;    ;      ; 1      ; PIN_V11                                ; FPGA_CLK1_50                                                                         ;
+;   6.732  ;   0.000  ;    ; RE   ; 1      ; IOPAD_X32_Y0_N0                        ; ARRIAV_IO_PAD                                                                        ;
+;   6.732  ;   0.000  ;    ; RE   ; 1      ; IO_PAD_OUTPUT_X32_Y0_N0_I1             ; IO_PAD_OUTPUT                                                                        ;
+;   6.732  ;   0.000  ;    ; RE   ; 1      ; IO_INPUT_BUFFER_INPUT_X32_Y0_N1_I0     ; IO_INPUT_BUFFER_INPUT                                                                ;
+;   6.732  ;   0.000  ; RR ; IC   ; 1      ; IOIBUF_X32_Y0_N1                       ; FPGA_CLK1_50~input|i                                                                 ;
+;   7.493  ;   0.761  ; RR ; CELL ; 2      ; IOIBUF_X32_Y0_N1                       ; FPGA_CLK1_50~input|o                                                                 ;
+;   7.493  ;   0.000  ;    ; RE   ; 1      ; IOIBUF_X32_Y0_N1                       ; ARRIAV_IO_IBUF                                                                       ;
+;   7.493  ;   0.000  ;    ; RE   ; 1      ; IO_INPUT_BUFFER_OUTPUT_X32_Y0_N1_I2    ; IO_INPUT_BUFFER_OUTPUT                                                               ;
+;   7.493  ;   0.000  ;    ; RE   ; 1      ; IO_RE_X32_Y0_N0_I96                    ; IO_RE                                                                                ;
+;   7.876  ;   0.383  ;    ; RE   ; 2      ; IO_RE_X32_Y0_N0_I66                    ; IO_RE                                                                                ;
+;   8.654  ;   0.778  ;    ; RE   ; 1      ; FF_PLL_RE_X0_Y0_N0_I3                  ; FF_PLL_RE                                                                            ;
+;   8.654  ;   0.000  ;    ; RE   ; 1      ; F_PLL_BLOCK_RE_X0_Y0_N0_I2             ; F_PLL_BLOCK_RE                                                                       ;
+;   8.654  ;   0.000  ;    ; RE   ; 1      ; PLL_REFCLK_SELECT_INPUT_X0_Y7_N0_I2    ; PLL_REFCLK_SELECT_INPUT                                                              ;
+;   8.654  ;   0.000  ; RR ; IC   ; 1      ; PLLREFCLKSELECT_X0_Y7_N0               ; pll_hdmi|pll_hdmi_inst|altera_pll_i|cyclonev_pll|fpll_0|REFCLK_SELECT|clkin[0]       ;
+;   8.962  ;   0.308  ; RR ; CELL ; 1      ; PLLREFCLKSELECT_X0_Y7_N0               ; pll_hdmi|pll_hdmi_inst|altera_pll_i|cyclonev_pll|fpll_0|REFCLK_SELECT|clkout         ;
+;   8.962  ;   0.000  ;    ; RE   ; 2      ; PLLREFCLKSELECT_X0_Y7_N0               ; CYCLONEV_PLL_REFCLK_SELECT                                                           ;
+;   8.962  ;   0.000  ;    ; RE   ; 1      ; PLL_REFCLK_SELECT_OUTPUT_X0_Y7_N0_I15  ; PLL_REFCLK_SELECT_OUTPUT                                                             ;
+;   8.962  ;   0.000  ;    ; RE   ; 1      ; FRACTIONAL_PLL_INPUT_X0_Y1_N0_I7       ; FRACTIONAL_PLL_INPUT                                                                 ;
+;   8.962  ;   0.000  ; RR ; IC   ; 10     ; FRACTIONALPLL_X0_Y1_N0                 ; pll_hdmi|pll_hdmi_inst|altera_pll_i|cyclonev_pll|fpll_0|fpll|refclkin                ;
+;   8.811  ;   -0.151 ; RR ; COMP ; 1      ; FRACTIONALPLL_X0_Y1_N0                 ; pll_hdmi|pll_hdmi_inst|altera_pll_i|cyclonev_pll|fpll_0|fpll|vcoph[0]                ;
+;   8.811  ;   0.000  ;    ; RE   ; 20     ; FRACTIONALPLL_X0_Y1_N0                 ; CYCLONEV_FRACTIONAL_PLL                                                              ;
+;   8.811  ;   0.000  ;    ; RE   ; 1      ; FRACTIONAL_PLL_OUTPUT_X0_Y1_N0_I19     ; FRACTIONAL_PLL_OUTPUT                                                                ;
+;   8.811  ;   0.000  ;    ; RE   ; 1      ; F_PLL_BLOCK_RE_X0_Y0_N0_I109           ; F_PLL_BLOCK_RE                                                                       ;
+;   8.811  ;   0.000  ;    ; RE   ; 1      ; PLL_OUTPUT_COUNTER_INPUT_X0_Y5_N1_I7   ; PLL_OUTPUT_COUNTER_INPUT                                                             ;
+;   8.811  ;   0.000  ; RR ; IC   ; 1      ; PLLOUTPUTCOUNTER_X0_Y5_N1              ; pll_hdmi|pll_hdmi_inst|altera_pll_i|cyclonev_pll|counter[0].output_counter|vco0ph[0] ;
+;   10.277 ;   1.466  ; RR ; CELL ; 3      ; PLLOUTPUTCOUNTER_X0_Y5_N1              ; pll_hdmi|pll_hdmi_inst|altera_pll_i|cyclonev_pll|counter[0].output_counter|divclk    ;
+;   10.277 ;   0.000  ;    ; RE   ; 1      ; PLLOUTPUTCOUNTER_X0_Y5_N1              ; CYCLONEV_PLL_OUTPUT_COUNTER                                                          ;
+;   10.277 ;   0.000  ;    ; RE   ; 1      ; PLL_OUTPUT_COUNTER_OUTPUT_X0_Y5_N1_I16 ; PLL_OUTPUT_COUNTER_OUTPUT                                                            ;
+;   10.704 ;   0.427  ;    ; RE   ; 1      ; FF_PLL_RE_X0_Y0_N0_I106                ; FF_PLL_RE                                                                            ;
+;   11.282 ;   0.578  ;    ; RE   ; 3      ; CLKBUF_CLUSTER_RE_X42_Y0_N0_I1623      ; CLKBUF_CLUSTER_RE                                                                    ;
+;   11.282 ;   0.000  ;    ; RE   ; 1      ; CLKBUF_CLUSTER_RE_X42_Y0_N0_I495       ; CLKBUF_CLUSTER_RE                                                                    ;
+;   11.282 ;   0.000  ;    ; RE   ; 1      ; GCLK_CLUSTER_RE_X42_Y0_N0_I10          ; GCLK_CLUSTER_RE                                                                      ;
+;   11.282 ;   0.000  ;    ; RE   ; 1      ; CLKBUFBLOCK_INPUT_X42_Y0_N1_I0         ; CLKBUFBLOCK_INPUT                                                                    ;
+;   11.282 ;   0.000  ; RR ; IC   ; 1      ; CLKCTRL_G4                             ; pll_hdmi|pll_hdmi_inst|altera_pll_i|cyclonev_pll|divclk[0]~CLKENA0|inclk             ;
+;   11.561 ;   0.279  ; RR ; CELL ; 3699   ; CLKCTRL_G4                             ; pll_hdmi|pll_hdmi_inst|altera_pll_i|cyclonev_pll|divclk[0]~CLKENA0|outclk            ;
+;   11.561 ;   0.000  ;    ; RE   ; 1      ; CLKCTRL_G4                             ; ARRIAV_CLKBUF                                                                        ;
+;   11.561 ;   0.000  ;    ; RE   ; 1      ; CLKBUFBLOCK_OUTPUT_X42_Y0_N1_I2        ; CLKBUFBLOCK_OUTPUT                                                                   ;
+;   11.561 ;   0.000  ;    ; RE   ; 1      ; GCLK_CLUSTER_RE_X42_Y0_N0_I12          ; GCLK_CLUSTER_RE                                                                      ;
+;   11.561 ;   0.000  ;    ; RE   ; 1      ; CLKBUF_CLUSTER_RE_X42_Y0_N0_I415       ; CLKBUF_CLUSTER_RE                                                                    ;
+;   12.263 ;   0.702  ;    ; RE   ; 6      ; GLOBAL_CLOCK_X0_Y36_N0_I4              ; GLOBAL_CLOCK                                                                         ;
+;   12.399 ;   0.136  ;    ; RE   ; 7      ; SPINE_CLOCK_X15_Y0_N0_I20              ; SPINE_CLOCK                                                                          ;
+;   12.745 ;   0.346  ;    ; RE   ; 1      ; SCLK_TO_ROWCLK_BUF_X15_Y11_N0_I120     ; SCLK_TO_ROWCLK_BUF                                                                   ;
+;   12.814 ;   0.069  ;    ; RE   ; 1      ; SCLK_TO_ROWCLK_BUF_X15_Y11_N0_I123     ; SCLK_TO_ROWCLK_BUF                                                                   ;
+;   13.227 ;   0.413  ;    ; RE   ; 10     ; LAB_CLK_X0_Y11_N0_I2                   ; LAB_CLK                                                                              ;
+;   13.354 ;   0.127  ;    ; RE   ; 1      ; BLK_CLK_BUF_X10_Y11_N0_I2              ; BLK_CLK_BUF                                                                          ;
+;   13.398 ;   0.044  ;    ; RE   ; 1      ; ROWCLKSEL_PREBUF_X10_Y11_N0_I2         ; ROWCLKSEL_PREBUF                                                                     ;
+;   13.444 ;   0.046  ;    ; RE   ; 1      ; ROWCLKSEL_X10_Y11_N0_I0                ; ROWCLKSEL                                                                            ;
+;   13.444 ;   0.000  ;    ; RE   ; 1      ; GLOBAL_LOCAL_SEL_X10_Y11_N0_I0         ; GLOBAL_LOCAL_SEL                                                                     ;
+;   13.444 ;   0.000  ;    ; RE   ; 4      ; LAB_INPUT_X10_Y11_N0_I0                ; LAB_INPUT                                                                            ;
+;   13.444 ;   0.000  ; RR ; IC   ; 1      ; FF_X10_Y11_N17                         ; hdmi_osd|osd_div[1]|clk                                                              ;
+;   13.934 ;   0.490  ; RR ; CELL ; 1      ; FF_X10_Y11_N17                         ; osd:hdmi_osd|osd_div[1]                                                              ;
+;   14.900 ;   0.966  ;    ;      ;        ;                                        ; clock pessimism removed                                                              ;
+; 14.700   ; -0.200   ;    ;      ;        ;                                        ; clock uncertainty                                                                    ;
+; 14.700   ; 0.000    ;    ; uTsu ; 1      ; FF_X10_Y11_N17                         ; osd:hdmi_osd|osd_div[1]                                                              ;
++----------+----------+----+------+--------+----------------------------------------+--------------------------------------------------------------------------------------+
+
+----------------------------
+; Extra Fitter Information ;
+----------------------------
+HTML report is unavailable in plain text report export.
+
+
+Path #3: Setup slack is 0.568 
+===============================================================================
++------------------------------------------------------------------------------------------------------------------------------------------------+
+; Path Summary                                                                                                                                   ;
++--------------------+---------------------------------------------------------------------------------------------------------------------------+
+; Property           ; Value                                                                                                                     ;
++--------------------+---------------------------------------------------------------------------------------------------------------------------+
+; From Node          ; shadowmask:HDMI_shadowmask|altshift_taps:vid_rtl_0|shift_taps_0vu:auto_generated|altsyncram_pr91:altsyncram4|ram_block5a0 ;
+; To Node            ; osd:hdmi_osd|osd_div[0]                                                                                                   ;
+; Launch Clock       ; pll_hdmi|pll_hdmi_inst|altera_pll_i|cyclonev_pll|counter[0].output_counter|divclk                                         ;
+; Latch Clock        ; pll_hdmi|pll_hdmi_inst|altera_pll_i|cyclonev_pll|counter[0].output_counter|divclk                                         ;
+; Data Arrival Time  ; 14.126                                                                                                                    ;
+; Data Required Time ; 14.694                                                                                                                    ;
+; Slack              ; 0.568                                                                                                                     ;
++--------------------+---------------------------------------------------------------------------------------------------------------------------+
+
++--------------------------------------------------------------------------------------+
+; Statistics                                                                           ;
++------------------------+--------+-------+-------------+------------+--------+--------+
+; Property               ; Value  ; Count ; Total Delay ; % of Total ; Min    ; Max    ;
++------------------------+--------+-------+-------------+------------+--------+--------+
+; Setup Relationship     ; 6.732  ;       ;             ;            ;        ;        ;
+; Clock Skew             ; -0.689 ;       ;             ;            ;        ;        ;
+; Data Delay             ; 5.275  ;       ;             ;            ;        ;        ;
+; Number of Logic Levels ;        ; 2     ;             ;            ;        ;        ;
+; Physical Delays        ;        ;       ;             ;            ;        ;        ;
+;  Arrival Path          ;        ;       ;             ;            ;        ;        ;
+;   Clock                ;        ;       ;             ;            ;        ;        ;
+;    IC                  ;        ; 6     ; -0.001      ; 0          ; -0.001 ; 0.000  ;
+;    Cell                ;        ; 6     ; 4.031       ; 46         ; 0.185  ; 1.745  ;
+;    Routing Element     ;        ; 38    ; 4.821       ; 54         ; 0.000  ; 1.077  ;
+;   Data                 ;        ;       ;             ;            ;        ;        ;
+;    IC                  ;        ; 3     ; 0.002       ; 0          ; 0.000  ; 0.002  ;
+;    Cell                ;        ; 4     ; 0.851       ; 16         ; 0.025  ; 0.476  ;
+;    uTco                ;        ; 1     ; 0.000       ; 0          ; 0.000  ; 0.000  ;
+;    Routing Element     ;        ; 25    ; 4.422       ; 84         ; 0.000  ; 0.437  ;
+;  Required Path         ;        ;       ;             ;            ;        ;        ;
+;   Clock                ;        ;       ;             ;            ;        ;        ;
+;    IC                  ;        ; 6     ; 0.000       ; 0          ; 0.000  ; 0.000  ;
+;    Cell                ;        ; 5     ; 3.298       ; 45         ; 0.279  ; 1.466  ;
+;    PLL Compensation    ;        ; 1     ; -0.151      ; 0          ; -0.151 ; -0.151 ;
+;    Routing Element     ;        ; 38    ; 4.049       ; 55         ; 0.000  ; 0.778  ;
++------------------------+--------+-------+-------------+------------+--------+--------+
+Note: Negative delays are omitted from totals when calculating percentages
+
++------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------+
+; Data Arrival Path                                                                                                                                                                                                ;
++----------+----------+----+------+--------+-------------------------------------------+---------------------------------------------------------------------------------------------------------------------------+
+; Total    ; Incr     ; RF ; Type ; Fanout ; Location                                  ; Element                                                                                                                   ;
++----------+----------+----+------+--------+-------------------------------------------+---------------------------------------------------------------------------------------------------------------------------+
+; 0.000    ; 0.000    ;    ;      ;        ;                                           ; launch edge time                                                                                                          ;
+; 8.851    ; 8.851    ;    ;      ;        ;                                           ; clock path                                                                                                                ;
+;   0.000  ;   0.000  ;    ;      ;        ;                                           ; source latency                                                                                                            ;
+;   0.000  ;   0.000  ;    ;      ; 1      ; PIN_V11                                   ; FPGA_CLK1_50                                                                                                              ;
+;   0.000  ;   0.000  ;    ; RE   ; 1      ; IOPAD_X32_Y0_N0                           ; ARRIAV_IO_PAD                                                                                                             ;
+;   0.000  ;   0.000  ;    ; RE   ; 1      ; IO_PAD_OUTPUT_X32_Y0_N0_I1                ; IO_PAD_OUTPUT                                                                                                             ;
+;   0.000  ;   0.000  ;    ; RE   ; 1      ; IO_INPUT_BUFFER_INPUT_X32_Y0_N1_I0        ; IO_INPUT_BUFFER_INPUT                                                                                                     ;
+;   0.000  ;   0.000  ; RR ; IC   ; 1      ; IOIBUF_X32_Y0_N1                          ; FPGA_CLK1_50~input|i                                                                                                      ;
+;   0.761  ;   0.761  ; RR ; CELL ; 2      ; IOIBUF_X32_Y0_N1                          ; FPGA_CLK1_50~input|o                                                                                                      ;
+;   0.761  ;   0.000  ;    ; RE   ; 1      ; IOIBUF_X32_Y0_N1                          ; ARRIAV_IO_IBUF                                                                                                            ;
+;   0.761  ;   0.000  ;    ; RE   ; 1      ; IO_INPUT_BUFFER_OUTPUT_X32_Y0_N1_I2       ; IO_INPUT_BUFFER_OUTPUT                                                                                                    ;
+;   0.761  ;   0.000  ;    ; RE   ; 1      ; IO_RE_X32_Y0_N0_I96                       ; IO_RE                                                                                                                     ;
+;   1.260  ;   0.499  ;    ; RE   ; 2      ; IO_RE_X32_Y0_N0_I66                       ; IO_RE                                                                                                                     ;
+;   2.086  ;   0.826  ;    ; RE   ; 1      ; FF_PLL_RE_X0_Y0_N0_I3                     ; FF_PLL_RE                                                                                                                 ;
+;   2.086  ;   0.000  ;    ; RE   ; 1      ; F_PLL_BLOCK_RE_X0_Y0_N0_I2                ; F_PLL_BLOCK_RE                                                                                                            ;
+;   2.086  ;   0.000  ;    ; RE   ; 1      ; PLL_REFCLK_SELECT_INPUT_X0_Y7_N0_I2       ; PLL_REFCLK_SELECT_INPUT                                                                                                   ;
+;   2.086  ;   0.000  ; RR ; IC   ; 1      ; PLLREFCLKSELECT_X0_Y7_N0                  ; pll_hdmi|pll_hdmi_inst|altera_pll_i|cyclonev_pll|fpll_0|REFCLK_SELECT|clkin[0]                                            ;
+;   2.419  ;   0.333  ; RR ; CELL ; 1      ; PLLREFCLKSELECT_X0_Y7_N0                  ; pll_hdmi|pll_hdmi_inst|altera_pll_i|cyclonev_pll|fpll_0|REFCLK_SELECT|clkout                                              ;
+;   2.419  ;   0.000  ;    ; RE   ; 2      ; PLLREFCLKSELECT_X0_Y7_N0                  ; CYCLONEV_PLL_REFCLK_SELECT                                                                                                ;
+;   2.419  ;   0.000  ;    ; RE   ; 1      ; PLL_REFCLK_SELECT_OUTPUT_X0_Y7_N0_I15     ; PLL_REFCLK_SELECT_OUTPUT                                                                                                  ;
+;   2.419  ;   0.000  ;    ; RE   ; 1      ; FRACTIONAL_PLL_INPUT_X0_Y1_N0_I7          ; FRACTIONAL_PLL_INPUT                                                                                                      ;
+;   2.419  ;   0.000  ; RR ; IC   ; 10     ; FRACTIONALPLL_X0_Y1_N0                    ; pll_hdmi|pll_hdmi_inst|altera_pll_i|cyclonev_pll|fpll_0|fpll|refclkin                                                     ;
+;   2.604  ;   0.185  ; RR ; CELL ; 1      ; FRACTIONALPLL_X0_Y1_N0                    ; pll_hdmi|pll_hdmi_inst|altera_pll_i|cyclonev_pll|fpll_0|fpll|vcoph[0]                                                     ;
+;   2.604  ;   0.000  ;    ; RE   ; 20     ; FRACTIONALPLL_X0_Y1_N0                    ; CYCLONEV_FRACTIONAL_PLL                                                                                                   ;
+;   2.604  ;   0.000  ;    ; RE   ; 1      ; FRACTIONAL_PLL_OUTPUT_X0_Y1_N0_I19        ; FRACTIONAL_PLL_OUTPUT                                                                                                     ;
+;   2.604  ;   0.000  ;    ; RE   ; 1      ; F_PLL_BLOCK_RE_X0_Y0_N0_I109              ; F_PLL_BLOCK_RE                                                                                                            ;
+;   2.604  ;   0.000  ;    ; RE   ; 1      ; PLL_OUTPUT_COUNTER_INPUT_X0_Y5_N1_I7      ; PLL_OUTPUT_COUNTER_INPUT                                                                                                  ;
+;   2.604  ;   0.000  ; RR ; IC   ; 1      ; PLLOUTPUTCOUNTER_X0_Y5_N1                 ; pll_hdmi|pll_hdmi_inst|altera_pll_i|cyclonev_pll|counter[0].output_counter|vco0ph[0]                                      ;
+;   4.349  ;   1.745  ; RR ; CELL ; 3      ; PLLOUTPUTCOUNTER_X0_Y5_N1                 ; pll_hdmi|pll_hdmi_inst|altera_pll_i|cyclonev_pll|counter[0].output_counter|divclk                                         ;
+;   4.349  ;   0.000  ;    ; RE   ; 1      ; PLLOUTPUTCOUNTER_X0_Y5_N1                 ; CYCLONEV_PLL_OUTPUT_COUNTER                                                                                               ;
+;   4.349  ;   0.000  ;    ; RE   ; 1      ; PLL_OUTPUT_COUNTER_OUTPUT_X0_Y5_N1_I16    ; PLL_OUTPUT_COUNTER_OUTPUT                                                                                                 ;
+;   4.878  ;   0.529  ;    ; RE   ; 1      ; FF_PLL_RE_X0_Y0_N0_I106                   ; FF_PLL_RE                                                                                                                 ;
+;   5.491  ;   0.613  ;    ; RE   ; 3      ; CLKBUF_CLUSTER_RE_X42_Y0_N0_I1623         ; CLKBUF_CLUSTER_RE                                                                                                         ;
+;   5.491  ;   0.000  ;    ; RE   ; 1      ; CLKBUF_CLUSTER_RE_X42_Y0_N0_I495          ; CLKBUF_CLUSTER_RE                                                                                                         ;
+;   5.491  ;   0.000  ;    ; RE   ; 1      ; GCLK_CLUSTER_RE_X42_Y0_N0_I10             ; GCLK_CLUSTER_RE                                                                                                           ;
+;   5.491  ;   0.000  ;    ; RE   ; 1      ; CLKBUFBLOCK_INPUT_X42_Y0_N1_I0            ; CLKBUFBLOCK_INPUT                                                                                                         ;
+;   5.491  ;   0.000  ; RR ; IC   ; 1      ; CLKCTRL_G4                                ; pll_hdmi|pll_hdmi_inst|altera_pll_i|cyclonev_pll|divclk[0]~CLKENA0|inclk                                                  ;
+;   5.795  ;   0.304  ; RR ; CELL ; 3699   ; CLKCTRL_G4                                ; pll_hdmi|pll_hdmi_inst|altera_pll_i|cyclonev_pll|divclk[0]~CLKENA0|outclk                                                 ;
+;   5.795  ;   0.000  ;    ; RE   ; 1      ; CLKCTRL_G4                                ; ARRIAV_CLKBUF                                                                                                             ;
+;   5.795  ;   0.000  ;    ; RE   ; 1      ; CLKBUFBLOCK_OUTPUT_X42_Y0_N1_I2           ; CLKBUFBLOCK_OUTPUT                                                                                                        ;
+;   5.795  ;   0.000  ;    ; RE   ; 1      ; GCLK_CLUSTER_RE_X42_Y0_N0_I12             ; GCLK_CLUSTER_RE                                                                                                           ;
+;   5.795  ;   0.000  ;    ; RE   ; 1      ; CLKBUF_CLUSTER_RE_X42_Y0_N0_I415          ; CLKBUF_CLUSTER_RE                                                                                                         ;
+;   6.872  ;   1.077  ;    ; RE   ; 6      ; GLOBAL_CLOCK_X0_Y36_N0_I4                 ; GLOBAL_CLOCK                                                                                                              ;
+;   7.020  ;   0.148  ;    ; RE   ; 22     ; SPINE_CLOCK_X15_Y59_N0_I20                ; SPINE_CLOCK                                                                                                               ;
+;   7.406  ;   0.386  ;    ; RE   ; 1      ; SCLK_TO_ROWCLK_BUF_X15_Y65_N0_I120        ; SCLK_TO_ROWCLK_BUF                                                                                                        ;
+;   7.490  ;   0.084  ;    ; RE   ; 2      ; SCLK_TO_ROWCLK_BUF_X15_Y65_N0_I123        ; SCLK_TO_ROWCLK_BUF                                                                                                        ;
+;   7.917  ;   0.427  ;    ; RE   ; 3      ; LAB_CLK_X0_Y65_N0_I2                      ; LAB_CLK                                                                                                                   ;
+;   8.052  ;   0.135  ;    ; RE   ; 1      ; BLK_CLK_BUF_X14_Y65_N0_I2                 ; BLK_CLK_BUF                                                                                                               ;
+;   8.098  ;   0.046  ;    ; RE   ; 2      ; ROWCLKSEL_PREBUF_X14_Y65_N0_I2            ; ROWCLKSEL_PREBUF                                                                                                          ;
+;   8.149  ;   0.051  ;    ; RE   ; 1      ; ROWCLKSEL_X14_Y65_N0_I1                   ; ROWCLKSEL                                                                                                                 ;
+;   8.149  ;   0.000  ;    ; RE   ; 1      ; GLOBAL_LOCAL_SEL_X14_Y65_N0_I1            ; GLOBAL_LOCAL_SEL                                                                                                          ;
+;   8.149  ;   0.000  ;    ; RE   ; 1      ; M10K_INPUT_X14_Y65_N0_I1                  ; M10K_INPUT                                                                                                                ;
+;   8.148  ;   -0.001 ; RR ; IC   ; 40     ; M10K_X14_Y65_N0                           ; HDMI_shadowmask|vid_rtl_0|auto_generated|altsyncram4|ram_block5a0|clk1                                                    ;
+;   8.851  ;   0.703  ; RR ; CELL ; 1      ; M10K_X14_Y65_N0                           ; shadowmask:HDMI_shadowmask|altshift_taps:vid_rtl_0|shift_taps_0vu:auto_generated|altsyncram_pr91:altsyncram4|ram_block5a0 ;
+; 14.126   ; 5.275    ;    ;      ;        ;                                           ; data path                                                                                                                 ;
+;   8.851  ;   0.000  ;    ; uTco ; 1      ; M10K_X14_Y65_N0                           ; shadowmask:HDMI_shadowmask|altshift_taps:vid_rtl_0|shift_taps_0vu:auto_generated|altsyncram_pr91:altsyncram4|ram_block5a0 ;
+;   8.876  ;   0.025  ; FF ; CELL ; 18     ; M10K_X14_Y65_N0                           ; HDMI_shadowmask|vid_rtl_0|auto_generated|altsyncram4|ram_block5a0|portbdataout[0]                                         ;
+;   8.876  ;   0.000  ;    ; RE   ; 40     ; M10K_X14_Y65_N0                           ; STRATIXV_RAM                                                                                                              ;
+;   9.010  ;   0.134  ;    ; RE   ; 1      ; M20K_BUFFER_X14_Y65_N0_I0                 ; MEDIUM_EAB_BUFFER                                                                                                         ;
+;   9.229  ;   0.219  ;    ; RE   ; 1      ; R6_X9_Y65_N0_I202                         ; H_SEG6                                                                                                                    ;
+;   9.229  ;   0.000  ;    ; RE   ; 1      ; R14_C12_INTERCONNECT_DRIVER_X12_Y65_N0_I1 ; WIRE_MUX                                                                                                                  ;
+;   9.575  ;   0.346  ;    ; RE   ; 1      ; C12_X12_Y53_N0_I1                         ; V_SEG12                                                                                                                   ;
+;   9.575  ;   0.000  ;    ; RE   ; 1      ; R14_C12_INTERCONNECT_DRIVER_X12_Y53_N0_I0 ; WIRE_MUX                                                                                                                  ;
+;   9.979  ;   0.404  ;    ; RE   ; 1      ; C12_X12_Y41_N0_I1                         ; V_SEG12                                                                                                                   ;
+;   9.979  ;   0.000  ;    ; RE   ; 1      ; R14_C12_INTERCONNECT_DRIVER_X12_Y41_N0_I0 ; WIRE_MUX                                                                                                                  ;
+;   10.416 ;   0.437  ;    ; RE   ; 1      ; C12_X12_Y29_N0_I1                         ; V_SEG12                                                                                                                   ;
+;   10.416 ;   0.000  ;    ; RE   ; 1      ; R14_C12_INTERCONNECT_DRIVER_X12_Y32_N0_I1 ; WIRE_MUX                                                                                                                  ;
+;   10.819 ;   0.403  ;    ; RE   ; 2      ; C12_X12_Y20_N0_I1                         ; V_SEG12                                                                                                                   ;
+;   11.121 ;   0.302  ;    ; RE   ; 1      ; C2_X12_Y18_N0_I12                         ; V_SEG2                                                                                                                    ;
+;   11.344 ;   0.223  ;    ; RE   ; 1      ; C2_X12_Y16_N0_I12                         ; V_SEG2                                                                                                                    ;
+;   11.562 ;   0.218  ;    ; RE   ; 3      ; R3_X10_Y16_N0_I15                         ; H_SEG3                                                                                                                    ;
+;   11.723 ;   0.161  ;    ; RE   ; 2      ; LOCAL_INTERCONNECT_X10_Y16_N0_I23         ; LAB_LINE                                                                                                                  ;
+;   11.844 ;   0.121  ;    ; RE   ; 1      ; BLOCK_INPUT_MUX_X10_Y16_N0_I37            ; LEIM_INPUT                                                                                                                ;
+;   11.846 ;   0.002  ; FF ; IC   ; 1      ; LABCELL_X10_Y16_N27                       ; hdmi_osd|always3~5|datac                                                                                                  ;
+;   12.322 ;   0.476  ; FF ; CELL ; 72     ; LABCELL_X10_Y16_N27                       ; hdmi_osd|always3~5|combout                                                                                                ;
+;   12.322 ;   0.000  ;    ; RE   ; 1      ; LABCELL_X10_Y16_N27                       ; ARRIAV_LCELL_COMB                                                                                                         ;
+;   12.386 ;   0.064  ;    ; RE   ; 1      ; LE_BUFFER_X10_Y16_N0_I18                  ; LE_BUFFER                                                                                                                 ;
+;   12.683 ;   0.297  ;    ; RE   ; 6      ; C4_X10_Y12_N0_I7                          ; V_SEG4                                                                                                                    ;
+;   12.990 ;   0.307  ;    ; RE   ; 1      ; R3_X8_Y12_N0_I14                          ; H_SEG3                                                                                                                    ;
+;   13.225 ;   0.235  ;    ; RE   ; 3      ; C4_X7_Y8_N0_I5                            ; V_SEG4                                                                                                                    ;
+;   13.497 ;   0.272  ;    ; RE   ; 1      ; R3_X8_Y11_N0_I2                           ; H_SEG3                                                                                                                    ;
+;   13.660 ;   0.163  ;    ; RE   ; 3      ; LOCAL_INTERCONNECT_X10_Y11_N0_I20         ; LAB_LINE                                                                                                                  ;
+;   13.776 ;   0.116  ;    ; RE   ; 1      ; BLOCK_INPUT_MUX_X10_Y11_N0_I73            ; LEIM_INPUT                                                                                                                ;
+;   13.776 ;   0.000  ; FF ; IC   ; 1      ; LABCELL_X10_Y11_N54                       ; hdmi_osd|osd_div~0|dataf                                                                                                  ;
+;   13.864 ;   0.088  ; FR ; CELL ; 1      ; LABCELL_X10_Y11_N54                       ; hdmi_osd|osd_div~0|combout                                                                                                ;
+;   13.864 ;   0.000  ;    ; RE   ; 1      ; LABCELL_X10_Y11_N54                       ; ARRIAV_LCELL_COMB                                                                                                         ;
+;   13.864 ;   0.000  ; RR ; IC   ; 1      ; FF_X10_Y11_N56                            ; hdmi_osd|osd_div[0]|d                                                                                                     ;
+;   14.126 ;   0.262  ; RR ; CELL ; 1      ; FF_X10_Y11_N56                            ; osd:hdmi_osd|osd_div[0]                                                                                                   ;
++----------+----------+----+------+--------+-------------------------------------------+---------------------------------------------------------------------------------------------------------------------------+
+
++--------------------------------------------------------------------------------------------------------------------------------------------------------------------------+
+; Data Required Path                                                                                                                                                       ;
++----------+----------+----+------+--------+----------------------------------------+--------------------------------------------------------------------------------------+
+; Total    ; Incr     ; RF ; Type ; Fanout ; Location                               ; Element                                                                              ;
++----------+----------+----+------+--------+----------------------------------------+--------------------------------------------------------------------------------------+
+; 6.732    ; 6.732    ;    ;      ;        ;                                        ; latch edge time                                                                      ;
+; 14.894   ; 8.162    ;    ;      ;        ;                                        ; clock path                                                                           ;
+;   6.732  ;   0.000  ;    ;      ;        ;                                        ; source latency                                                                       ;
+;   6.732  ;   0.000  ;    ;      ; 1      ; PIN_V11                                ; FPGA_CLK1_50                                                                         ;
+;   6.732  ;   0.000  ;    ; RE   ; 1      ; IOPAD_X32_Y0_N0                        ; ARRIAV_IO_PAD                                                                        ;
+;   6.732  ;   0.000  ;    ; RE   ; 1      ; IO_PAD_OUTPUT_X32_Y0_N0_I1             ; IO_PAD_OUTPUT                                                                        ;
+;   6.732  ;   0.000  ;    ; RE   ; 1      ; IO_INPUT_BUFFER_INPUT_X32_Y0_N1_I0     ; IO_INPUT_BUFFER_INPUT                                                                ;
+;   6.732  ;   0.000  ; RR ; IC   ; 1      ; IOIBUF_X32_Y0_N1                       ; FPGA_CLK1_50~input|i                                                                 ;
+;   7.493  ;   0.761  ; RR ; CELL ; 2      ; IOIBUF_X32_Y0_N1                       ; FPGA_CLK1_50~input|o                                                                 ;
+;   7.493  ;   0.000  ;    ; RE   ; 1      ; IOIBUF_X32_Y0_N1                       ; ARRIAV_IO_IBUF                                                                       ;
+;   7.493  ;   0.000  ;    ; RE   ; 1      ; IO_INPUT_BUFFER_OUTPUT_X32_Y0_N1_I2    ; IO_INPUT_BUFFER_OUTPUT                                                               ;
+;   7.493  ;   0.000  ;    ; RE   ; 1      ; IO_RE_X32_Y0_N0_I96                    ; IO_RE                                                                                ;
+;   7.876  ;   0.383  ;    ; RE   ; 2      ; IO_RE_X32_Y0_N0_I66                    ; IO_RE                                                                                ;
+;   8.654  ;   0.778  ;    ; RE   ; 1      ; FF_PLL_RE_X0_Y0_N0_I3                  ; FF_PLL_RE                                                                            ;
+;   8.654  ;   0.000  ;    ; RE   ; 1      ; F_PLL_BLOCK_RE_X0_Y0_N0_I2             ; F_PLL_BLOCK_RE                                                                       ;
+;   8.654  ;   0.000  ;    ; RE   ; 1      ; PLL_REFCLK_SELECT_INPUT_X0_Y7_N0_I2    ; PLL_REFCLK_SELECT_INPUT                                                              ;
+;   8.654  ;   0.000  ; RR ; IC   ; 1      ; PLLREFCLKSELECT_X0_Y7_N0               ; pll_hdmi|pll_hdmi_inst|altera_pll_i|cyclonev_pll|fpll_0|REFCLK_SELECT|clkin[0]       ;
+;   8.962  ;   0.308  ; RR ; CELL ; 1      ; PLLREFCLKSELECT_X0_Y7_N0               ; pll_hdmi|pll_hdmi_inst|altera_pll_i|cyclonev_pll|fpll_0|REFCLK_SELECT|clkout         ;
+;   8.962  ;   0.000  ;    ; RE   ; 2      ; PLLREFCLKSELECT_X0_Y7_N0               ; CYCLONEV_PLL_REFCLK_SELECT                                                           ;
+;   8.962  ;   0.000  ;    ; RE   ; 1      ; PLL_REFCLK_SELECT_OUTPUT_X0_Y7_N0_I15  ; PLL_REFCLK_SELECT_OUTPUT                                                             ;
+;   8.962  ;   0.000  ;    ; RE   ; 1      ; FRACTIONAL_PLL_INPUT_X0_Y1_N0_I7       ; FRACTIONAL_PLL_INPUT                                                                 ;
+;   8.962  ;   0.000  ; RR ; IC   ; 10     ; FRACTIONALPLL_X0_Y1_N0                 ; pll_hdmi|pll_hdmi_inst|altera_pll_i|cyclonev_pll|fpll_0|fpll|refclkin                ;
+;   8.811  ;   -0.151 ; RR ; COMP ; 1      ; FRACTIONALPLL_X0_Y1_N0                 ; pll_hdmi|pll_hdmi_inst|altera_pll_i|cyclonev_pll|fpll_0|fpll|vcoph[0]                ;
+;   8.811  ;   0.000  ;    ; RE   ; 20     ; FRACTIONALPLL_X0_Y1_N0                 ; CYCLONEV_FRACTIONAL_PLL                                                              ;
+;   8.811  ;   0.000  ;    ; RE   ; 1      ; FRACTIONAL_PLL_OUTPUT_X0_Y1_N0_I19     ; FRACTIONAL_PLL_OUTPUT                                                                ;
+;   8.811  ;   0.000  ;    ; RE   ; 1      ; F_PLL_BLOCK_RE_X0_Y0_N0_I109           ; F_PLL_BLOCK_RE                                                                       ;
+;   8.811  ;   0.000  ;    ; RE   ; 1      ; PLL_OUTPUT_COUNTER_INPUT_X0_Y5_N1_I7   ; PLL_OUTPUT_COUNTER_INPUT                                                             ;
+;   8.811  ;   0.000  ; RR ; IC   ; 1      ; PLLOUTPUTCOUNTER_X0_Y5_N1              ; pll_hdmi|pll_hdmi_inst|altera_pll_i|cyclonev_pll|counter[0].output_counter|vco0ph[0] ;
+;   10.277 ;   1.466  ; RR ; CELL ; 3      ; PLLOUTPUTCOUNTER_X0_Y5_N1              ; pll_hdmi|pll_hdmi_inst|altera_pll_i|cyclonev_pll|counter[0].output_counter|divclk    ;
+;   10.277 ;   0.000  ;    ; RE   ; 1      ; PLLOUTPUTCOUNTER_X0_Y5_N1              ; CYCLONEV_PLL_OUTPUT_COUNTER                                                          ;
+;   10.277 ;   0.000  ;    ; RE   ; 1      ; PLL_OUTPUT_COUNTER_OUTPUT_X0_Y5_N1_I16 ; PLL_OUTPUT_COUNTER_OUTPUT                                                            ;
+;   10.704 ;   0.427  ;    ; RE   ; 1      ; FF_PLL_RE_X0_Y0_N0_I106                ; FF_PLL_RE                                                                            ;
+;   11.282 ;   0.578  ;    ; RE   ; 3      ; CLKBUF_CLUSTER_RE_X42_Y0_N0_I1623      ; CLKBUF_CLUSTER_RE                                                                    ;
+;   11.282 ;   0.000  ;    ; RE   ; 1      ; CLKBUF_CLUSTER_RE_X42_Y0_N0_I495       ; CLKBUF_CLUSTER_RE                                                                    ;
+;   11.282 ;   0.000  ;    ; RE   ; 1      ; GCLK_CLUSTER_RE_X42_Y0_N0_I10          ; GCLK_CLUSTER_RE                                                                      ;
+;   11.282 ;   0.000  ;    ; RE   ; 1      ; CLKBUFBLOCK_INPUT_X42_Y0_N1_I0         ; CLKBUFBLOCK_INPUT                                                                    ;
+;   11.282 ;   0.000  ; RR ; IC   ; 1      ; CLKCTRL_G4                             ; pll_hdmi|pll_hdmi_inst|altera_pll_i|cyclonev_pll|divclk[0]~CLKENA0|inclk             ;
+;   11.561 ;   0.279  ; RR ; CELL ; 3699   ; CLKCTRL_G4                             ; pll_hdmi|pll_hdmi_inst|altera_pll_i|cyclonev_pll|divclk[0]~CLKENA0|outclk            ;
+;   11.561 ;   0.000  ;    ; RE   ; 1      ; CLKCTRL_G4                             ; ARRIAV_CLKBUF                                                                        ;
+;   11.561 ;   0.000  ;    ; RE   ; 1      ; CLKBUFBLOCK_OUTPUT_X42_Y0_N1_I2        ; CLKBUFBLOCK_OUTPUT                                                                   ;
+;   11.561 ;   0.000  ;    ; RE   ; 1      ; GCLK_CLUSTER_RE_X42_Y0_N0_I12          ; GCLK_CLUSTER_RE                                                                      ;
+;   11.561 ;   0.000  ;    ; RE   ; 1      ; CLKBUF_CLUSTER_RE_X42_Y0_N0_I415       ; CLKBUF_CLUSTER_RE                                                                    ;
+;   12.263 ;   0.702  ;    ; RE   ; 6      ; GLOBAL_CLOCK_X0_Y36_N0_I4              ; GLOBAL_CLOCK                                                                         ;
+;   12.399 ;   0.136  ;    ; RE   ; 7      ; SPINE_CLOCK_X15_Y0_N0_I20              ; SPINE_CLOCK                                                                          ;
+;   12.745 ;   0.346  ;    ; RE   ; 1      ; SCLK_TO_ROWCLK_BUF_X15_Y11_N0_I120     ; SCLK_TO_ROWCLK_BUF                                                                   ;
+;   12.814 ;   0.069  ;    ; RE   ; 1      ; SCLK_TO_ROWCLK_BUF_X15_Y11_N0_I123     ; SCLK_TO_ROWCLK_BUF                                                                   ;
+;   13.227 ;   0.413  ;    ; RE   ; 10     ; LAB_CLK_X0_Y11_N0_I2                   ; LAB_CLK                                                                              ;
+;   13.354 ;   0.127  ;    ; RE   ; 1      ; BLK_CLK_BUF_X10_Y11_N0_I2              ; BLK_CLK_BUF                                                                          ;
+;   13.398 ;   0.044  ;    ; RE   ; 1      ; ROWCLKSEL_PREBUF_X10_Y11_N0_I2         ; ROWCLKSEL_PREBUF                                                                     ;
+;   13.444 ;   0.046  ;    ; RE   ; 1      ; ROWCLKSEL_X10_Y11_N0_I0                ; ROWCLKSEL                                                                            ;
+;   13.444 ;   0.000  ;    ; RE   ; 1      ; GLOBAL_LOCAL_SEL_X10_Y11_N0_I0         ; GLOBAL_LOCAL_SEL                                                                     ;
+;   13.444 ;   0.000  ;    ; RE   ; 4      ; LAB_INPUT_X10_Y11_N0_I0                ; LAB_INPUT                                                                            ;
+;   13.444 ;   0.000  ; RR ; IC   ; 1      ; FF_X10_Y11_N56                         ; hdmi_osd|osd_div[0]|clk                                                              ;
+;   13.928 ;   0.484  ; RR ; CELL ; 1      ; FF_X10_Y11_N56                         ; osd:hdmi_osd|osd_div[0]                                                              ;
+;   14.894 ;   0.966  ;    ;      ;        ;                                        ; clock pessimism removed                                                              ;
+; 14.694   ; -0.200   ;    ;      ;        ;                                        ; clock uncertainty                                                                    ;
+; 14.694   ; 0.000    ;    ; uTsu ; 1      ; FF_X10_Y11_N56                         ; osd:hdmi_osd|osd_div[0]                                                              ;
++----------+----------+----+------+--------+----------------------------------------+--------------------------------------------------------------------------------------+
+
+----------------------------
+; Extra Fitter Information ;
+----------------------------
+HTML report is unavailable in plain text report export.
+
+

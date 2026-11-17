@@ -1,0 +1,5 @@
+const fs=require('fs'),p=require('path'),c=require('crypto'),assert=require('assert'),d=__dirname,logs=p.join(d,'worktree/tests/ym2413_fullstate/logs'),read=f=>{const b=fs.readFileSync(f);return b.toString(b[0]===255&&b[1]===254?'utf16le':'utf8');};
+const regressions={};for(const [name,pass]of [['independent_map','PASS independent pattern ALL'],['protocol','PASS protocol ALL'],['nonfm','PASS nonFM ALL'],['phases','PASS PHASE SWEEP ALL'],...Array.from({length:7},(_,i)=>['fullstate_mode'+i,'PASS fullstate'])]){
+ const s=read(p.join(logs,name+'.log'));assert.equal(+read(p.join(logs,name+'.exitcode')).trim(),0);assert(s.includes(pass));assert(!/\*\* (Fatal|Error|Failure):/.test(s));regressions[name]={PASS:true,summary:s.split(/\r?\n/).filter(x=>x.includes(pass)),SHA256:c.createHash('sha256').update(fs.readFileSync(p.join(logs,name+'.log'))).digest('hex')};
+}
+fs.writeFileSync(p.join(d,'regression_results.json'),JSON.stringify({PASS:true,regressions},null,2)+'\n');console.log('PASS independent full-state maps, transport, non-FM, 72x3 short phase sweep and seven musical/legacy/disabled modes');

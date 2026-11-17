@@ -1,0 +1,9 @@
+const fs=require('fs'),p=require('path'),assert=require('assert'),d=__dirname,td=p.join(d,'verification/tests/ym2413_fullstate');
+const payload=fs.readFileSync(p.join(d,'fault/allpayload_16_0.hex'));fs.writeFileSync(p.join(d,'verification/payloads/early.hex'),payload);
+let s=fs.readFileSync(p.join(td,'validator_stream_tb.sv'),'utf8').replaceAll('module validator_stream_tb;','module early_validator_stream_tb;');const a=s.indexOf(' stream("../../payloads/A.hex"'),b=s.indexOf(' $display("PASS ACTUAL_VALIDATOR',a);assert(a>=0&&b>a);s=s.slice(0,a)+' stream("../../payloads/early.hex",1);\n'+s.slice(b);fs.writeFileSync(p.join(td,'early_validator_stream_tb.sv'),s);
+fs.writeFileSync(p.join(td,'early_validator.do'),'onerror {quit -code 1}\nonbreak {quit -code 1}\nvlib guard_early_work\nvlog -sv -work guard_early_work ../../rtl/opll_snapshot.sv savestates_sim.sv early_validator_stream_tb.sv\nvsim -t 1ps guard_early_work.early_validator_stream_tb\nrun -all\nquit -code 0\n');
+const values=payload.toString().trim().split(/\s+/).map(x=>parseInt(x,16));let outputPendingNotCommitted=0,registerPendingNotCommitted=0;
+for(let i=0;i<values.length;i+=104){const v=values.slice(i,i+104);assert(!(v[100]&2)||v[78]%4===0);if(v[100]&2){if(v[58+((v[100]>>>6)&31)]!==((v[100]>>>21)&1023))outputPendingNotCommitted++;}if(v[83]&16){if(v[(v[81]>>>4)&15]!==((v[83]>>>5)&0x3fffff))registerPendingNotCommitted++;}}
+assert(outputPendingNotCommitted>0&&registerPendingNotCommitted>0);
+fs.writeFileSync(p.join(d,'early_producer_evidence.json'),JSON.stringify({images:values.length/104,outputPendingNotCommitted,registerPendingNotCommitted,scope:'v19 freezes at accepted enabled edge, T+1 held; baseline freezes one ARM edge later. Neither pending-data/RAM equality is required by the new guard.'},null,2));
+console.log('PASS early producer pending-write compatibility evidence prepared');

@@ -1,0 +1,202 @@
+{
+  "scripts": [
+    {
+      "path": "tests/ym2413_c1_mixer_omission/worktree/tests/ym2413_fullstate/prepare_tests.js",
+      "SHA256": "9379053ec89f9579517c13e51e6dc32a722b38863f812a28945fe1f627f2e41e",
+      "encodingRelatedLines": [
+        {
+          "line": 3,
+          "text": "const git=(...a)=>cp.execFileSync('git',a,{cwd:root,encoding:'latin1'}),put=(n,s)=>fs.writeFileSync(p.join(d,n),s,'latin1');"
+        },
+        {
+          "line": 21,
+          "text": " put('candidate/'+n+'.vhd',adapt(fs.readFileSync(p.join(root,'rtl/VM2413/'+n+'.vhd'),'latin1')));"
+        },
+        {
+          "line": 47,
+          "text": "put('candidate_wrapper.vhd',wrapper(fs.readFileSync(p.join(root,'rtl/system.vhd'),'latin1'),'candidate_wrapper'));"
+        },
+        {
+          "line": 50,
+          "text": "let src=fs.readFileSync(p.join(root,'rtl/savestates.sv'),'latin1');"
+        }
+      ],
+      "modified": false
+    },
+    {
+      "path": "tests/ym2413_c1_mixer_omission/worktree/tests/ym2413_fullstate/verify_scope.js",
+      "SHA256": "5e0247620e5761f30f80c6875f4ff06cab756ef5d4ec0907b6c960d522a4c147",
+      "encodingRelatedLines": [
+        {
+          "line": 3,
+          "text": "const git=(...args)=>cp.execFileSync('git',args,{cwd:root,encoding:'latin1',stdio:['ignore','pipe','pipe']});"
+        },
+        {
+          "line": 4,
+          "text": "const read=n=>fs.readFileSync(p.join(root,n),'latin1');"
+        },
+        {
+          "line": 30,
+          "text": "for(const n of manifest.changedProduction)manifest.sha256[n]=crypto.createHash('sha256').update(fs.readFileSync(p.join(root,n))).digest('hex');"
+        },
+        {
+          "line": 31,
+          "text": "fs.writeFileSync(p.join(d,'manifest.json'),JSON.stringify(manifest,null,2)+'\\n');"
+        },
+        {
+          "line": 33,
+          "text": "fs.writeFileSync(p.join(d,'complete.diff'),git('diff','--no-ext-diff')+'\\n'+addition,'latin1');"
+        }
+      ],
+      "modified": false
+    },
+    {
+      "path": "tests/ym2413_c1_mixer_omission/worktree/tests/ym2413_fullstate/prepare_phases.js",
+      "SHA256": "5b2439224becd5e409e8d9ae3f433f08ecff3745daff812809bcab54e32d205f",
+      "encodingRelatedLines": [
+        {
+          "line": 4,
+          "text": "let s=fs.readFileSync(fixture,'utf8').replace(/original_work/g,'reference_work').replace(/local_work/g,'candidate_work');"
+        },
+        {
+          "line": 12,
+          "text": "fs.writeFileSync(p.join(d,'phase_tb.vhd'),s);"
+        },
+        {
+          "line": 13,
+          "text": "fs.writeFileSync(p.join(d,'phase_compile.do'),`onerror {quit -code 1}"
+        },
+        {
+          "line": 17,
+          "text": "fs.writeFileSync(p.join(d,'phases.do'),`onerror {quit -code 1}"
+        }
+      ],
+      "modified": false
+    },
+    {
+      "path": "tests/ym2413_c1_mixer_omission/worktree/tests/ym2413_fullstate/prepare_nonfm.js",
+      "SHA256": "8d0e8e485c760d0ad7d0f1183b2d53342c83b0d24ee67e7fc1af2ec44349dd27",
+      "encodingRelatedLines": [
+        {
+          "line": 2,
+          "text": "const source=fs.readFileSync(p.join(d,'savestates_sim.sv'),'utf8');"
+        },
+        {
+          "line": 63,
+          "text": "fs.writeFileSync(p.join(d,'nonfm_tb.sv'),s);"
+        },
+        {
+          "line": 64,
+          "text": "fs.writeFileSync(p.join(d,'nonfm.do'),`onerror {quit -code 1}"
+        }
+      ],
+      "modified": false
+    },
+    {
+      "path": "tests/ym2413_c1_mixer_omission/synthesis_map_compare/prepare_map.js",
+      "SHA256": "9a6eb1f7131c8f385766739bb37a1a0f5caeab89668c9ac4c2679bf1f574c1c2",
+      "encodingRelatedLines": [
+        {
+          "line": 15,
+          "text": "const norm = b => b.toString('latin1').replace(/\\r\\n/g, '\\n');"
+        },
+        {
+          "line": 18,
+          "text": "const original = JSON.parse(fs.readFileSync(p.join(refDir, 'inputs.json')));"
+        },
+        {
+          "line": 36,
+          "text": "      bytes = fs.readFileSync(p.join(wt, f));"
+        },
+        {
+          "line": 38,
+          "text": "      bytes = fs.readFileSync(p.join(refDir, 'candidate', f));"
+        },
+        {
+          "line": 43,
+          "text": "    fs.writeFileSync(target, bytes);"
+        },
+        {
+          "line": 48,
+          "text": "fs.writeFileSync(p.join(d, 'inputs.json'), JSON.stringify({"
+        }
+      ],
+      "modified": false
+    },
+    {
+      "path": "tests/ym2413_b1_c1_seed_study/prepare_study.js",
+      "SHA256": "6e3fab7a3984e098906a97efbcda1cc7b27faa3578b49fa5048cfabb7e12ff58",
+      "encodingRelatedLines": [
+        {
+          "line": 29,
+          "text": "const original = JSON.parse(fs.readFileSync(p.join(refSeed1, 'inputs.json'), 'utf8'));"
+        },
+        {
+          "line": 46,
+          "text": "        bytes = fs.readFileSync(p.join(wt, f));"
+        },
+        {
+          "line": 48,
+          "text": "        bytes = fs.readFileSync(p.join(refSeed1, 'candidate', f));"
+        },
+        {
+          "line": 58,
+          "text": "      if (fs.existsSync(target)) assert.equal(sha(fs.readFileSync(target)), sha(bytes), 'Existing input differs; refusing overwrite: ' + target);"
+        },
+        {
+          "line": 59,
+          "text": "      else fs.writeFileSync(target, bytes, {flag: 'wx'});"
+        },
+        {
+          "line": 65,
+          "text": "    const source = fs.readFileSync(p.join(refSeed1, tcl)), target = p.join(seedDir, tcl);"
+        },
+        {
+          "line": 66,
+          "text": "    if (fs.existsSync(target)) assert.equal(sha(fs.readFileSync(target)), sha(source), 'Existing query differs: ' + target);"
+        },
+        {
+          "line": 67,
+          "text": "    else fs.writeFileSync(target, source, {flag:'wx'});"
+        },
+        {
+          "line": 74,
+          "text": "      reusedBaselineResultsSHA256: sha(fs.readFileSync(p.join(refSeedDir, 'results.json'))),"
+        },
+        {
+          "line": 81,
+          "text": "  if (fs.existsSync(manifestPath)) assert.deepEqual(JSON.parse(fs.readFileSync(manifestPath)), manifest, 'Existing manifest differs: ' + manifestPath);"
+        },
+        {
+          "line": 82,
+          "text": "  else fs.writeFileSync(manifestPath, JSON.stringify(manifest, null, 2) + '\\n', {flag:'wx'});"
+        }
+      ],
+      "modified": false
+    },
+    {
+      "path": "tests/ym2413_v19_fullstate/worktree/tests/ym2413_fullstate/port.js",
+      "SHA256": "606792027d39f4f75754ac10a2536ccbd33394c08f67389303ec3474df217dc1",
+      "encodingRelatedLines": [
+        {
+          "line": 4,
+          "text": "const git=(...a)=>cp.execFileSync('git',a,{cwd:root,encoding:'latin1'});"
+        },
+        {
+          "line": 6,
+          "text": "const get=f=>git('show',ref+':'+f),read=f=>git('show','HEAD:'+f),write=(f,s)=>fs.writeFileSync(p.join(root,f),s,'latin1');"
+        }
+      ],
+      "modified": false
+    }
+  ],
+  "findings": [
+    "C1 prepare_tests.js pairs latin1 input and latin1 output; this is a byte-preserving adapter for mixed legacy encodings, not a UTF-8 decoder. ASCII transformations preserve unrelated bytes.",
+    "verify_scope.js pairs latin1 Git stdout and latin1 complete.diff output. SHA-256 operates on raw bytes.",
+    "prepare_map.js uses latin1 only for normalized comparison; source copies remain raw Buffer writes.",
+    "Study prepare_study.js copies raw Buffers, except ASCII SMS.qsf SEED substitution; no RTL decode/re-encode.",
+    "prepare_phases.js and prepare_nonfm.js handle generated UTF-8 fixtures, not the five production RTL files.",
+    "Historical port.js also pairs latin1 read/write; reviewed read-only. No defective latin1-to-default-UTF8 source-write path was found in these relevant scripts. No evidence identifies which earlier operation corrupted the out-of-scope main-workspace file."
+  ],
+  "scriptChanges": []
+}

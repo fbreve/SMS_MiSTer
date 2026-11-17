@@ -1,0 +1,1690 @@
+{
+  "G02": [
+    {
+      "name": "reset_flags",
+      "file": "rtl/vdp.vhd",
+      "sites": [
+        {
+          "line": 81,
+          "text": "\t\t--  [103]          reset_flags"
+        },
+        {
+          "line": 183,
+          "text": "\tsignal reset_flags:\t\tboolean ;"
+        },
+        {
+          "line": 359,
+          "text": "\tss_regs_out(103)         \t<= '1' when reset_flags else '0';"
+        },
+        {
+          "line": 399,
+          "text": "\t\t\treset_flags\t\t<= true;"
+        },
+        {
+          "line": 444,
+          "text": "\t\t\t\t-- reset_flags is a one-cycle side-effect of status-port reads."
+        },
+        {
+          "line": 447,
+          "text": "\t\t\t\treset_flags     <= false;"
+        },
+        {
+          "line": 555,
+          "text": "\t\t\t\t\t\treset_flags <= true;"
+        },
+        {
+          "line": 570,
+          "text": "\t\t\t\t\treset_flags <= false ;"
+        },
+        {
+          "line": 589,
+          "text": "\t\t\t\telsif reset_flags then"
+        },
+        {
+          "line": 617,
+          "text": "\t\t\t\telsif reset_flags then"
+        },
+        {
+          "line": 673,
+          "text": "\t\t\t\t\tif reset_flags then"
+        },
+        {
+          "line": 681,
+          "text": "\t\t\t\t\t\tand not reset_flags then"
+        }
+      ]
+    }
+  ],
+  "G03": [
+    {
+      "name": "old_RD_n",
+      "file": "rtl/vdp.vhd",
+      "sites": [
+        {
+          "line": 122,
+          "text": "\tsignal old_RD_n:\t\t\tSTD_LOGIC;"
+        },
+        {
+          "line": 379,
+          "text": "\t\t\told_RD_n        <= '1';"
+        },
+        {
+          "line": 451,
+          "text": "\t\t\t\told_RD_n        <= RD_n;"
+        },
+        {
+          "line": 470,
+          "text": "\t\t\t\told_RD_n <= RD_n;"
+        },
+        {
+          "line": 537,
+          "text": "\t\t\t\telsif old_RD_n = '1' and RD_n='0' then"
+        }
+      ]
+    },
+    {
+      "name": "old_WR_n",
+      "file": "rtl/vdp.vhd",
+      "sites": [
+        {
+          "line": 123,
+          "text": "\tsignal old_WR_n:\t\t\tSTD_LOGIC;"
+        },
+        {
+          "line": 378,
+          "text": "\t\t\told_WR_n        <= '1';"
+        },
+        {
+          "line": 450,
+          "text": "\t\t\t\told_WR_n        <= WR_n;"
+        },
+        {
+          "line": 468,
+          "text": "\t\t\t   (capture_cpu_edges = '1' and old_WR_n /= WR_n) then"
+        },
+        {
+          "line": 469,
+          "text": "\t\t\t\told_WR_n <= WR_n;"
+        },
+        {
+          "line": 477,
+          "text": "\t\t\t\tif old_WR_n = '1' and WR_n='0' then"
+        }
+      ]
+    },
+    {
+      "name": "old_HL",
+      "file": "rtl/vdp.vhd",
+      "sites": [
+        {
+          "line": 124,
+          "text": "\tsignal old_HL:\t\t\t\tSTD_LOGIC;"
+        },
+        {
+          "line": 381,
+          "text": "\t\t\told_HL          <= '0';"
+        },
+        {
+          "line": 453,
+          "text": "\t\t\t\told_HL          <= HL;"
+        },
+        {
+          "line": 459,
+          "text": "\t\t\told_HL <= HL;"
+        },
+        {
+          "line": 460,
+          "text": "\t\t\tif ss_regs_set = '0' and old_HL = '0' and HL = '1' then"
+        }
+      ]
+    },
+    {
+      "name": "old_WR_direct",
+      "file": "rtl/vdp.vhd",
+      "sites": [
+        {
+          "line": 125,
+          "text": "\tsignal old_WR_direct:\tSTD_LOGIC;"
+        },
+        {
+          "line": 380,
+          "text": "\t\t\told_WR_direct   <= '0';"
+        },
+        {
+          "line": 452,
+          "text": "\t\t\t\told_WR_direct   <= WR_direct;"
+        },
+        {
+          "line": 471,
+          "text": "\t\t\t\told_WR_direct <= WR_direct;"
+        },
+        {
+          "line": 473,
+          "text": "\t\t\t\tif old_WR_direct = '0' and WR_direct='1' then"
+        }
+      ]
+    },
+    {
+      "name": "cpu_write_data",
+      "file": "rtl/vdp.vhd",
+      "sites": [
+        {
+          "line": 142,
+          "text": "\tsignal cpu_write_data:\tstd_logic_vector(7 downto 0) := (others => '0');"
+        },
+        {
+          "line": 274,
+          "text": "\tvram_portA_data    <= ss_vram_WD when ss_vram_WE='1' else cpu_write_data;"
+        },
+        {
+          "line": 318,
+          "text": "\tcram_vdp_D_in <= (cpu_write_data(5 downto 4) & cpu_write_data(5 downto 4) &"
+        },
+        {
+          "line": 319,
+          "text": "\t                    cpu_write_data(3 downto 2) & cpu_write_data(3 downto 2) &"
+        },
+        {
+          "line": 320,
+          "text": "\t                    cpu_write_data(1 downto 0) & cpu_write_data(1 downto 0))"
+        },
+        {
+          "line": 321,
+          "text": "\t\t\t\t\t\t\twhen gg='0' else (cpu_write_data(3 downto 0) & cram_latch);"
+        },
+        {
+          "line": 382,
+          "text": "\t\t\tcpu_write_data  <= (others => '0');"
+        },
+        {
+          "line": 454,
+          "text": "\t\t\t\tcpu_write_data  <= D_in;"
+        },
+        {
+          "line": 474,
+          "text": "\t\t\t\t\tcpu_write_data <= D_in;"
+        },
+        {
+          "line": 479,
+          "text": "\t\t\t\t\t\tcpu_write_data <= D_in;"
+        }
+      ]
+    },
+    {
+      "name": "data_write",
+      "file": "rtl/vdp.vhd",
+      "sites": [
+        {
+          "line": 128,
+          "text": "\tsignal data_write:\t\tstd_logic;"
+        },
+        {
+          "line": 322,
+          "text": "\tcram_cpu_WE <= data_write when to_cram and ((gg='0') or (xram_cpu_A(0)='1')) and WR_direct='0' else '0';"
+        },
+        {
+          "line": 323,
+          "text": "\tvram_cpu_WE <= data_write when (WR_direct='1' or not to_cram) else '0';"
+        },
+        {
+          "line": 409,
+          "text": "\t\t\tdata_write <= '0';"
+        },
+        {
+          "line": 455,
+          "text": "\t\t\t\tdata_write      <= '0';"
+        },
+        {
+          "line": 475,
+          "text": "\t\t\t\t\tdata_write <= '1';"
+        },
+        {
+          "line": 480,
+          "text": "\t\t\t\t\t\tdata_write <= '1';"
+        }
+      ]
+    },
+    {
+      "name": "xram_cpu_A_incr",
+      "file": "rtl/vdp.vhd",
+      "sites": [
+        {
+          "line": 143,
+          "text": "\tsignal xram_cpu_A_incr:\tstd_logic := '0';"
+        },
+        {
+          "line": 456,
+          "text": "\t\t\t\txram_cpu_A_incr <= '0';"
+        },
+        {
+          "line": 481,
+          "text": "\t\t\t\t\t\txram_cpu_A_incr <= '1';"
+        },
+        {
+          "line": 547,
+          "text": "\t\t\t\t\t\txram_cpu_A_incr <= '1';"
+        },
+        {
+          "line": 559,
+          "text": "\t\t\t\telsif xram_cpu_A_incr='1' then"
+        },
+        {
+          "line": 561,
+          "text": "\t\t\t\t\txram_cpu_A_incr <= '0';"
+        },
+        {
+          "line": 567,
+          "text": "\t\t\t\t\txram_cpu_A_incr <= '1';"
+        }
+      ]
+    }
+  ],
+  "G04": [
+    {
+      "name": "xspr_collide_shift",
+      "file": "rtl/vdp.vhd",
+      "sites": [
+        {
+          "line": 187,
+          "text": "\tsignal xspr_collide_shift: std_logic_vector(13 downto 0) := (others=>'0'); -- collide delay"
+        },
+        {
+          "line": 205,
+          "text": " ss_sprite_out(74*(MAX_SPPL+1)+41 downto 74*(MAX_SPPL+1)+28)<=xspr_collide_shift;"
+        },
+        {
+          "line": 632,
+          "text": "\t\t\t\tif ss_sprite_valid='1' then xspr_collide_shift<=ss_sprite_in(74*(MAX_SPPL+1)+41 downto 74*(MAX_SPPL+1)+28);"
+        },
+        {
+          "line": 633,
+          "text": "                else xspr_collide_shift <= (others => '0');end if;"
+        },
+        {
+          "line": 660,
+          "text": "\t\t\t\t\txspr_collide_shift(13 downto 1) <= xspr_collide_shift(12 downto 0);"
+        },
+        {
+          "line": 662,
+          "text": "\t\t\t\t\t\txspr_collide_shift(0) <= spr_collide;"
+        },
+        {
+          "line": 664,
+          "text": "\t\t\t\t\t\txspr_collide_shift(0) <= '0';"
+        },
+        {
+          "line": 666,
+          "text": "\t\t\t\t\tif xspr_collide_shift(13)='1' and"
+        }
+      ]
+    },
+    {
+      "name": "IRQ_n",
+      "file": "rtl/vdp.vhd",
+      "sites": [
+        {
+          "line": 27,
+          "text": "\t\tIRQ_n:\t\t\tout STD_LOGIC;"
+        },
+        {
+          "line": 634,
+          "text": "\t\t\t\t-- Immediately restore IRQ_n level corresponding to the restored snapshot state"
+        },
+        {
+          "line": 638,
+          "text": "\t\t\t\t\t\tIRQ_n <= '0';"
+        },
+        {
+          "line": 640,
+          "text": "\t\t\t\t\t\tIRQ_n <= '1';"
+        },
+        {
+          "line": 643,
+          "text": "\t\t\t\t\tIRQ_n <= '1';"
+        },
+        {
+          "line": 683,
+          "text": "\t\t\t\t\t\t\tIRQ_n <= '0';"
+        },
+        {
+          "line": 688,
+          "text": "\t\t\t\t\t\tIRQ_n <= '1';"
+        }
+      ]
+    },
+    {
+      "name": "last_x0",
+      "file": "rtl/vdp.vhd",
+      "sites": [
+        {
+          "line": 182,
+          "text": "\tsignal last_x0:\t\t\tstd_logic := '0';"
+        },
+        {
+          "line": 587,
+          "text": "\t\t\t\t\tand not (last_x0=std_logic(x(0))) then"
+        },
+        {
+          "line": 600,
+          "text": "\t\t\t\tlast_x0 <= std_logic(x(0));"
+        },
+        {
+          "line": 605,
+          "text": "\t\t\t\tlast_x0 <= std_logic(x(0));"
+        },
+        {
+          "line": 606,
+          "text": "\t\t\t\tif x=486 and not (last_x0=std_logic(x(0))) then"
+        }
+      ]
+    }
+  ],
+  "G05": [
+    {
+      "name": "tile_index",
+      "file": "rtl/vdp_background.vhd",
+      "sites": [
+        {
+          "line": 41,
+          "text": "\tsignal tile_index\t\t: std_logic_vector (8 downto 0);"
+        },
+        {
+          "line": 202,
+          "text": "\t\t\t\t\tdata_address              := tile_index & tile_y;"
+        },
+        {
+          "line": 217,
+          "text": "\t\t\t\t\t--   \"000\" -> name table  (tile_index captured at \"001\")"
+        },
+        {
+          "line": 225,
+          "text": "\t\t\t\t\t\t\tvram_A <= pt_address & tile_index(7 downto 0) & y(2 downto 0);"
+        },
+        {
+          "line": 229,
+          "text": "\t\t\t\t\t\t\t\t\t  tile_index(7 downto 0) & y(2 downto 0);"
+        },
+        {
+          "line": 234,
+          "text": "\t\t\t\t\t\t\tvram_A <= ct_address(13 downto 6) & '0' & tile_index(7 downto 3);"
+        },
+        {
+          "line": 238,
+          "text": "\t\t\t\t\t\t\t\t\t  ((y(7 downto 6) & tile_index(7 downto 3)) and ct_address(12 downto 6)) &"
+        },
+        {
+          "line": 239,
+          "text": "\t\t\t\t\t\t\t\t\t  tile_index(2 downto 0) & y(2 downto 0);"
+        },
+        {
+          "line": 256,
+          "text": "\t\t\t\ttile_index      <= (others => '0');"
+        },
+        {
+          "line": 290,
+          "text": "\t\t\t\t\t\ttile_index(7 downto 0) <= vram_D;"
+        },
+        {
+          "line": 292,
+          "text": "\t\t\t\t\t\ttile_index(8) <= vram_D(0);"
+        },
+        {
+          "line": 313,
+          "text": "\t\t\t\t\t--   \"001\" -> tile_index  <- name table byte   (addr issued at \"000\")"
+        },
+        {
+          "line": 321,
+          "text": "\t\t\t\t\t\ttile_index(7 downto 0) <= vram_D;"
+        }
+      ]
+    },
+    {
+      "name": "x",
+      "file": "rtl/vdp_background.vhd",
+      "sites": [
+        {
+          "line": 42,
+          "text": "\tsignal x\t\t\t\t: std_logic_vector (7 downto 0);"
+        },
+        {
+          "line": 86,
+          "text": "\t\t\t\t\tx <= \"11110000\" ; -- 240"
+        },
+        {
+          "line": 88,
+          "text": "\t\t\t\t\tx <= 232-scroll_x_latched;"
+        },
+        {
+          "line": 90,
+          "text": "\t\t\t\t\tx <= \"11101000\"; -- 256-24=232"
+        },
+        {
+          "line": 95,
+          "text": "\t\t\t\t\t\tx <= \"11110000\" ; -- 240"
+        },
+        {
+          "line": 104,
+          "text": "\t\t\t\t\t\tx <= 232-scroll_x_latched;   -- temporary workaround of 1pix roll - needs better fix!"
+        },
+        {
+          "line": 106,
+          "text": "\t\t\t\t\t\tx <= \"11101000\"; -- 256-24=232"
+        },
+        {
+          "line": 109,
+          "text": "\t\t\t\t\tx <= x + 1;"
+        },
+        {
+          "line": 201,
+          "text": "\t\t\t\t\tchar_address(4 downto 0) := x(7 downto 3) + 1;"
+        },
+        {
+          "line": 204,
+          "text": "\t\t\t\t\tcase x(2 downto 0) is"
+        },
+        {
+          "line": 220,
+          "text": "\t\t\t\t\tcase x(2 downto 0) is"
+        },
+        {
+          "line": 221,
+          "text": "\t\t\t\t\twhen \"000\" => vram_A <= table_address & y(7 downto 3) & x(7 downto 3);"
+        },
+        {
+          "line": 288,
+          "text": "\t\t\t\t\tcase x(2 downto 0) is"
+        },
+        {
+          "line": 319,
+          "text": "\t\t\t\t\tcase x(2 downto 0) is"
+        },
+        {
+          "line": 375,
+          "text": "\t\t\t\t\tcase x(2 downto 0) is"
+        }
+      ]
+    },
+    {
+      "name": "tile_y",
+      "file": "rtl/vdp_background.vhd",
+      "sites": [
+        {
+          "line": 43,
+          "text": "\tsignal tile_y\t\t\t: std_logic_vector (2 downto 0);"
+        },
+        {
+          "line": 202,
+          "text": "\t\t\t\t\tdata_address              := tile_index & tile_y;"
+        },
+        {
+          "line": 258,
+          "text": "\t\t\t\ttile_y          <= (others => '0');"
+        },
+        {
+          "line": 294,
+          "text": "\t\t\t\t\t\ttile_y(0)     <= y(0) xor vram_D(2);"
+        },
+        {
+          "line": 295,
+          "text": "\t\t\t\t\t\ttile_y(1)     <= y(1) xor vram_D(2);"
+        },
+        {
+          "line": 296,
+          "text": "\t\t\t\t\t\ttile_y(2)     <= y(2) xor vram_D(2);"
+        }
+      ]
+    },
+    {
+      "name": "palette",
+      "file": "rtl/vdp_background.vhd",
+      "sites": [
+        {
+          "line": 44,
+          "text": "\tsignal palette\t\t\t: std_logic;"
+        },
+        {
+          "line": 259,
+          "text": "\t\t\t\tpalette         <= '0';"
+        },
+        {
+          "line": 297,
+          "text": "\t\t\t\t\t\tpalette       <= vram_D(3);"
+        },
+        {
+          "line": 329,
+          "text": "\t\t\t\t\t\tpalette       <= '0';"
+        },
+        {
+          "line": 392,
+          "text": "\t\t\t\t\t\tpalette_shift <= palette;"
+        }
+      ]
+    },
+    {
+      "name": "palette_shift",
+      "file": "rtl/vdp_background.vhd",
+      "sites": [
+        {
+          "line": 45,
+          "text": "\tsignal palette_shift\t: std_logic;"
+        },
+        {
+          "line": 355,
+          "text": "\t\t\t\tpalette_shift <= '0';"
+        },
+        {
+          "line": 392,
+          "text": "\t\t\t\t\t\tpalette_shift <= palette;"
+        },
+        {
+          "line": 409,
+          "text": "\tcolor(4) <= '0' when text_mode='1' else palette_shift;"
+        }
+      ]
+    },
+    {
+      "name": "priority_latch",
+      "file": "rtl/vdp_background.vhd",
+      "sites": [
+        {
+          "line": 46,
+          "text": "\tsignal priority_latch\t: std_logic;"
+        },
+        {
+          "line": 260,
+          "text": "\t\t\t\tpriority_latch  <= '0';"
+        },
+        {
+          "line": 298,
+          "text": "\t\t\t\t\t\tpriority_latch<= vram_D(4);"
+        },
+        {
+          "line": 330,
+          "text": "\t\t\t\t\t\tpriority_latch<= '0';"
+        },
+        {
+          "line": 393,
+          "text": "\t\t\t\t\t\tpriority      <= priority_latch;"
+        }
+      ]
+    },
+    {
+      "name": "flip_x",
+      "file": "rtl/vdp_background.vhd",
+      "sites": [
+        {
+          "line": 47,
+          "text": "\tsignal flip_x\t\t\t: std_logic;"
+        },
+        {
+          "line": 257,
+          "text": "\t\t\t\tflip_x          <= '0';"
+        },
+        {
+          "line": 293,
+          "text": "\t\t\t\t\t\tflip_x        <= vram_D(1);"
+        },
+        {
+          "line": 328,
+          "text": "\t\t\t\t\t\tflip_x        <= '0';"
+        },
+        {
+          "line": 377,
+          "text": "\t\t\t\t\t\tif flip_x='0' then"
+        }
+      ]
+    },
+    {
+      "name": "datac",
+      "file": "rtl/vdp_background.vhd",
+      "sites": [
+        {
+          "line": 49,
+          "text": "\t-- datac holds the pattern byte in the legacy pipeline (captured at \"011\","
+        },
+        {
+          "line": 54,
+          "text": "\tsignal datac\t\t\t: std_logic_vector(7 downto 0);"
+        },
+        {
+          "line": 218,
+          "text": "\t\t\t\t\t--   \"010\" -> pattern table (pattern byte captured at \"011\" into datac)"
+        },
+        {
+          "line": 265,
+          "text": "\t\t\t\tdatac           <= (others => '0');"
+        },
+        {
+          "line": 314,
+          "text": "\t\t\t\t\t--   \"011\" -> datac       <- pattern byte       (addr issued at \"010\")"
+        },
+        {
+          "line": 318,
+          "text": "\t\t\t\t\t-- datac bit = 1 -> pixel is foreground; = 0 -> pixel is background."
+        },
+        {
+          "line": 324,
+          "text": "\t\t\t\t\t\tdatac <= vram_D;"
+        },
+        {
+          "line": 326,
+          "text": "\t\t\t\t\t\t-- vram_D is now the color byte; datac is the pattern byte."
+        },
+        {
+          "line": 332,
+          "text": "\t\t\t\t\t\t\tdata0(i) <= (datac(i) and vram_D(4)) or (not datac(i) and vram_D(0));"
+        },
+        {
+          "line": 333,
+          "text": "\t\t\t\t\t\t\tdata1(i) <= (datac(i) and vram_D(5)) or (not datac(i) and vram_D(1));"
+        },
+        {
+          "line": 334,
+          "text": "\t\t\t\t\t\t\tdata2(i) <= (datac(i) and vram_D(6)) or (not datac(i) and vram_D(2));"
+        },
+        {
+          "line": 335,
+          "text": "\t\t\t\t\t\t\tdata3(i) <= (datac(i) and vram_D(7)) or (not datac(i) and vram_D(3));"
+        }
+      ]
+    },
+    {
+      "name": "data0",
+      "file": "rtl/vdp_background.vhd",
+      "sites": [
+        {
+          "line": 55,
+          "text": "\tsignal data0\t\t\t: std_logic_vector(7 downto 0);"
+        },
+        {
+          "line": 261,
+          "text": "\t\t\t\tdata0           <= (others => '0');"
+        },
+        {
+          "line": 300,
+          "text": "\t\t\t\t\t\tdata0 <= vram_D;"
+        },
+        {
+          "line": 332,
+          "text": "\t\t\t\t\t\t\tdata0(i) <= (datac(i) and vram_D(4)) or (not datac(i) and vram_D(0));"
+        },
+        {
+          "line": 378,
+          "text": "\t\t\t\t\t\t\tshift0 <= data0;"
+        },
+        {
+          "line": 387,
+          "text": "\t\t\t\t\t\t\tshift0 <= data0(0)&data0(1)&data0(2)&data0(3)&data0(4)&data0(5)&data0(6)&data0(7);"
+        }
+      ]
+    },
+    {
+      "name": "data1",
+      "file": "rtl/vdp_background.vhd",
+      "sites": [
+        {
+          "line": 56,
+          "text": "\tsignal data1\t\t\t: std_logic_vector(7 downto 0);"
+        },
+        {
+          "line": 262,
+          "text": "\t\t\t\tdata1           <= (others => '0');"
+        },
+        {
+          "line": 302,
+          "text": "\t\t\t\t\t\tdata1 <= vram_D;"
+        },
+        {
+          "line": 333,
+          "text": "\t\t\t\t\t\t\tdata1(i) <= (datac(i) and vram_D(5)) or (not datac(i) and vram_D(1));"
+        },
+        {
+          "line": 379,
+          "text": "\t\t\t\t\t\t\tshift1 <= data1;"
+        },
+        {
+          "line": 388,
+          "text": "\t\t\t\t\t\t\tshift1 <= data1(0)&data1(1)&data1(2)&data1(3)&data1(4)&data1(5)&data1(6)&data1(7);"
+        }
+      ]
+    },
+    {
+      "name": "data2",
+      "file": "rtl/vdp_background.vhd",
+      "sites": [
+        {
+          "line": 57,
+          "text": "\tsignal data2\t\t\t: std_logic_vector(7 downto 0);"
+        },
+        {
+          "line": 263,
+          "text": "\t\t\t\tdata2           <= (others => '0');"
+        },
+        {
+          "line": 304,
+          "text": "\t\t\t\t\t\tdata2 <= vram_D;"
+        },
+        {
+          "line": 334,
+          "text": "\t\t\t\t\t\t\tdata2(i) <= (datac(i) and vram_D(6)) or (not datac(i) and vram_D(2));"
+        },
+        {
+          "line": 380,
+          "text": "\t\t\t\t\t\t\tshift2 <= data2;"
+        },
+        {
+          "line": 389,
+          "text": "\t\t\t\t\t\t\tshift2 <= data2(0)&data2(1)&data2(2)&data2(3)&data2(4)&data2(5)&data2(6)&data2(7);"
+        }
+      ]
+    },
+    {
+      "name": "data3",
+      "file": "rtl/vdp_background.vhd",
+      "sites": [
+        {
+          "line": 58,
+          "text": "\tsignal data3\t\t\t: std_logic_vector(7 downto 0);"
+        },
+        {
+          "line": 264,
+          "text": "\t\t\t\tdata3           <= (others => '0');"
+        },
+        {
+          "line": 306,
+          "text": "\t\t\t\t--\t\tdata3 <= vram_D;"
+        },
+        {
+          "line": 335,
+          "text": "\t\t\t\t\t\t\tdata3(i) <= (datac(i) and vram_D(7)) or (not datac(i) and vram_D(3));"
+        },
+        {
+          "line": 384,
+          "text": "\t\t\t\t\t\t\t\tshift3 <= data3;"
+        }
+      ]
+    },
+    {
+      "name": "shift0",
+      "file": "rtl/vdp_background.vhd",
+      "sites": [
+        {
+          "line": 60,
+          "text": "\tsignal shift0\t\t\t: std_logic_vector(7 downto 0);"
+        },
+        {
+          "line": 351,
+          "text": "\t\t\t\tshift0        <= (others => '0');"
+        },
+        {
+          "line": 378,
+          "text": "\t\t\t\t\t\t\tshift0 <= data0;"
+        },
+        {
+          "line": 387,
+          "text": "\t\t\t\t\t\t\tshift0 <= data0(0)&data0(1)&data0(2)&data0(3)&data0(4)&data0(5)&data0(6)&data0(7);"
+        },
+        {
+          "line": 395,
+          "text": "\t\t\t\t\t\tshift0(7 downto 1) <= shift0(6 downto 0);"
+        },
+        {
+          "line": 405,
+          "text": "\tcolor(0) <= shift0(7) when text_mode='0' else text_fg_color(0) when text_shift(5)='1' else overscan(0);"
+        }
+      ]
+    },
+    {
+      "name": "shift1",
+      "file": "rtl/vdp_background.vhd",
+      "sites": [
+        {
+          "line": 61,
+          "text": "\tsignal shift1\t\t\t: std_logic_vector(7 downto 0);"
+        },
+        {
+          "line": 352,
+          "text": "\t\t\t\tshift1        <= (others => '0');"
+        },
+        {
+          "line": 379,
+          "text": "\t\t\t\t\t\t\tshift1 <= data1;"
+        },
+        {
+          "line": 388,
+          "text": "\t\t\t\t\t\t\tshift1 <= data1(0)&data1(1)&data1(2)&data1(3)&data1(4)&data1(5)&data1(6)&data1(7);"
+        },
+        {
+          "line": 396,
+          "text": "\t\t\t\t\t\tshift1(7 downto 1) <= shift1(6 downto 0);"
+        },
+        {
+          "line": 406,
+          "text": "\tcolor(1) <= shift1(7) when text_mode='0' else text_fg_color(1) when text_shift(5)='1' else overscan(1);"
+        }
+      ]
+    },
+    {
+      "name": "shift2",
+      "file": "rtl/vdp_background.vhd",
+      "sites": [
+        {
+          "line": 62,
+          "text": "\tsignal shift2\t\t\t: std_logic_vector(7 downto 0);"
+        },
+        {
+          "line": 353,
+          "text": "\t\t\t\tshift2        <= (others => '0');"
+        },
+        {
+          "line": 380,
+          "text": "\t\t\t\t\t\t\tshift2 <= data2;"
+        },
+        {
+          "line": 389,
+          "text": "\t\t\t\t\t\t\tshift2 <= data2(0)&data2(1)&data2(2)&data2(3)&data2(4)&data2(5)&data2(6)&data2(7);"
+        },
+        {
+          "line": 397,
+          "text": "\t\t\t\t\t\tshift2(7 downto 1) <= shift2(6 downto 0);"
+        },
+        {
+          "line": 407,
+          "text": "\tcolor(2) <= shift2(7) when text_mode='0' else text_fg_color(2) when text_shift(5)='1' else overscan(2);"
+        }
+      ]
+    },
+    {
+      "name": "shift3",
+      "file": "rtl/vdp_background.vhd",
+      "sites": [
+        {
+          "line": 63,
+          "text": "\tsignal shift3\t\t\t: std_logic_vector(7 downto 0);"
+        },
+        {
+          "line": 354,
+          "text": "\t\t\t\tshift3        <= (others => '0');"
+        },
+        {
+          "line": 382,
+          "text": "\t\t\t\t\t\t\t\tshift3 <= vram_D;"
+        },
+        {
+          "line": 384,
+          "text": "\t\t\t\t\t\t\t\tshift3 <= data3;"
+        },
+        {
+          "line": 390,
+          "text": "\t\t\t\t\t\t\tshift3 <= vram_D(0)&vram_D(1)&vram_D(2)&vram_D(3)&vram_D(4)&vram_D(5)&vram_D(6)&vram_D(7);"
+        },
+        {
+          "line": 398,
+          "text": "\t\t\t\t\t\tshift3(7 downto 1) <= shift3(6 downto 0);"
+        },
+        {
+          "line": 408,
+          "text": "\tcolor(3) <= shift3(7) when text_mode='0' else text_fg_color(3) when text_shift(5)='1' else overscan(3);"
+        }
+      ]
+    },
+    {
+      "name": "text_shift",
+      "file": "rtl/vdp_background.vhd",
+      "sites": [
+        {
+          "line": 65,
+          "text": "\tsignal text_shift\t\t: std_logic_vector(5 downto 0) := (others=>'0');"
+        },
+        {
+          "line": 350,
+          "text": "\t\t\t\ttext_shift    <= (others => '0');"
+        },
+        {
+          "line": 360,
+          "text": "\t\t\t\t\t\ttext_shift <= text_pattern(7 downto 2);"
+        },
+        {
+          "line": 364,
+          "text": "\t\t\t\t\t\t\ttext_shift <= text_pattern(7 downto 2);"
+        },
+        {
+          "line": 367,
+          "text": "\t\t\t\t\t\t\ttext_shift(5 downto 1) <= text_shift(4 downto 0);"
+        },
+        {
+          "line": 368,
+          "text": "\t\t\t\t\t\t\ttext_shift(0)          <= '0';"
+        },
+        {
+          "line": 371,
+          "text": "\t\t\t\t\t\ttext_shift <= (others=>'0');"
+        },
+        {
+          "line": 405,
+          "text": "\tcolor(0) <= shift0(7) when text_mode='0' else text_fg_color(0) when text_shift(5)='1' else overscan(0);"
+        },
+        {
+          "line": 406,
+          "text": "\tcolor(1) <= shift1(7) when text_mode='0' else text_fg_color(1) when text_shift(5)='1' else overscan(1);"
+        },
+        {
+          "line": 407,
+          "text": "\tcolor(2) <= shift2(7) when text_mode='0' else text_fg_color(2) when text_shift(5)='1' else overscan(2);"
+        },
+        {
+          "line": 408,
+          "text": "\tcolor(3) <= shift3(7) when text_mode='0' else text_fg_color(3) when text_shift(5)='1' else overscan(3);"
+        }
+      ]
+    },
+    {
+      "name": "text_tile_index",
+      "file": "rtl/vdp_background.vhd",
+      "sites": [
+        {
+          "line": 66,
+          "text": "\tsignal text_tile_index\t: std_logic_vector(7 downto 0) := (others=>'0');"
+        },
+        {
+          "line": 166,
+          "text": "\t\t\t\t\t\t\tvram_A <= pt_address & text_tile_index & y(2 downto 0);"
+        },
+        {
+          "line": 179,
+          "text": "\t\t\t\t\t\t\t\tvram_A <= pt_address & text_tile_index & y(2 downto 0);"
+        },
+        {
+          "line": 254,
+          "text": "\t\t\t\ttext_tile_index <= (others => '0');"
+        },
+        {
+          "line": 269,
+          "text": "\t\t\t\t\t\ttext_tile_index <= vram_D;"
+        },
+        {
+          "line": 276,
+          "text": "\t\t\t\t\t\t\t\ttext_tile_index <= vram_D;"
+        }
+      ]
+    },
+    {
+      "name": "text_pattern",
+      "file": "rtl/vdp_background.vhd",
+      "sites": [
+        {
+          "line": 67,
+          "text": "\tsignal text_pattern\t\t: std_logic_vector(7 downto 0) := (others=>'0');"
+        },
+        {
+          "line": 255,
+          "text": "\t\t\t\ttext_pattern    <= (others => '0');"
+        },
+        {
+          "line": 271,
+          "text": "\t\t\t\t\t\ttext_pattern <= vram_D;"
+        },
+        {
+          "line": 280,
+          "text": "\t\t\t\t\t\t\t\ttext_pattern <= vram_D;"
+        },
+        {
+          "line": 360,
+          "text": "\t\t\t\t\t\ttext_shift <= text_pattern(7 downto 2);"
+        },
+        {
+          "line": 364,
+          "text": "\t\t\t\t\t\t\ttext_shift <= text_pattern(7 downto 2);"
+        }
+      ]
+    },
+    {
+      "name": "text_phase",
+      "file": "rtl/vdp_background.vhd",
+      "sites": [
+        {
+          "line": 68,
+          "text": "\tsignal text_phase\t\t: std_logic_vector(2 downto 0) := (others=>'0');"
+        },
+        {
+          "line": 121,
+          "text": "\t\t\t\ttext_phase  <= (others=>'0');"
+        },
+        {
+          "line": 125,
+          "text": "\t\t\t\t\ttext_phase  <= (others=>'0');"
+        },
+        {
+          "line": 128,
+          "text": "\t\t\t\t\ttext_phase  <= \"000\";"
+        },
+        {
+          "line": 131,
+          "text": "\t\t\t\t\tif text_phase=\"101\" then"
+        },
+        {
+          "line": 132,
+          "text": "\t\t\t\t\t\ttext_phase  <= \"000\";"
+        },
+        {
+          "line": 135,
+          "text": "\t\t\t\t\t\ttext_phase <= text_phase + 1;"
+        },
+        {
+          "line": 138,
+          "text": "\t\t\t\t\ttext_phase  <= (others=>'0');"
+        },
+        {
+          "line": 171,
+          "text": "\t\t\t\t\t\tcase text_phase is"
+        },
+        {
+          "line": 273,
+          "text": "\t\t\t\t\t\tcase text_phase is"
+        },
+        {
+          "line": 363,
+          "text": "\t\t\t\t\t\tif text_phase=\"101\" then"
+        }
+      ]
+    },
+    {
+      "name": "text_column",
+      "file": "rtl/vdp_background.vhd",
+      "sites": [
+        {
+          "line": 69,
+          "text": "\tsignal text_column\t\t: std_logic_vector(5 downto 0) := (others=>'0');"
+        },
+        {
+          "line": 122,
+          "text": "\t\t\t\ttext_column <= (others=>'0');"
+        },
+        {
+          "line": 126,
+          "text": "\t\t\t\t\ttext_column <= (others=>'0');"
+        },
+        {
+          "line": 129,
+          "text": "\t\t\t\t\ttext_column <= (others=>'0');"
+        },
+        {
+          "line": 133,
+          "text": "\t\t\t\t\t\ttext_column <= text_column + 1;"
+        },
+        {
+          "line": 139,
+          "text": "\t\t\t\t\ttext_column <= (others=>'0');"
+        },
+        {
+          "line": 173,
+          "text": "\t\t\t\t\t\t\tif text_column < \"100111\" then"
+        },
+        {
+          "line": 174,
+          "text": "\t\t\t\t\t\t\t\ttext_name := (text_row * 40) + conv_integer(text_column) + 1;"
+        },
+        {
+          "line": 178,
+          "text": "\t\t\t\t\t\t\tif text_column < \"100111\" then"
+        },
+        {
+          "line": 275,
+          "text": "\t\t\t\t\t\t\tif text_column < \"100111\" then"
+        },
+        {
+          "line": 279,
+          "text": "\t\t\t\t\t\t\tif text_column < \"100111\" then"
+        }
+      ]
+    },
+    {
+      "name": "vram_A",
+      "file": "rtl/vdp_background.vhd",
+      "sites": [
+        {
+          "line": 31,
+          "text": "\tvram_A:\t\t\t\tout std_logic_vector(13 downto 0);"
+        },
+        {
+          "line": 164,
+          "text": "\t\t\t\t\t\t\tvram_A <= table_address & conv_std_logic_vector(text_row * 40, 10);"
+        },
+        {
+          "line": 166,
+          "text": "\t\t\t\t\t\t\tvram_A <= pt_address & text_tile_index & y(2 downto 0);"
+        },
+        {
+          "line": 175,
+          "text": "\t\t\t\t\t\t\t\tvram_A <= table_address & conv_std_logic_vector(text_name, 10);"
+        },
+        {
+          "line": 179,
+          "text": "\t\t\t\t\t\t\t\tvram_A <= pt_address & text_tile_index & y(2 downto 0);"
+        },
+        {
+          "line": 205,
+          "text": "\t\t\t\t\twhen \"000\" => vram_A <= char_address & \"0\";"
+        },
+        {
+          "line": 206,
+          "text": "\t\t\t\t\twhen \"001\" => vram_A <= char_address & \"1\";"
+        },
+        {
+          "line": 207,
+          "text": "\t\t\t\t\twhen \"011\" => vram_A <= data_address & \"00\";"
+        },
+        {
+          "line": 208,
+          "text": "\t\t\t\t\twhen \"100\" => vram_A <= data_address & \"01\";"
+        },
+        {
+          "line": 209,
+          "text": "\t\t\t\t\twhen \"101\" => vram_A <= data_address & \"10\";"
+        },
+        {
+          "line": 210,
+          "text": "\t\t\t\t\twhen \"110\" => vram_A <= data_address & \"11\";"
+        },
+        {
+          "line": 221,
+          "text": "\t\t\t\t\twhen \"000\" => vram_A <= table_address & y(7 downto 3) & x(7 downto 3);"
+        },
+        {
+          "line": 225,
+          "text": "\t\t\t\t\t\t\tvram_A <= pt_address & tile_index(7 downto 0) & y(2 downto 0);"
+        },
+        {
+          "line": 228,
+          "text": "\t\t\t\t\t\t\tvram_A <= pt_address(13) & (y(7 downto 6) and pt_address(12 downto 11)) &"
+        },
+        {
+          "line": 234,
+          "text": "\t\t\t\t\t\t\tvram_A <= ct_address(13 downto 6) & '0' & tile_index(7 downto 3);"
+        },
+        {
+          "line": 237,
+          "text": "\t\t\t\t\t\t\tvram_A <= ct_address(13) &"
+        }
+      ]
+    },
+    {
+      "name": "priority",
+      "file": "rtl/vdp_background.vhd",
+      "sites": [
+        {
+          "line": 35,
+          "text": "\tpriority:\t\t\tout std_logic"
+        },
+        {
+          "line": 356,
+          "text": "\t\t\t\tpriority      <= '0';"
+        },
+        {
+          "line": 361,
+          "text": "\t\t\t\t\t\tpriority   <= '0';"
+        },
+        {
+          "line": 365,
+          "text": "\t\t\t\t\t\t\tpriority   <= '0';"
+        },
+        {
+          "line": 372,
+          "text": "\t\t\t\t\t\tpriority   <= '0';"
+        },
+        {
+          "line": 393,
+          "text": "\t\t\t\t\t\tpriority      <= priority_latch;"
+        }
+      ]
+    }
+  ],
+  "rtl/savestates.sv": [
+    {
+      "line": 45,
+      "text": "    output reg        ss_freeze,"
+    },
+    {
+      "line": 47,
+      "text": "    output reg        ss_cpu_prepare,"
+    },
+    {
+      "line": 51,
+      "text": "    input       [1:0] clock_phase,"
+    },
+    {
+      "line": 52,
+      "text": "    output      [1:0] clock_phase_in,"
+    },
+    {
+      "line": 53,
+      "text": "    output reg        clock_phase_set,"
+    },
+    {
+      "line": 54,
+      "text": "    input             clock_phase_ready,"
+    },
+    {
+      "line": 59,
+      "text": "    // VBlank level from video.vhd (not gated by ss_freeze)"
+    },
+    {
+      "line": 80,
+      "text": "    // Raw CPU clock-enable pulse (ungated by ss_freeze)"
+    },
+    {
+      "line": 82,
+      "text": "    // Raw VDP clock-enable pulse (ungated by ss_freeze)"
+    },
+    {
+      "line": 84,
+      "text": "    // Raw PIX clock-enable pulse (ungated by ss_freeze)"
+    },
+    {
+      "line": 86,
+      "text": "    // Raw SP clock-enable pulse (ungated by ss_freeze)"
+    },
+    {
+      "line": 427,
+      "text": "           ST_CPU_PREPARE=7'd105, ST_PHASE_COMMIT=7'd106;"
+    },
+    {
+      "line": 436,
+      "text": "assign clock_phase_in=phase_snap;"
+    },
+    {
+      "line": 966,
+      "text": "        ss_freeze       <= 0;"
+    },
+    {
+      "line": 968,
+      "text": "        ss_cpu_prepare <= 0; clock_phase_set <= 0; sprite_word <= 0; sprite_second <= 0;"
+    },
+    {
+      "line": 1072,
+      "text": "            ss_freeze   <= 0;"
+    },
+    {
+      "line": 1109,
+      "text": "                ss_freeze <= 1; // accepted host T finishes; T+1 is held"
+    },
+    {
+      "line": 1110,
+      "text": "                if (do_save) begin phase_snap <= clock_phase;capture_tick_snap<=z80_tick_active;end"
+    },
+    {
+      "line": 1143,
+      "text": "            ss_freeze        <= 1;"
+    },
+    {
+      "line": 1153,
+      "text": "            ss_freeze     <= 1;"
+    },
+    {
+      "line": 1165,
+      "text": "            ss_freeze <= 1;"
+    },
+    {
+      "line": 2595,
+      "text": "                ss_cpu_prepare<=!do_save;"
+    },
+    {
+      "line": 2596,
+      "text": "                state<=ST_CPU_PREPARE;"
+    },
+    {
+      "line": 2599,
+      "text": "        ST_CPU_PREPARE: begin"
+    },
+    {
+      "line": 2602,
+      "text": "                ss_cpu_prepare<=0;"
+    },
+    {
+      "line": 2603,
+      "text": "                clock_phase_set<=1;"
+    },
+    {
+      "line": 2605,
+      "text": "                state<=ST_PHASE_COMMIT;"
+    },
+    {
+      "line": 2608,
+      "text": "        ST_PHASE_COMMIT: begin"
+    },
+    {
+      "line": 2612,
+      "text": "            if (clock_phase_ready) begin"
+    },
+    {
+      "line": 2613,
+      "text": "                clock_phase_set<=0;video_state_set<=0;ss_freeze<=0;unfreeze_cnt<=0;"
+    },
+    {
+      "line": 2622,
+      "text": "            ss_freeze <= 0;"
+    },
+    {
+      "line": 2633,
+      "text": "            ss_cpu_prepare <= 0; clock_phase_set <= 0;"
+    },
+    {
+      "line": 2635,
+      "text": "            ss_freeze <= 0;"
+    }
+  ],
+  "SMS.sv": [
+    {
+      "line": 41,
+      "text": "wire ss_freeze;"
+    },
+    {
+      "line": 42,
+      "text": "wire ss_cpu_prepare, ss_z80_replay,ss_z80_tick,ss_replay_t2;"
+    },
+    {
+      "line": 47,
+      "text": "wire ss_sprite_valid;"
+    },
+    {
+      "line": 49,
+      "text": "reg  ss_freeze_r;"
+    },
+    {
+      "line": 51,
+      "text": "\tss_freeze_r <= ss_freeze;"
+    },
+    {
+      "line": 55,
+      "text": "wire ss_unfreeze = ss_freeze_r & ~ss_freeze;"
+    },
+    {
+      "line": 80,
+      "text": "\tend else if (~ss_freeze) begin"
+    },
+    {
+      "line": 82,
+      "text": "\t\tif (~joy8_r & joy8_sig & ~ss_freeze & ~se_unpause_pending & ~se_pause_pending) begin"
+    },
+    {
+      "line": 996,
+      "text": "// NVRAM DMA wires (savestates → nvram_inst during ss_freeze)"
+    },
+    {
+      "line": 1006,
+      "text": "\t.ss_freeze(ss_freeze),"
+    },
+    {
+      "line": 1007,
+      "text": "    .ss_cpu_prepare(ss_cpu_prepare),.ss_prepare_ce(ce_cpu),.z80_replay_out(ss_z80_replay),"
+    },
+    {
+      "line": 1010,
+      "text": "    .ss_sprite_in(ss_sprite_in),.ss_sprite2_in(ss_sprite2_in),.ss_sprite_valid(ss_sprite_valid),"
+    },
+    {
+      "line": 1011,
+      "text": "\t.ce_cpu(ss_freeze ? 1'b0 : (ce_cpu & ~se_pause_exec_gate)),"
+    },
+    {
+      "line": 1012,
+      "text": "\t.ce_vdp(ss_freeze ? 1'b0 : ce_vdp),"
+    },
+    {
+      "line": 1013,
+      "text": "\t.ce_pix(ss_freeze ? 1'b0 : ce_pix),"
+    },
+    {
+      "line": 1014,
+      "text": "\t.ce_sp(ss_freeze ? 1'b0 : ce_sp),"
+    },
+    {
+      "line": 1246,
+      "text": "\t.ss_cpu_prepare(ss_cpu_prepare),.z80_replay(ss_z80_replay),"
+    },
+    {
+      "line": 1248,
+      "text": "    .clock_phase(ss_phase_out),.clock_phase_in(ss_phase_in),.clock_phase_set(ss_phase_set),.clock_phase_ready(ss_phase_ready),"
+    },
+    {
+      "line": 1249,
+      "text": "    .sprite_out(ss_sprite_out),.sprite2_out(ss_sprite2_out),.sprite_in(ss_sprite_in),.sprite2_in(ss_sprite2_in),.sprite_valid(ss_sprite_valid),"
+    },
+    {
+      "line": 1257,
+      "text": "\t.ss_freeze       (ss_freeze),"
+    },
+    {
+      "line": 1402,
+      "text": "assign DDRAM_CLK      = clk_sys; // always stable; sr_ddram_clk (CLK_VIDEO) would glitch on ss_freeze toggle"
+    },
+    {
+      "line": 1403,
+      "text": "assign DDRAM_BURSTCNT = ss_freeze ? ss_ddram_burstcnt : sr_ddram_burstcnt;"
+    },
+    {
+      "line": 1404,
+      "text": "assign DDRAM_ADDR     = ss_freeze ? ss_ddram_addr     : sr_ddram_addr;"
+    },
+    {
+      "line": 1405,
+      "text": "assign DDRAM_DIN      = ss_freeze ? ss_ddram_din      : sr_ddram_din;"
+    },
+    {
+      "line": 1406,
+      "text": "assign DDRAM_BE       = ss_freeze ? ss_ddram_be       : sr_ddram_be;"
+    },
+    {
+      "line": 1407,
+      "text": "assign DDRAM_WE       = ss_freeze ? ss_ddram_we       : sr_ddram_we;"
+    },
+    {
+      "line": 1408,
+      "text": "assign DDRAM_RD       = ss_freeze ? ss_ddram_rd       : sr_ddram_rd;"
+    },
+    {
+      "line": 1488,
+      "text": "\t.ss_freeze(ss_freeze), .ss_set(ss_md_set), .ss_valid(ss_md_valid),"
+    },
+    {
+      "line": 1499,
+      "text": "\t.ss_freeze(ss_freeze), .ss_set(ss_md_set), .ss_valid(ss_md_valid),"
+    },
+    {
+      "line": 1541,
+      "text": "\t\tif (!ss_freeze) begin"
+    },
+    {
+      "line": 1563,
+      "text": "\t\tif(ce_cpu && !ss_freeze) begin"
+    },
+    {
+      "line": 1610,
+      "text": "\t.address   ((ss_freeze && !ss_cpu_prepare) ? (ss_wram_WE ? ss_wram_WA : ss_wram_A) :"
+    },
+    {
+      "line": 1612,
+      "text": "\t.wren      (ss_freeze ? ss_wram_WE : (ram_clr_run | ram_we)),"
+    },
+    {
+      "line": 1613,
+      "text": "\t.data      (ss_freeze ? ss_wram_WD : (ram_clr_run ? 8'h00 : ram_d)),"
+    },
+    {
+      "line": 1742,
+      "text": "wire bk_save_write = nvram_we & ~ss_freeze;"
+    },
+    {
+      "line": 1748,
+      "text": "\telse if (eeprom_active && ss_freeze && eeprom_ss_set && eeprom_full)"
+    },
+    {
+      "line": 1767,
+      "text": "\t.address_a   ((ss_freeze && !ss_cpu_prepare) ? (ss_nvram_WE ? ss_nvram_WA : (ss_nvram_refill ? nvram_a : ss_nvram_A)) : nvram_a),"
+    },
+    {
+      "line": 1768,
+      "text": "\t.wren_a      (ss_freeze ? ss_nvram_WE : nvram_we),"
+    },
+    {
+      "line": 1769,
+      "text": "\t.data_a      (ss_freeze ? ss_nvram_WD : nvram_d),"
+    },
+    {
+      "line": 1872,
+      "text": "\t.SS_FREEZE(ss_freeze),"
+    },
+    {
+      "line": 1888,
+      "text": "\t.CE_PIX(ss_freeze ? 1'b0 : ce_pix),"
+    },
+    {
+      "line": 1924,
+      "text": "\tend else if (!ss_freeze) begin"
+    },
+    {
+      "line": 1987,
+      "text": "\telse if (!ss_freeze) begin"
+    }
+  ],
+  "rtl/system.vhd": [
+    {
+      "line": 233,
+      "text": "        ss_cpu_prepare : in std_logic := '0';"
+    },
+    {
+      "line": 234,
+      "text": "        ss_prepare_ce : in std_logic := '0';"
+    },
+    {
+      "line": 240,
+      "text": "        ss_sprite_valid : in std_logic := '0';"
+    },
+    {
+      "line": 241,
+      "text": "\t\tss_freeze     : in  STD_LOGIC := '0'"
+    },
+    {
+      "line": 515,
+      "text": "\t\t\tss_freeze => ss_freeze,"
+    },
+    {
+      "line": 602,
+      "text": "\t\tss_freeze   => ss_freeze,"
+    },
+    {
+      "line": 649,
+      "text": "        NMIEnable => '1', NMIHold => z80_nmi_hold, RestoreHold => ss_freeze, ReplayT2=>z80_replay_t2, NMIReplay => nmi_replay_hold,"
+    },
+    {
+      "line": 675,
+      "text": "\t\tcapture_cpu_edges => evolution_menu_mode,"
+    },
+    {
+      "line": 706,
+      "text": "\t\tss_sprite_out=>ss_sprite_out,ss_sprite_in=>ss_sprite_in,ss_sprite_valid=>ss_sprite_valid,ss_freeze=>ss_freeze,"
+    },
+    {
+      "line": 709,
+      "text": "\t\tss_regs_set => vdp_regs_set,"
+    },
+    {
+      "line": 735,
+      "text": "\t\tcapture_cpu_edges => '0',"
+    },
+    {
+      "line": 763,
+      "text": "\t\tss_sprite_out=>ss_sprite2_out,ss_sprite_in=>ss_sprite2_in,ss_sprite_valid=>ss_sprite_valid,ss_freeze=>ss_freeze,"
+    },
+    {
+      "line": 766,
+      "text": "\t\tss_regs_set => vdp2_regs_set,"
+    },
+    {
+      "line": 840,
+      "text": "\t\t\telsif ss_freeze = '0' and fm_WR_n='0' then"
+    },
+    {
+      "line": 871,
+      "text": "    if rising_edge(clk_sys) and ss_freeze='1' and psg_quiet1='1' and psg_quiet2='1' and systeme='1' then"
+    },
+    {
+      "line": 983,
+      "text": "\t\tss_freeze     => ss_freeze or nmi_replay_hold,"
+    },
+    {
+      "line": 989,
+      "text": "\tce_z80 <= ss_prepare_ce and nmi_replay_hold when ss_cpu_prepare='1' else"
+    },
+    {
+      "line": 1180,
+      "text": "\t\t\tss_freeze => ss_freeze,"
+    },
+    {
+      "line": 1202,
+      "text": "\t\t\tss_freeze => ss_freeze,"
+    },
+    {
+      "line": 1251,
+      "text": "\tvram_WR  <= not WR_n when ss_freeze = '0' and MREQ_n='0' and A(15 downto 14)=\"10\" and vdp_cpu_bank='1' and systeme='1' else '0';"
+    },
+    {
+      "line": 1252,
+      "text": "\tvram2_WR  <= not WR_n when ss_freeze = '0' and MREQ_n='0' and A(15 downto 14)=\"10\" and vdp_cpu_bank='0' and systeme='1' else '0';"
+    },
+    {
+      "line": 1277,
+      "text": "\t\t\telsif ss_freeze='0' and ctl_WR_n='0' and A(7 downto 0)=x\"3E\" then"
+    },
+    {
+      "line": 1301,
+      "text": "\t\t\telsif ss_freeze = '0' and ctl_WR_n='0' then"
+    },
+    {
+      "line": 1398,
+      "text": "\t\t\telsif ss_freeze = '0' and det_WR_n='0' then"
+    },
+    {
+      "line": 1400,
+      "text": "\t\t\telsif ss_freeze = '0' and bal_WR_n='0' then"
+    },
+    {
+      "line": 1461,
+      "text": "\t\t\tss_freeze => ss_freeze,"
+    }
+  ],
+  "rtl/vdp_main.vhd": [
+    {
+      "line": 61,
+      "text": " ss_sprite_valid: in std_logic := '0';"
+    },
+    {
+      "line": 62,
+      "text": " ss_regs_set:\t\tin STD_LOGIC := '0');"
+    },
+    {
+      "line": 76,
+      "text": "\tsignal line_reset:\tstd_logic;"
+    },
+    {
+      "line": 101,
+      "text": "\tline_reset <= '1' when x=512-24 else '0'; -- offset should be 25 to please VDPTEST"
+    },
+    {
+      "line": 110,
+      "text": "\t\treset\t\t\t\t=> line_reset or ss_regs_set,"
+    },
+    {
+      "line": 130,
+      "text": "\t\tss_restore\t\t\t=> ss_regs_set,"
+    },
+    {
+      "line": 158,
+      "text": "        ss_sprite_out=>ss_sprite_out,ss_sprite_in=>ss_sprite_in,ss_sprite_valid=>ss_sprite_valid,"
+    },
+    {
+      "line": 159,
+      "text": "\t\tss_regs_set\t\t=> ss_regs_set);"
+    }
+  ]
+}

@@ -1,0 +1,5 @@
+const fs=require('fs');
+let f='candidate/voicerom.vhd',s=fs.readFileSync(f,'utf8');fs.writeFileSync(f,s.replace("VOICE_ID_TYPE'range",'0 to 37'));
+f='candidate/voicememory.vhd';s=fs.readFileSync(f,'utf8');fs.writeFileSync(f,s.replace("VOICE_ID_TYPE'range",'0 to 37').replace('end case;','when others => null; end case;'));
+for(const n of ['controller','envelopegenerator','phasegenerator']){f='candidate/'+n+'.vhd';s=fs.readFileSync(f,'utf8');const t=s.replace(/process\s*\(\s*clk\s*,\s*reset\s*\)/i,'oracle_process: process(clk,reset)');if(t===s)throw Error(n);fs.writeFileSync(f,t);}
+fs.writeFileSync('adapter_notes.json',JSON.stringify({scope:'Simulation-only syntax/visibility; no functional changes',changes:['Release identifier renamed EG_RELEASE in candidate VHDL','scalar integer subtype VOICE_ID_TYPE range written explicitly 0 to37 for ModelSim','three stateful processes named oracle_process for independent hierarchical variable inspection'],quartusUsesUnmodifiedProduction:true},null,2));

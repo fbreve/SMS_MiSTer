@@ -1,0 +1,1 @@
+library ieee;use ieee.std_logic_1164.all;package audit_pkg is signal audit_action:integer:=0;signal audit_omit:integer:=0;end package;

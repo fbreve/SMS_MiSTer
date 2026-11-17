@@ -1,0 +1,1608 @@
+{
+  "perVDPBits": 4778,
+  "VDPs": 2,
+  "historicalBits": 9556,
+  "paddedTransportBits": 9600,
+  "paddingBits": 44,
+  "rows": [
+    {
+      "group": "G06 SPRITE STATE",
+      "module": "rtl/vdp_sprites.vhd",
+      "signal": "enable",
+      "width": 1,
+      "count": 64,
+      "totalBits": 64,
+      "offset": 0,
+      "snapshot": "Existing post-T record; parallel 4800-bit register bank per VDP",
+      "restore": "Existing ss_regs_set plus sprite_valid/default selection",
+      "currentMux": "Capture/hold/zero/rotate/insert scratch FF; distributed receiver selectors",
+      "freeze": "Accepted T completes; ss_freeze suppresses all guest VDP/pixel/sprite enables and raw overflow bookkeeping",
+      "version": "has_restart true for v14..v17; older formats normalize absent sprite history",
+      "firstConsumer": "registered sprite color/collision reduction",
+      "reason": "Each slot independently contributes to pixels and collisions.",
+      "candidate": "Local constant-slice 32-bit read/write, same original field offsets, no state removal"
+    },
+    {
+      "group": "G06 SPRITE STATE",
+      "module": "rtl/vdp_sprites.vhd",
+      "signal": "spr_x",
+      "width": 8,
+      "count": 64,
+      "totalBits": 512,
+      "offset": 1,
+      "snapshot": "Existing post-T record; parallel 4800-bit register bank per VDP",
+      "restore": "Existing ss_regs_set plus sprite_valid/default selection",
+      "currentMux": "Capture/hold/zero/rotate/insert scratch FF; distributed receiver selectors",
+      "freeze": "Accepted T completes; ss_freeze suppresses all guest VDP/pixel/sprite enables and raw overflow bookkeeping",
+      "version": "has_restart true for v14..v17; older formats normalize absent sprite history",
+      "firstConsumer": "shifter reload comparator",
+      "reason": "Retained X position survives mode changes and inactive slots.",
+      "candidate": "Local constant-slice 32-bit read/write, same original field offsets, no state removal"
+    },
+    {
+      "group": "G06 SPRITE STATE",
+      "module": "rtl/vdp_sprites.vhd",
+      "signal": "spr_d0",
+      "width": 8,
+      "count": 64,
+      "totalBits": 512,
+      "offset": 9,
+      "snapshot": "Existing post-T record; parallel 4800-bit register bank per VDP",
+      "restore": "Existing ss_regs_set plus sprite_valid/default selection",
+      "currentMux": "Capture/hold/zero/rotate/insert scratch FF; distributed receiver selectors",
+      "freeze": "Accepted T completes; ss_freeze suppresses all guest VDP/pixel/sprite enables and raw overflow bookkeeping",
+      "version": "has_restart true for v14..v17; older formats normalize absent sprite history",
+      "firstConsumer": "shifter load / legacy plane/color interpretation",
+      "reason": "Cached pattern bytes are historical, not refetched during transport.",
+      "candidate": "Local constant-slice 32-bit read/write, same original field offsets, no state removal"
+    },
+    {
+      "group": "G06 SPRITE STATE",
+      "module": "rtl/vdp_sprites.vhd",
+      "signal": "spr_d1",
+      "width": 8,
+      "count": 64,
+      "totalBits": 512,
+      "offset": 17,
+      "snapshot": "Existing post-T record; parallel 4800-bit register bank per VDP",
+      "restore": "Existing ss_regs_set plus sprite_valid/default selection",
+      "currentMux": "Capture/hold/zero/rotate/insert scratch FF; distributed receiver selectors",
+      "freeze": "Accepted T completes; ss_freeze suppresses all guest VDP/pixel/sprite enables and raw overflow bookkeeping",
+      "version": "has_restart true for v14..v17; older formats normalize absent sprite history",
+      "firstConsumer": "shifter load / legacy plane/color interpretation",
+      "reason": "Cached pattern bytes are historical, not refetched during transport.",
+      "candidate": "Local constant-slice 32-bit read/write, same original field offsets, no state removal"
+    },
+    {
+      "group": "G06 SPRITE STATE",
+      "module": "rtl/vdp_sprites.vhd",
+      "signal": "spr_d2",
+      "width": 8,
+      "count": 64,
+      "totalBits": 512,
+      "offset": 25,
+      "snapshot": "Existing post-T record; parallel 4800-bit register bank per VDP",
+      "restore": "Existing ss_regs_set plus sprite_valid/default selection",
+      "currentMux": "Capture/hold/zero/rotate/insert scratch FF; distributed receiver selectors",
+      "freeze": "Accepted T completes; ss_freeze suppresses all guest VDP/pixel/sprite enables and raw overflow bookkeeping",
+      "version": "has_restart true for v14..v17; older formats normalize absent sprite history",
+      "firstConsumer": "shifter load / legacy plane/color interpretation",
+      "reason": "Cached pattern bytes are historical, not refetched during transport.",
+      "candidate": "Local constant-slice 32-bit read/write, same original field offsets, no state removal"
+    },
+    {
+      "group": "G06 SPRITE STATE",
+      "module": "rtl/vdp_sprites.vhd",
+      "signal": "spr_d3",
+      "width": 8,
+      "count": 64,
+      "totalBits": 512,
+      "offset": 33,
+      "snapshot": "Existing post-T record; parallel 4800-bit register bank per VDP",
+      "restore": "Existing ss_regs_set plus sprite_valid/default selection",
+      "currentMux": "Capture/hold/zero/rotate/insert scratch FF; distributed receiver selectors",
+      "freeze": "Accepted T completes; ss_freeze suppresses all guest VDP/pixel/sprite enables and raw overflow bookkeeping",
+      "version": "has_restart true for v14..v17; older formats normalize absent sprite history",
+      "firstConsumer": "shifter load / legacy plane/color interpretation",
+      "reason": "Cached pattern bytes are historical, not refetched during transport.",
+      "candidate": "Local constant-slice 32-bit read/write, same original field offsets, no state removal"
+    },
+    {
+      "group": "G06 SPRITE STATE",
+      "module": "rtl/vdp_sprite_shifter.vhd",
+      "signal": "shift0",
+      "width": 8,
+      "count": 64,
+      "totalBits": 512,
+      "offset": 41,
+      "snapshot": "Existing post-T record; parallel 4800-bit register bank per VDP",
+      "restore": "Existing ss_regs_set plus sprite_valid/default selection",
+      "currentMux": "Capture/hold/zero/rotate/insert scratch FF; distributed receiver selectors",
+      "freeze": "Accepted T completes; ss_freeze suppresses all guest VDP/pixel/sprite enables and raw overflow bookkeeping",
+      "version": "has_restart true for v14..v17; older formats normalize absent sprite history",
+      "firstConsumer": "next enabled pixel and later shifted pixels",
+      "reason": "Exact already-loaded pixel history.",
+      "candidate": "Local constant-slice 32-bit read/write, same original field offsets, no state removal"
+    },
+    {
+      "group": "G06 SPRITE STATE",
+      "module": "rtl/vdp_sprite_shifter.vhd",
+      "signal": "shift1",
+      "width": 8,
+      "count": 64,
+      "totalBits": 512,
+      "offset": 49,
+      "snapshot": "Existing post-T record; parallel 4800-bit register bank per VDP",
+      "restore": "Existing ss_regs_set plus sprite_valid/default selection",
+      "currentMux": "Capture/hold/zero/rotate/insert scratch FF; distributed receiver selectors",
+      "freeze": "Accepted T completes; ss_freeze suppresses all guest VDP/pixel/sprite enables and raw overflow bookkeeping",
+      "version": "has_restart true for v14..v17; older formats normalize absent sprite history",
+      "firstConsumer": "next enabled pixel and later shifted pixels",
+      "reason": "Exact already-loaded pixel history.",
+      "candidate": "Local constant-slice 32-bit read/write, same original field offsets, no state removal"
+    },
+    {
+      "group": "G06 SPRITE STATE",
+      "module": "rtl/vdp_sprite_shifter.vhd",
+      "signal": "shift2",
+      "width": 8,
+      "count": 64,
+      "totalBits": 512,
+      "offset": 57,
+      "snapshot": "Existing post-T record; parallel 4800-bit register bank per VDP",
+      "restore": "Existing ss_regs_set plus sprite_valid/default selection",
+      "currentMux": "Capture/hold/zero/rotate/insert scratch FF; distributed receiver selectors",
+      "freeze": "Accepted T completes; ss_freeze suppresses all guest VDP/pixel/sprite enables and raw overflow bookkeeping",
+      "version": "has_restart true for v14..v17; older formats normalize absent sprite history",
+      "firstConsumer": "next enabled pixel and later shifted pixels",
+      "reason": "Exact already-loaded pixel history.",
+      "candidate": "Local constant-slice 32-bit read/write, same original field offsets, no state removal"
+    },
+    {
+      "group": "G06 SPRITE STATE",
+      "module": "rtl/vdp_sprite_shifter.vhd",
+      "signal": "shift3",
+      "width": 8,
+      "count": 64,
+      "totalBits": 512,
+      "offset": 65,
+      "snapshot": "Existing post-T record; parallel 4800-bit register bank per VDP",
+      "restore": "Existing ss_regs_set plus sprite_valid/default selection",
+      "currentMux": "Capture/hold/zero/rotate/insert scratch FF; distributed receiver selectors",
+      "freeze": "Accepted T completes; ss_freeze suppresses all guest VDP/pixel/sprite enables and raw overflow bookkeeping",
+      "version": "has_restart true for v14..v17; older formats normalize absent sprite history",
+      "firstConsumer": "next enabled pixel and later shifted pixels",
+      "reason": "Exact already-loaded pixel history.",
+      "candidate": "Local constant-slice 32-bit read/write, same original field offsets, no state removal"
+    },
+    {
+      "group": "G06 SPRITE STATE",
+      "module": "rtl/vdp_sprite_shifter.vhd",
+      "signal": "wideclock",
+      "width": 1,
+      "count": 64,
+      "totalBits": 64,
+      "offset": 73,
+      "snapshot": "Existing post-T record; parallel 4800-bit register bank per VDP",
+      "restore": "Existing ss_regs_set plus sprite_valid/default selection",
+      "currentMux": "Capture/hold/zero/rotate/insert scratch FF; distributed receiver selectors",
+      "freeze": "Accepted T completes; ss_freeze suppresses all guest VDP/pixel/sprite enables and raw overflow bookkeeping",
+      "version": "has_restart true for v14..v17; older formats normalize absent sprite history",
+      "firstConsumer": "wide sprite half-rate advancement",
+      "reason": "Historical width phase.",
+      "candidate": "Local constant-slice 32-bit read/write, same original field offsets, no state removal"
+    },
+    {
+      "group": "G06 SPRITE STATE",
+      "module": "rtl/vdp_sprites.vhd",
+      "signal": "data_address",
+      "width": 14,
+      "count": 1,
+      "totalBits": 14,
+      "offset": 4736,
+      "snapshot": "Existing post-T record; parallel 4800-bit register bank per VDP",
+      "restore": "Existing ss_regs_set plus sprite_valid/default selection",
+      "currentMux": "Capture/hold/zero/rotate/insert scratch FF; distributed receiver selectors",
+      "freeze": "Accepted T completes; ss_freeze suppresses all guest VDP/pixel/sprite enables and raw overflow bookkeeping",
+      "version": "has_restart true for v14..v17; older formats normalize absent sprite history",
+      "firstConsumer": "next evaluator VRAM address",
+      "reason": "Prior partial address formation can survive mode changes.",
+      "candidate": "Local constant-slice 32-bit read/write, same original field offsets, no state removal"
+    },
+    {
+      "group": "G06 SPRITE STATE",
+      "module": "rtl/vdp_sprites.vhd",
+      "signal": "m2_flags",
+      "width": 8,
+      "count": 1,
+      "totalBits": 8,
+      "offset": 4750,
+      "snapshot": "Existing post-T record; parallel 4800-bit register bank per VDP",
+      "restore": "Existing ss_regs_set plus sprite_valid/default selection",
+      "currentMux": "Capture/hold/zero/rotate/insert scratch FF; distributed receiver selectors",
+      "freeze": "Accepted T completes; ss_freeze suppresses all guest VDP/pixel/sprite enables and raw overflow bookkeeping",
+      "version": "has_restart true for v14..v17; older formats normalize absent sprite history",
+      "firstConsumer": "legacy X offset/color load",
+      "reason": "Historical cached flags.",
+      "candidate": "Local constant-slice 32-bit read/write, same original field offsets, no state removal"
+    },
+    {
+      "group": "G06 SPRITE STATE",
+      "module": "rtl/vdp_sprites.vhd",
+      "signal": "color_reg",
+      "width": 4,
+      "count": 1,
+      "totalBits": 4,
+      "offset": 4758,
+      "snapshot": "Existing post-T record; parallel 4800-bit register bank per VDP",
+      "restore": "Existing ss_regs_set plus sprite_valid/default selection",
+      "currentMux": "Capture/hold/zero/rotate/insert scratch FF; distributed receiver selectors",
+      "freeze": "Accepted T completes; ss_freeze suppresses all guest VDP/pixel/sprite enables and raw overflow bookkeeping",
+      "version": "has_restart true for v14..v17; older formats normalize absent sprite history",
+      "firstConsumer": "registered pixel composition",
+      "reason": "First post-release pixel uses registered color.",
+      "candidate": "Local constant-slice 32-bit read/write, same original field offsets, no state removal"
+    },
+    {
+      "group": "G06 SPRITE STATE",
+      "module": "rtl/vdp_sprites.vhd",
+      "signal": "collide_reg",
+      "width": 1,
+      "count": 1,
+      "totalBits": 1,
+      "offset": 4762,
+      "snapshot": "Existing post-T record; parallel 4800-bit register bank per VDP",
+      "restore": "Existing ss_regs_set plus sprite_valid/default selection",
+      "currentMux": "Capture/hold/zero/rotate/insert scratch FF; distributed receiver selectors",
+      "freeze": "Accepted T completes; ss_freeze suppresses all guest VDP/pixel/sprite enables and raw overflow bookkeeping",
+      "version": "has_restart true for v14..v17; older formats normalize absent sprite history",
+      "firstConsumer": "collision delay source",
+      "reason": "Registered collision event source.",
+      "candidate": "Local constant-slice 32-bit read/write, same original field offsets, no state removal"
+    },
+    {
+      "group": "G06 SPRITE STATE",
+      "module": "rtl/vdp_sprites.vhd",
+      "signal": "overflow_reg",
+      "width": 1,
+      "count": 1,
+      "totalBits": 1,
+      "offset": 4763,
+      "snapshot": "Existing post-T record; parallel 4800-bit register bank per VDP",
+      "restore": "Existing ss_regs_set plus sprite_valid/default selection",
+      "currentMux": "Capture/hold/zero/rotate/insert scratch FF; distributed receiver selectors",
+      "freeze": "Accepted T completes; ss_freeze suppresses all guest VDP/pixel/sprite enables and raw overflow bookkeeping",
+      "version": "has_restart true for v14..v17; older formats normalize absent sprite history",
+      "firstConsumer": "VDP overflow/status bookkeeping",
+      "reason": "Registered overflow event source.",
+      "candidate": "Local constant-slice 32-bit read/write, same original field offsets, no state removal"
+    },
+    {
+      "group": "G06 SPRITE STATE",
+      "module": "rtl/vdp.vhd",
+      "signal": "xspr_collide_shift",
+      "width": 14,
+      "count": 1,
+      "totalBits": 14,
+      "offset": 4764,
+      "snapshot": "Existing post-T record; parallel 4800-bit register bank per VDP",
+      "restore": "Existing ss_regs_set plus sprite_valid/default selection",
+      "currentMux": "Capture/hold/zero/rotate/insert scratch FF; distributed receiver selectors",
+      "freeze": "Accepted T completes; ss_freeze suppresses all guest VDP/pixel/sprite enables and raw overflow bookkeeping",
+      "version": "has_restart true for v14..v17; older formats normalize absent sprite history",
+      "firstConsumer": "collision flag and IRQ timing",
+      "reason": "Full pending collision-delay history, shared G04 dependency.",
+      "candidate": "Local constant-slice 32-bit read/write, same original field offsets, no state removal"
+    }
+  ],
+  "map": [
+    {
+      "word": 0,
+      "lowBit": 0,
+      "highBit": 31,
+      "mask": "ffffffff",
+      "externalDDRWord": 0,
+      "externalHalf": "low32"
+    },
+    {
+      "word": 1,
+      "lowBit": 32,
+      "highBit": 63,
+      "mask": "ffffffff",
+      "externalDDRWord": 0,
+      "externalHalf": "high32"
+    },
+    {
+      "word": 2,
+      "lowBit": 64,
+      "highBit": 95,
+      "mask": "ffffffff",
+      "externalDDRWord": 1,
+      "externalHalf": "low32"
+    },
+    {
+      "word": 3,
+      "lowBit": 96,
+      "highBit": 127,
+      "mask": "ffffffff",
+      "externalDDRWord": 1,
+      "externalHalf": "high32"
+    },
+    {
+      "word": 4,
+      "lowBit": 128,
+      "highBit": 159,
+      "mask": "ffffffff",
+      "externalDDRWord": 2,
+      "externalHalf": "low32"
+    },
+    {
+      "word": 5,
+      "lowBit": 160,
+      "highBit": 191,
+      "mask": "ffffffff",
+      "externalDDRWord": 2,
+      "externalHalf": "high32"
+    },
+    {
+      "word": 6,
+      "lowBit": 192,
+      "highBit": 223,
+      "mask": "ffffffff",
+      "externalDDRWord": 3,
+      "externalHalf": "low32"
+    },
+    {
+      "word": 7,
+      "lowBit": 224,
+      "highBit": 255,
+      "mask": "ffffffff",
+      "externalDDRWord": 3,
+      "externalHalf": "high32"
+    },
+    {
+      "word": 8,
+      "lowBit": 256,
+      "highBit": 287,
+      "mask": "ffffffff",
+      "externalDDRWord": 4,
+      "externalHalf": "low32"
+    },
+    {
+      "word": 9,
+      "lowBit": 288,
+      "highBit": 319,
+      "mask": "ffffffff",
+      "externalDDRWord": 4,
+      "externalHalf": "high32"
+    },
+    {
+      "word": 10,
+      "lowBit": 320,
+      "highBit": 351,
+      "mask": "ffffffff",
+      "externalDDRWord": 5,
+      "externalHalf": "low32"
+    },
+    {
+      "word": 11,
+      "lowBit": 352,
+      "highBit": 383,
+      "mask": "ffffffff",
+      "externalDDRWord": 5,
+      "externalHalf": "high32"
+    },
+    {
+      "word": 12,
+      "lowBit": 384,
+      "highBit": 415,
+      "mask": "ffffffff",
+      "externalDDRWord": 6,
+      "externalHalf": "low32"
+    },
+    {
+      "word": 13,
+      "lowBit": 416,
+      "highBit": 447,
+      "mask": "ffffffff",
+      "externalDDRWord": 6,
+      "externalHalf": "high32"
+    },
+    {
+      "word": 14,
+      "lowBit": 448,
+      "highBit": 479,
+      "mask": "ffffffff",
+      "externalDDRWord": 7,
+      "externalHalf": "low32"
+    },
+    {
+      "word": 15,
+      "lowBit": 480,
+      "highBit": 511,
+      "mask": "ffffffff",
+      "externalDDRWord": 7,
+      "externalHalf": "high32"
+    },
+    {
+      "word": 16,
+      "lowBit": 512,
+      "highBit": 543,
+      "mask": "ffffffff",
+      "externalDDRWord": 8,
+      "externalHalf": "low32"
+    },
+    {
+      "word": 17,
+      "lowBit": 544,
+      "highBit": 575,
+      "mask": "ffffffff",
+      "externalDDRWord": 8,
+      "externalHalf": "high32"
+    },
+    {
+      "word": 18,
+      "lowBit": 576,
+      "highBit": 607,
+      "mask": "ffffffff",
+      "externalDDRWord": 9,
+      "externalHalf": "low32"
+    },
+    {
+      "word": 19,
+      "lowBit": 608,
+      "highBit": 639,
+      "mask": "ffffffff",
+      "externalDDRWord": 9,
+      "externalHalf": "high32"
+    },
+    {
+      "word": 20,
+      "lowBit": 640,
+      "highBit": 671,
+      "mask": "ffffffff",
+      "externalDDRWord": 10,
+      "externalHalf": "low32"
+    },
+    {
+      "word": 21,
+      "lowBit": 672,
+      "highBit": 703,
+      "mask": "ffffffff",
+      "externalDDRWord": 10,
+      "externalHalf": "high32"
+    },
+    {
+      "word": 22,
+      "lowBit": 704,
+      "highBit": 735,
+      "mask": "ffffffff",
+      "externalDDRWord": 11,
+      "externalHalf": "low32"
+    },
+    {
+      "word": 23,
+      "lowBit": 736,
+      "highBit": 767,
+      "mask": "ffffffff",
+      "externalDDRWord": 11,
+      "externalHalf": "high32"
+    },
+    {
+      "word": 24,
+      "lowBit": 768,
+      "highBit": 799,
+      "mask": "ffffffff",
+      "externalDDRWord": 12,
+      "externalHalf": "low32"
+    },
+    {
+      "word": 25,
+      "lowBit": 800,
+      "highBit": 831,
+      "mask": "ffffffff",
+      "externalDDRWord": 12,
+      "externalHalf": "high32"
+    },
+    {
+      "word": 26,
+      "lowBit": 832,
+      "highBit": 863,
+      "mask": "ffffffff",
+      "externalDDRWord": 13,
+      "externalHalf": "low32"
+    },
+    {
+      "word": 27,
+      "lowBit": 864,
+      "highBit": 895,
+      "mask": "ffffffff",
+      "externalDDRWord": 13,
+      "externalHalf": "high32"
+    },
+    {
+      "word": 28,
+      "lowBit": 896,
+      "highBit": 927,
+      "mask": "ffffffff",
+      "externalDDRWord": 14,
+      "externalHalf": "low32"
+    },
+    {
+      "word": 29,
+      "lowBit": 928,
+      "highBit": 959,
+      "mask": "ffffffff",
+      "externalDDRWord": 14,
+      "externalHalf": "high32"
+    },
+    {
+      "word": 30,
+      "lowBit": 960,
+      "highBit": 991,
+      "mask": "ffffffff",
+      "externalDDRWord": 15,
+      "externalHalf": "low32"
+    },
+    {
+      "word": 31,
+      "lowBit": 992,
+      "highBit": 1023,
+      "mask": "ffffffff",
+      "externalDDRWord": 15,
+      "externalHalf": "high32"
+    },
+    {
+      "word": 32,
+      "lowBit": 1024,
+      "highBit": 1055,
+      "mask": "ffffffff",
+      "externalDDRWord": 16,
+      "externalHalf": "low32"
+    },
+    {
+      "word": 33,
+      "lowBit": 1056,
+      "highBit": 1087,
+      "mask": "ffffffff",
+      "externalDDRWord": 16,
+      "externalHalf": "high32"
+    },
+    {
+      "word": 34,
+      "lowBit": 1088,
+      "highBit": 1119,
+      "mask": "ffffffff",
+      "externalDDRWord": 17,
+      "externalHalf": "low32"
+    },
+    {
+      "word": 35,
+      "lowBit": 1120,
+      "highBit": 1151,
+      "mask": "ffffffff",
+      "externalDDRWord": 17,
+      "externalHalf": "high32"
+    },
+    {
+      "word": 36,
+      "lowBit": 1152,
+      "highBit": 1183,
+      "mask": "ffffffff",
+      "externalDDRWord": 18,
+      "externalHalf": "low32"
+    },
+    {
+      "word": 37,
+      "lowBit": 1184,
+      "highBit": 1215,
+      "mask": "ffffffff",
+      "externalDDRWord": 18,
+      "externalHalf": "high32"
+    },
+    {
+      "word": 38,
+      "lowBit": 1216,
+      "highBit": 1247,
+      "mask": "ffffffff",
+      "externalDDRWord": 19,
+      "externalHalf": "low32"
+    },
+    {
+      "word": 39,
+      "lowBit": 1248,
+      "highBit": 1279,
+      "mask": "ffffffff",
+      "externalDDRWord": 19,
+      "externalHalf": "high32"
+    },
+    {
+      "word": 40,
+      "lowBit": 1280,
+      "highBit": 1311,
+      "mask": "ffffffff",
+      "externalDDRWord": 20,
+      "externalHalf": "low32"
+    },
+    {
+      "word": 41,
+      "lowBit": 1312,
+      "highBit": 1343,
+      "mask": "ffffffff",
+      "externalDDRWord": 20,
+      "externalHalf": "high32"
+    },
+    {
+      "word": 42,
+      "lowBit": 1344,
+      "highBit": 1375,
+      "mask": "ffffffff",
+      "externalDDRWord": 21,
+      "externalHalf": "low32"
+    },
+    {
+      "word": 43,
+      "lowBit": 1376,
+      "highBit": 1407,
+      "mask": "ffffffff",
+      "externalDDRWord": 21,
+      "externalHalf": "high32"
+    },
+    {
+      "word": 44,
+      "lowBit": 1408,
+      "highBit": 1439,
+      "mask": "ffffffff",
+      "externalDDRWord": 22,
+      "externalHalf": "low32"
+    },
+    {
+      "word": 45,
+      "lowBit": 1440,
+      "highBit": 1471,
+      "mask": "ffffffff",
+      "externalDDRWord": 22,
+      "externalHalf": "high32"
+    },
+    {
+      "word": 46,
+      "lowBit": 1472,
+      "highBit": 1503,
+      "mask": "ffffffff",
+      "externalDDRWord": 23,
+      "externalHalf": "low32"
+    },
+    {
+      "word": 47,
+      "lowBit": 1504,
+      "highBit": 1535,
+      "mask": "ffffffff",
+      "externalDDRWord": 23,
+      "externalHalf": "high32"
+    },
+    {
+      "word": 48,
+      "lowBit": 1536,
+      "highBit": 1567,
+      "mask": "ffffffff",
+      "externalDDRWord": 24,
+      "externalHalf": "low32"
+    },
+    {
+      "word": 49,
+      "lowBit": 1568,
+      "highBit": 1599,
+      "mask": "ffffffff",
+      "externalDDRWord": 24,
+      "externalHalf": "high32"
+    },
+    {
+      "word": 50,
+      "lowBit": 1600,
+      "highBit": 1631,
+      "mask": "ffffffff",
+      "externalDDRWord": 25,
+      "externalHalf": "low32"
+    },
+    {
+      "word": 51,
+      "lowBit": 1632,
+      "highBit": 1663,
+      "mask": "ffffffff",
+      "externalDDRWord": 25,
+      "externalHalf": "high32"
+    },
+    {
+      "word": 52,
+      "lowBit": 1664,
+      "highBit": 1695,
+      "mask": "ffffffff",
+      "externalDDRWord": 26,
+      "externalHalf": "low32"
+    },
+    {
+      "word": 53,
+      "lowBit": 1696,
+      "highBit": 1727,
+      "mask": "ffffffff",
+      "externalDDRWord": 26,
+      "externalHalf": "high32"
+    },
+    {
+      "word": 54,
+      "lowBit": 1728,
+      "highBit": 1759,
+      "mask": "ffffffff",
+      "externalDDRWord": 27,
+      "externalHalf": "low32"
+    },
+    {
+      "word": 55,
+      "lowBit": 1760,
+      "highBit": 1791,
+      "mask": "ffffffff",
+      "externalDDRWord": 27,
+      "externalHalf": "high32"
+    },
+    {
+      "word": 56,
+      "lowBit": 1792,
+      "highBit": 1823,
+      "mask": "ffffffff",
+      "externalDDRWord": 28,
+      "externalHalf": "low32"
+    },
+    {
+      "word": 57,
+      "lowBit": 1824,
+      "highBit": 1855,
+      "mask": "ffffffff",
+      "externalDDRWord": 28,
+      "externalHalf": "high32"
+    },
+    {
+      "word": 58,
+      "lowBit": 1856,
+      "highBit": 1887,
+      "mask": "ffffffff",
+      "externalDDRWord": 29,
+      "externalHalf": "low32"
+    },
+    {
+      "word": 59,
+      "lowBit": 1888,
+      "highBit": 1919,
+      "mask": "ffffffff",
+      "externalDDRWord": 29,
+      "externalHalf": "high32"
+    },
+    {
+      "word": 60,
+      "lowBit": 1920,
+      "highBit": 1951,
+      "mask": "ffffffff",
+      "externalDDRWord": 30,
+      "externalHalf": "low32"
+    },
+    {
+      "word": 61,
+      "lowBit": 1952,
+      "highBit": 1983,
+      "mask": "ffffffff",
+      "externalDDRWord": 30,
+      "externalHalf": "high32"
+    },
+    {
+      "word": 62,
+      "lowBit": 1984,
+      "highBit": 2015,
+      "mask": "ffffffff",
+      "externalDDRWord": 31,
+      "externalHalf": "low32"
+    },
+    {
+      "word": 63,
+      "lowBit": 2016,
+      "highBit": 2047,
+      "mask": "ffffffff",
+      "externalDDRWord": 31,
+      "externalHalf": "high32"
+    },
+    {
+      "word": 64,
+      "lowBit": 2048,
+      "highBit": 2079,
+      "mask": "ffffffff",
+      "externalDDRWord": 32,
+      "externalHalf": "low32"
+    },
+    {
+      "word": 65,
+      "lowBit": 2080,
+      "highBit": 2111,
+      "mask": "ffffffff",
+      "externalDDRWord": 32,
+      "externalHalf": "high32"
+    },
+    {
+      "word": 66,
+      "lowBit": 2112,
+      "highBit": 2143,
+      "mask": "ffffffff",
+      "externalDDRWord": 33,
+      "externalHalf": "low32"
+    },
+    {
+      "word": 67,
+      "lowBit": 2144,
+      "highBit": 2175,
+      "mask": "ffffffff",
+      "externalDDRWord": 33,
+      "externalHalf": "high32"
+    },
+    {
+      "word": 68,
+      "lowBit": 2176,
+      "highBit": 2207,
+      "mask": "ffffffff",
+      "externalDDRWord": 34,
+      "externalHalf": "low32"
+    },
+    {
+      "word": 69,
+      "lowBit": 2208,
+      "highBit": 2239,
+      "mask": "ffffffff",
+      "externalDDRWord": 34,
+      "externalHalf": "high32"
+    },
+    {
+      "word": 70,
+      "lowBit": 2240,
+      "highBit": 2271,
+      "mask": "ffffffff",
+      "externalDDRWord": 35,
+      "externalHalf": "low32"
+    },
+    {
+      "word": 71,
+      "lowBit": 2272,
+      "highBit": 2303,
+      "mask": "ffffffff",
+      "externalDDRWord": 35,
+      "externalHalf": "high32"
+    },
+    {
+      "word": 72,
+      "lowBit": 2304,
+      "highBit": 2335,
+      "mask": "ffffffff",
+      "externalDDRWord": 36,
+      "externalHalf": "low32"
+    },
+    {
+      "word": 73,
+      "lowBit": 2336,
+      "highBit": 2367,
+      "mask": "ffffffff",
+      "externalDDRWord": 36,
+      "externalHalf": "high32"
+    },
+    {
+      "word": 74,
+      "lowBit": 2368,
+      "highBit": 2399,
+      "mask": "ffffffff",
+      "externalDDRWord": 37,
+      "externalHalf": "low32"
+    },
+    {
+      "word": 75,
+      "lowBit": 2400,
+      "highBit": 2431,
+      "mask": "ffffffff",
+      "externalDDRWord": 37,
+      "externalHalf": "high32"
+    },
+    {
+      "word": 76,
+      "lowBit": 2432,
+      "highBit": 2463,
+      "mask": "ffffffff",
+      "externalDDRWord": 38,
+      "externalHalf": "low32"
+    },
+    {
+      "word": 77,
+      "lowBit": 2464,
+      "highBit": 2495,
+      "mask": "ffffffff",
+      "externalDDRWord": 38,
+      "externalHalf": "high32"
+    },
+    {
+      "word": 78,
+      "lowBit": 2496,
+      "highBit": 2527,
+      "mask": "ffffffff",
+      "externalDDRWord": 39,
+      "externalHalf": "low32"
+    },
+    {
+      "word": 79,
+      "lowBit": 2528,
+      "highBit": 2559,
+      "mask": "ffffffff",
+      "externalDDRWord": 39,
+      "externalHalf": "high32"
+    },
+    {
+      "word": 80,
+      "lowBit": 2560,
+      "highBit": 2591,
+      "mask": "ffffffff",
+      "externalDDRWord": 40,
+      "externalHalf": "low32"
+    },
+    {
+      "word": 81,
+      "lowBit": 2592,
+      "highBit": 2623,
+      "mask": "ffffffff",
+      "externalDDRWord": 40,
+      "externalHalf": "high32"
+    },
+    {
+      "word": 82,
+      "lowBit": 2624,
+      "highBit": 2655,
+      "mask": "ffffffff",
+      "externalDDRWord": 41,
+      "externalHalf": "low32"
+    },
+    {
+      "word": 83,
+      "lowBit": 2656,
+      "highBit": 2687,
+      "mask": "ffffffff",
+      "externalDDRWord": 41,
+      "externalHalf": "high32"
+    },
+    {
+      "word": 84,
+      "lowBit": 2688,
+      "highBit": 2719,
+      "mask": "ffffffff",
+      "externalDDRWord": 42,
+      "externalHalf": "low32"
+    },
+    {
+      "word": 85,
+      "lowBit": 2720,
+      "highBit": 2751,
+      "mask": "ffffffff",
+      "externalDDRWord": 42,
+      "externalHalf": "high32"
+    },
+    {
+      "word": 86,
+      "lowBit": 2752,
+      "highBit": 2783,
+      "mask": "ffffffff",
+      "externalDDRWord": 43,
+      "externalHalf": "low32"
+    },
+    {
+      "word": 87,
+      "lowBit": 2784,
+      "highBit": 2815,
+      "mask": "ffffffff",
+      "externalDDRWord": 43,
+      "externalHalf": "high32"
+    },
+    {
+      "word": 88,
+      "lowBit": 2816,
+      "highBit": 2847,
+      "mask": "ffffffff",
+      "externalDDRWord": 44,
+      "externalHalf": "low32"
+    },
+    {
+      "word": 89,
+      "lowBit": 2848,
+      "highBit": 2879,
+      "mask": "ffffffff",
+      "externalDDRWord": 44,
+      "externalHalf": "high32"
+    },
+    {
+      "word": 90,
+      "lowBit": 2880,
+      "highBit": 2911,
+      "mask": "ffffffff",
+      "externalDDRWord": 45,
+      "externalHalf": "low32"
+    },
+    {
+      "word": 91,
+      "lowBit": 2912,
+      "highBit": 2943,
+      "mask": "ffffffff",
+      "externalDDRWord": 45,
+      "externalHalf": "high32"
+    },
+    {
+      "word": 92,
+      "lowBit": 2944,
+      "highBit": 2975,
+      "mask": "ffffffff",
+      "externalDDRWord": 46,
+      "externalHalf": "low32"
+    },
+    {
+      "word": 93,
+      "lowBit": 2976,
+      "highBit": 3007,
+      "mask": "ffffffff",
+      "externalDDRWord": 46,
+      "externalHalf": "high32"
+    },
+    {
+      "word": 94,
+      "lowBit": 3008,
+      "highBit": 3039,
+      "mask": "ffffffff",
+      "externalDDRWord": 47,
+      "externalHalf": "low32"
+    },
+    {
+      "word": 95,
+      "lowBit": 3040,
+      "highBit": 3071,
+      "mask": "ffffffff",
+      "externalDDRWord": 47,
+      "externalHalf": "high32"
+    },
+    {
+      "word": 96,
+      "lowBit": 3072,
+      "highBit": 3103,
+      "mask": "ffffffff",
+      "externalDDRWord": 48,
+      "externalHalf": "low32"
+    },
+    {
+      "word": 97,
+      "lowBit": 3104,
+      "highBit": 3135,
+      "mask": "ffffffff",
+      "externalDDRWord": 48,
+      "externalHalf": "high32"
+    },
+    {
+      "word": 98,
+      "lowBit": 3136,
+      "highBit": 3167,
+      "mask": "ffffffff",
+      "externalDDRWord": 49,
+      "externalHalf": "low32"
+    },
+    {
+      "word": 99,
+      "lowBit": 3168,
+      "highBit": 3199,
+      "mask": "ffffffff",
+      "externalDDRWord": 49,
+      "externalHalf": "high32"
+    },
+    {
+      "word": 100,
+      "lowBit": 3200,
+      "highBit": 3231,
+      "mask": "ffffffff",
+      "externalDDRWord": 50,
+      "externalHalf": "low32"
+    },
+    {
+      "word": 101,
+      "lowBit": 3232,
+      "highBit": 3263,
+      "mask": "ffffffff",
+      "externalDDRWord": 50,
+      "externalHalf": "high32"
+    },
+    {
+      "word": 102,
+      "lowBit": 3264,
+      "highBit": 3295,
+      "mask": "ffffffff",
+      "externalDDRWord": 51,
+      "externalHalf": "low32"
+    },
+    {
+      "word": 103,
+      "lowBit": 3296,
+      "highBit": 3327,
+      "mask": "ffffffff",
+      "externalDDRWord": 51,
+      "externalHalf": "high32"
+    },
+    {
+      "word": 104,
+      "lowBit": 3328,
+      "highBit": 3359,
+      "mask": "ffffffff",
+      "externalDDRWord": 52,
+      "externalHalf": "low32"
+    },
+    {
+      "word": 105,
+      "lowBit": 3360,
+      "highBit": 3391,
+      "mask": "ffffffff",
+      "externalDDRWord": 52,
+      "externalHalf": "high32"
+    },
+    {
+      "word": 106,
+      "lowBit": 3392,
+      "highBit": 3423,
+      "mask": "ffffffff",
+      "externalDDRWord": 53,
+      "externalHalf": "low32"
+    },
+    {
+      "word": 107,
+      "lowBit": 3424,
+      "highBit": 3455,
+      "mask": "ffffffff",
+      "externalDDRWord": 53,
+      "externalHalf": "high32"
+    },
+    {
+      "word": 108,
+      "lowBit": 3456,
+      "highBit": 3487,
+      "mask": "ffffffff",
+      "externalDDRWord": 54,
+      "externalHalf": "low32"
+    },
+    {
+      "word": 109,
+      "lowBit": 3488,
+      "highBit": 3519,
+      "mask": "ffffffff",
+      "externalDDRWord": 54,
+      "externalHalf": "high32"
+    },
+    {
+      "word": 110,
+      "lowBit": 3520,
+      "highBit": 3551,
+      "mask": "ffffffff",
+      "externalDDRWord": 55,
+      "externalHalf": "low32"
+    },
+    {
+      "word": 111,
+      "lowBit": 3552,
+      "highBit": 3583,
+      "mask": "ffffffff",
+      "externalDDRWord": 55,
+      "externalHalf": "high32"
+    },
+    {
+      "word": 112,
+      "lowBit": 3584,
+      "highBit": 3615,
+      "mask": "ffffffff",
+      "externalDDRWord": 56,
+      "externalHalf": "low32"
+    },
+    {
+      "word": 113,
+      "lowBit": 3616,
+      "highBit": 3647,
+      "mask": "ffffffff",
+      "externalDDRWord": 56,
+      "externalHalf": "high32"
+    },
+    {
+      "word": 114,
+      "lowBit": 3648,
+      "highBit": 3679,
+      "mask": "ffffffff",
+      "externalDDRWord": 57,
+      "externalHalf": "low32"
+    },
+    {
+      "word": 115,
+      "lowBit": 3680,
+      "highBit": 3711,
+      "mask": "ffffffff",
+      "externalDDRWord": 57,
+      "externalHalf": "high32"
+    },
+    {
+      "word": 116,
+      "lowBit": 3712,
+      "highBit": 3743,
+      "mask": "ffffffff",
+      "externalDDRWord": 58,
+      "externalHalf": "low32"
+    },
+    {
+      "word": 117,
+      "lowBit": 3744,
+      "highBit": 3775,
+      "mask": "ffffffff",
+      "externalDDRWord": 58,
+      "externalHalf": "high32"
+    },
+    {
+      "word": 118,
+      "lowBit": 3776,
+      "highBit": 3807,
+      "mask": "ffffffff",
+      "externalDDRWord": 59,
+      "externalHalf": "low32"
+    },
+    {
+      "word": 119,
+      "lowBit": 3808,
+      "highBit": 3839,
+      "mask": "ffffffff",
+      "externalDDRWord": 59,
+      "externalHalf": "high32"
+    },
+    {
+      "word": 120,
+      "lowBit": 3840,
+      "highBit": 3871,
+      "mask": "ffffffff",
+      "externalDDRWord": 60,
+      "externalHalf": "low32"
+    },
+    {
+      "word": 121,
+      "lowBit": 3872,
+      "highBit": 3903,
+      "mask": "ffffffff",
+      "externalDDRWord": 60,
+      "externalHalf": "high32"
+    },
+    {
+      "word": 122,
+      "lowBit": 3904,
+      "highBit": 3935,
+      "mask": "ffffffff",
+      "externalDDRWord": 61,
+      "externalHalf": "low32"
+    },
+    {
+      "word": 123,
+      "lowBit": 3936,
+      "highBit": 3967,
+      "mask": "ffffffff",
+      "externalDDRWord": 61,
+      "externalHalf": "high32"
+    },
+    {
+      "word": 124,
+      "lowBit": 3968,
+      "highBit": 3999,
+      "mask": "ffffffff",
+      "externalDDRWord": 62,
+      "externalHalf": "low32"
+    },
+    {
+      "word": 125,
+      "lowBit": 4000,
+      "highBit": 4031,
+      "mask": "ffffffff",
+      "externalDDRWord": 62,
+      "externalHalf": "high32"
+    },
+    {
+      "word": 126,
+      "lowBit": 4032,
+      "highBit": 4063,
+      "mask": "ffffffff",
+      "externalDDRWord": 63,
+      "externalHalf": "low32"
+    },
+    {
+      "word": 127,
+      "lowBit": 4064,
+      "highBit": 4095,
+      "mask": "ffffffff",
+      "externalDDRWord": 63,
+      "externalHalf": "high32"
+    },
+    {
+      "word": 128,
+      "lowBit": 4096,
+      "highBit": 4127,
+      "mask": "ffffffff",
+      "externalDDRWord": 64,
+      "externalHalf": "low32"
+    },
+    {
+      "word": 129,
+      "lowBit": 4128,
+      "highBit": 4159,
+      "mask": "ffffffff",
+      "externalDDRWord": 64,
+      "externalHalf": "high32"
+    },
+    {
+      "word": 130,
+      "lowBit": 4160,
+      "highBit": 4191,
+      "mask": "ffffffff",
+      "externalDDRWord": 65,
+      "externalHalf": "low32"
+    },
+    {
+      "word": 131,
+      "lowBit": 4192,
+      "highBit": 4223,
+      "mask": "ffffffff",
+      "externalDDRWord": 65,
+      "externalHalf": "high32"
+    },
+    {
+      "word": 132,
+      "lowBit": 4224,
+      "highBit": 4255,
+      "mask": "ffffffff",
+      "externalDDRWord": 66,
+      "externalHalf": "low32"
+    },
+    {
+      "word": 133,
+      "lowBit": 4256,
+      "highBit": 4287,
+      "mask": "ffffffff",
+      "externalDDRWord": 66,
+      "externalHalf": "high32"
+    },
+    {
+      "word": 134,
+      "lowBit": 4288,
+      "highBit": 4319,
+      "mask": "ffffffff",
+      "externalDDRWord": 67,
+      "externalHalf": "low32"
+    },
+    {
+      "word": 135,
+      "lowBit": 4320,
+      "highBit": 4351,
+      "mask": "ffffffff",
+      "externalDDRWord": 67,
+      "externalHalf": "high32"
+    },
+    {
+      "word": 136,
+      "lowBit": 4352,
+      "highBit": 4383,
+      "mask": "ffffffff",
+      "externalDDRWord": 68,
+      "externalHalf": "low32"
+    },
+    {
+      "word": 137,
+      "lowBit": 4384,
+      "highBit": 4415,
+      "mask": "ffffffff",
+      "externalDDRWord": 68,
+      "externalHalf": "high32"
+    },
+    {
+      "word": 138,
+      "lowBit": 4416,
+      "highBit": 4447,
+      "mask": "ffffffff",
+      "externalDDRWord": 69,
+      "externalHalf": "low32"
+    },
+    {
+      "word": 139,
+      "lowBit": 4448,
+      "highBit": 4479,
+      "mask": "ffffffff",
+      "externalDDRWord": 69,
+      "externalHalf": "high32"
+    },
+    {
+      "word": 140,
+      "lowBit": 4480,
+      "highBit": 4511,
+      "mask": "ffffffff",
+      "externalDDRWord": 70,
+      "externalHalf": "low32"
+    },
+    {
+      "word": 141,
+      "lowBit": 4512,
+      "highBit": 4543,
+      "mask": "ffffffff",
+      "externalDDRWord": 70,
+      "externalHalf": "high32"
+    },
+    {
+      "word": 142,
+      "lowBit": 4544,
+      "highBit": 4575,
+      "mask": "ffffffff",
+      "externalDDRWord": 71,
+      "externalHalf": "low32"
+    },
+    {
+      "word": 143,
+      "lowBit": 4576,
+      "highBit": 4607,
+      "mask": "ffffffff",
+      "externalDDRWord": 71,
+      "externalHalf": "high32"
+    },
+    {
+      "word": 144,
+      "lowBit": 4608,
+      "highBit": 4639,
+      "mask": "ffffffff",
+      "externalDDRWord": 72,
+      "externalHalf": "low32"
+    },
+    {
+      "word": 145,
+      "lowBit": 4640,
+      "highBit": 4671,
+      "mask": "ffffffff",
+      "externalDDRWord": 72,
+      "externalHalf": "high32"
+    },
+    {
+      "word": 146,
+      "lowBit": 4672,
+      "highBit": 4703,
+      "mask": "ffffffff",
+      "externalDDRWord": 73,
+      "externalHalf": "low32"
+    },
+    {
+      "word": 147,
+      "lowBit": 4704,
+      "highBit": 4735,
+      "mask": "ffffffff",
+      "externalDDRWord": 73,
+      "externalHalf": "high32"
+    },
+    {
+      "word": 148,
+      "lowBit": 4736,
+      "highBit": 4767,
+      "mask": "ffffffff",
+      "externalDDRWord": 74,
+      "externalHalf": "low32"
+    },
+    {
+      "word": 149,
+      "lowBit": 4768,
+      "highBit": 4777,
+      "mask": "000003ff",
+      "externalDDRWord": 74,
+      "externalHalf": "high32"
+    }
+  ],
+  "g10": [
+    {
+      "group": "G10 DETERMINISTIC RESTART STATE",
+      "module": "rtl/savestates.sv",
+      "signal": "phase_snap",
+      "bits": 2,
+      "representation": "saved class 0/10/20/25, word02f bits1:0",
+      "firstConsumer": "First native CPU/VDP/pixel/sprite event order",
+      "candidate": "UNCHANGED",
+      "reason": "Preserve the committed deterministic restart contract."
+    },
+    {
+      "group": "G10 DETERMINISTIC RESTART STATE",
+      "module": "rtl/savestates.sv",
+      "signal": "capture_tick_snap",
+      "bits": 1,
+      "representation": "word02f bit3",
+      "firstConsumer": "One versus two private historical CPU replay ticks",
+      "candidate": "UNCHANGED",
+      "reason": "Preserve the committed deterministic restart contract."
+    },
+    {
+      "group": "G10 DETERMINISTIC RESTART STATE",
+      "module": "SMS.sv",
+      "signal": "clkd and ce_cpu/ce_vdp/ce_pix/ce_sp",
+      "bits": 9,
+      "representation": "existing live divider5 plus four enables; install from captured class",
+      "firstConsumer": "Falling-edge canonical commit and first logical T+1",
+      "candidate": "UNCHANGED",
+      "reason": "Preserve the committed deterministic restart contract."
+    },
+    {
+      "group": "G10 DETERMINISTIC RESTART STATE",
+      "module": "rtl/T80/T80s.vhd",
+      "signal": "private NMI/context replay controls",
+      "bits": null,
+      "representation": "ReplayT2, RestoreHold, wrapper replay state; no independent new payload",
+      "firstConsumer": "Historical CPU reconstruction before VDP release",
+      "candidate": "UNCHANGED",
+      "reason": "Preserve the committed deterministic restart contract."
+    },
+    {
+      "group": "G10 DETERMINISTIC RESTART STATE",
+      "module": "rtl/savestates.sv",
+      "signal": "ST_CPU_PREPARE/ST_PHASE_COMMIT",
+      "bits": null,
+      "representation": "states105/106 plus phase handshake; no new historical payload",
+      "firstConsumer": "Replay completion, phase acknowledgment, beam/release ordering",
+      "candidate": "UNCHANGED",
+      "reason": "Preserve the committed deterministic restart contract."
+    }
+  ],
+  "shared": [
+    {
+      "signal": "ss_freeze",
+      "bits": 1,
+      "role": "Post-T guest hold; raw overflow freeze; remain asserted through complete sequential apply."
+    },
+    {
+      "signal": "ss_regs_set / vdp2_regs_set",
+      "bits": 2,
+      "role": "Architectural register install and evaluator WAITING/count0/index0 normalization; serialized fields already installed privately."
+    },
+    {
+      "signal": "has_restart / sprite_valid",
+      "bits": 1,
+      "role": "Version-presence and deterministic legacy zero selection; remains in controller, removed from full-width receiver choice when sequential generic true."
+    },
+    {
+      "signal": "sprite_second / sprite_word",
+      "bits": 8,
+      "role": "Existing two-bank/75-word transport indexing; same external addresses."
+    },
+    {
+      "signal": "System E ownership",
+      "bits": 1,
+      "role": "Word02f bit2; absent second payload zero and inactive second VDP not modified."
+    },
+    {
+      "signal": "video_state_in/set",
+      "bits": 23,
+      "role": "Existing post-T beam install, acknowledged phase/release; unchanged."
+    },
+    {
+      "signal": "private CPU memory-address ownership",
+      "bits": null,
+      "role": "Existing 14/15-bit address muxes and no guest writes during replay; unchanged."
+    },
+    {
+      "signal": "evaluator state/count/index",
+      "bits": 16,
+      "role": "Not serialized by the existing accepted-boundary proof; all three live declarations remain and normalize at original strobe."
+    }
+  ],
+  "attribution": {
+    "measured": {
+      "neededDelta": 8051,
+      "placedDelta": 5458,
+      "synthesisFFDelta": 9603,
+      "fittedFFDelta": 11171,
+      "controllerSynthesisFFDelta": 9601,
+      "logicALUTDelta": 5818,
+      "routingALUTDelta": 5399,
+      "packingGapDelta": -2593
+    },
+    "inferred": "9600 snapshot FF explain almost all mapped FF growth; broad scratch transfer/restore selection and high-fanout controls are principal structural targets.",
+    "unknown": "No additive isolated ALM decomposition for version decode, fanout, routing, live restore and global remapping. Packing improved in aggregate; degradation is not the dominant measured cause."
+  }
+}

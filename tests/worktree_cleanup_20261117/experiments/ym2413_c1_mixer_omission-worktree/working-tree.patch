@@ -1,0 +1,198 @@
+diff --git a/rtl/VM2413/outputgenerator.vhd b/rtl/VM2413/outputgenerator.vhd
+index 629342b0..af0d00d3 100644
+--- a/rtl/VM2413/outputgenerator.vhd
++++ b/rtl/VM2413/outputgenerator.vhd
+@@ -216,7 +216,7 @@ ss_v_mo_wdata := CONV_SIGNED_LI_VECTOR(mo_wdata);
+ 
+ if ss_read='1' then
+ case conv_integer(ss_addr) is
+-when 100 =>
++when 79 =>
+ ss_response(0) := fb_wr;
+ ss_response(1) := mo_wr;
+ ss_response(5 downto 2) := ss_v_fb_addr(3 downto 0);
+@@ -227,7 +227,7 @@ when others => null; end case;
+ end if;
+ if ss_write='1' then
+ case conv_integer(ss_addr) is
+-when 100 =>
++when 79 =>
+ ss_v_fb_wr(0) := ss_wdata(0);
+ fb_wr <= ss_v_fb_wr(0);
+ ss_v_mo_wr(0) := ss_wdata(1);
+diff --git a/rtl/VM2413/outputmemory.vhd b/rtl/VM2413/outputmemory.vhd
+index 8a74148d..fff9ff32 100644
+--- a/rtl/VM2413/outputmemory.vhd
++++ b/rtl/VM2413/outputmemory.vhd
+@@ -60,7 +60,7 @@ architecture RTL of OutputMemory is
+   type SIGNED_LI_ARRAY_TYPE is array (0 to 18) of SIGNED_LI_VECTOR_TYPE;
+   signal data_array : SIGNED_LI_ARRAY_TYPE;
+   attribute ramstyle : string;
+-  attribute ramstyle of data_array : signal is "logic";
++  attribute ramstyle of data_array : signal is "MLAB";
+ 
+     signal ss_local_data : std_logic_vector(31 downto 0) := (others=>'0');
+     signal ss_mem_active : std_logic;
+diff --git a/rtl/VM2413/temporalmixer.vhd b/rtl/VM2413/temporalmixer.vhd
+index 18574930..b4e1918d 100644
+--- a/rtl/VM2413/temporalmixer.vhd
++++ b/rtl/VM2413/temporalmixer.vhd
+@@ -74,11 +74,6 @@ begin
+   process(clk,reset)
+ 
+ 
+-variable ss_v_mute : std_logic_vector(0 downto 0);
+-variable ss_v_maddr : std_logic_vector(4 downto 0);
+-variable ss_v_mix : std_logic_vector(13 downto 0);
+-variable ss_v_mixout : std_logic_vector(13 downto 0);
+-variable ss_response : std_logic_vector(31 downto 0);
+ begin
+ if reset='1' then
+ ss_local_data <= (others=>'0');
+@@ -92,39 +87,7 @@ ss_local_data <= (others=>'0');
+ 
+ elsif rising_edge(clk) then
+ 
+-ss_response := (others=>'0');
+-if ss_hold='1' and (ss_read='1' or ss_write='1') then
+-ss_v_mute := (0 => mute);
+-ss_v_maddr := maddr;
+-ss_v_mix := mix;
+-ss_v_mixout := mixout;
+-
+-if ss_read='1' then
+-case conv_integer(ss_addr) is
+-when 101 =>
+-ss_response(0) := mute;
+-ss_response(5 downto 1) := maddr(4 downto 0);
+-ss_response(19 downto 6) := mix(13 downto 0);
+-when 102 =>
+-ss_response(13 downto 0) := mixout(13 downto 0);
+-when others => null; end case;
+-end if;
+-if ss_write='1' then
+-case conv_integer(ss_addr) is
+-when 101 =>
+-ss_v_mute(0) := ss_wdata(0);
+-mute <= ss_v_mute(0);
+-ss_v_maddr(4 downto 0) := ss_wdata(5 downto 1);
+-maddr <= ss_v_maddr;
+-ss_v_mix(13 downto 0) := ss_wdata(19 downto 6);
+-mix <= ss_v_mix;
+-when 102 =>
+-ss_v_mixout(13 downto 0) := ss_wdata(13 downto 0);
+-mixout <= ss_v_mixout;
+-when others => null; end case;
+-end if;
+-end if;
+-ss_local_data <= ss_response;
++ss_local_data <= (others=>'0');
+ 
+ if ss_hold='0' then
+  if clkena='1' then
+diff --git a/rtl/opll_snapshot.sv b/rtl/opll_snapshot.sv
+index 3c43e92b..e533eeeb 100644
+--- a/rtl/opll_snapshot.sv
++++ b/rtl/opll_snapshot.sv
+@@ -16,7 +16,7 @@ module opll_snapshot (
+     output [31:0] state_wdata,
+     input [31:0] state_rdata
+ );
+-    localparam WORDS=104;
++    localparam WORDS=100;
+     localparam IDLE=0,CAP_READ=1,CAP_STORE=2,AP_READ=3,AP_WRITE=4,
+                REFILL=5,B_RD_LO=6,B_GET_LO=7,B_RD_HI=8,B_GET_HI=9,
+                B_WR_LO=10,B_WR_HI=11,LEG_RESET=12,LEG_INIT=13;
+@@ -51,7 +51,6 @@ module opll_snapshot (
+             8'd78: legacy_word=32'h47;
+             8'd88: legacy_word=32'h8000;
+             8'd90: legacy_word=32'h3ffff;
+-            8'd101: legacy_word=32'h1;
+ 
+ 
+             default: legacy_word=0;
+diff --git a/rtl/savestates.sv b/rtl/savestates.sv
+index a108635c..97b3e5f9 100644
+--- a/rtl/savestates.sv
++++ b/rtl/savestates.sv
+@@ -20,7 +20,7 @@
+ //   Words 0x1901-0x2100: VDP1 passive 16KB (System E only; inline; written to SD)
+ //   Words 0x2101-0x2900: VDP2 passive 16KB (System E only; inline; written to SD)
+ //
+-//   FM v17: 0x2997 descriptor; 0x2998..0x29cb = 104 private 32-bit words.
++//   FM v20: 0x2997 descriptor; 0x2998..0x29c9 = 100 private 32-bit words.
+ //   Video word 0x01a upper bits: [63:40]=0x484311, [39:22]=0.
+ //
+ // Slot size = 0x3000 words = 96KB.  Up to 4 slots.
+@@ -287,14 +287,14 @@ localparam ST_SAVE_AUDIO_INVALID = 7'd66, ST_SAVE_AUDIO_PAYLOAD = 7'd67,
+            ST_SAVE_AUDIO_DESC = 7'd68, ST_SAVE_AUDIO_COMMIT = 7'd69,
+            ST_LOAD_AUDIO_DESC = 7'd70, ST_LOAD_AUDIO_PAYLOAD = 7'd71,
+            ST_SAVE_AUDIO_DRAIN = 7'd72;
+-// FM v17: dedicated free tail of the existing 96 KiB slot.
++// FM v20: dedicated free tail of the existing 96 KiB slot.
+ // All master regions end at or below 0x2900 (System E passive VRAM).
+-// 32 KiB NVRAM ends at 0x1d00; FM ends at 0x29cb, below 0x3000.
++// 32 KiB NVRAM ends at 0x1d00; FM ends at 0x29c9, below 0x3000.
+ // Upper video-word tag discovers this extension; untagged images never read it.
+ localparam [28:0] FM_DESC_ADDR=29'h2997, FM_DATA_ADDR=29'h2998;
+ localparam [23:0] FM_MAGIC = 24'h484311;
+-// Explicit owner, version17, 104 private32-bit rows. Free tail of96KiB slot.
+-localparam [63:0] FM_DESC = {16'd104,8'd17,8'd1,32'h464d5331};
++// Explicit owner, version20, 100 private32-bit rows. Free tail of96KiB slot.
++localparam [63:0] FM_DESC = {16'd100,8'd20,8'd1,32'h464d5331};
+ localparam ST_FM_CAPTURE=7'd111, ST_FM_SAVE_FETCH=7'd112, ST_FM_SAVE_WAIT=7'd113,
+  ST_FM_SAVE_WRITE=7'd114, ST_FM_SAVE_DESC=7'd115, ST_FM_LOAD_DESC=7'd116,
+  ST_FM_LOAD=7'd117, ST_FM_LOAD_STORE=7'd118, ST_FM_LOAD_NEXT=7'd119,
+@@ -392,7 +392,7 @@ case(address)
+ 8'd76:fm_word_valid=(data & ~32'h000001ff)==0;
+ 8'd77:fm_word_valid=(data & ~32'h0001ffff)==0;
+ 8'd78:fm_word_valid=(data & ~32'h0000007f)==0 && data[6:0] < 72;
+-8'd79:fm_word_valid=(data & ~32'h00000000)==0;
++8'd79:fm_word_valid=(data & ~32'h7fffffff)==0 && data[5:2] < 9 && data[10:6] < 18;
+ 8'd80:fm_word_valid=(data & ~32'hffffffff)==0;
+ 8'd81:fm_word_valid=(data & ~32'h0000ffff)==0 && data[7:4] < 9 && data[13:8] < 38;
+ 8'd82:fm_word_valid=(data & ~32'hffffffff)==0;
+@@ -413,10 +413,6 @@ case(address)
+ 8'd97:fm_word_valid=(data & ~32'h0003ffff)==0 && data[3:0] < 9;
+ 8'd98:fm_word_valid=(data & ~32'h00ffffff)==0;
+ 8'd99:fm_word_valid=(data & ~32'h007fffff)==0;
+-8'd100:fm_word_valid=(data & ~32'h7fffffff)==0 && data[5:2] < 9 && data[10:6] < 18;
+-8'd101:fm_word_valid=(data & ~32'h000fffff)==0 && data[5:1] < 18;
+-8'd102:fm_word_valid=(data & ~32'h00003fff)==0;
+-8'd103:fm_word_valid=(data & ~32'h00000000)==0;
+ default:fm_word_valid=0;endcase
+ end endfunction
+ 
+@@ -584,7 +580,7 @@ always @(*) begin
+         ST_FM_SAVE_WRITE: if(!DDRAM_BUSY) ddram_cmd_write(base_addr+FM_DATA_ADDR+fm_word,fm_bulk_rdata,8'hff);
+         ST_FM_SAVE_DESC: if(!DDRAM_BUSY) ddram_cmd_write(base_addr+FM_DESC_ADDR,FM_DESC,8'hff);
+         ST_FM_LOAD_DESC: if(!DDRAM_DOUT_READY && !dout_expected && !DDRAM_BUSY && dout_latch==FM_DESC) ddram_cmd_read(base_addr+FM_DATA_ADDR);
+-        ST_FM_LOAD_NEXT: if(!DDRAM_BUSY) ddram_cmd_read(base_addr+(fm_word==51?29'h01b:FM_DATA_ADDR+fm_word+29'd1));
++        ST_FM_LOAD_NEXT: if(!DDRAM_BUSY) ddram_cmd_read(base_addr+(fm_word==49?29'h01b:FM_DATA_ADDR+fm_word+29'd1));
+         ST_WAIT_RESTORE_BOUNDARY: if (! DDRAM_BUSY) if (is_old_format ? mapper_snap [ 48 ] : has_nvram) ddram_cmd_read ( base_addr + 29'h0D01 ) ;
+         ST_SAVE_HDR: if (! DDRAM_BUSY) ddram_cmd_write ( base_addr + 29'd1 , { cur_game_id , cur_magic } , 8'hFF ) ;
+         ST_SAVE_CPU0: begin
+@@ -1104,7 +1100,7 @@ always @(posedge clk or negedge reset_n) begin
+         ST_FM_SAVE_WAIT: if(fm_done)state<=ST_FM_SAVE_WRITE;
+         ST_FM_SAVE_WRITE: if(!DDRAM_BUSY)begin
+             ddram_write(base_addr+FM_DATA_ADDR+fm_word,fm_bulk_rdata,8'hff);
+-            if(fm_word==51)state<=ST_FM_SAVE_DESC;
++            if(fm_word==49)state<=ST_FM_SAVE_DESC;
+             else begin fm_word<=fm_word+7'd1;state<=ST_FM_SAVE_FETCH;end
+         end
+         ST_FM_SAVE_DESC: if(!DDRAM_BUSY)begin ddram_write(base_addr+FM_DESC_ADDR,FM_DESC,8'hff);state<=ST_SAVE_EEPROM;end
+@@ -1115,12 +1111,13 @@ always @(posedge clk or negedge reset_n) begin
+                     if(dout_latch!=FM_DESC)state<=ST_ERROR;
+                     else begin fm_word<=0;ddram_read(base_addr+FM_DATA_ADDR);state<=ST_FM_LOAD;end
+                 end else if(!fm_word_valid({fm_word,1'b0},dout_latch[31:0])||!fm_word_valid({fm_word,1'b1},dout_latch[63:32]))state<=ST_ERROR;
++                else if(fm_word==39 && dout_latch[33] && (dout_latch[1:0]!=2'b00))state<=ST_ERROR;
+                 else begin fm_bulk_write<=1;state<=ST_FM_LOAD_STORE;end
+             end
+         end
+         ST_FM_LOAD_STORE: if(fm_done)state<=ST_FM_LOAD_NEXT;
+         ST_FM_LOAD_NEXT: if(!DDRAM_BUSY)begin
+-            if(fm_word==51)begin ddram_read(base_addr+29'h01b);state<=ST_LOAD_EEPROM;end
++            if(fm_word==49)begin ddram_read(base_addr+29'h01b);state<=ST_LOAD_EEPROM;end
+             else begin fm_word<=fm_word+7'd1;ddram_read(base_addr+FM_DATA_ADDR+fm_word+29'd1);state<=ST_FM_LOAD;end
+         end
+         ST_FM_APPLY: begin

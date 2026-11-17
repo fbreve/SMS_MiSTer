@@ -1,0 +1,884 @@
+diff --git a/SMS.sv b/SMS.sv
+index f36d4e7a..f1f6fde7 100644
+--- a/SMS.sv
++++ b/SMS.sv
+@@ -866,10 +866,7 @@ wire         ss_vram_en;
+ wire [14:0]  ss_vram_A, ss_vram_WA;
+ wire  [7:0]  ss_vram_D, ss_vram_WD;
+ wire         ss_vram_WE;
+-wire [95:0] ss_psg_ext_out,ss_psg2_ext_out,ss_psg_ext_in,ss_psg2_ext_in;
+-wire [3:0] ss_psg_div_out,ss_psg_div_in;
+-wire [10:0] ss_audio_control_out,ss_audio_control_in;
+-wire ss_audio_quiescent,ss_audio_phase_out,ss_audio_phase_in,ss_audio_phase_set,ss_audio_ext_set;
++wire [10:0] ss_audio_control_out, ss_audio_control_in;
+ wire [55:0]  ss_psg_out, ss_psg_in;
+ wire         ss_psg_set;
+ wire [63:0]  ss_mapper_out, ss_mapper_in;
+@@ -1123,19 +1120,8 @@ system #(63) system
+ 	.ss_vram_WE  (ss_vram_WE),
+ 	.ss_vram_WA  (ss_vram_WA),
+ 	.ss_vram_WD  (ss_vram_WD),
+-	.psg_ext_out(ss_psg_ext_out),
+-	.psg2_ext_out(ss_psg2_ext_out),
+-	.psg_ext_in(ss_psg_ext_in),
+-	.psg2_ext_in(ss_psg2_ext_in),
+-	.psg_div_out(ss_psg_div_out),
+-	.psg_div_in(ss_psg_div_in),
+ 	.audio_control_out(ss_audio_control_out),
+ 	.audio_control_in(ss_audio_control_in),
+-	.audio_quiescent(ss_audio_quiescent),
+-	.audio_phase_out(ss_audio_phase_out),
+-	.audio_phase_in(ss_audio_phase_in),
+-	.audio_phase_set(ss_audio_phase_set),
+-	.audio_ext_set(ss_audio_ext_set),
+ 	.psg_out     (ss_psg_out),
+ 	.psg_in      (ss_psg_in),
+ 	.psg_set     (ss_psg_set),
+@@ -1232,19 +1218,8 @@ savestates savestates_inst (
+ 	.vram_WA         (ss_vram_WA),
+ 	.vram_WD         (ss_vram_WD),
+ 	// PSG
+-	.psg_ext_out(ss_psg_ext_out),
+-	.psg2_ext_out(ss_psg2_ext_out),
+-	.psg_ext_in(ss_psg_ext_in),
+-	.psg2_ext_in(ss_psg2_ext_in),
+-	.psg_div_out(ss_psg_div_out),
+-	.psg_div_in(ss_psg_div_in),
+ 	.audio_control_out(ss_audio_control_out),
+ 	.audio_control_in(ss_audio_control_in),
+-	.audio_quiescent(ss_audio_quiescent),
+-	.audio_phase_out(ss_audio_phase_out),
+-	.audio_phase_in(ss_audio_phase_in),
+-	.audio_phase_set(ss_audio_phase_set),
+-	.audio_ext_set(ss_audio_ext_set),
+ 	.psg_out         (ss_psg_out),
+ 	.psg_in          (ss_psg_in),
+ 	.psg_set         (ss_psg_set),
+diff --git a/rtl/AudioMix.vhd b/rtl/AudioMix.vhd
+index 7073b39d..fa765512 100644
+--- a/rtl/AudioMix.vhd
++++ b/rtl/AudioMix.vhd
+@@ -15,10 +15,7 @@ port
+ 	audio_in_r1 : in signed(15 downto 0);
+ 	audio_in_r2 : in signed(15 downto 0);
+ 	audio_l : out signed(15 downto 0);
+-	audio_r : out signed(15 downto 0);
+-	ss_phase_out : out std_logic;
+-	ss_phase_in : in std_logic := '0';
+-	ss_phase_set : in std_logic := '0'
++	audio_r : out signed(15 downto 0)
+ );
+ end entity;
+ 
+@@ -30,19 +27,14 @@ signal sum : signed(16 downto 0);
+ signal overflow : std_logic;
+ signal clipped : signed(16 downto 0);
+ signal toggle : std_logic;
+-signal phase : std_logic;
+ 
+ begin
+-ss_phase_out <= toggle;
+--- The registered release strobe arrives on the first resumed clock. Use the
+--- saved phase for that clock's output selection as well as the next toggle.
+-phase <= ss_phase_in when ss_phase_set='1' else toggle;
+ 
+ in1(16)<=in1(15);
+ in2(16)<=in2(15);
+ 
+-in1(15 downto 0)<=audio_in_l1 when phase='0' else audio_in_r1;
+-in2(15 downto 0)<=audio_in_l2 when phase='0' else audio_in_r2;
++in1(15 downto 0)<=audio_in_l1 when toggle='0' else audio_in_r1;
++in2(15 downto 0)<=audio_in_l2 when toggle='0' else audio_in_r2;
+ 
+ sum<=in1+in2;
+ overflow<=sum(15) xor sum(16);
+@@ -52,14 +44,14 @@ clipped<=sum when overflow='0' else (others=>sum(16));
+ process(clk)
+ begin
+ 	if rising_edge(clk) then
+-		if phase='0' then
++		if toggle='0' then
+ 			audio_l<=clipped(15 downto 0);
+ 		else
+ 			audio_r<=clipped(15 downto 0);
+ 		end if;
+-		toggle<=not phase;
++		toggle<=not toggle;
+ 	end if;
+ end process;
+ 
+ 
+-end architecture;
++end architecture;
+\ No newline at end of file
+diff --git a/rtl/jt89/jt89.v b/rtl/jt89/jt89.v
+index e73e3dec..7a27cfc0 100644
+--- a/rtl/jt89/jt89.v
++++ b/rtl/jt89/jt89.v
+@@ -44,13 +44,7 @@ module jt89(
+     output [55:0]  ss_out,   // tone0[9:0], tone1[9:0], tone2[9:0], vol0-3[3:0], ctrl3[2:0], regn[2:0]
+     // Save-state restore (synchronous, held one cycle)
+     input          ss_set,
+-    input  [55:0]  ss_in,
+-    output [95:0]  ss_ext_out,
+-    input  [95:0]  ss_ext_in,
+-    input          ss_ext_set,
+-    output [3:0]   ss_div_out,
+-    input  [3:0]   ss_div_in,
+-    output         ss_quiescent
++    input  [55:0]  ss_in
+ );
+ 
+ wire signed [ 8:0] ch0, ch1, ch2, noise;
+@@ -84,23 +78,19 @@ always @(negedge clk )
+     if( rst ) begin
+         cen_16 <= 1'b1;
+     end else begin
+-        cen_16 <= !ss_ext_set && clk_en & (&clk_div);
++        cen_16 <= clk_en & (&clk_div);
+     end
+ 
+ always @(posedge clk )
+     if( rst ) 
+         clk_div <= 4'd0;
+-    else if (ss_ext_set)
+-        clk_div <= ss_div_in;
+     else if( clk_en )
+         clk_div <= clk_div + 1'b1;
+ 
+ // Save-state snapshot: {regn[2:0], ctrl3[2:0], vol3[3:0], vol2[3:0], vol1[3:0], vol0[3:0], tone2[9:0], tone1[9:0], tone0[9:0]}
+ assign ss_out = { regn, ctrl3, vol3, vol2, vol1, vol0, tone2, tone1, tone0 };
+-assign ss_div_out = clk_div;
+ 
+ reg clr_noise, last_wr;
+-assign ss_quiescent = !clk_en && !cen_16 && wr_n && !clr_noise && last_wr;
+ wire [2:0] reg_sel = din[7] ? din[6:4] : regn;
+ 
+ always @(posedge clk) 
+@@ -110,7 +100,7 @@ always @(posedge clk)
+         ctrl3 <= 3'b100;
+         regn  <= 3'd0;
+     end
+-    else if( ss_set || ss_ext_set ) begin
++    else if( ss_set ) begin
+         tone0 <= ss_in[9:0];
+         tone1 <= ss_in[19:10];
+         tone2 <= ss_in[29:20];
+@@ -120,10 +110,6 @@ always @(posedge clk)
+         vol3  <= ss_in[45:42];
+         ctrl3 <= ss_in[48:46];
+         regn  <= ss_in[51:49];
+-        if (ss_ext_set) begin
+-            clr_noise <= 1'b0;
+-            last_wr <= 1'b1;
+-        end
+     end
+     else begin
+         last_wr <= wr_n;
+@@ -152,10 +138,7 @@ jt89_tone u_tone0(
+     .vol    ( vol0      ),
+     .tone   ( tone0     ),
+     .snd    ( ch0       ),
+-    .out    (           ),
+-    .ss_out ( {ss_ext_out[68:60],ss_ext_out[10:0]} ),
+-    .ss_set ( ss_ext_set ),
+-    .ss_in  ( {ss_ext_in[68:60],ss_ext_in[10:0]} )
++    .out    (           )
+ );
+ 
+ jt89_tone u_tone1(
+@@ -165,10 +148,7 @@ jt89_tone u_tone1(
+     .vol    ( vol1      ),
+     .tone   ( tone1     ),
+     .snd    ( ch1       ),
+-    .out    (           ),
+-    .ss_out ( {ss_ext_out[77:69],ss_ext_out[21:11]} ),
+-    .ss_set ( ss_ext_set ),
+-    .ss_in  ( {ss_ext_in[77:69],ss_ext_in[21:11]} )
++    .out    (           )
+ );
+ 
+ wire out2;
+@@ -180,10 +160,7 @@ jt89_tone u_tone2(
+     .vol    ( vol2      ),
+     .tone   ( tone2     ),
+     .snd    ( ch2       ),
+-    .out    ( out2      ),
+-    .ss_out ( {ss_ext_out[86:78],ss_ext_out[32:22]} ),
+-    .ss_set ( ss_ext_set ),
+-    .ss_in  ( {ss_ext_in[86:78],ss_ext_in[32:22]} )
++    .out    ( out2      )
+ );
+ 
+ jt89_noise u_noise(
+@@ -194,10 +171,7 @@ jt89_noise u_noise(
+     .vol    ( vol3      ),
+     .ctrl3  ( ctrl3     ),
+     .tone2  ( tone2     ),
+-    .snd    ( noise     ),
+-    .ss_out ( {ss_ext_out[95:87],ss_ext_out[59:33]} ),
+-    .ss_set ( ss_ext_set ),
+-    .ss_in  ( {ss_ext_in[95:87],ss_ext_in[59:33]} )
++    .snd    ( noise     )
+ );
+ 
+ endmodule
+diff --git a/rtl/jt89/jt89.vhd b/rtl/jt89/jt89.vhd
+index bdec0723..fd13ec38 100644
+--- a/rtl/jt89/jt89.vhd
++++ b/rtl/jt89/jt89.vhd
+@@ -18,13 +18,7 @@ port
+     -- Save-state ports
+     ss_out     : out std_logic_vector(55 downto 0);
+     ss_set     : in  std_logic := '0';
+-    ss_in      : in  std_logic_vector(55 downto 0) := (others => '0');
+-    ss_ext_out : out std_logic_vector(95 downto 0);
+-    ss_ext_in  : in std_logic_vector(95 downto 0) := (others => '0');
+-    ss_ext_set : in std_logic := '0';
+-    ss_div_out : out std_logic_vector(3 downto 0);
+-    ss_div_in  : in std_logic_vector(3 downto 0) := (others => '0');
+-    ss_quiescent : out std_logic
++    ss_in      : in  std_logic_vector(55 downto 0) := (others => '0')
+ );
+ end component;
+ 
+diff --git a/rtl/jt89/jt89_noise.v b/rtl/jt89/jt89_noise.v
+index 556e54b9..f0f95b2e 100644
+--- a/rtl/jt89/jt89_noise.v
++++ b/rtl/jt89/jt89_noise.v
+@@ -30,10 +30,7 @@ module jt89_noise(
+     input         [2:0] ctrl3,
+     input         [3:0] vol,
+     input         [9:0] tone2,
+-    output        [8:0] snd,
+-    output       [35:0] ss_out,
+-    input               ss_set,
+-    input        [35:0] ss_in
++    output        [8:0] snd
+ );
+ 
+ reg [15:0] shift;
+@@ -46,20 +43,14 @@ jt89_vol u_vol(
+     .clk_en ( clk_en    ),
+     .din    ( shift[0]  ),
+     .vol    ( vol       ),
+-    .snd    ( snd       ),
+-    .ss_out ( ss_out[35:27] ),
+-    .ss_set ( ss_set ),
+-    .ss_in  ( ss_in[35:27] )
++    .snd    ( snd       )
+ );
+ 
+ reg v;
+-assign ss_out[26:0] = {shift,cnt};
+ 
+ always @(posedge clk) 
+     if( rst ) begin
+         cnt <= 11'd0;
+-    end else if (ss_set) begin
+-        cnt <= ss_in[10:0];
+     end else if( clk_en ) begin
+         if( cnt==11'd1 ) begin
+             case( ctrl3[1:0] )
+@@ -76,11 +67,7 @@ always @(posedge clk)
+ wire fb = ctrl3[2]?(shift[0]^shift[3]):shift[0];
+     
+ always @(posedge clk)
+-    if( rst )
+-        shift <= { 1'b1, 15'd0 };
+-    else if (ss_set)
+-        shift <= ss_in[26:11];
+-    else if (clr)
++    if( rst || clr )
+         shift <= { 1'b1, 15'd0 };
+     else if( clk_en ) begin
+         if( cnt==11'd1 ) begin
+diff --git a/rtl/jt89/jt89_tone.v b/rtl/jt89/jt89_tone.v
+index b6f44aac..67b649e0 100644
+--- a/rtl/jt89/jt89_tone.v
++++ b/rtl/jt89/jt89_tone.v
+@@ -29,15 +29,11 @@ module jt89_tone(
+     input         [9:0] tone,
+     input         [3:0] vol,
+     output        [8:0] snd,
+-    output reg          out,
+-    output [19:0]       ss_out,
+-    input               ss_set,
+-    input [19:0]        ss_in
++    output reg          out
+ );
+ 
+ reg [9:0] cnt;
+ reg last_out;
+-assign ss_out[10:0] = {out,cnt};
+ 
+ jt89_vol u_vol(
+     .rst    ( rst     ),
+@@ -45,19 +41,13 @@ jt89_vol u_vol(
+     .clk_en ( clk_en  ),
+     .din    ( out     ),
+     .vol    ( vol     ),
+-    .snd    ( snd     ),
+-    .ss_out ( ss_out[19:11] ),
+-    .ss_set ( ss_set ),
+-    .ss_in  ( ss_in[19:11] )
++    .snd    ( snd     )
+ );
+ 
+ always @(posedge clk) 
+     if( rst ) begin
+         cnt <= 10'd0;
+         out <= 1'b0;
+-    end else if (ss_set) begin
+-        cnt <= ss_in[9:0];
+-        out <= ss_in[10];
+     end else if( clk_en ) begin
+         if( tone < 6 )    // special case. This is used for sample playing.
+             out <= 1'b1;
+diff --git a/rtl/jt89/jt89_vol.v b/rtl/jt89/jt89_vol.v
+index 072aa61d..a4ba0c3f 100644
+--- a/rtl/jt89/jt89_vol.v
++++ b/rtl/jt89/jt89_vol.v
+@@ -28,18 +28,12 @@ module jt89_vol(
+     input         rst,
+     input         din,
+     input  [3:0]  vol,
+-    output reg signed [8:0]  snd,
+-    output [8:0] ss_out,
+-    input ss_set,
+-    input [8:0] ss_in
++    output reg signed [8:0]  snd
+ );
+ 
+ 
+ reg [7:0] max;
+ 
+-// Serialize the historical signed sample bits without conversion.
+-assign ss_out = snd;
+-
+ always @(*)
+     case ( vol ) // 2dB per LSB (20*log10)
+         4'd0:  max = 8'd255;
+@@ -63,9 +57,7 @@ always @(*)
+ always @(posedge clk)
+     if( rst )
+         snd <= 9'd0;
+-    else if (ss_set)
+-        snd <= ss_in;
+     else if( clk_en )
+         snd <= din ? {1'b0,max} : -{1'b0,max};
+ 
+-endmodule
++endmodule
+\ No newline at end of file
+diff --git a/rtl/savestates.sv b/rtl/savestates.sv
+index dd8ef3f0..461ebec1 100644
+--- a/rtl/savestates.sv
++++ b/rtl/savestates.sv
+@@ -7,7 +7,7 @@
+ //   Word 0x002-0x005: Z80 REG[211:0]   (4 × 64-bit words, MSBs unused)
+ //   Word 0x006-0x007: VDP regs [127:0] (2 × 64-bit words)
+ //   Word 0x008-0x00D: CRAM [383:0]     (6 × 64-bit words)
+-//   Word 0x00E:       PSG  [55:0]      (1 × 64-bit word, upper 8 bits unused)
++//   Word 0x00E: PSG config [51:0], controls [62:52], System E [63] (C v1)
+ //   Word 0x00F:       Mapper [63:0]    (1 × 64-bit word)
+ //   Word 0x010-0x011: VDP2 regs [127:0] (System E only; 2 × 64-bit words)
+ //   Word 0x012-0x017: CRAM2 [383:0]   (System E only; 6 × 64-bit words)
+@@ -79,26 +79,14 @@ module savestates (
+     output reg [14:0] vram_WA,
+     output reg  [7:0] vram_WD,
+ 
++    // Architectural audio controls only; restored with psg_set.
++    input [10:0] audio_control_out,
++    output reg [10:0] audio_control_in,
+     // ---- PSG snapshot / restore ----
+     input      [55:0] psg_out,
+     output reg [55:0] psg_in,
+     output reg        psg_set,
+ 
+-    // Opaque exact audio extension; legacy configuration ports stay unchanged.
+-    input [95:0] psg_ext_out,
+-    input [95:0] psg2_ext_out,
+-    output reg [95:0] psg_ext_in,
+-    output reg [95:0] psg2_ext_in,
+-    input [3:0] psg_div_out,
+-    output reg [3:0] psg_div_in,
+-    input [10:0] audio_control_out,
+-    output reg [10:0] audio_control_in,
+-    input audio_quiescent,
+-    input audio_phase_out,
+-    output reg audio_phase_in,
+-    output reg audio_ext_set,
+-    output reg audio_phase_set,
+-
+     // ---- Mapper snapshot / restore ----
+     input      [63:0] mapper_out,
+     output reg [63:0] mapper_in,
+@@ -182,8 +170,8 @@ module savestates (
+ // -----------------------------------------------------------------------
+ // Helpers
+ // -----------------------------------------------------------------------
+-localparam [31:0] MAGIC = 32'h534D5331; // "SMS1"
+-localparam [31:0] MAGIC_BIOS = 32'h534D5342; // "SMSB"
++localparam [31:0] MAGIC = 32'h534D4301; // Experimental C, version 1 (cartridge)
++localparam [31:0] MAGIC_BIOS = 32'h53424301; // Experimental C, version 1 (BIOS)
+ 
+ // Word 0 header size field (size in 32-bit words = (slot_bytes - 8) / 4).
+ localparam [31:0] OLD_SS_WORDS = 32'd16382; // 0x3FFE, old 64KB slot format (#191)
+@@ -268,25 +256,6 @@ localparam ST_UNFREEZE_SETTLE = 6'd63;
+ localparam [27:0] OP_COOLDOWN_MAX = 28'd26846500; // ~500ms @ 53.7MHz
+ localparam [19:0] FLUSH_MAX       = 20'd900000;    // ≈16.8ms @ 53.7MHz
+ 
+-// PSG extension v1: 020 descriptor, 021/022 PSG1, 023/024 PSG2.
+-// Descriptor: [31:0] "PSGX", [39:32] version, [40] PSG2,
+-// [44:41] divider, [45] AudioMix phase, [48:46] payload words,
+-// [63:49] reserved zero. Payload high words have [63:32] zero.
+-localparam [31:0] AUDIO_MAGIC = 32'h50534758;
+-localparam ST_SAVE_AUDIO_INVALID = 7'd66, ST_SAVE_AUDIO_PAYLOAD = 7'd67,
+-           ST_SAVE_AUDIO_DESC = 7'd68, ST_SAVE_AUDIO_COMMIT = 7'd69,
+-           ST_LOAD_AUDIO_DESC = 7'd70, ST_LOAD_AUDIO_PAYLOAD = 7'd71,
+-           ST_SAVE_AUDIO_DRAIN = 7'd72;
+-reg [95:0] psg_ext_snap, psg2_ext_snap;
+-reg [3:0] audio_div_snap;
+-reg [10:0] audio_control_snap;
+-reg audio_phase_snap, has_audio_ext;
+-reg [2:0] audio_word;
+-wire [2:0] audio_words = systeme ? 3'd4 : 3'd2;
+-wire [63:0] audio_descriptor = {15'd0, audio_words, audio_phase_snap,
+-                               audio_div_snap, systeme, 8'd1, AUDIO_MAGIC};
+-
+-
+ // NVRAM size calculation helpers
+ wire evolution_state = evolution_snap[31:16] == 16'hE132;
+ wire has_nvram_8k  = !evolution_state && (mapper_snap[48] | mapper_snap[53]); // Dahjee A / Codemasters CME
+@@ -320,6 +289,7 @@ reg  [21:0] align_timeout;
+ reg [229:0] z80_snap;
+ reg [127:0] vdp_snap;
+ reg [383:0] cram_snap;
++reg [10:0] audio_control_snap;
+ reg  [55:0] psg_snap;
+ reg  [63:0] mapper_snap;
+ reg  [95:0] evolution_snap;
+@@ -473,7 +443,7 @@ always @(*) begin
+                 endcase
+             end
+         end
+-        ST_SAVE_PSG: if (! DDRAM_BUSY) ddram_cmd_write ( base_addr + 29'd14 , { 8'd0 , psg_snap } , 8'hFF ) ;
++        ST_SAVE_PSG: if (! DDRAM_BUSY) ddram_cmd_write ( base_addr + 29'd14 , { systeme , audio_control_snap , psg_snap [ 51 : 0 ] } , 8'hFF ) ;
+         ST_SAVE_MAPPER: if (! DDRAM_BUSY) ddram_cmd_write ( base_addr + 29'd15 , mapper_snap , 8'hFF ) ;
+         ST_SAVE_IO: if (! DDRAM_BUSY) ddram_cmd_write ( base_addr + 29'h019 , { evolution_snap [ 31 : 0 ] , io_snap } , 8'hFF ) ;
+         ST_SAVE_VIDEO: if (! DDRAM_BUSY) ddram_cmd_write ( base_addr + 29'h01a , { 42'd0 , video_snap } , 8'hFF ) ;
+@@ -503,20 +473,6 @@ always @(*) begin
+         ST_SAVE_VRAM , ST_SAVE_VRAM1_PASSIVE , ST_SAVE_VRAM2 , ST_SAVE_VRAM2_PASSIVE: if (!(vram_pipe < 3'd2)) if (vram_byte_cnt < 7 || ! DDRAM_BUSY) if (vram_byte_cnt == 7) ddram_cmd_write ( base_addr + vram_ddr_offset + { 17'd0 , word_cnt } , { vram_d_latched ? vram_d_latch : vram_save_data , vram_word_buf [ 63 : 8 ] } , 8'hFF ) ;
+         ST_SAVE_WRAM: if (!(wram_pipe < 2'd2)) if (wram_byte_cnt < 7 || ! DDRAM_BUSY) if (wram_byte_cnt == 7) ddram_cmd_write ( base_addr + 29'h901 + { 17'd0 , word_cnt } , { wram_d_latched ? wram_d_latch : wram_D , wram_word_buf [ 63 : 8 ] } , 8'hFF ) ;
+         ST_SAVE_NVRAM: if (!(nvram_pipe < 2'd2)) if (nvram_byte_cnt < 7 || ! DDRAM_BUSY) if (nvram_byte_cnt == 7) ddram_cmd_write ( base_addr + 29'h0D01 + { 17'd0 , word_cnt } , { nvram_d_latched ? nvram_d_latch : nvram_D , nvram_word_buf [ 63 : 8 ] } , 8'hFF ) ;
+-        ST_SAVE_AUDIO_INVALID: if (! DDRAM_BUSY) ddram_cmd_write ( base_addr + 29'h00e , { 12'd0 , psg_snap [ 51 : 0 ] } , 8'hFF ) ;
+-        ST_SAVE_AUDIO_PAYLOAD: begin
+-            if (! DDRAM_BUSY) begin
+-                case (audio_word)
+-                    0: ddram_cmd_write ( base_addr + 29'h021 , psg_ext_snap [ 63 : 0 ] , 8'hFF ) ;
+-                    1: ddram_cmd_write ( base_addr + 29'h022 , { 32'd0 , psg_ext_snap [ 95 : 64 ] } , 8'hFF ) ;
+-                    2: ddram_cmd_write ( base_addr + 29'h023 , psg2_ext_snap [ 63 : 0 ] , 8'hFF ) ;
+-                    3: ddram_cmd_write ( base_addr + 29'h024 , { 32'd0 , psg2_ext_snap [ 95 : 64 ] } , 8'hFF ) ;
+-                    default: begin end
+-                endcase
+-            end
+-        end
+-        ST_SAVE_AUDIO_DESC: if (! DDRAM_BUSY) ddram_cmd_write ( base_addr + 29'h020 , audio_descriptor , 8'hFF ) ;
+-        ST_SAVE_AUDIO_COMMIT: if (! DDRAM_BUSY) ddram_cmd_write ( base_addr + 29'h00e , { 1'b1 , audio_control_snap , psg_snap [ 51 : 0 ] } , 8'hFF ) ;
+         ST_SAVE_DONE: begin
+             if (cur_bios_mode) begin
+                 if (! DDRAM_BUSY) ddram_cmd_write ( base_addr , { NEW_SS_WORDS , 32'd0 } , 8'hF0 ) ;
+@@ -525,7 +481,7 @@ always @(*) begin
+             end
+         end
+         ST_LOAD_HDR_RD: if (! DDRAM_BUSY) ddram_cmd_read ( base_addr + 29'd0 ) ;
+-        ST_LOAD_HDR_WT: if (!(DDRAM_DOUT_READY && dout_expected)) if (! dout_expected && ! DDRAM_BUSY) ddram_cmd_read ( base_addr + 29'd1 ) ;
++        ST_LOAD_HDR_WT: if (!(DDRAM_DOUT_READY && dout_expected)) if (! dout_expected && ! DDRAM_BUSY) if (dout_latch[63:32] == NEW_SS_WORDS) ddram_cmd_read ( base_addr + 29'd1 ) ;
+         ST_LOAD_HDR_WT2: if (!(DDRAM_DOUT_READY && dout_expected)) if (! dout_expected && ! DDRAM_BUSY) if (dout_latch [ 31 : 0 ] == cur_magic && ( is_old_format || dout_latch [ 63 : 32 ] == cur_game_id )) ddram_cmd_read ( base_addr + 29'd2 ) ;
+         ST_LOAD_CPU0: begin
+             if (!(DDRAM_DOUT_READY && dout_expected)) begin
+@@ -565,31 +521,7 @@ always @(*) begin
+                 end
+             end
+         end
+-        ST_LOAD_PSG: begin
+-            if (!(DDRAM_DOUT_READY && dout_expected)) begin
+-                if (! dout_expected && ! DDRAM_BUSY) begin
+-                    if (dout_latch [ 63 ]) begin
+-                        ddram_cmd_read ( base_addr + 29'h020 ) ;
+-                    end else begin
+-                        ddram_cmd_read ( base_addr + 29'd15 ) ;
+-                    end
+-                end
+-            end
+-        end
+-        ST_LOAD_AUDIO_DESC: if (!(DDRAM_DOUT_READY && dout_expected)) if (! dout_expected && ! DDRAM_BUSY) if (! is_old_format && dout_latch [ 31 : 0 ] == AUDIO_MAGIC && dout_latch [ 39 : 32 ] == 8'd1 && dout_latch [ 40 ] == systeme && dout_latch [ 48 : 46 ] == audio_words && dout_latch [ 63 : 49 ] == 0) ddram_cmd_read ( base_addr + 29'h021 ) ;
+-        ST_LOAD_AUDIO_PAYLOAD: begin
+-            if (!(DDRAM_DOUT_READY && dout_expected)) begin
+-                if (! dout_expected && ! DDRAM_BUSY) begin
+-                    if (!(audio_word [ 0 ] && ( dout_latch [ 63 : 32 ] != 0 ))) begin
+-                        if (audio_word == audio_words - 1) begin
+-                            ddram_cmd_read ( base_addr + 29'h00f ) ;
+-                        end else begin
+-                            ddram_cmd_read ( base_addr + 29'h022 + { 26'd0 , audio_word } ) ;
+-                        end
+-                    end
+-                end
+-            end
+-        end
++        ST_LOAD_PSG: if (!(DDRAM_DOUT_READY && dout_expected)) if (! dout_expected && ! DDRAM_BUSY) if (dout_latch[63] == systeme) ddram_cmd_read ( base_addr + 29'd15 ) ;
+         ST_LOAD_MAPPER: begin
+             if (!(DDRAM_DOUT_READY && dout_expected)) begin
+                 if (! dout_expected && ! DDRAM_BUSY) begin
+@@ -734,6 +666,7 @@ always @(posedge clk or negedge reset_n) begin
+         vdp_regs_set    <= 0;
+         cram_wr         <= 0;
+         psg_set         <= 0;
++        audio_control_in <= 0;
+         mapper_set      <= 0;
+         evolution_set   <= 0;
+         evolution_in    <= 96'd0;
+@@ -762,12 +695,6 @@ always @(posedge clk or negedge reset_n) begin
+         freeze_drain_cnt <= 0;
+         op_cooldown    <= 0;
+         is_old_format   <= 0;
+-        has_audio_ext <= 0;
+-        audio_ext_set <= 0;
+-        audio_phase_set <= 0;
+-        psg_ext_in <= 0; psg2_ext_in <= 0; psg_div_in <= 0;
+-        audio_control_in <= 0; audio_phase_in <= 0;
+-        audio_word <= 0;
+         flush_cnt       <= 0;
+         unfreeze_cnt    <= 0;
+         align_timeout   <= 0;
+@@ -792,8 +719,6 @@ always @(posedge clk or negedge reset_n) begin
+         vram2_WE     <= 0;
+         io_set       <= 0;
+         video_state_set <= 0;
+-        audio_ext_set <= 0;
+-        audio_phase_set <= 0;
+         ddram_idle();
+ 
+         // DDRAM read watchdog: abort if no response after ~640ms
+@@ -813,7 +738,6 @@ always @(posedge clk or negedge reset_n) begin
+         ST_IDLE: begin
+             ss_freeze   <= 0;
+             is_old_format <= 0;
+-            has_audio_ext <= 0;
+              if (op_cooldown != 0)
+                  op_cooldown <= op_cooldown - 28'd1;
+             else if (ss_save) begin
+@@ -897,24 +821,12 @@ always @(posedge clk or negedge reset_n) begin
+         // ---------------------------------------------------------------
+         ST_FREEZE: begin
+             ss_freeze <= 1;
+-            // synthesis translate_off
+-            if (do_save && audio_quiescent !== 1'b1)
+-                $fatal(1,"PSG not quiescent at post-drain capture");
+-            // synthesis translate_on
+-            if (!do_save) state <= ST_LOAD_HDR_RD;
+-            else if (audio_quiescent) begin
+-                // PSG-only capture after the pending tick and write pipeline drain.
+-                // CPU, VDP, mapper, IO and video capture edges above are unchanged.
++            if (do_save) begin
+                 psg_snap <= psg_out;
+                 psg2_snap <= psg2_out;
+-                psg_ext_snap <= psg_ext_out;
+-                psg2_ext_snap <= psg2_ext_out;
+-                audio_div_snap <= psg_div_out;
+                 audio_control_snap <= audio_control_out;
+-                audio_phase_snap <= audio_phase_out;
+-                audio_word <= 0;
+-                state <= ST_SAVE_AUDIO_INVALID;
+             end
++            state <= do_save ? ST_SAVE_HDR : ST_LOAD_HDR_RD;
+         end
+ 
+         // ---------------------------------------------------------------
+@@ -1011,7 +923,7 @@ always @(posedge clk or negedge reset_n) begin
+ 
+         ST_SAVE_PSG: begin
+             if (!DDRAM_BUSY) begin
+-                ddram_write(base_addr + 29'd14, {8'd0, psg_snap}, 8'hFF);
++                ddram_write(base_addr + 29'd14, {systeme,audio_control_snap,psg_snap[51:0]}, 8'hFF);
+                 state <= ST_SAVE_MAPPER;
+             end
+         end
+@@ -1195,7 +1107,7 @@ always @(posedge clk or negedge reset_n) begin
+                             end
+                             ST_SAVE_VRAM2_PASSIVE: begin
+                                 vram2_en <= 0;
+-                                state    <= ST_SAVE_AUDIO_PAYLOAD;
++                                state    <= ST_SAVE_DONE;
+                             end
+                         endcase
+                     end
+@@ -1256,7 +1168,7 @@ always @(posedge clk or negedge reset_n) begin
+                             nvram_d_latched <= 0;
+                             state           <= ST_SAVE_NVRAM;
+                         end else begin
+-                            state <= ST_SAVE_AUDIO_PAYLOAD;
++                            state <= ST_SAVE_DONE;
+                         end
+                     end
+                 end else begin
+@@ -1290,7 +1202,7 @@ always @(posedge clk or negedge reset_n) begin
+                         nvram_save_addr <= nvram_save_addr + 15'd1;
+                         nvram_A         <= nvram_save_addr + 15'd2;
+                     end else if (nvram_byte_cnt == 7) begin
+-                        state <= ST_SAVE_AUDIO_PAYLOAD;
++                        state <= ST_SAVE_DONE;
+                     end
+                 end else begin
+                     if (!nvram_d_latched) begin
+@@ -1303,46 +1215,6 @@ always @(posedge clk or negedge reset_n) begin
+ 
+ 
+ 
+-        // Invalidate an old slot before replacing any of its contents.
+-        ST_SAVE_AUDIO_INVALID: begin
+-            if (!DDRAM_BUSY) begin
+-                ddram_write(base_addr + 29'h00e, {12'd0, psg_snap[51:0]}, 8'hFF);
+-                state <= ST_SAVE_HDR;
+-            end
+-        end
+-        ST_SAVE_AUDIO_PAYLOAD: begin
+-            if (!DDRAM_BUSY) begin
+-                case (audio_word)
+-                    0: ddram_write(base_addr + 29'h021, psg_ext_snap[63:0], 8'hFF);
+-                    1: ddram_write(base_addr + 29'h022, {32'd0,psg_ext_snap[95:64]}, 8'hFF);
+-                    2: ddram_write(base_addr + 29'h023, psg2_ext_snap[63:0], 8'hFF);
+-                    3: ddram_write(base_addr + 29'h024, {32'd0,psg2_ext_snap[95:64]}, 8'hFF);
+-                endcase
+-                if (audio_word == audio_words-1) state <= ST_SAVE_AUDIO_DESC;
+-                else audio_word <= audio_word+3'd1;
+-            end
+-        end
+-        ST_SAVE_AUDIO_DESC: begin
+-            if (!DDRAM_BUSY) begin
+-                ddram_write(base_addr + 29'h020, audio_descriptor, 8'hFF);
+-                freeze_drain_cnt <= 0;
+-                state <= ST_SAVE_AUDIO_DRAIN;
+-            end
+-        end
+-        ST_SAVE_AUDIO_DRAIN: begin
+-            // Drain all ordered payload/descriptor writes before publishing presence.
+-            if (DDRAM_BUSY) freeze_drain_cnt <= 0;
+-            else if (freeze_drain_cnt == 31) state <= ST_SAVE_AUDIO_COMMIT;
+-            else freeze_drain_cnt <= freeze_drain_cnt+6'd1;
+-        end
+-        ST_SAVE_AUDIO_COMMIT: begin
+-            if (!DDRAM_BUSY) begin
+-                ddram_write(base_addr + 29'h00e,
+-                            {1'b1,audio_control_snap,psg_snap[51:0]},8'hFF);
+-                state <= ST_SAVE_DONE; // framework change detector remains last
+-            end
+-        end
+-
+         ST_SAVE_DONE: begin
+             // Write MiSTer framework control word at slot base (word 0).
+             // [31:0]  = change_det: must change on every save to trigger firmware write to /savestates/
+@@ -1351,7 +1223,7 @@ always @(posedge clk or negedge reset_n) begin
+             if (cur_bios_mode) begin
+                 // BIOS states live in their own DDRAM region (bios_slot_base);
+                 // update size only: an overwritten old 64KB BIOS header must
+-                // not classify this committed extension as an old-format load.
++                // not classify this versioned image as an old-format load.
+                 // Preserve all change_det bytes; BIOS publication stays disabled.
+                 if (!DDRAM_BUSY) begin
+                     ddram_write(base_addr, {NEW_SS_WORDS,32'd0},8'hF0);
+@@ -1395,9 +1267,11 @@ always @(posedge clk or negedge reset_n) begin
+                 dout_expected <= 0;
+                 dout_latch    <= DDRAM_DOUT;
+             end else if (!dout_expected && !DDRAM_BUSY) begin
+-                is_old_format <= (dout_latch[63:32] == OLD_SS_WORDS);
+-                ddram_read(base_addr + 29'd1);
+-                state <= ST_LOAD_HDR_WT2;
++                if (dout_latch[63:32] == NEW_SS_WORDS) begin
++                    is_old_format <= 0;
++                    ddram_read(base_addr + 29'd1);
++                    state <= ST_LOAD_HDR_WT2;
++                end else state <= ST_ERROR;
+             end
+         end
+ 
+@@ -1501,61 +1375,12 @@ always @(posedge clk or negedge reset_n) begin
+                 dout_expected <= 0;
+                 dout_latch    <= DDRAM_DOUT;
+             end else if (!dout_expected && !DDRAM_BUSY) begin
+-                psg_snap <= dout_latch[63] ? {4'd0,dout_latch[51:0]} : dout_latch[55:0];
+-                if (dout_latch[63]) begin
++                if (dout_latch[63] == systeme) begin
++                    psg_snap <= {4'd0,dout_latch[51:0]};
+                     audio_control_snap <= dout_latch[62:52];
+-                    ddram_read(base_addr + 29'h020);
+-                    state <= ST_LOAD_AUDIO_DESC;
+-                end else begin
+-                    // Never inspect stale extension metadata for a legacy state.
+                     ddram_read(base_addr + 29'd15);
+                     state <= ST_LOAD_MAPPER;
+-                end
+-            end
+-        end
+-
+-        ST_LOAD_AUDIO_DESC: begin
+-            if (DDRAM_DOUT_READY && dout_expected) begin
+-                dout_expected <= 0;
+-                dout_latch <= DDRAM_DOUT;
+-            end else if (!dout_expected && !DDRAM_BUSY) begin
+-                if (!is_old_format && dout_latch[31:0] == AUDIO_MAGIC &&
+-                    dout_latch[39:32] == 8'd1 && dout_latch[40] == systeme &&
+-                    dout_latch[48:46] == audio_words && dout_latch[63:49] == 0) begin
+-                    audio_div_snap <= dout_latch[44:41];
+-                    audio_phase_snap <= dout_latch[45];
+-                    audio_word <= 0;
+-                    ddram_read(base_addr + 29'h021);
+-                    state <= ST_LOAD_AUDIO_PAYLOAD;
+-                end else begin
+-                    // Presence without a supported descriptor is never legacy.
+-                    state <= ST_ERROR;
+-                end
+-            end
+-        end
+-        ST_LOAD_AUDIO_PAYLOAD: begin
+-            if (DDRAM_DOUT_READY && dout_expected) begin
+-                dout_expected <= 0;
+-                dout_latch <= DDRAM_DOUT;
+-            end else if (!dout_expected && !DDRAM_BUSY) begin
+-                if (audio_word[0] && (dout_latch[63:32] != 0)) begin
+-                    state <= ST_ERROR;
+-                end else begin
+-                    case (audio_word)
+-                        0: psg_ext_snap[63:0] <= dout_latch;
+-                        1: psg_ext_snap[95:64] <= dout_latch[31:0];
+-                        2: psg2_ext_snap[63:0] <= dout_latch;
+-                        3: psg2_ext_snap[95:64] <= dout_latch[31:0];
+-                    endcase
+-                    if (audio_word == audio_words-1) begin
+-                        has_audio_ext <= 1;
+-                        ddram_read(base_addr + 29'h00f);
+-                        state <= ST_LOAD_MAPPER;
+-                    end else begin
+-                        audio_word <= audio_word+3'd1;
+-                        ddram_read(base_addr + 29'h022 + {26'd0,audio_word});
+-                    end
+-                end
++                end else state <= ST_ERROR;
+             end
+         end
+ 
+@@ -1864,13 +1689,7 @@ always @(posedge clk or negedge reset_n) begin
+                 vdp_regs_set <= 1;
+                 psg_in       <= psg_snap;
+                 psg_set      <= 1;
+-                if (has_audio_ext) begin
+-                    psg_ext_in <= psg_ext_snap;
+-                    psg2_ext_in <= psg2_ext_snap;
+-                    psg_div_in <= audio_div_snap;
+-                    audio_control_in <= audio_control_snap;
+-                    audio_ext_set <= 1;
+-                end
++                audio_control_in <= audio_control_snap;
+                 if (!is_old_format) begin
+                     io_in        <= io_snap;
+                     io_set       <= 1;
+@@ -1928,10 +1747,6 @@ always @(posedge clk or negedge reset_n) begin
+             end else if (is_old_format || (video_state_out[21:4] == video_snap[21:4]) || (align_timeout >= 22'd2200000)) begin
+                 if (!cpu_ce && !vdp_ce && !pix_ce && !sp_ce) begin
+                     ss_freeze    <= 0;
+-                    if (!do_save && has_audio_ext) begin
+-                        audio_phase_in <= audio_phase_snap;
+-                        audio_phase_set <= 1;
+-                    end
+                     unfreeze_cnt <= 8'd0;
+                     state        <= ST_UNFREEZE_SETTLE;
+                 end else begin
+diff --git a/rtl/system.vhd b/rtl/system.vhd
+index b8cbea8b..d498bf42 100644
+--- a/rtl/system.vhd
++++ b/rtl/system.vhd
+@@ -163,17 +163,11 @@ entity system is
+ 		ss_vram_WE   : in  STD_LOGIC := '0';
+ 		ss_vram_WA   : in  STD_LOGIC_VECTOR(14 downto 0) := (others => '0');
+ 		ss_vram_WD   : in  STD_LOGIC_VECTOR(7 downto 0)  := (others => '0');
++		audio_control_out : out STD_LOGIC_VECTOR(10 downto 0);
++		audio_control_in : in STD_LOGIC_VECTOR(10 downto 0) := (others => '0');
+ 		psg_out      : out STD_LOGIC_VECTOR(55 downto 0);
+ 		psg_in       : in  STD_LOGIC_VECTOR(55 downto 0) := (others => '0');
+ 		psg_set      : in  STD_LOGIC := '0';
+-		psg_ext_out, psg2_ext_out : out STD_LOGIC_VECTOR(95 downto 0);
+-		psg_ext_in, psg2_ext_in : in STD_LOGIC_VECTOR(95 downto 0) := (others => '0');
+-		psg_div_out : out STD_LOGIC_VECTOR(3 downto 0);
+-		psg_div_in : in STD_LOGIC_VECTOR(3 downto 0) := (others => '0');
+-		audio_control_out : out STD_LOGIC_VECTOR(10 downto 0);
+-		audio_control_in : in STD_LOGIC_VECTOR(10 downto 0) := (others => '0');
+-		audio_quiescent, audio_phase_out : out STD_LOGIC;
+-		audio_phase_in, audio_phase_set, audio_ext_set : in STD_LOGIC := '0';
+ 		mapper_out   : out STD_LOGIC_VECTOR(63 downto 0);
+ 		mapper_in    : in  STD_LOGIC_VECTOR(63 downto 0) := (others => '0');
+ 		mapper_set   : in  STD_LOGIC := '0';
+@@ -219,8 +213,6 @@ entity system is
+ end system;
+ 
+ architecture Behavioral of system is
+-    signal psg_div1, psg_div2 : std_logic_vector(3 downto 0);
+-    signal psg_quiet1, psg_quiet2 : std_logic;
+ 	
+ 	signal RD_n:				std_logic;
+ 	signal WR_n:				std_logic;
+@@ -757,10 +749,7 @@ begin
+ 		rst		=> not RESET_n,
+ 		ss_out => psg_out,
+ 		ss_set => psg_set,
+-		ss_in  => psg_in,
+-        ss_ext_out => psg_ext_out, ss_ext_in => psg_ext_in,
+-        ss_ext_set => audio_ext_set, ss_div_out => psg_div1,
+-        ss_div_in => psg_div_in, ss_quiescent => psg_quiet1
++		ss_in  => psg_in
+ 	);
+ 	
+ 	psg2_inst: jt89
+@@ -778,10 +767,7 @@ begin
+ 		rst		=> not RESET_n,
+ 		ss_out => psg2_out_i,
+ 		ss_set => psg2_set,
+-		ss_in  => psg2_in,
+-        ss_ext_out => psg2_ext_out, ss_ext_in => psg2_ext_in,
+-        ss_ext_set => audio_ext_set and systeme, ss_div_out => psg_div2,
+-        ss_div_in => psg_div_in, ss_quiescent => psg_quiet2
++		ss_in  => psg2_in
+ 	);
+ 	
+ 	fm: work.opll
+@@ -829,21 +815,11 @@ mix2_inR <= (others=>'0') when psg_enables(1)='1' else (PSG2_outR(10) & PSG2_out
+ -- This version shift FM left one place and PSG right by one place, so the volume
+ -- is four times higher.  I haven't yet found a game in which this clips.
+ 
+-psg_div_out <= psg_div1;
+ audio_control_out <= det_D & PSG_mux;
+-audio_quiescent <= psg_quiet1 and (psg_quiet2 or not systeme);
+--- synthesis translate_off
+-process(clk_sys) begin
+-    if rising_edge(clk_sys) and ss_freeze='1' and psg_quiet1='1' and psg_quiet2='1' and systeme='1' then
+-        assert psg_div1=psg_div2 report "PSG divider mismatch at quiescent capture" severity failure;
+-    end if;
+-end process;
+--- synthesis translate_on
+ 
+ mix : entity work.AudioMix
+ port map(
+ 	clk => clk_sys,
+-    ss_phase_out => audio_phase_out, ss_phase_in => audio_phase_in, ss_phase_set => audio_phase_set,
+ 	audio_in_l1 => signed(mix_inL & "000"),
+ 	audio_in_l2 => signed(mix2_inL & "000"),
+ 	audio_in_r1 => signed(mix_inR & "000"),
+@@ -1348,7 +1324,7 @@ port map(
+ 			if RESET_n='0' then 
+ 				det_D <= "111";
+ 				PSG_mux <= x"FF";
+-            elsif audio_ext_set='1' then
++            elsif psg_set='1' then
+                 det_D <= audio_control_in(10 downto 8);
+                 PSG_mux <= audio_control_in(7 downto 0);
+ 			elsif ss_freeze = '0' and det_WR_n='0' then

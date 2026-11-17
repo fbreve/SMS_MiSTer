@@ -1,0 +1,110 @@
+diff --git a/rtl/VM2413/temporalmixer.vhd b/rtl/VM2413/temporalmixer.vhd
+index 18574930..1512f03c 100644
+--- a/rtl/VM2413/temporalmixer.vhd
++++ b/rtl/VM2413/temporalmixer.vhd
+@@ -117,10 +117,10 @@ mute <= ss_v_mute(0);
+ ss_v_maddr(4 downto 0) := ss_wdata(5 downto 1);
+ maddr <= ss_v_maddr;
+ ss_v_mix(13 downto 0) := ss_wdata(19 downto 6);
+-mix <= ss_v_mix;
++-- Combined experiment: accumulator heals at its normal clear.
+ when 102 =>
+ ss_v_mixout(13 downto 0) := ss_wdata(13 downto 0);
+-mixout <= ss_v_mixout;
++-- Combined experiment: output heals after a complete mixer cycle.
+ when others => null; end case;
+ end if;
+ end if;
+diff --git a/tests/ym2413_fullstate/prepare_tests.js b/tests/ym2413_fullstate/prepare_tests.js
+index 01ac290a..4f5a04da 100644
+--- a/tests/ym2413_fullstate/prepare_tests.js
++++ b/tests/ym2413_fullstate/prepare_tests.js
+@@ -1,5 +1,5 @@
+ const fs=require('fs'),cp=require('child_process'),p=require('path');
+-const d=__dirname,root=p.resolve(d,'../..'),ref='7fcd5e12847eedf9e97a44dc937c3dbac3205f7c';
++const d=__dirname,root=p.resolve(d,'../..'),ref='9873761503510e4b2c7e06600bf5515344235c2f',upstream='66f16d5c656fd8906d62570da4d258875bcee684';
+ const git=(...a)=>cp.execFileSync('git',a,{cwd:root,encoding:'latin1'}),put=(n,s)=>fs.writeFileSync(p.join(d,n),s,'latin1');
+ fs.mkdirSync(p.join(d,'reference'),{recursive:true});
+ fs.mkdirSync(p.join(d,'candidate'),{recursive:true});
+@@ -50,7 +50,7 @@ put('reference_wrapper.vhd',wrapper(git('show',ref+':rtl/system.vhd'),'reference
+ let src=fs.readFileSync(p.join(root,'rtl/savestates.sv'),'latin1');
+ for(const n of ['mapper_snap','evolution_snap','dout_latch']){const re=new RegExp('^reg\\s+\\[[^\\]]+\\]\\s+'+n+';\\r?\\n','m');const m=src.match(re);if(!m)throw Error(n);src=src.replace(re,'').replace('// Helpers',m[0]+'// Helpers');}
+ put('savestates_sim.sv',src);
+-let base=git('show','HEAD:rtl/savestates.sv');
++let base=git('show',upstream+':rtl/savestates.sv');
+ for(const n of ['mapper_snap','evolution_snap']){const re=new RegExp('^reg\\s+\\[[^\\]]+\\]\\s+'+n+';\\r?\\n','m');const m=base.match(re);base=base.replace(re,'').replace('// NVRAM size calculation helpers',m[0]+'// NVRAM size calculation helpers');}
+ put('master_savestates.sv',base.replace('module savestates (','module master_savestates ('));
+ const ports=[];
+@@ -72,7 +72,7 @@ vlog -sv -quiet -work test_work ../../rtl/opll_snapshot.sv savestates_sim.sv mas
+ quit -code 0
+ `);
+ put('.gitignore','candidate_work/\nreference_work/\ntest_work/\nfast_work/\ntranscript\n*.wlf\nmodelsim.ini\nreference/\ncandidate/\n');
+-put('source_identity.json',JSON.stringify({baseline:git('rev-parse','HEAD').trim(),reference:ref,names,wrapper:'extracted from production system.vhd including FM gating; ce_cpu gated as SMS.sv',simulationAdapters:['Release renamed to EG_Release','integer subtype range expanded to equivalent bounds','when others => null added for meta-valued case coverage','main process labeled for read-only internal variable access','fm: work.opll made an explicit entity instantiation','move mapper_snap/evolution_snap/dout_latch declarations for ModelSim'],fastOnly:'FLUSH_MAX reduced from900000 to90; native test keeps900000'},null,2));
++put('source_identity.json',JSON.stringify({baseline:ref,upstream,reference:ref,names,wrapper:'extracted from production system.vhd including FM gating; ce_cpu gated as SMS.sv',simulationAdapters:['Release renamed to EG_Release','integer subtype range expanded to equivalent bounds','when others => null added for meta-valued case coverage','main process labeled for read-only internal variable access','fm: work.opll made an explicit entity instantiation','move mapper_snap/evolution_snap/dout_latch declarations for ModelSim'],fastOnly:'FLUSH_MAX reduced from900000 to90; native test keeps900000'},null,2));
+ put('savestates_fast.sv',src.replace("20'd900000","20'd90"));
+ put('fast_compile.do',`onerror {quit -code 1}
+ vlib fast_work
+diff --git a/tests/ym2413_fullstate/run_all.ps1 b/tests/ym2413_fullstate/run_all.ps1
+index 9e824a47..598808f9 100644
+--- a/tests/ym2413_fullstate/run_all.ps1
++++ b/tests/ym2413_fullstate/run_all.ps1
+@@ -9,7 +9,7 @@ function Invoke-Simulation([string]$DoFile,[string]$Log,[string]$PassPattern){
+ Push-Location $PSScriptRoot
+ try {
+  node verify_scope.js;if($LASTEXITCODE -ne 0){throw 'scope validation failed'}
+- node prepare_tests.js;node prepare_nonfm.js;node prepare_phases.js;node prepare_patterns.js
++ foreach($prepare in @('prepare_tests.js','prepare_nonfm.js','prepare_phases.js','prepare_patterns.js')) { node $prepare; if($LASTEXITCODE -ne 0){throw "Preparation failed: $prepare"} }
+  Invoke-Simulation compile.do compile 'Errors: 0|do compile.do'
+  Invoke-Simulation fast_compile.do fast_compile 'Errors: 0|do fast_compile.do'
+  Invoke-Simulation phase_compile.do phase_compile 'Errors: 0|do phase_compile.do'
+diff --git a/tests/ym2413_fullstate/verify_scope.js b/tests/ym2413_fullstate/verify_scope.js
+index 7faeaa79..ba1580df 100644
+--- a/tests/ym2413_fullstate/verify_scope.js
++++ b/tests/ym2413_fullstate/verify_scope.js
+@@ -1,34 +1,17 @@
+ const fs=require('fs'),cp=require('child_process'),p=require('path'),crypto=require('crypto');
+-const d=__dirname,root=p.resolve(d,'../..'),ref='7fcd5e12847eedf9e97a44dc937c3dbac3205f7c';
+-const git=(...args)=>cp.execFileSync('git',args,{cwd:root,encoding:'latin1',stdio:['ignore','pipe','pipe']});
+-const read=n=>fs.readFileSync(p.join(root,n),'latin1');
+-const assert=(v,m)=>{if(!v)throw Error(m);};
+-assert(git('rev-parse','HEAD').trim()==='66f16d5c656fd8906d62570da4d258875bcee684','baseline moved');
+-assert(git('branch','--show-current').trim()==='experiment/ym2413-v19-fullstate','wrong branch');
+-const changed=git('diff','--name-only').trim().split('\n').filter(Boolean);
+-const allowed=new Set(['SMS.sv','files.qip','rtl/system.vhd','rtl/savestates.sv']);
+-const normalize=s=>s.replace(/\r\n/g,'\n').replace(/[ \t]+$/gm,'');
+-for(const n of changed){
+- assert(!n.startsWith('sys/'),'shared sys modification');
+- if(n.startsWith('rtl/VM2413/')){
+-  let expected=git('show',ref+':'+n);
+-  if(n.endsWith('/phasememory.vhd'))expected=expected.replace('  attribute ramstyle of phase_array : signal is "logic";\n','');
+-  assert(normalize(read(n))===normalize(expected),'unexpected FM change '+n);
+- }else assert(allowed.has(n),'unrelated changed file '+n);
+-}
+-assert(read('rtl/opll_snapshot.sv')===git('show',ref+':rtl/opll_snapshot.sv'),'snapshot differs from reference');
+-const s=read('rtl/savestates.sv');
++const d=__dirname,root=p.resolve(d,'../..'),baseline='9873761503510e4b2c7e06600bf5515344235c2f';
++const git=(...a)=>cp.execFileSync('git',a,{cwd:root,stdio:['ignore','pipe','pipe']}),assert=(v,m)=>{if(!v)throw Error(m);};
++assert(git('rev-parse','HEAD').toString().trim()===baseline,'baseline moved');
++assert(git('branch','--show-current').toString().trim()==='experiment/ym2413-selfhealing-combined','wrong branch');
++const files=git('ls-tree','-r','--name-only',baseline,'--','SMS.sv','files.qip','rtl/','sys/').toString().trim().split('\n');
++const normalize=b=>b.toString('latin1').replace(/\r\n/g,'\n');
++const sha256={};for(const f of files){const bytes=fs.readFileSync(p.join(root,f));assert(normalize(bytes)===normalize(git('show',baseline+':'+f)),'production differs from baseline '+f);sha256[f]=crypto.createHash('sha256').update(bytes).digest('hex');}
++const s=fs.readFileSync(p.join(root,'rtl/savestates.sv'),'utf8');
+ assert(s.includes('assign io_in = io_snap;')&&s.includes('assign video_state_in = video_snap;'),'master aliases lost');
+-assert(!read('rtl/VM2413/phasememory.vhd').includes('attribute ramstyle of phase_array'),'AUTO inference lost');
+-for(const tag of ['RESTART_MAGIC','BACKGROUND_MAGIC','ss_bg_out','ss_cpu_prepare'])assert(!s.includes(tag),'unrelated v19 integration '+tag);
++assert(!fs.readFileSync(p.join(root,'rtl/VM2413/phasememory.vhd'),'utf8').includes('attribute ramstyle of phase_array'),'AUTO inference lost');
+ const existing=[['registers/extensions',0,0x24],['VRAM1',0x101,0x900],['WRAM maximum',0x901,0x1100],['NVRAM maximum',0xd01,0x1d00],['VRAM2 active',0x1101,0x1900],['VRAM1 passive',0x1901,0x2100],['VRAM2 passive',0x2101,0x2900]];
+ for(const [name,lo,hi] of existing)assert(hi<0x2997||lo>0x29cb,'FM overlap '+name);
+ assert(0x2998+52-1===0x29cb&&0x29cb<0x3000,'FM slot bounds');
+-const manifest={baseline:git('rev-parse','HEAD').trim(),reference:ref,branch:git('branch','--show-current').trim(),changedProduction:[...changed,'rtl/opll_snapshot.sv'],diffStat:git('diff','--stat'),ownership:{unit:'64-bit DDR words relative to slot base',existing,FM:{descriptor:0x2997,payloadFirst:0x2998,payloadLast:0x29cb,privateWords:104,descriptorVersion:17,slotWords:0x3000},note:'Existing mode-exclusive ranges overlap each other; no existing range overlaps FM.'},sha256:{}};
+-const counts=git('diff','--numstat').trim().split('\n').map(x=>x.split('\t'));
+-manifest.diffTotals={productionFiles:changed.length+1,insertions:counts.reduce((sum,x)=>sum+ +x[0],0)+read('rtl/opll_snapshot.sv').trimEnd().split('\n').length,deletions:counts.reduce((sum,x)=>sum+ +x[1],0)};
+-for(const n of manifest.changedProduction)manifest.sha256[n]=crypto.createHash('sha256').update(fs.readFileSync(p.join(root,n))).digest('hex');
+-fs.writeFileSync(p.join(d,'manifest.json'),JSON.stringify(manifest,null,2)+'\n');
+-let addition;try{addition=git('diff','--no-index','--','NUL','rtl/opll_snapshot.sv');}catch(e){if(e.status!==1)throw e;addition=e.stdout;}
+-fs.writeFileSync(p.join(d,'complete.diff'),git('diff','--no-ext-diff')+'\n'+addition,'latin1');
+-console.log('PASS scope/reference identity, master aliases/AUTO inference and FM address ownership');
++
++fs.writeFileSync(p.join(d,'manifest.json'),JSON.stringify({baseline,reference:baseline,sha256,productionMatchesBaseline:true,FM:{descriptor:0x2997,payloadFirst:0x2998,payloadLast:0x29cb,privateWords:104,descriptorVersion:17}},null,2)+'\n');
++console.log('PASS committed production identity, aliases, AUTO inference and FM address ownership');

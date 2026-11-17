@@ -1,0 +1,100 @@
+{
+  "baseline": {
+    "setup": {
+      "slack": 0.104,
+      "from": "shadowmask:HDMI_shadowmask|altshift_taps:vid_rtl_0|shift_taps_0vu:auto_generated|altsyncram_pr91:altsyncram4|ram_block5a0",
+      "to": "osd:hdmi_osd|dsp_width[19]",
+      "launch": "pll_hdmi|pll_hdmi_inst|altera_pll_i|cyclonev_pll|counter[0].output_counter|divclk",
+      "latch": "pll_hdmi|pll_hdmi_inst|altera_pll_i|cyclonev_pll|counter[0].output_counter|divclk",
+      "relationship": 6.732,
+      "skew": -0.675,
+      "dataDelay": 5.753
+    },
+    "hold": {
+      "slack": 0.239,
+      "from": "emu:emu|system:system|vdp:vdp_inst|vdp_main:vdp_main_inst|vdp_sprites:vdp_spr_inst|vpd_sprite_shifter:\\shifters:60:shifter|shift0[2]",
+      "to": "emu:emu|system:system|vdp:vdp_inst|vdp_main:vdp_main_inst|vdp_sprites:vdp_spr_inst|vpd_sprite_shifter:\\shifters:60:shifter|shift0[3]",
+      "launch": "emu|pll|pll_inst|altera_pll_i|cyclonev_pll|counter[0].output_counter|divclk",
+      "latch": "emu|pll|pll_inst|altera_pll_i|cyclonev_pll|counter[0].output_counter|divclk",
+      "relationship": 0,
+      "skew": 0.108,
+      "dataDelay": 0.347
+    },
+    "core": {
+      "slack": 0.895,
+      "from": "emu:emu|system:system|mapper_detect:mapper_detect_inst|rom_crc32[17]",
+      "to": "emu:emu|system:system|T80s:z80_inst|T80:u0|IR[3]",
+      "launch": "emu|pll|pll_inst|altera_pll_i|cyclonev_pll|counter[0].output_counter|divclk",
+      "latch": "emu|pll|pll_inst|altera_pll_i|cyclonev_pll|counter[0].output_counter|divclk",
+      "relationship": 18.626,
+      "skew": -0.46,
+      "dataDelay": 16.941
+    }
+  },
+  "candidate": {
+    "setup": {
+      "slack": 0.067,
+      "from": "shadowmask:HDMI_shadowmask|altshift_taps:vid_rtl_0|shift_taps_0vu:auto_generated|altsyncram_pr91:altsyncram4|ram_block5a0",
+      "to": "osd:hdmi_osd|dsp_width[13]",
+      "launch": "pll_hdmi|pll_hdmi_inst|altera_pll_i|cyclonev_pll|counter[0].output_counter|divclk",
+      "latch": "pll_hdmi|pll_hdmi_inst|altera_pll_i|cyclonev_pll|counter[0].output_counter|divclk",
+      "relationship": 6.732,
+      "skew": -0.78,
+      "dataDelay": 5.685
+    },
+    "hold": {
+      "slack": 0.231,
+      "from": "emu:emu|system:system|vdp:vdp2_inst|vdp_main:vdp_main_inst|vdp_sprites:vdp_spr_inst|vpd_sprite_shifter:\\shifters:46:shifter|shift0[5]",
+      "to": "emu:emu|system:system|vdp:vdp2_inst|vdp_main:vdp_main_inst|vdp_sprites:vdp_spr_inst|vpd_sprite_shifter:\\shifters:46:shifter|shift0[6]",
+      "launch": "emu|pll|pll_inst|altera_pll_i|cyclonev_pll|counter[0].output_counter|divclk",
+      "latch": "emu|pll|pll_inst|altera_pll_i|cyclonev_pll|counter[0].output_counter|divclk",
+      "relationship": 0,
+      "skew": 0.111,
+      "dataDelay": 0.342
+    },
+    "core": {
+      "slack": 0.808,
+      "from": "emu:emu|system:system|jt89:psg2_inst|cen_16",
+      "to": "emu:emu|savestates:savestates_inst|state.ST_FM_SAVE_FETCH",
+      "launch": "emu|pll|pll_inst|altera_pll_i|cyclonev_pll|counter[0].output_counter|divclk",
+      "latch": "emu|pll|pll_inst|altera_pll_i|cyclonev_pll|counter[0].output_counter|divclk",
+      "relationship": 9.313,
+      "skew": -0.461,
+      "dataDelay": 7.714
+    },
+    "cramFrom": {
+      "slack": 9.889,
+      "from": "emu:emu|system:system|vdp:vdp2_inst|vdp_cram:vdp_cram_inst|altsyncram:ram_rtl_0|altsyncram_3a02:auto_generated|ram_block1a0~PORT_B_WRITE_ENABLE_REG",
+      "to": "emu:emu|savestates:savestates_inst|cram2_snap[375]",
+      "launch": "emu|pll|pll_inst|altera_pll_i|cyclonev_pll|counter[0].output_counter|divclk",
+      "latch": "emu|pll|pll_inst|altera_pll_i|cyclonev_pll|counter[0].output_counter|divclk",
+      "relationship": 18.626,
+      "skew": -2.398,
+      "dataDelay": 6.009
+    },
+    "cramTo": {
+      "slack": 5.412,
+      "from": "emu:emu|system:system|mapper_detect:mapper_detect_inst|rom_crc32[28]~DUPLICATE",
+      "to": "emu:emu|system:system|vdp:vdp_inst|vdp_cram:vdp_cram_inst|altsyncram:ram_rtl_1|altsyncram_7dt1:auto_generated|ram_block1a0~porta_we_reg",
+      "launch": "emu|pll|pll_inst|altera_pll_i|cyclonev_pll|counter[0].output_counter|divclk",
+      "latch": "emu|pll|pll_inst|altera_pll_i|cyclonev_pll|counter[0].output_counter|divclk",
+      "relationship": 18.626,
+      "skew": 1.213,
+      "dataDelay": 14.097
+    }
+  },
+  "delta": {
+    "setup": {
+      "slack": -0.03699999999999999,
+      "dataDelay": -0.0680000000000005
+    },
+    "hold": {
+      "slack": -0.00799999999999998,
+      "dataDelay": -0.004999999999999949
+    },
+    "core": {
+      "slack": -0.08699999999999997,
+      "dataDelay": -9.226999999999999
+    }
+  }
+}

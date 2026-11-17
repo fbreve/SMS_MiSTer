@@ -1,0 +1,52 @@
+{
+  "recommendation": "READY TO COMMIT",
+  "summary": "The fresh matched-date control reproduces every retained v14 resource and setup/hold metric exactly. G05 adds526 needed ALMs (+1.255 percentage points of device capacity, 1.485% of baseline use), consuming 8.104% of prior needed-ALM headroom. Remaining headroom is 5965 needed ALMs and 3192 placed sites. The checkpoint contains278 snapshot bits total. Synthesis adds309 registers; fitted registers add383, with74 additional differential registers from physical mapping/optimization. Exclusive fitted register deltas reconcile as controller+288, background+69, other+26. Logic ALUTs add909 and routing ALUTs add204. Global packing reconciles exactly: placed+576 minus recoverable+34 plus unavailable-16 = needed+526. Hierarchical ALM estimates are attribution aids, not the global packing equation. The text counter's divide/modulo subentities account for about107.4 estimated fitted ALMs. A shared quotient/remainder implementation or raw140-bit counter is an unbenchmarked resource tradeoff; the current139-bit projection is field/consumer minimal, not a claim of globally optimal ALM encoding. Reconstruction from the existing image is ruled out by the equal-v14-image/different-future witness; no smaller sufficient history projection was established. The measured growth is bounded and the routed design meets the requested gates. M10K, memory bits and DSP are unchanged. Placement is92.384% and worst setup slack is+0.211ns, so physical headroom remains limited. No new warning type/message appears; both builds retain38 distinct critical warning messages and the existing setup/hold unconstrained-path information. This assessment accepts the measured G05 cost and does not broaden other savestate obligations.",
+  "sourceRegisterDelta": 309,
+  "sourceDeltas": [
+    {
+      "entity": "|sys_top|emu:emu|savestates:savestates_inst",
+      "registers": 286
+    },
+    {
+      "entity": "|sys_top|emu:emu|sdram:ram",
+      "registers": 23
+    }
+  ],
+  "fittedRegisterGroups": {
+    "controller": {
+      "registers": 288,
+      "aluts": 466,
+      "estimatedALMs": 335.3
+    },
+    "background": {
+      "registers": 69,
+      "aluts": 416,
+      "estimatedALMs": 263.3
+    },
+    "other": {
+      "registers": 26,
+      "aluts": 27,
+      "estimatedALMs": -70.8
+    }
+  },
+  "physicalRegisterOverhead": 74,
+  "packingDelta": {
+    "placed": 576,
+    "recoverable": 34,
+    "unavailable": -16,
+    "logicALUTs": 909,
+    "routingALUTs": 204
+  },
+  "codecEstimatedALMs": 107.4,
+  "neededHeadroom": 5965,
+  "placedHeadroom": 3192,
+  "headroomConsumedPercent": 8.103527961793253,
+  "baselineExactlyReproduced": true,
+  "warningMessagesReviewed": true,
+  "resourceGrowthReviewed": true,
+  "limitations": [
+    "Field/consumer-minimal139-bit state; no global information-theoretic or ALM-optimal codec claim.",
+    "Positive timing and zero failures refer to analyzed paths under unchanged existing SDC; existing unconstrained setup/hold information remains.",
+    "Physical placement utilization92.384% and setup margin0.211ns warrant preserving the scoped change."
+  ]
+}

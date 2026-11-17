@@ -1,0 +1,115 @@
+diff --git "a/C:\\Users\\fbrev\\Documents\\Diversos\\Dev\\SMS_MiSTer\\rtl\\T80\\T80.vhd" "b/C:\\Users\\fbrev\\Documents\\Diversos\\Dev\\SMS_MiSTer\\tests\\ys_load_differential_audit\\continuation_v2\\T80_context.vhd"
+index f158435..060668b 100644
+--- "a/C:\\Users\\fbrev\\Documents\\Diversos\\Dev\\SMS_MiSTer\\rtl\\T80\\T80.vhd"
++++ "b/C:\\Users\\fbrev\\Documents\\Diversos\\Dev\\SMS_MiSTer\\tests\\ys_load_differential_audit\\continuation_v2\\T80_context.vhd"
+@@ -1,6 +1,6 @@
+ --------------------------------------------------------------------------------
+ -- ****
+--- T80(c) core. Attempt to finish all undocumented features and provide
++-- T80_context(c) core. Attempt to finish all undocumented features and provide
+ --              accurate timings.
+ -- Version 350.
+ -- Copyright (c) 2018 Sorgelig
+@@ -9,7 +9,7 @@
+ --      correct implementation is still unclear.
+ --
+ -- ****
+--- T80(b) core. In an effort to merge and maintain bug fixes ....
++-- T80_context(b) core. In an effort to merge and maintain bug fixes ....
+ --
+ -- Ver 303 add undocumented DDCB and FDCB opcodes by TobiFlex 20.04.2010
+ -- Ver 301 parity flag is just parity for 8080, also overflow for Z80, by Sean Riddle
+@@ -80,7 +80,7 @@ use IEEE.std_logic_1164.all;
+ use IEEE.numeric_std.all;
+ use IEEE.STD_LOGIC_UNSIGNED.all;
+ 
+-entity T80 is
++entity T80_context is
+ 	generic(
+ 		Mode   : integer := 0;  -- 0 => Z80, 1 => Fast Z80, 2 => 8080, 3 => GB
+ 		IOWait : integer := 0;  -- 0 => Single cycle I/O, 1 => Std I/O cycle
+@@ -120,14 +120,19 @@ entity T80 is
+ 		out0       : in  std_logic := '0';  -- 0 => OUT(C),0, 1 => OUT(C),255
+ 		REG        : out std_logic_vector(229 downto 0); -- Halt_FF, Alternate, WZ, IFF2, IFF1, IM, IY, HL', DE', BC', IX, HL, DE, BC, PC, SP, R, I, F', A', F, A
+ 
+-		DIRSet     : in  std_logic := '0';
++		RestartContext : out std_logic_vector(2 downto 0);
++ RestartDIR : in std_logic_vector(2 downto 0) := "000";
++ RestartValid : in std_logic := '0';
++ TestIR : out std_logic_vector(7 downto 0);
++ TestMC,TestTS : out std_logic_vector(2 downto 0);
++ DIRSet     : in  std_logic := '0';
+ 		DIR        : in  std_logic_vector(229 downto 0) := (others => '0'); -- Halt_FF, Alternate, WZ, IFF2, IFF1, IM, IY, HL', DE', BC', IX, HL, DE, BC, PC, SP, R, I, F', A', F, A
+ 		-- Prefix/instruction-set state: '00'=no prefix (clean save point)
+ 		ISet_out   : out std_logic_vector(1 downto 0)
+ 	);
+-end T80;
++end T80_context;
+ 
+-architecture rtl of T80 is
++architecture rtl of T80_context is
+ 
+ 	constant aNone              : std_logic_vector(2 downto 0) := "111";
+ 	constant aBC                : std_logic_vector(2 downto 0) := "000";
+@@ -261,7 +266,9 @@ architecture rtl of T80 is
+ 
+ begin
+ 
+-	ISet_out <= ISet;
++	ISet_out <= ISet; TestIR<=IR;TestMC<=MCycle;TestTS<=std_logic_vector(TState);
++ RestartContext <= "001" when IR=x"CB" else "010" when IR=x"ED" else
++ "011" when IR=x"DD" else "100" when IR=x"FD" else "101" when IR=x"FB" else "000";
+ 
+ 	REG <= Halt_FF & Alternate & WZ & IntE_FF2 & IntE_FF1 & IStatus & DOR & std_logic_vector(PC) & std_logic_vector(SP) & std_logic_vector(R) & I & Fp & Ap & F & ACC when Alternate = '0'
+ 			 else Halt_FF & Alternate & WZ & IntE_FF2 & IntE_FF1 & IStatus & DOR(127 downto 112) & DOR(47 downto 0) & DOR(63 downto 48) & DOR(111 downto 64) &
+@@ -277,7 +284,7 @@ begin
+ 	          DIR(175 downto 160) & -- DE'
+ 	          DIR(159 downto 144);  -- BC'
+ 
+-	mcode : work.T80_MCode
++	mcode : entity work.T80_MCode
+ 		generic map(
+ 			Mode   => Mode,
+ 			Flag_C => Flag_C,
+@@ -345,7 +352,7 @@ begin
+ 			Write       => Write,
+ 			XYbit_undoc => XYbit_undoc);
+ 
+-	alu : work.T80_ALU
++	alu : entity work.T80_ALU
+ 		generic map(
+ 			Mode   => Mode,
+ 			Flag_C => Flag_C,
+@@ -435,7 +442,13 @@ begin
+ 				XY_State <= "00";
+ 				XY_Ind <= '0';
+ 				Alternate <= DIR(228);
+-				IR <= "00000000";
++				IR <= x"00";
++ if RestartValid='1' then
++ case RestartDIR is
++ when "001" => IR <= x"CB"; when "010" => IR <= x"ED";
++ when "011" => IR <= x"DD"; when "100" => IR <= x"FD";
++ when "101" => IR <= x"FB"; when others => null;
++ end case; end if;
+ 				MCycles <= "001";
+ 				DO <= "00000000";
+ 				Read_To_Reg_r <= "00000";
+@@ -641,7 +654,7 @@ begin
+ 						F(Flag_N) <= DI_Reg(7);
+ 						F(Flag_C) <= ioq(8);
+ 						F(Flag_H) <= ioq(8);
+-						ioq := (ioq and x"7") xor ('0'&BusA);
++						ioq := (ioq and "000000111") xor ('0'&BusA);
+ 						F(Flag_P) <= not (ioq(0) xor ioq(1) xor ioq(2) xor ioq(3) xor ioq(4) xor ioq(5) xor ioq(6) xor ioq(7));
+ 					end if;
+ 
+@@ -960,7 +973,7 @@ begin
+ 		end if;
+ 	end process;
+ 
+-	Regs : work.T80_Reg
++	Regs : entity work.T80_Reg
+ 		port map(
+ 			Clk => CLK_n,
+ 			CEN => ClkEn,

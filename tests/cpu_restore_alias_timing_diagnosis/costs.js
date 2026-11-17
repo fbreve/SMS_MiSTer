@@ -1,0 +1,4 @@
+const h=require('./hierarchy.json'),fs=require('fs'),p=require('path');
+const own=(a,i)=>a?+(a[i].match(/\(([-\d.]+)\)/)||a[i].match(/^([-\d.]+)/))[1]:0;
+let rows=Object.keys({...h.baseline,...h.candidate}).map(n=>{let b=h.baseline[n],c=h.candidate[n];return {n,placed:own(c,2)-own(b,2),alut:own(c,6)-own(b,6),ff:own(c,7)-own(b,7),unavailable:own(c,5)-own(b,5)}});
+fs.writeFileSync(p.join(__dirname,'hierarchy_deltas.json'),JSON.stringify(rows,null,2));console.log('SUM',rows.reduce((s,x)=>({alut:s.alut+x.alut,ff:s.ff+x.ff,unavailable:s.unavailable+x.unavailable}),{alut:0,ff:0,unavailable:0}));console.log('FF',JSON.stringify(rows.filter(x=>!x.n.includes('savestates_inst')).sort((a,b)=>Math.abs(b.ff)-Math.abs(a.ff)).slice(0,14)));console.log('UNAV',JSON.stringify(rows.filter(x=>x.unavailable)));console.log('ALUT',JSON.stringify(rows.sort((a,b)=>Math.abs(b.alut)-Math.abs(a.alut)).slice(0,10)));

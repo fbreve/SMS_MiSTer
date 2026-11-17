@@ -1,0 +1,261 @@
+commit f205b05dc058fc5f7f2432779b61e8f3b0e22519
+Author:     Fabricio Breve <fbreve@gmail.com>
+AuthorDate: Sat Oct 24 15:13:41 2026 -0300
+Commit:     Fabricio Breve <fbreve@gmail.com>
+CommitDate: Sat Oct 24 15:13:41 2026 -0300
+
+    Preserve VDP background pipeline across savestates
+    
+    Preserve the historical background pipeline state required for exact rendering after savestate restore.
+    
+    Extend the tagged savestate format to version 15 and restore the live pipeline state that cannot be reconstructed from VRAM, registers, and beam position alone.
+    
+    Prevent identical savestate images from producing different visible futures and preserve exact rendering across repeated LOADs.
+
+diff --git a/SMS.sv b/SMS.sv
+index f0af23e..fb66ec7 100644
+--- a/SMS.sv
++++ b/SMS.sv
+@@ -45,6 +45,8 @@ wire [1:0] ss_phase_in;
+ wire [1:0] ss_phase_out;
+ wire [4777:0] ss_sprite_out,ss_sprite2_out,ss_sprite_in,ss_sprite2_in;
+ wire ss_sprite_valid;
++wire [138:0] ss_bg_out,ss_bg2_out,ss_bg_in,ss_bg2_in;
++wire ss_bg_valid;
+ wire ss_capture_progress;
+ reg  ss_freeze_r;
+ always @(posedge clk_sys) begin
+@@ -1006,6 +1008,7 @@ system #(63) system
+ 	.ss_freeze(ss_freeze),
+     .ss_cpu_prepare(ss_cpu_prepare),.ss_prepare_ce(ce_cpu),.z80_replay_out(ss_z80_replay),
+     .z80_tick_out(ss_z80_tick),.z80_replay_t2(ss_replay_t2),
++    .ss_bg_out(ss_bg_out),.ss_bg2_out(ss_bg2_out),.ss_bg_in(ss_bg_in),.ss_bg2_in(ss_bg2_in),.ss_bg_valid(ss_bg_valid),
+     .ss_sprite_out(ss_sprite_out),.ss_sprite2_out(ss_sprite2_out),
+     .ss_sprite_in(ss_sprite_in),.ss_sprite2_in(ss_sprite2_in),.ss_sprite_valid(ss_sprite_valid),
+ 	.ce_cpu(ss_freeze ? 1'b0 : (ce_cpu & ~se_pause_exec_gate)),
+@@ -1246,6 +1249,7 @@ savestates savestates_inst (
+ 	.ss_cpu_prepare(ss_cpu_prepare),.z80_replay(ss_z80_replay),
+     .z80_tick_active(ss_z80_tick),.z80_replay_t2(ss_replay_t2),
+     .clock_phase(ss_phase_out),.clock_phase_in(ss_phase_in),.clock_phase_set(ss_phase_set),.clock_phase_ready(ss_phase_ready),
++    .bg_out(ss_bg_out),.bg2_out(ss_bg2_out),.bg_in(ss_bg_in),.bg2_in(ss_bg2_in),.bg_valid(ss_bg_valid),
+     .sprite_out(ss_sprite_out),.sprite2_out(ss_sprite2_out),.sprite_in(ss_sprite_in),.sprite2_in(ss_sprite2_in),.sprite_valid(ss_sprite_valid),
+     .clk             (clk_sys),
+ 	.reset_n         (~reset_active),
+diff --git a/rtl/savestates.sv b/rtl/savestates.sv
+index ea2bb25..0e67dce 100644
+--- a/rtl/savestates.sv
++++ b/rtl/savestates.sv
+@@ -7,6 +7,8 @@
+ //   Word 0x002-0x005: Z80 REG[229:0]; v12 word5[40:38]=NMI pending/entry/Old,
+ //                   v13 word5[43:41]=pre-T2 decoder class; [63:44]=zero.
+ //                   v13 tag=48430d, subtype=3 at word01a. v12 has zero [63:41].
++//   v15 tag=48430f adds139-bit background records, retaining v14 restart.
++//   Word032: width139/version15/G5B1; words033..038: two padded records.
+ //   v14 tag=48430e, subtype3, retaining the v13 CPU word layout.
+ //   Word 0x02e: sprite descriptor (width4778, version14, owner G6R1).
+ //   Word 0x02f: [1:0] capture phase0/10/20/25, [2] System E,
+@@ -52,6 +54,10 @@ module savestates (
+     output      [1:0] clock_phase_in,
+     output reg        clock_phase_set,
+     input             clock_phase_ready,
++    // v15 minimal live background history, independently owned per VDP.
++    input [138:0] bg_out, bg2_out,
++    output [138:0] bg_in, bg2_in,
++    output bg_valid,
+     input [4777:0] sprite_out, sprite2_out,
+     output [4777:0] sprite_in, sprite2_in,
+     output sprite_valid,
+@@ -421,6 +427,23 @@ wire [14:0] nvram_size_minus_1 = transfer_eeprom ? 15'd127 :
+ 
+ // v14: 02e descriptor, 02f phase/owner, 2901..2996 two sprite records.
+ localparam [23:0] RESTART_MAGIC = 24'h48430e;
++localparam [23:0] BACKGROUND_MAGIC = 24'h48430f;
++localparam [63:0] BACKGROUND_DESC = {16'd139,8'd15,8'd0,32'h47354231};
++localparam ST_SAVE_BG_DESC=7'd107, ST_SAVE_BG=7'd108,
++           ST_LOAD_BG_DESC=7'd109, ST_LOAD_BG=7'd110;
++reg [138:0] bg_snap,bg2_snap;
++reg [1:0] bg_word;
++reg bg_second,has_background;
++assign bg_in=bg_snap;
++assign bg2_in=bg2_snap;
++assign bg_valid=has_background;
++wire [28:0] bg_address=29'h033+(bg_second?29'd3:29'd0)+{27'd0,bg_word};
++// Three sequential transfers over139 useful bits: rotate64/64/11 on SAVE,
++// shift64/64/11 on LOAD. No padded register bank or indexed wide crossbar.
++wire [63:0] bg_write_word=bg_second ?
++    (bg_word==2?{53'd0,bg2_snap[10:0]}:bg2_snap[63:0]) :
++    (bg_word==2?{53'd0,bg_snap[10:0]}:bg_snap[63:0]);
++
+ localparam [63:0] SPRITE_DESC = {16'd4778,8'd14,8'd0,32'h47365231};
+ localparam ST_SAVE_SPRITE_DESC=7'd99, ST_SAVE_PHASE=7'd100, ST_SAVE_SPRITE=7'd101,
+            ST_LOAD_SPRITE_DESC=7'd102, ST_LOAD_PHASE=7'd103, ST_LOAD_SPRITE=7'd104,
+@@ -502,7 +525,7 @@ reg  [63:0] eeprom_snap;
+ // SC payload shares 0d01..1d00, never the System E or EEPROM regions.
+ // 01e: [22:0] P1, [45:23] P2, [63:46] zero. Per port:
+ // [16:0] timer, [19:17] rises, [20] TH history, [22:21] type history.
+-wire [63:0] video_word = {RESTART_MAGIC, 2'd3,
++wire [63:0] video_word = {BACKGROUND_MAGIC, 2'd3,
+                          systeme ? vdp2_snap[135:128] : 8'd0,
+                          vdp_snap[135:128], video_snap};
+ 
+@@ -541,8 +564,11 @@ reg         nvram_d_latched;
+ 
+ // Shared latch for DDRAM read data (LOAD path)
+ reg [63:0]  dout_latch;
++wire bg_word_invalid=(bg_word==2 && dout_latch[63:11]!=0) ||
++    (bg_word==0 && dout_latch[22:15]>=8'd240) ||
++    (bg_second && !systeme && dout_latch!=0);
+ // v13 inherits v12 NMI and every v11 extension location and meaning.
+-wire modern_restart_tag = dout_latch[63:40] == CPU_RESTART_MAGIC || dout_latch[63:40] == RESTART_MAGIC;
++wire modern_restart_tag = dout_latch[63:40] == CPU_RESTART_MAGIC || dout_latch[63:40] == RESTART_MAGIC || dout_latch[63:40] == BACKGROUND_MAGIC;
+ wire modern_nmi_tag = dout_latch[63:40] == NMI_HISTORY_MAGIC || modern_restart_tag;
+ wire [23:0] load_ext_magic = modern_nmi_tag ? EVOLUTION_PENDING_MAGIC : dout_latch[63:40];
+ wire invalid_nmi_header = modern_nmi_tag &&
+@@ -689,7 +715,12 @@ always @(*) begin
+         ST_LOAD_PHASE: if (!dout_expected && !DDRAM_BUSY && dout_latch[63:4]==0 && dout_latch[2]==systeme) ddram_cmd_read(base_addr+29'h2901);
+         ST_LOAD_SPRITE: if (!dout_expected && !DDRAM_BUSY &&
+             !(sprite_word==74 && dout_latch[63:42]!=0) && !(sprite_second && !systeme && dout_latch!=0))
+-            ddram_cmd_read(base_addr+((sprite_second && sprite_word==74)?29'h01f:sprite_address+29'd1));
++            ddram_cmd_read(base_addr+((sprite_second && sprite_word==74)?(has_background?29'h032:29'h01f):sprite_address+29'd1));
++        ST_SAVE_BG_DESC: if (!DDRAM_BUSY) ddram_cmd_write(base_addr+29'h032,BACKGROUND_DESC,8'hff);
++        ST_SAVE_BG: if (!DDRAM_BUSY) ddram_cmd_write(base_addr+bg_address,bg_write_word,8'hff);
++        ST_LOAD_BG_DESC: if (!dout_expected && !DDRAM_BUSY && dout_latch==BACKGROUND_DESC) ddram_cmd_read(base_addr+29'h033);
++        ST_LOAD_BG: if (!dout_expected && !DDRAM_BUSY && !bg_word_invalid)
++            ddram_cmd_read(base_addr+((bg_second && bg_word==2)?29'h01f:bg_address+29'd1));
+         ST_SAVE_EVOLUTION1: if (!DDRAM_BUSY) ddram_cmd_write(base_addr + 29'h02d, EVOLUTION_HISTORY_DESC, 8'hFF);
+         ST_LOAD_EVOLUTION0: if (!(DDRAM_DOUT_READY && dout_expected) && !dout_expected && !DDRAM_BUSY) ddram_cmd_read(base_addr + 29'h02d);
+         ST_LOAD_EVOLUTION1: if (!(DDRAM_DOUT_READY && dout_expected) && !dout_expected && !DDRAM_BUSY)
+@@ -969,6 +1000,7 @@ always @(posedge clk or negedge reset_n) begin
+         z80_nmi_hold <= 0; nmi_snap <= 3'b001; has_nmi_history <= 0; nmi_padding_ok <= 1;
+         has_restart_context <= 0; restart_snap <= 0; restart_padding_ok <= 1;
+         has_restart <= 0; phase_snap <= 0; sprite_snap <= 0; sprite2_snap <= 0;
++        has_background<=0;bg_snap<=0;bg2_snap<=0;bg_word<=0;bg_second<=0;
+         ss_change_det   <= 0;
+         cur_magic       <= MAGIC;
+         cur_game_id     <= 0;
+@@ -1121,6 +1153,8 @@ always @(posedge clk or negedge reset_n) begin
+             nvram_refill <= 0;
+             // Guest hold was asserted at accepted T. Collect post-T device
+             // state here, before any subsequent guest enable is admitted.
++            bg_snap<=bg_out;bg2_snap<=systeme?bg2_out:139'd0;
++            has_background<=1;
+             sprite_snap <= {22'd0,sprite_out};
+             sprite2_snap <= systeme ? {22'd0,sprite2_out} : 4800'd0;
+             vdp_snap    <= vdp_regs;
+@@ -1397,7 +1431,7 @@ always @(posedge clk or negedge reset_n) begin
+             else sprite_snap <= {sprite_snap[63:0],sprite_snap[4799:64]};
+             if (sprite_word==74) begin
+                 sprite_word<=0;sprite_second<=1;
+-                if (sprite_second) state<=ST_SAVE_EE_DESC;
++                if (sprite_second) state<=ST_SAVE_BG_DESC;
+             end else sprite_word<=sprite_word+7'd1;
+         end
+         ST_LOAD_SPRITE_DESC, ST_LOAD_PHASE, ST_LOAD_SPRITE: begin
+@@ -1418,7 +1452,8 @@ always @(posedge clk or negedge reset_n) begin
+                         if (sprite_second) sprite2_snap <= {dout_latch,sprite2_snap[4799:64]};
+                         else sprite_snap <= {dout_latch,sprite_snap[4799:64]};
+                         if (sprite_second && sprite_word==74) begin
+-                            ddram_read(base_addr+29'h01f);state<=ST_LOAD_EE_DESC;
++                            ddram_read(base_addr+(has_background?29'h032:29'h01f));
++                            state<=has_background?ST_LOAD_BG_DESC:ST_LOAD_EE_DESC;
+                         end else begin
+                             ddram_read(base_addr+sprite_address+29'd1);
+                             if (sprite_word==74) begin sprite_word<=0;sprite_second<=1;end
+@@ -1428,6 +1463,49 @@ always @(posedge clk or negedge reset_n) begin
+                 endcase
+             end
+         end
++        ST_SAVE_BG_DESC: if (!DDRAM_BUSY) begin
++            ddram_write(base_addr+29'h032,BACKGROUND_DESC,8'hff);
++            bg_word<=0;bg_second<=0;state<=ST_SAVE_BG;
++        end
++        ST_SAVE_BG: if (!DDRAM_BUSY) begin
++            ddram_write(base_addr+bg_address,bg_write_word,8'hff);
++            if (bg_second) begin
++                if (bg_word==2) bg2_snap<={bg2_snap[10:0],bg2_snap[138:11]};
++                else bg2_snap<={bg2_snap[63:0],bg2_snap[138:64]};
++            end else begin
++                if (bg_word==2) bg_snap<={bg_snap[10:0],bg_snap[138:11]};
++                else bg_snap<={bg_snap[63:0],bg_snap[138:64]};
++            end
++            if (bg_word==2) begin
++                bg_word<=0;bg_second<=1;
++                if (bg_second) state<=ST_SAVE_EE_DESC;
++            end else bg_word<=bg_word+2'd1;
++        end
++        ST_LOAD_BG_DESC,ST_LOAD_BG: begin
++            if (DDRAM_DOUT_READY && dout_expected) begin
++                dout_expected<=0;dout_latch<=DDRAM_DOUT;
++            end else if (!dout_expected && !DDRAM_BUSY) begin
++                if (state==ST_LOAD_BG_DESC) begin
++                    if (dout_latch!=BACKGROUND_DESC) state<=ST_ERROR;
++                    else begin bg_word<=0;bg_second<=0;ddram_read(base_addr+29'h033);state<=ST_LOAD_BG;end
++                end else if (bg_word_invalid) state<=ST_ERROR;
++                else begin
++                    if (bg_second) begin
++                        if (bg_word==2) bg2_snap<={dout_latch[10:0],bg2_snap[138:11]};
++                        else bg2_snap<={dout_latch,bg2_snap[138:64]};
++                    end else begin
++                        if (bg_word==2) bg_snap<={dout_latch[10:0],bg_snap[138:11]};
++                        else bg_snap<={dout_latch,bg_snap[138:64]};
++                    end
++                    if (bg_second && bg_word==2) begin ddram_read(base_addr+29'h01f);state<=ST_LOAD_EE_DESC;end
++                    else begin
++                        ddram_read(base_addr+bg_address+29'd1);
++                        if (bg_word==2) begin bg_word<=0;bg_second<=1;end
++                        else bg_word<=bg_word+2'd1;
++                    end
++                end
++            end
++        end
+         ST_SAVE_EVOLUTION1: begin
+             if (!DDRAM_BUSY) begin
+                 ddram_write(base_addr + 29'h02d, EVOLUTION_HISTORY_DESC, 8'hFF);
+@@ -1804,6 +1882,7 @@ always @(posedge clk or negedge reset_n) begin
+                 has_nmi_history <= 0; nmi_snap <= 3'b001; nmi_padding_ok <= 1;
+                 has_restart_context <= 0; restart_snap <= 0; restart_padding_ok <= 1;
+         has_restart <= 0; phase_snap <= 0; sprite_snap <= 0; sprite2_snap <= 0;
++        has_background<=0;bg_snap<=0;bg2_snap<=0;bg_word<=0;bg_second<=0;
+                 // Old 64KB files have no beam history: use a deterministic origin.
+                 video_snap <= 0;
+                 // Old 64KB files bypass ST_LOAD_VIDEO entirely.
+@@ -2045,7 +2124,8 @@ always @(posedge clk or negedge reset_n) begin
+             end else if (!dout_expected && !DDRAM_BUSY) begin
+                 has_nmi_history <= modern_nmi_tag;
+                 has_restart_context <= modern_restart_tag;
+-                has_restart <= dout_latch[63:40] == RESTART_MAGIC;
++                has_restart <= dout_latch[63:40] == RESTART_MAGIC || dout_latch[63:40] == BACKGROUND_MAGIC;
++                has_background <= dout_latch[63:40] == BACKGROUND_MAGIC;
+                 has_evolution_history <= (load_ext_magic == EVOLUTION_HISTORY_MAGIC || load_ext_magic == EVOLUTION_PENDING_MAGIC) && dout_latch[39:38] == 2'd3;
+                 if (invalid_nmi_header || (live_evolution || evolution_state) && (!evolution_state || load_ext_magic != EVOLUTION_PENDING_MAGIC || dout_latch[39:38] != 2'd3)) begin
+                     state <= ST_ERROR;
+diff --git a/rtl/system.vhd b/rtl/system.vhd
+index 8678596..43cd73d 100644
+--- a/rtl/system.vhd
++++ b/rtl/system.vhd
+@@ -235,6 +235,9 @@ entity system is
+         z80_replay_out : out std_logic;
+         z80_tick_out : out std_logic;
+         z80_replay_t2 : in std_logic := '1';
++        ss_bg_out, ss_bg2_out : out std_logic_vector(138 downto 0);
++        ss_bg_in, ss_bg2_in : in std_logic_vector(138 downto 0) := (others=>'0');
++        ss_bg_valid : in std_logic := '0';
+         ss_sprite_out, ss_sprite2_out : out std_logic_vector(74*(MAX_SPPL+1)+41 downto 0);
+         ss_sprite_in, ss_sprite2_in : in std_logic_vector(74*(MAX_SPPL+1)+41 downto 0) := (others=>'0');
+         ss_sprite_valid : in std_logic := '0';
+@@ -703,6 +706,7 @@ begin
+ 		smode_M4	=> smode_M4,
+ 		ysj_quirk	=> ysj_quirk,
+ 		reset_n  => RESET_n,
++		ss_bg_out=>ss_bg_out,ss_bg_in=>ss_bg_in,ss_bg_valid=>ss_bg_valid,
+ 		ss_sprite_out=>ss_sprite_out,ss_sprite_in=>ss_sprite_in,ss_sprite_valid=>ss_sprite_valid,ss_freeze=>ss_freeze,
+ 		ss_regs_out => vdp_regs_out,
+ 		ss_regs_in  => vdp_regs_in,
+@@ -760,6 +764,7 @@ begin
+ 		smode_M4	=> open,
+ 		ysj_quirk	=> ysj_quirk,
+ 		reset_n  => RESET_n,
++		ss_bg_out=>ss_bg2_out,ss_bg_in=>ss_bg2_in,ss_bg_valid=>ss_bg_valid,
+ 		ss_sprite_out=>ss_sprite2_out,ss_sprite_in=>ss_sprite2_in,ss_sprite_valid=>ss_sprite_valid,ss_freeze=>ss_freeze,
+ 		ss_regs_out => vdp2_regs_out_i,
+ 		ss_regs_in  => vdp2_regs_in,

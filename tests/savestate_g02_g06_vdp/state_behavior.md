@@ -1,0 +1,49 @@
+# State behavior and consumer ordering
+
+The exact declarations, all assignments and all token consumer sites, with surrounding control flow, are in [inventory.json](inventory.json) and [inventory.md](inventory.md). Line numbers refer to the committed post-G01 source, not the observation adapter. Both production VDPs instantiate the same entities; MAX_SPPL changes array lengths. The table below supplies reset, representation, freeze, capture and first-observation semantics for each inventory family. C/E means reset or primed in the implementation, with future irrelevance still needing proof; C alone is not a correctness verdict.
+
+| G / item | Width; reset or power-up | Serialization / LOAD (A–E) | Freeze and accepted capture | First consumer / possible effect |
+|---|---|---|---|---|
+| G02 reset_flags | Boolean, one bit; asynchronous reset true | A export bit103, but C/E LOAD false | Holds without ce_vdp, except clone write-edge sampling can clear it; SAVE captures post-accepted-edge value at ARM | Next ce_vdp clears frame/line/collision/overflow; suppresses IRQ delivery and reloads delay7. New status read sets it and reset_set protects that edge |
+| G03 old_RD_n | 1; reset1 | C/E LOAD live RD_n | Updates on ce_vdp or clone WR edge, holds otherwise | Rising-to-falling RD detection issues counter/data/status read |
+| G03 old_WR_n | 1; reset1 | C/E LOAD live WR_n | Same gate; its inequality can itself enable clone sampling | Falling WR accepts data/control byte |
+| G03 old_WR_direct | 1; reset0 | C/E LOAD live WR_direct | Same gate | Rising direct write captures D_in and data_write |
+| G03 old_HL | 1; reset0 | C/E LOAD HL; later unconditional assignment also writes identical HL | Tracks every host clock even frozen; real future TH/HL remains live | Next host-clock HL rising latches x/2, unless ss_regs_set. The restore guard protects F07 latch |
+| G03 cpu_write_data | 8; initializer/reset0 | C/E LOAD live D_in | Retains without accepted write/restore; SAVE does not export it | data_write drives VRAM port-A write data and expanded SMS/GG CRAM data |
+| G03 data_write | 1; no asynchronous reset assignment | C/E LOAD0 | Unconditionally cleared each rising host edge, set by accepted write edge; RAM consumes pre-edge value on next host edge even if enables have just stopped | VRAM/CRAM WE, exactly one host-clock physical write for a normally sampled edge |
+| G03 xram_cpu_A_incr | 1; initializer0, not asynchronous reset | C/E LOAD0 | Holds without sampling gate; normal data IN/OUT schedules it; read setup can schedule it on a later sampling edge | Else-if after new WR/RD edge increments serialized xram_cpu_A, optionally fills serialized read latch, clears read pending |
+| G04 xspr_collide_shift | 14; initializer0; no async reset | C/E LOAD all0; absent from image | Holds with ce_vdp0, shifts on accepted ce_vdp at T; ARM captures flags but not this shift | Pre-edge bit13 sets collide_flag on ce_vdp when display_on and permitted y; reset_flags on same edge overrides the set |
+| G04 IRQ_n | 1 clocked output; no initializer/reset branch | B/E LOAD derives active-low level from saved flags/enables/mask and irq_delay==0 | Holds without ce_vdp; accepted ce_vdp can decrement delay or assert/deassert IRQ | CPU INT input in production; a delay reaching0 and actual assertion are distinct enabled edges |
+| G04 last_x0 | 1; initializer0; no async reset | C/E LOAD current x(0) | Tracks x(0) on ce_vdp; holds frozen | Suppresses repeated x485 VINT / x486 HINT operations. Relevant only at those counts, outside accepted x<256, but exact post-restore sequence still must be considered |
+| G05 tile_index | 9; no power-up value | C/E LOAD0 | All background registers hold when ce_pix0 except explicit restore | Pattern address; loaded name-table low and high on internal x phases1/2 (legacy low only) |
+| G05 x | 8; no power-up value | C/E LOAD 240 legacy, otherwise232-scroll or232 depending mode/scroll-disable/y | ce_pix increment; x488 line_reset reloads; LOAD uses simultaneously presented pre-load mode/scroll values | Internal fetch phase/address, eventually rendered pixels; subsequent line_reset provides a canonical refill opportunity |
+| G05 tile_y | 3; no initializer | C/E LOAD0 | ce_pix phase2 from scrolled y XOR flip | Pattern row address |
+| G05 palette, priority_latch, flip_x | 1 each; no initializer | C/E LOAD0 | ce_pix phase2 mode4; legacy phase4 forces these zero | Palette/priority transfer and shift-bit reversal at phase7 |
+| G05 datac | 8; no initializer | C/E LOAD0 | ce_pix legacy phase3 pattern capture | Legacy phase4 expands foreground/background color into data0–3 |
+| G05 data0–3 | 8 each; no initializer | C/E LOAD0 | mode4 captures data0–2 at phases4–6, phase7 uses live VRAM for plane3; legacy phase4 fills all4 | Phase7 reloads pixel shifts |
+| G05 shift0–3 | 8 each; no initializer | C/E LOAD0 | ce_pix phase7 reload; other phases shift | High bit forms background color every clock, subject to main mixer visibility |
+| G05 palette_shift, priority output | 1 each; no initializer | C/E LOAD0 | ce_pix phase7 latch; text priority forced0 | Main sprite/background mixer, CRAM address |
+| G05 text_shift | 6; initializer0 | C/E LOAD0 | Text pixel7 initial load; active text phases5 reload; others shift/blank clear | Text glyph high bit selects foreground/overscan |
+| G05 text_tile_index, text_pattern | 8 each; initializer0 | C/E LOAD0 | screen x1/x3 first character; later phases1/3 fetch next | Text pattern address and shift reload |
+| G05 text_phase | 3; initializer0 | C/E LOAD0 | line_reset/nontext/x7 or out-of-text clears; active pixels count0..5 | Text address/data/shift schedule |
+| G05 text_column | 6; initializer0 | C/E LOAD0 | Same clear conditions; increments at phase5 | Forty-column name-table address and last-column guard |
+| G05 vram_A | 14 registered output; no initializer | E retained on restore, not serialized | Updates on ce_pix at mode-specific fetch phases; holds frozen | Port-B RAM address; data returns before subsequent pixel enable. Must be reconstructed before its meaningful data consumer |
+| G06 state | 3; initialized WAITING | C/E LOAD WAITING | ce_spload progression; x257 starts COMPARE, x496 WAITING | Multiplexes sprite table/pattern VRAM addresses and load schedule |
+| G06 count | integer0..64; 7 semantic bits, no initializer | C/E LOAD0 | ce_spload x257 clears; increments on completed sprite | Per-line array index and sprite-limit/overflow decisions |
+| G06 index | 6; no initializer | C/E LOAD0 | ce_spload x257 clears; increments after rejected/completed sprite | Sprite table address, end-of-list limit |
+| G06 data_address | 14; no initializer | E retained on restore | Built in COMPARE/LOAD_N and legacy LOAD1 | Pattern VRAM address on LOAD0–3 or legacy LOAD1/2 |
+| G06 ce_spload | combinational1 | B, not storage | ce_vdp for MAX_SPPL<8 or sp64=0; otherwise ce_sp | Enables evaluator only; normal rendering shifts still use ce_pix |
+| G06 m2_flags | 8; no initializer | E retained on restore | Legacy LOAD0 sets it | Legacy X early-clock adjustment and color. A fresh evaluator load must precede use |
+| G06 enable | MAX_SPPL+1 Boolean bits; no initializer | C/E LOAD all false | x257 clears; completion enables each array entry | Color/collision loop qualifies sprite shifter output |
+| G06 spr_x | 8 per entry; no initializer | C/E LOAD0 | LOAD_X fills X-1 or early-clock X-33 | Shifter compares position, selects reload point |
+| G06 spr_d0–3 | 8 per plane per entry; no initializer | C/E LOAD0 | Mode4 LOAD0–3; legacy LOAD1/2 fills pattern/flags | Shifter reload data |
+| G06 spr_color | 4 per entry, derived | B from shifter planes (legacy flag nibble gated by shift0) | No independent state | Sprite priority/color loop |
+| G06 spr_active | 1 per entry, derived | B from shifter planes | No independent state | Enable-qualified collision vector and sprite selection |
+| G06 wideclock | Boolean1 per shifter; initializer false | C/E LOAD false | ce_pix toggles, sprite load resets false | Wide sprite half-rate shifting |
+| G06 shifter shift0–3 | 8 each per entry; initializer0 | C/E LOAD0 | ce_pix position load or shift, with mode4/legacy/width rules | Color/active output, then collision/status and pixel mixer |
+| G06 color, collide | registered4 /1; no initializer | E retained on restore; neither has ss_regs_set branch | Only ce_pix updates; held through freeze, possibly Q history through LOAD until first resumed ce_pix | color enters main mixer; collide enters G04 shift on ce_vdp. Collision qualification uses y<192/224/240 or y(8), not cropped VBlank |
+| G06 overflow | registered1; no initializer | C/E LOAD0; x257 also0 | Evaluator sets on sprite-limit crossing; otherwise may hold | G04 host-clock ce_vdp=0 overflow latch. That consumer is not frozen by ce gating alone |
+
+None of these entities has a local ss_freeze input. SMS gates ce_vdp/ce_pix/ce_sp; CPU bus is stopped separately. Therefore “holds during freeze” above describes the actual enable predicate, and does not excuse the ungated data_write clear, HL tracking, clone edge path, CRAM/RAM writes, or overflow-latch process. ARM is one host clock after CPU acceptance; all VDP values exported there reflect T's enabled work. LOAD asserts ss_regs_set with enables stopped, streams CRAM, then waits the unchanged900000-clock flush and raw-video alignment before resuming.
+
+G05/G06 arrays and shifters reset immediately, but background and sprite address outputs and some registered outputs retain Q until later enables. Prior modes/scroll can be visible to a simultaneous background restore. Subsequent line-reset and evaluation opportunities are plausible reconstruction points, not a universal proof; especially Game Gear's crop creates an accepted window before the underlying collision-active display ends.

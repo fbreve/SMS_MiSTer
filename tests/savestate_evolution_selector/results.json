@@ -1,0 +1,359 @@
+{
+  "classification": "CONFIRMED - FIX REQUIRED",
+  "branch": "investigate/savestate-evolution-selector",
+  "head": "eede89d01a6441906dbbda237865a0cbc761d830",
+  "production_diff": false,
+  "staged": false,
+  "format": 9,
+  "logs": [
+    {
+      "name": "case0",
+      "pass": true,
+      "evidence": [
+        "# PAIR CASE0 mapper=0000000102038700 extra=8700000000000000e1320048 A game=4800 prev=2800 B game=4800 prev=2400 Flash=288123/488123",
+        "# SAVE_ONLY PASS CASE0 clocks=28360 boundary=1 mapperWord=0000000102038700 extra=8700000000000000e1320048",
+        "# RESTORE_EDGE CASE0 cycle=68702 active=4800/4800 previous=0000/2800 Flash=480000/280000",
+        "# REPLAY CASE0 reference game=4800 previous=2800 Flash=288123 DATA=28 loaded game=4800 previous=0000 Flash=488123 DATA=48 peerFlash=488123 launchDelta=0/0",
+        "# RESTORE_EDGE CASE0 cycle=1009352 active=4800/4800 previous=0000/2800 Flash=480000/280000",
+        "# PASS F14 CASE0 expected-defect-or-control reproduced, save-only equivalent 28092 cycle comparisons, repeated LOAD deterministic, accepted=3 loaded=2"
+      ]
+    },
+    {
+      "name": "case1",
+      "pass": true,
+      "evidence": [
+        "# PAIR CASE1 mapper=0000000102038700 extra=8700000000000000e1320048 A game=2800 prev=0000 B game=2400 prev=0000 Flash=288123/248123",
+        "# SAVE_ONLY PASS CASE1 clocks=28300 boundary=1 mapperWord=0000000102038700 extra=8700000000000000e1320048",
+        "# RESTORE_EDGE CASE1 cycle=68642 active=4800/2800 previous=0000/0000 Flash=480000/280000",
+        "# REPLAY CASE1 reference game=2800 previous=0000 Flash=288123 DATA=28 loaded game=4800 previous=0000 Flash=488123 DATA=48 peerFlash=248123 launchDelta=0/0",
+        "# RESTORE_EDGE CASE1 cycle=1009292 active=4800/2800 previous=0000/0000 Flash=480000/280000",
+        "# PASS F14 CASE1 expected-defect-or-control reproduced, save-only equivalent 28098 cycle comparisons, repeated LOAD deterministic, accepted=3 loaded=2"
+      ]
+    },
+    {
+      "name": "case2",
+      "pass": true,
+      "evidence": [
+        "# PAIR CASE2 mapper=0000000102038701 extra=8700000000000000e1320128 A game=2400 prev=0000 B game=2400 prev=0000 Flash=248123/248123",
+        "# SAVE_ONLY PASS CASE2 clocks=28330 boundary=1 mapperWord=0000000102038701 extra=8700000000000000e1320128",
+        "# RESTORE_EDGE CASE2 cycle=68672 active=2801/2400 previous=0000/0000 Flash=680100/240000",
+        "# REPLAY CASE2 reference game=4800 previous=2800 Flash=288123 DATA=28 loaded game=4800 previous=2801 Flash=488123 DATA=48 peerFlash=488123 launchDelta=0/0",
+        "# RESTORE_EDGE CASE2 cycle=1009442 active=2801/4800 previous=0000/2800 Flash=680100/280000",
+        "# PASS F14 CASE2 expected-defect-or-control reproduced, save-only equivalent 28097 cycle comparisons, repeated LOAD deterministic, accepted=3 loaded=2"
+      ]
+    },
+    {
+      "name": "case3",
+      "pass": true,
+      "evidence": [
+        "# PAIR CASE3 mapper=0000000102038700 extra=8700000000000000e1320048 A game=2400 prev=0000 B game=2400 prev=0000 Flash=248123/248123",
+        "# SAVE_ONLY PASS CASE3 clocks=28360 boundary=1 mapperWord=0000000102038700 extra=8700000000000000e1320048",
+        "# RESTORE_EDGE CASE3 cycle=68702 active=4800/2400 previous=0000/0000 Flash=480000/240000",
+        "# REPLAY CASE3 reference game=4800 previous=2800 Flash=288123 DATA=28 loaded game=4800 previous=0000 Flash=488123 DATA=48 peerFlash=488123 launchDelta=0/0",
+        "# RESTORE_EDGE CASE3 cycle=1009412 active=4800/4800 previous=0000/2800 Flash=480000/280000",
+        "# PASS F14 CASE3 expected-defect-or-control reproduced, save-only equivalent 28096 cycle comparisons, repeated LOAD deterministic, accepted=3 loaded=2"
+      ]
+    },
+    {
+      "name": "case4",
+      "pass": true,
+      "evidence": [
+        "# PAIR CASE4 mapper=0000000102038500 extra=8500000000000000e1320000 A game=0000 prev=0000 B game=0000 prev=0000 Flash=008123/008123",
+        "# SAVE_ONLY PASS CASE4 clocks=28180 boundary=1 mapperWord=0000000102038500 extra=8500000000000000e1320000",
+        "# RESTORE_EDGE CASE4 cycle=68522 active=0000/0000 previous=0000/0000 Flash=000000/000000",
+        "# REPLAY CASE4 reference game=4800 previous=0000 Flash=488123 DATA=48 loaded game=4800 previous=0000 Flash=488123 DATA=48 peerFlash=488123 launchDelta=1/0",
+        "# RESTORE_EDGE CASE4 cycle=1009292 active=0000/4800 previous=0000/0000 Flash=000000/480000",
+        "# PASS F14 CASE4 expected-defect-or-control reproduced, save-only equivalent 28102 cycle comparisons, repeated LOAD deterministic, accepted=3 loaded=2"
+      ]
+    },
+    {
+      "name": "case5",
+      "pass": true,
+      "evidence": [
+        "# PAIR CASE5 mapper=20a8000102038700 extra=8700000000000000e1320048 A game=4800 prev=2800 B game=4800 prev=2800 Flash=288123/288123",
+        "# SAVE_ONLY PASS CASE5 clocks=28540 boundary=1 mapperWord=20a8000102038700 extra=8700000000000000e1320048",
+        "# RESTORE_EDGE CASE5 cycle=68882 active=4800/4800 previous=0000/2800 Flash=280000/280000",
+        "# REPLAY CASE5 reference game=4800 previous=2800 Flash=288123 DATA=28 loaded game=4800 previous=0000 Flash=288123 DATA=28 peerFlash=288123 launchDelta=0/0",
+        "# RESTORE_EDGE CASE5 cycle=1009532 active=4800/4800 previous=0000/2800 Flash=280000/280000",
+        "# PASS F14 CASE5 expected-defect-or-control reproduced, save-only equivalent 28093 cycle comparisons, repeated LOAD deterministic, accepted=3 loaded=2"
+      ]
+    },
+    {
+      "name": "case6",
+      "pass": true,
+      "evidence": [
+        "# PAIR CASE6 mapper=0000000102030000 extra=0000000000000000e1320000 A game=0000 prev=0000 B game=0000 prev=0000 Flash=008123/008123",
+        "# SAVE_ONLY PASS CASE6 clocks=28105 boundary=1 mapperWord=0000000102030000 extra=0000000000000000e1320000",
+        "# RESTORE_EDGE CASE6 cycle=68447 active=0000/0000 previous=0000/0000 Flash=000000/000000",
+        "# REPLAY CASE6 reference game=0000 previous=0000 Flash=008123 DATA=00 loaded game=0000 previous=0000 Flash=008123 DATA=00 peerFlash=008123 launchDelta=0/0",
+        "# RESTORE_EDGE CASE6 cycle=1009097 active=0000/0000 previous=0000/0000 Flash=000000/000000",
+        "# PASS F14 CASE6 expected-defect-or-control reproduced, save-only equivalent 28093 cycle comparisons, repeated LOAD deterministic, accepted=3 loaded=2"
+      ]
+    },
+    {
+      "name": "case7",
+      "pass": true,
+      "evidence": [
+        "# PAIR CASE7 mapper=0000000102038700 extra=8700000000000000e1320028 A game=2800 prev=0000 B game=2800 prev=0000 Flash=288123/288123",
+        "# SAVE_ONLY PASS CASE7 clocks=28240 boundary=1 mapperWord=0000000102038700 extra=8700000000000000e1320028",
+        "# RESTORE_EDGE CASE7 cycle=68582 active=2800/2800 previous=0000/0000 Flash=280000/280000",
+        "# REPLAY CASE7 reference game=2800 previous=0000 Flash=288123 DATA=28 loaded game=2800 previous=0000 Flash=288123 DATA=28 peerFlash=288123 launchDelta=0/0",
+        "# RESTORE_EDGE CASE7 cycle=1009232 active=2800/2800 previous=0000/0000 Flash=280000/280000",
+        "# PASS F14 CASE7 expected-defect-or-control reproduced, save-only equivalent 28100 cycle comparisons, repeated LOAD deterministic, accepted=3 loaded=2"
+      ]
+    },
+    {
+      "name": "case8",
+      "pass": true,
+      "evidence": [
+        "# PAIR CASE8 mapper=0000000102038700 extra=8700000000000000e1320028 A game=2800 prev=0000 B game=2800 prev=0000 Flash=288123/288123",
+        "# SAVE_ONLY PASS CASE8 clocks=28360 boundary=1 mapperWord=0000000102038700 extra=8700000000000000e1320028",
+        "# RESTORE_EDGE CASE8 cycle=68702 active=2800/2800 previous=0000/0000 Flash=280000/280000",
+        "# REPLAY CASE8 reference game=2800 previous=0000 Flash=288123 DATA=28 loaded game=2800 previous=0000 Flash=288123 DATA=28 peerFlash=288123 launchDelta=0/0",
+        "# RESTORE_EDGE CASE8 cycle=1009352 active=2800/2800 previous=0000/0000 Flash=280000/280000",
+        "# PASS F14 CASE8 expected-defect-or-control reproduced, save-only equivalent 28092 cycle comparisons, repeated LOAD deterministic, accepted=3 loaded=2"
+      ]
+    },
+    {
+      "name": "case9",
+      "pass": true,
+      "evidence": [
+        "# PAIR CASE9 mapper=0000000102038700 extra=8700000000000000e1320028 A game=2800 prev=4800 B game=2800 prev=4800 Flash=288123/288123",
+        "# SAVE_ONLY PASS CASE9 clocks=28495 boundary=1 mapperWord=0000000102038700 extra=8700000000000000e1320028",
+        "# RESTORE_EDGE CASE9 cycle=68837 active=2800/2800 previous=0000/4800 Flash=280000/280000",
+        "# REPLAY CASE9 reference game=2800 previous=4800 Flash=288123 DATA=28 loaded game=2800 previous=0000 Flash=288123 DATA=28 peerFlash=288123 launchDelta=0/0",
+        "# RESTORE_EDGE CASE9 cycle=1009487 active=2800/2800 previous=0000/4800 Flash=280000/280000",
+        "# PASS F14 CASE9 expected-defect-or-control reproduced, save-only equivalent 28099 cycle comparisons, repeated LOAD deterministic, accepted=3 loaded=2"
+      ]
+    },
+    {
+      "name": "case10",
+      "pass": true,
+      "evidence": [
+        "# PAIR CASE10 mapper=0000000102038700 extra=8700000000000000e1320048 A game=4800 prev=2900 B game=4800 prev=2900 Flash=488123/488123",
+        "# SAVE_ONLY PASS CASE10 clocks=28495 boundary=1 mapperWord=0000000102038700 extra=8700000000000000e1320048",
+        "# RESTORE_EDGE CASE10 cycle=68837 active=4800/4800 previous=0000/2900 Flash=480000/480000",
+        "# REPLAY CASE10 reference game=4800 previous=2900 Flash=488123 DATA=48 loaded game=4800 previous=0000 Flash=488123 DATA=48 peerFlash=488123 launchDelta=0/0",
+        "# RESTORE_EDGE CASE10 cycle=1009487 active=4800/4800 previous=0000/2900 Flash=480000/480000",
+        "# PASS F14 CASE10 expected-defect-or-control reproduced, save-only equivalent 28099 cycle comparisons, repeated LOAD deterministic, accepted=3 loaded=2"
+      ]
+    },
+    {
+      "name": "case11",
+      "pass": true,
+      "evidence": [
+        "# PAIR CASE11 mapper=0000000102038700 extra=8700000000000000e1320048 A game=4800 prev=6000 B game=4800 prev=6000 Flash=488123/488123",
+        "# SAVE_ONLY PASS CASE11 clocks=28495 boundary=1 mapperWord=0000000102038700 extra=8700000000000000e1320048",
+        "# RESTORE_EDGE CASE11 cycle=68837 active=4800/4800 previous=0000/6000 Flash=480000/480000",
+        "# REPLAY CASE11 reference game=4800 previous=6000 Flash=488123 DATA=48 loaded game=4800 previous=0000 Flash=488123 DATA=48 peerFlash=488123 launchDelta=0/0",
+        "# RESTORE_EDGE CASE11 cycle=1009487 active=4800/4800 previous=0000/6000 Flash=480000/480000",
+        "# PASS F14 CASE11 expected-defect-or-control reproduced, save-only equivalent 28099 cycle comparisons, repeated LOAD deterministic, accepted=3 loaded=2"
+      ]
+    },
+    {
+      "name": "case12",
+      "pass": true,
+      "evidence": [
+        "# PAIR CASE12 mapper=0000000102038704 extra=8700000000000000e1320428 A game=2800 prev=0000 B game=2800 prev=0000 Flash=288123/288123",
+        "# SAVE_ONLY PASS CASE12 clocks=28270 boundary=1 mapperWord=0000000102038704 extra=8700000000000000e1320428",
+        "# RESTORE_EDGE CASE12 cycle=68612 active=2804/2800 previous=0000/0000 Flash=680400/280000",
+        "# REPLAY CASE12 reference game=2800 previous=0000 Flash=288123 DATA=28 loaded game=2804 previous=0000 Flash=688523 DATA=68 peerFlash=288123 launchDelta=0/0",
+        "# RESTORE_EDGE CASE12 cycle=1009262 active=2804/2800 previous=0000/0000 Flash=680400/280000",
+        "# PASS F14 CASE12 expected-defect-or-control reproduced, save-only equivalent 28099 cycle comparisons, repeated LOAD deterministic, accepted=3 loaded=2"
+      ]
+    },
+    {
+      "name": "case13",
+      "pass": true,
+      "evidence": [
+        "# PAIR CASE13 mapper=0000000102038704 extra=8700000000000000e1320428 A game=2800 prev=0000 B game=2800 prev=0000 Flash=288123/288123",
+        "# SAVE_ONLY PASS CASE13 clocks=28300 boundary=1 mapperWord=0000000102038704 extra=8700000000000000e1320428",
+        "# RESTORE_EDGE CASE13 cycle=68642 active=2804/2800 previous=0000/0000 Flash=680400/280000",
+        "# REPLAY CASE13 reference game=2800 previous=0000 Flash=288123 DATA=28 loaded game=2804 previous=0000 Flash=688523 DATA=68 peerFlash=288123 launchDelta=0/0",
+        "# RESTORE_EDGE CASE13 cycle=1009292 active=2804/2800 previous=0000/0000 Flash=680400/280000",
+        "# PASS F14 CASE13 expected-defect-or-control reproduced, save-only equivalent 28098 cycle comparisons, repeated LOAD deterministic, accepted=3 loaded=2"
+      ]
+    },
+    {
+      "name": "case14",
+      "pass": true,
+      "evidence": [
+        "# PAIR CASE14 mapper=0000000102038700 extra=8700000000000000e1320048 A game=4800 prev=2800 B game=4800 prev=2800 Flash=288123/288123",
+        "# SAVE_ONLY PASS CASE14 clocks=28615 boundary=1 mapperWord=0000000102038700 extra=8700000000000000e1320048",
+        "# RESTORE_EDGE CASE14 cycle=68957 active=4800/4800 previous=0000/2800 Flash=480000/280000",
+        "# REPLAY CASE14 reference game=4800 previous=2800 Flash=288123 DATA=28 loaded game=4800 previous=0000 Flash=488123 DATA=48 peerFlash=288123 launchDelta=0/0",
+        "# RESTORE_EDGE CASE14 cycle=1009607 active=4800/4800 previous=0000/2800 Flash=480000/280000",
+        "# PASS F14 CASE14 expected-defect-or-control reproduced, save-only equivalent 28091 cycle comparisons, repeated LOAD deterministic, accepted=3 loaded=2"
+      ]
+    },
+    {
+      "name": "cpu",
+      "pass": true,
+      "evidence": [
+        "# CPU READ before cycle658787 addr=8123 Flash=288123 DI=28",
+        "# CPU SAVE_ONLY PASS accepted=1 game=4800 prev=2800 guestOUT=28",
+        "# CPU READ restored cycle3388637 addr=8123 Flash=488123 DI=48",
+        "# PASS F14 real T80/video accepted=2 actual OUT20 data before28 restored48 reads=60 mapper=0000000102038700 previous=0000"
+      ]
+    },
+    {
+      "name": "history",
+      "pass": true,
+      "evidence": [
+        "# PASS F14 history matrix initial/first/same/alternating/adjacent/nonadjacent/menu-return/record-reentry"
+      ]
+    },
+    {
+      "name": "banking",
+      "pass": true,
+      "evidence": [
+        "# ** Note: PASS Sega, NVRAM, freeze, standard restore",
+        "# ** Note: PASS forced/static Codemasters",
+        "# ** Note: PASS Wonder Kid $8000 and gating",
+        "# ** Note: PASS Zemina and Nemesis defaults",
+        "# ** Note: PASS 4-PAK writes and trigger exclusion",
+        "# ** Note: PASS Janggun banks, reversal, paired writes and restore",
+        "# ** Note: PASS mapper_castle inhibits banking",
+        "# ** Note: PASS mapper_dahjee_a inhibits banking",
+        "# ** Note: PASS mapper_linear inhibits banking",
+        "# ** Note: PASS mapper_sega_locked inhibits banking",
+        "# ** Note: PASS systeme inhibits banking",
+        "# ** Note: PASS sc3000_en inhibits banking",
+        "# ** Note: PASS BIOS handoff, frozen handoff, restore edge suppression and BIOS Sega writes",
+        "# ** Note: PASS EEPROM priority, pulse and Janggun precedence",
+        "# ** Note: PASS Evolution restore/launch priorities and System E restore layout",
+        "# ** Note: PASS Korean anti-LDIR banking",
+        "# ** Note: PASS current mapper directed regression complete"
+      ]
+    },
+    {
+      "name": "f13_dahjee",
+      "pass": true,
+      "evidence": [
+        "# SAVE_ONLY PASS case0 writes3107",
+        "# PASS FIXED F13 case0 iterations2 stall0 delay0 checks68 first/repeated LOAD data03 mapper0040000003030100 history3ffff"
+      ]
+    },
+    {
+      "name": "f13_deadline",
+      "pass": true,
+      "evidence": [
+        "# SAVE_ONLY PASS case6 writes3107",
+        "# PASS FIXED F13 case6 iterations2 stall0 delay0 checks132068 first/repeated LOAD data00 mapper8040000003020100 history0ffff"
+      ]
+    },
+    {
+      "name": "f07",
+      "pass": true,
+      "evidence": [
+        "# PASS controller case 0 SystemE=0 H1=5a H2=xx writes=3107 reads=3105",
+        "# PASS controller case 1 SystemE=1 H1=5a H2=a5 writes=13393 reads=13389",
+        "# PASS controller case 2 SystemE=1 H1=00 H2=00 writes=23679 reads=23662",
+        "# PASS controller case 3 SystemE=1 H1=00 H2=00 writes=33965 reads=33935",
+        "# PASS controller case 4 SystemE=1 H1=00 H2=00 writes=44251 reads=44208",
+        "# PASS controller case 5 SystemE=1 H1=00 H2=00 writes=54537 reads=54481",
+        "# PASS controller case 6 SystemE=0 H1=00 H2=xx writes=57644 reads=57569",
+        "# PASS controller case 7 SystemE=1 H1=5a H2=a5 writes=67930 reads=67842",
+        "# PASS controller case 8 SystemE=1 H1=5a H2=a5 writes=78216 reads=78117",
+        "# PASS controller case 9 SystemE=1 H1=5a H2=a5 writes=88502 reads=88393",
+        "# PASS controller: modern SMS/System E plus previous96K, random padding, unknown version, invalid reserved, old64K"
+      ]
+    },
+    {
+      "name": "f08",
+      "pass": true,
+      "evidence": [
+        "# PASS replay T=80540 cases=160 repeated snapshots; all states/pins compared"
+      ]
+    },
+    {
+      "name": "f09",
+      "pass": true,
+      "evidence": [
+        "# PASS Master Tap directed T=8 cases=4096: state/pins exact, phases/TH/timeout/buttons, repeated restore, reset/disable, legacy"
+      ]
+    },
+    {
+      "name": "f10",
+      "pass": true,
+      "evidence": [
+        "# PASS F10 directed PHASES=0 cases=896 complete counter phases=3356 JP halves=2"
+      ]
+    },
+    {
+      "name": "f11",
+      "pass": true,
+      "evidence": [
+        "# PASS F11 ordinary baseline cycles=1000000 external input cases=8 held observations=32000"
+      ]
+    },
+    {
+      "name": "f12",
+      "pass": true,
+      "evidence": [
+        "# PASS FIXED case4 stall0 full0 delay6 offset0 accepts1 transfers1 checks2552454 worstLatency656884 overrideCPU7 overridePSG5"
+      ]
+    }
+  ],
+  "sources": [
+    {
+      "name": "SMS.sv",
+      "sha256": "6d1ba20afccd53707da39de423e3e0fb27701e3e4090c46de4a407b3ad8930bc"
+    },
+    {
+      "name": "rtl/system.vhd",
+      "sha256": "b5eb438c84e885e4f7837d587d0cd7d528d251f01261e0a42c66fa39a87cc13f"
+    },
+    {
+      "name": "rtl/evolution_mapper.vhd",
+      "sha256": "f53b654da39daf7e3674e03857fa7a2dc25082295700ed7e1f44e10ccfc0a413"
+    },
+    {
+      "name": "rtl/evolution_rom_address.vhd",
+      "sha256": "ba4745d1941b155e6943f198311dc7eed2825ec6f71483f931a9a860f492ea99"
+    },
+    {
+      "name": "rtl/mapper_ctrl.vhd",
+      "sha256": "6d9f9985af7d2f6ae9b07fea891eaa94f0a503601036ef6cb3169ef6390b1126"
+    },
+    {
+      "name": "rtl/mapper_detect.vhd",
+      "sha256": "6559a27f088fa1164886d9ea45267808db715d8e2fbb7877d3ad62c437df35d1"
+    },
+    {
+      "name": "rtl/memory_decode.vhd",
+      "sha256": "a2de44466d858d935bfe5207f0c925042aecd78fda5f40553f2820f5ee259e08"
+    },
+    {
+      "name": "rtl/io.vhd",
+      "sha256": "e21336a23337416a126ed0dfbf1c20fc49ad5a1dd17bb00adf643b11fb600e6d"
+    },
+    {
+      "name": "rtl/video.vhd",
+      "sha256": "a8fe0918542739ed44e520d9df9d32446801d3b5a8bb46e420da54fc831361c0"
+    },
+    {
+      "name": "rtl/savestates.sv",
+      "sha256": "a1e2a3d7512a22299f01e1765c5d01ab47b0e9601533215fdb817c62d674dec5"
+    },
+    {
+      "name": "rtl/T80/T80.vhd",
+      "sha256": "3415d4189c33cc15b7c46e569cb2cbdf209535b583dc4a4592326eaa8324a56d"
+    },
+    {
+      "name": "rtl/T80/T80s.vhd",
+      "sha256": "0239a0fb753fb1d01dc15221f3f1c63eceeecadc8ab84e991c790ac725859819"
+    }
+  ],
+  "counts": {
+    "logs": 26,
+    "f14DirectedCases": 15,
+    "f14AcceptedOperations": 45,
+    "f14Loads": 30,
+    "realCpuAcceptedOperations": 2,
+    "historyMatrixStages": 10
+  },
+  "diffStat": "",
+  "status": "?? tests/",
+  "f06": "unresolved, unchanged"
+}

@@ -1,0 +1,41 @@
+const fs=require('fs'),p=require('path'),crypto=require('crypto'),cp=require('child_process'),assert=require('assert');
+const d=__dirname,root=p.resolve(d,'../..'),measure=require('../cpu_restore_output_alias/measure');
+const read=f=>{const b=fs.readFileSync(f);return b.toString(b[0]===255&&b[1]===254?'utf16le':'utf8');};
+const hash=f=>crypto.createHash('sha256').update(fs.readFileSync(f)).digest('hex');
+const write=(f,x)=>fs.writeFileSync(p.join(d,f),JSON.stringify(x,null,2)+'\n');
+const results={};
+for(const variant of ['baseline','candidate']){
+ const folder=p.join(d,variant),m=measure(folder),fit=read(p.join(folder,'output_files/SMS.fit.rpt')),map=read(p.join(folder,'output_files/SMS.map.rpt'));
+ const n=re=>{const x=fit.match(re);assert(x,String(re));return Number(x[1].replaceAll(',',''));};
+ m.MLABbits=n(/Total MLAB memory bits\s*;\s*([\d,]+)/);m.memoryALMs=n(/ALMs used for memory[^;]*;\s*([\d,]+)/);
+ m.M10K=n(/; M10K blocks\s*;\s*([\d,]+)/);
+ const ramStart=fit.indexOf('; Fitter RAM Summary');const ramLines=fit.slice(ramStart).split(/\r?\n/),ramEnd=ramLines.findIndex((s,i)=>i>4&&s==='');
+ const ramRows=ramLines.slice(0,ramEnd<0?undefined:ramEnd).filter(s=>/^;/.test(s)).map(s=>s.split(';').slice(1,-1).map(x=>x.trim()));
+ m.MLABcells=ramRows.filter(r=>r.length>20&&/^\d+$/.test(r[19])).reduce((a,r)=>a+Number(r[19]),0);
+ m.fittedRamM10KSum=ramRows.filter(r=>r.length>20&&/^\d+$/.test(r[18])).reduce((a,r)=>a+Number(r[18]),0);assert.equal(m.fittedRamM10KSum,m.M10K,'Fitted RAM row sum mismatch');
+ m.finalInterconnect=fit.split(/\r?\n/).filter(l=>/Average interconnect usage|Peak interconnect usage/.test(l));
+ m.routingResourceRows=fit.split(/\r?\n/).filter(l=>/^;/.test(l)&&/;\s*(?:(?:R\d+|C\d+|Block|Local|Direct link) interconnects|LAB Local Interconnect)\s*;/i.test(l));
+ m.registerHierarchy=fit.split(/\r?\n/).filter(l=>/^;/.test(l)&&/;\s*RegisterMemory\s*;\s*work\s*;/.test(l)).map(l=>l.split(';').slice(1,-1).map(s=>s.trim()));
+ m.registerRamRows=fit.split(/\r?\n/).filter(l=>/^;/.test(l)&&/regs_array.*;\s*AUTO\s*;/.test(l));
+ m.uninferred=map.split(/\r?\n/).filter(l=>/uninferred RAM|RAM logic .*uninferred/.test(l));
+ m.registerParameters=map.split(/\r?\n/).flatMap((l,i,a)=>/^; Parameter Settings for Inferred Entity Instance: .*regs_array/.test(l)?a.slice(i,i+65):[]);
+ m.normalizedWarnings=[...new Set(m.warningLines.map(s=>s.replace(/(?:Z:|[A-Z]:[^ ]*)\/(?:baseline|candidate)\//g,'<BUILD>/')))];
+ m.reportHashes=Object.fromEntries(fs.readdirSync(p.join(folder,'output_files')).filter(f=>/\.(rpt|summary)$/.test(f)).map(f=>[f,hash(p.join(folder,'output_files',f))]));
+ results[variant]=m;
+}
+const delta={};for(const key of ['needed','placed','registers','synthesisRegisters','M10K','MLABcells','MLABbits','memoryALMs','memoryBits','DSP','logicALUT','routingALUT','setup','hold'])delta[key]=results.candidate[key]-results.baseline[key];
+const workflow=read(p.join(d,'workflow.log'));for(const v of ['baseline','candidate'])for(const stage of ['map','fit','asm','sta'])assert(workflow.includes(`${v} ${stage} ended exit=0`),`${v} ${stage} incomplete`);
+const manifest=JSON.parse(read(p.join(d,'input_manifest.json'))),changes=[];
+for(const [file,h] of Object.entries(manifest.inputs)){assert.equal(hash(p.join(d,'baseline',file)),h.baseline,file);assert.equal(hash(p.join(d,'candidate',file)),h.candidate,file);if(h.baseline!==h.candidate)changes.push(file);}
+assert.deepEqual(changes,['rtl/VM2413/registermemory.vhd']);
+const before=JSON.parse(read(p.join(d,'preservation_before.json')));const mismatches=Object.entries(before.files).filter(([file,h])=>hash(p.join(root,file))!==h);
+assert.equal(mismatches.length,0,'Existing evidence changed');
+for(const [ref,h] of Object.entries(before.refs))assert.equal(cp.execFileSync('git',['rev-parse',ref],{cwd:root,encoding:'utf8'}).trim(),h);
+const comparisons={added:results.candidate.normalizedWarnings.filter(x=>!results.baseline.normalizedWarnings.includes(x)),removed:results.baseline.normalizedWarnings.filter(x=>!results.candidate.normalizedWarnings.includes(x))};
+const reference=measure(p.join(root,'tests/timing_history/builds/F'));const baselineVsRetained={};for(const key of Object.keys(delta))if(key in reference)baselineVsRetained[key]=results.baseline[key]-reference[key];
+const simulations=Object.fromEntries(['bank','gate','fm','fm_gate','savestate','savestate_gate_reference','savestate_gate'].map(name=>{const file=p.join(d,name+'.log');return [name,fs.existsSync(file)?{pass:read(file).includes('PASS ')&&!/\*\* (?:Fatal|Error):|# Errors: [1-9]|is not bound/.test(read(file)),passLine:read(file).split(/\r?\n/).filter(s=>s.includes('PASS ')||s.includes('Nonzero audio checks')),sha256:hash(file)}:{pass:false,missing:true}];}));
+write('results.json',{builds:results,delta,baselineVsRetained,warningComparison:comparisons,simulations,sourceDifference:changes,preservationMismatches:mismatches});
+let table='| Metric | Fresh baseline | AUTO candidate | Candidate - baseline |\n| --- | ---: | ---: | ---: |\n';
+for(const [label,key] of [['Needed ALMs','needed'],['Placed ALMs','placed'],['Mapped registers','synthesisRegisters'],['Fitted registers','registers'],['Logic ALUTs','logicALUT'],['Routing ALUTs','routingALUT'],['M10Ks','M10K'],['MLAB cells','MLABcells'],['MLAB memory bits','MLABbits'],['Logical memory bits','memoryBits'],['DSPs','DSP'],['Setup slack (ns)','setup'],['Hold slack (ns)','hold']])table+=`| ${label} | ${results.baseline[key]} | ${results.candidate[key]} | ${delta[key]>=0?'+':''}${Number(delta[key].toFixed(3))} |\n`;
+fs.writeFileSync(p.join(d,'comparison_table.md'),table);fs.writeFileSync(p.join(d,'production.diff'),cp.execFileSync('git',['diff','--','rtl/VM2413/registermemory.vhd'],{cwd:p.join(d,'worktree')}));
+console.log(JSON.stringify({delta,baselineVsRetained,simulations,preservationMismatches:mismatches.length},null,2));

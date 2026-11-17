@@ -1,0 +1,49 @@
+const fs=require('fs'),p=require('path'),cp=require('child_process'),d=__dirname,root=p.resolve(d,'../..');
+const file='rtl/savestates.sv',s=fs.readFileSync(p.join(root,file),'utf8'),lines=s.split(/\r?\n/),fit=fs.readFileSync(p.join(d,'../savestate_f01_opll_fix/quartus_final/output_files/SMS.fit.rpt'),'utf8');
+const rows=[
+ ['is_old_format',1,230,'64KiB size vs96KiB; old CPU layout, magic/gameID, mapper/RAM, IO/video skip','public64 and public96','public',24],
+ ['load_ext_magic',24,128,'24-bit tag normalization v12..17 ->v11; routes GG/history; no historical bits reconstructed','v1..17','development-only',24],
+ ['modern_nmi_tag',1,3,'CPU NMI history presence','v12..17','mixed: decode collapses, public default retained',24],
+ ['modern_restart_tag',1,3,'CPU instruction/restart padding and presence','v13..17','mixed: decode collapses, public default retained',24],
+ ['has_nmi_history',1,3,'CPU NMI triplet vs001','v12..17','public fallback required',24],
+ ['has_restart_context',1,3,'T80 instruction context vs canonical M1','v13..17','public fallback required',24],
+ ['has_restart',1,9559,'dual4778-bit sprite records, capture tick, restart phase','v14..17','public fallback required',24],
+ ['has_background',1,278,'dual139-bit background records vs deterministic invalid history','v15..17','public fallback required',24],
+ ['has_fm',1,3328,'F01 sequential OPLL exact104rows vs canonical reset/28rows/refill','v17','public fallback required',24],
+ ['has_audio_ext',1,208,'dual96-bit exact PSG history, divider4, audio control11, phase1','PSGX1 untagged October master and later','public fallback required',64],
+ ['has_md_ext',1,46,'MD6 handshake history vs invalid','v3..17','public fallback required',24],
+ ['has_eeprom_tag',1,128,'EEPROM serial temporal state/presence vs legacy wrapper','v4..17','public fallback required',24],
+ ['has_sc_tag',1,2,'SC RAM size tag vs old mapper handling','v5..17','public fallback required',24],
+ ['has_tap_tag',1,19,'MasterTap protocol state','v6..17','public fallback required',24],
+ ['has_paddle_tag',1,32,'paddle protocol state','v7..17','public fallback required',24],
+ ['has_gun_tag',1,46,'lightgun guest latches','v8..17','public fallback required',24],
+ ['has_mapper_history',1,18,'mapper detection vs0ffff legacy defaults','v9..17','public fallback required',24],
+ ['has_evolution_history',1,63,'Evolution57-bit selector plus6pending; old images rejected for Evolution','v10..17','public rejection/fallback required',24],
+ ['evolution_history_valid',1,63,'history descriptor validity vs no historical state','v10..17','public rejection required',64],
+ ['GG_RESET',128,128,'reset image for absent GG temporal state and padding fallback','untagged public64/96','public',14],
+ ['MAPPER_HISTORY_LEGACY',18,18,'mapper detector safe deterministic fallback','untagged/public and malformed old payload','public',46],
+ ['nmi_padding_ok',1,3,'v12 padding vs v13+ restart padding','v12 alone vs v13..17','development distinction removable; current validation retained',41],
+ ['restart_padding_ok',1,6,'combined NMI/instruction semantic validation','v13..17','current validation required',41]
+].map(([signal,width,muxWidth,state,condition,classification,decodeWidth])=>({file,module:'savestates',signal,width,muxWidth,affectedState:state,versionCondition:condition,classification,decodeWidth,sourceReferences:[...s.matchAll(new RegExp('\\b'+signal+'\\b','g'))].length,physicalFanout:null}));
+for(const r of rows){const m=fit.match(new RegExp('; emu:emu\\|savestates:savestates_inst\\|'+r.signal+' +; (\\d+) +;'));if(m)r.physicalFanout=Number(m[1]);}
+const tags=[...s.matchAll(/localparam \[23:0\] (\w+) = 24'h4843([0-9a-f]{2})/g)].map(m=>({signal:m[1],width:24,version:parseInt(m[2],16),literal:'4843'+m[2],comparisons:[...s.matchAll(new RegExp('(?:==|!=)\\s*'+m[1]+'\\b','g'))].length,classification:m[2]==='11'?'current':'development-only'}));
+const relevant=new RegExp('\\b('+rows.map(r=>r.signal).join('|')+'|'+tags.map(r=>r.signal).join('|')+'|invalid_nmi_header)\\b');
+const expressions=lines.map((text,i)=>({file,module:'savestates',line:i+1,text})).filter(r=>relevant.test(r.text)&&!/^\s*\/\//.test(r.text));
+for(const e of expressions){e.structures=rows.filter(r=>new RegExp('\\b'+r.signal+'\\b').test(e.text)).map(r=>r.signal);e.tags=tags.filter(r=>new RegExp('\\b'+r.signal+'\\b').test(e.text)).map(r=>r.version);e.decodeWidth=e.tags.length?24:null;e.metadata='Join structures to rows for width, fanout, destination, muxWidth and public/development role; tags to tags for version/decode.';}
+for(const [lo,hi,description,width]of [[2139,2146,'old64 CPU212 ->230 zero extension',18],[2062,2085,'absent history defaults before any public LOAD',null],[2271,2288,'old64 skips newer mapper/IO/video routes',null],[1390,1410,'old64 RAM footprint cannot broaden to new mapper RAM sizes',null]])for(let i=lo-1;i<hi;i++)if(!expressions.some(e=>e.line===i+1))expressions.push({file,module:'savestates',line:i+1,text:lines[i],description,width,classification:'public required'});
+const receivers=[['rtl/T80/T80.vhd',/NMIValid|RestartValid|NMIState|RestartState/],['rtl/T80/T80s.vhd',/NMIValid|RestartValid|NMIState|RestartState/],['rtl/vdp_background.vhd',/ss_bg_valid|ss_bg_set/],['rtl/vdp_sprites.vhd',/ss_sprite_valid|ss_set/],['rtl/vdp_sprite_shifter.vhd',/ss_sprite_valid|ss_set/],['rtl/vdp.vhd',/ss_sprite_valid|ss_bg_valid/],['rtl/io.vhd',/ss_\w*valid/],['rtl/system.vhd',/ss_\w*valid|z80_restart_valid|fm_legacy_reset/],['rtl/opll_snapshot.sv',/legacy|LEG_RESET|LEG_WRITE|REFILL/]];
+const receiverExpressions=[];for(const[f,re]of receivers){fs.readFileSync(p.join(root,f),'utf8').split(/\r?\n/).forEach((text,i)=>{if(re.test(text))receiverExpressions.push({file:f,line:i+1,text});});}
+for(const[f,re]of [['rtl/jt89/jt89.v',/ss_ext_set|ss_set/],['rtl/mapper_ctrl.vhd',/ss_.*(valid|full|history)|SS_.*(Valid|Full|History)/i],['rtl/mapper_detect.vhd',/ss_.*history|legacy/i],['rtl/T80/T80.vhd',/NMILegacy/],['rtl/io.vhd',/ss_.*(set|valid)|ss_(md|tap|gun|paddle)/i]])fs.readFileSync(p.join(root,f),'utf8').split(/\r?\n/).forEach((text,i)=>{if(re.test(text))receiverExpressions.push({file:f,line:i+1,text});});
+const fanout=fit.split(/\r?\n/).filter(l=>/^; emu:emu\|.*; \d+ +;\s*$/.test(l));
+for(const[f,re]of [['SMS.sv',/ss_(md|tap|paddle|gun)_valid|eeprom_full|Legacy states|if \(ss_(tap|paddle)_set\)/],['rtl/sega_controller.sv',/ss_valid|ss_set/],['rtl/lightgun.sv',/SS_STATE_VALID|SS_STATE_SET/],['rtl/cart_eeprom.vhd',/ss_full|ss_set/],['rtl/eeprom_93c46.vhd',/ss_full|ss_set/],['rtl/io.vhd',/gg_state_set|io_state_set/],['rtl/system.vhd',/mapper_history_in|eeprom_full|evolution_ss_in/]])fs.readFileSync(p.join(root,f),'utf8').split(/\r?\n/).forEach((text,i)=>{if(re.test(text))receiverExpressions.push({file:f,line:i+1,text});});
+const out={notes:['Widths are semantic bus widths; muxWidth describes affected state and is NOT a count of independently removable physical mux bits.','Source references are lexical references, not physical fanout. Physical fanout is recorded only when present in the retained v17 fitter report; null means not separately reported/merged.','No claim of exact per-expression ALMs from text. Current/public defaults remain; version comparisons share synthesis terms.','Memory-size/mapper-presence flags are configuration rather than development-version compatibility and remain untouched.','Receiver valid selects retain public defaults and cannot be removed by dropping development tags.'],tags,rows,expressions,receiverExpressions,reportedPhysicalFanout:fanout};
+const timingFanout={};
+for(const name of ['baseline','experiment']){const file=p.join(d,name+'_fanout.tsv');if(fs.existsSync(file)){timingFanout[name]=Object.fromEntries(fs.readFileSync(file,'utf8').trim().split(/\r?\n/).slice(1).map(line=>{const[signal,registerNodes,count,names]=line.split('\t');return[signal,{registerNodes:Number(registerNodes),timingFanoutNodeCount:count==='UNAVAILABLE'?null:Number(count),names,definition:'TimeQuest get_fanouts collection through combinational paths; transitive timing nodes, not direct Fitter loads or independent per-expression hardware.'}];}));}}
+out.postFitTimingFanout=timingFanout;
+for(const r of rows)r.timingFanout={baseline:timingFanout.baseline?.[r.signal]||null,experiment:timingFanout.experiment?.[r.signal]||null};
+for(const e of receiverExpressions){
+ const group=/sprite/.test(e.file)||/sprite/.test(e.text)?'has_restart':/background/.test(e.file)||/bg_valid/.test(e.text)?'has_background':/opll_snapshot|fm_legacy/.test(e.file+' '+e.text)?'has_fm':/jt89/.test(e.file)?'has_audio_ext':/sega_controller|ss_md_valid/.test(e.file+' '+e.text)?'has_md_ext':/lightgun|ss_gun/.test(e.file+' '+e.text)?'has_gun_tag':/ss_tap/.test(e.text)?'has_tap_tag':/ss_paddle/.test(e.text)?'has_paddle_tag':/eeprom|ss_full/.test(e.file+' '+e.text)?'has_eeprom_tag':/mapper_history/.test(e.text)?'has_mapper_history':/RestartValid/.test(e.text)?'has_restart_context':/NMI|NMILegacy/.test(e.text)?'has_nmi_history':'is_old_format';
+ const r=rows.find(r=>r.signal===group);e.module=p.basename(e.file,p.extname(e.file));e.compatibilityStructure=group;e.versionCondition=r.versionCondition;e.selectionWidth=1;e.destinationWidth=/gg_state_set/.test(e.text)?128:/io_state_set/.test(e.text)?32:r.muxWidth;e.decodeWidth=0;e.physicalFanout=null;e.requiredForPublic=true;e.developmentOnly=false;e.note='No local outer-tag decode. Parent/default selection metadata links to the controller row; destinationWidth is aggregate semantic width, not separately removable physical mux cost.';
+}
+fs.writeFileSync(p.join(d,'compatibility_inventory.json'),JSON.stringify(out,null,2));
+console.log({tags:tags.length,comparisons:tags.reduce((n,t)=>n+t.comparisons,0),expressions:expressions.length,receiverExpressions:receiverExpressions.length});

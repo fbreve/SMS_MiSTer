@@ -1,0 +1,10 @@
+const fs=require('fs'),p=require('path'),d=__dirname,src=p.join(d,'../savestate_g08_release_fix/original_combined'),out=p.join(d,'release_original');
+fs.mkdirSync(out,{recursive:true});
+for(const f of fs.readdirSync(src))if(fs.statSync(p.join(src,f)).isFile()&&/\.(sv|vhd|v|do|hex|dat)$/.test(f))fs.copyFileSync(p.join(src,f),p.join(out,f));
+let s=fs.readFileSync(p.join(out,'audio_tb.sv'),'utf8').replace('wire[15:0]al,ar,rl,rr_audio;','wire[15:0]rl,rr_audio;').replace('module pause_tb;','module pause_tb;wire[15:0]al,ar,last_sample_in;wire last_sample_valid;');
+s=s.replace(/savestates\s+dut\s*\(/,"savestates dut(.fm_initialized(1'b1),.fm_state_rdata(32'd0),.audio_last_out(audio_phase_out?al:ar),.audio_last_in(last_sample_in),.audio_last_valid(last_sample_valid),");
+s=s.replace('AudioMix mix(.clk','AudioMix mix(.ss_last_sample(last_sample_in),.ss_last_valid(last_sample_valid),.clk');
+s=s.replace('if(raw_errors)$fatal','if(errors)$fatal(1,"mixed audio mismatch");\nif(raw_errors)$fatal');
+fs.writeFileSync(p.join(out,'audio_tb.sv'),s);
+fs.writeFileSync(p.join(out,'savestates_sim.sv'),require('../savestate_g06_g10_fix/controller_adapter')('rtl/savestates.sv'));
+let c=fs.readFileSync(p.join(out,'compile.do'),'utf8').replace('savestates_sim.sv pause_fixture.sv','../../../rtl/opll_snapshot.sv savestates_sim.sv pause_fixture.sv');fs.writeFileSync(p.join(out,'compile.do'),c);

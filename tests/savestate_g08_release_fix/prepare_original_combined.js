@@ -1,0 +1,5 @@
+const fs=require('fs'),p=require('path');const d=__dirname,root=p.resolve(d,'../..'),old=p.join(root,'tests/savestate_g08_release'),dst=p.join(d,'original_combined');fs.mkdirSync(dst,{recursive:true});
+for(const f of ['T80_sim.vhd','T80s_sim.vhd','pause_fixture.sv','rom.hex','run.do'])fs.copyFileSync(p.join(old,f),p.join(dst,f));
+fs.writeFileSync(p.join(dst,'savestates_sim.sv'),require('../savestate_g06_g10_fix/controller_adapter')(p.join(d,'proposed/savestates.sv')));fs.copyFileSync(p.join(d,'proposed/jt89.v'),p.join(dst,'jt89.v'));
+let s=fs.readFileSync(p.join(old,'audio_tb.sv'),'utf8').replace('savestates dut(', 'wire audio_pending_tick;\nsavestates dut(.audio_pending_tick(audio_pending_tick),').replace('jt89 psg1(', 'jt89 psg1(.ss_pending_tick(audio_pending_tick),').replace('jt89 psg2(', 'jt89 psg2(.ss_pending_tick(audio_pending_tick),').replace('jt89 rpsg(',"jt89 rpsg(.ss_pending_tick(1'b0),");fs.writeFileSync(p.join(dst,'audio_tb.sv'),s);
+s=fs.readFileSync(p.join(old,'compile.do'),'utf8').replaceAll('../../rtl','../../../rtl').replace('../../../rtl/jt89/jt89.v','jt89.v');fs.writeFileSync(p.join(dst,'compile.do'),s);

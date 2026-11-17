@@ -1,0 +1,5 @@
+# Pre-existing legacy/current calibration mismatch
+
+Both committed v19 and CRAM candidate fail the unchanged fixture at actual29/expected1, before that replay suffix, using legacy warm-up calibration distance372. The added SAVE scan cannot explain a LOAD-only mismatch that also occurs in committed v19. The fixture now excludes warming LOADs from modern calibration; the first modern LOAD calibrates, and the remaining12 LOADs target all12 original phases. All13 modern LOAD suffixes and first-enable assertions remain. No production source or oracle was changed. Pre-correction source/log pairs are retained in the adjacent pilot folders.
+
+Measured corrected modern distance is53,770 clocks in both baseline and candidate, versus372 for legacy warm-up. F06/v18+ full-SRAM restoration adds work after the fixture's selected VRAM-tail read; that address is no longer the last modern DDR transaction. Their modulo30 difference explains actual29 versus expected1. The corrected baseline and candidate each pass all12 targeted phases plus13 full guest replay suffixes.

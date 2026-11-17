@@ -1,0 +1,29 @@
+commit cb2e8615128d61adb996ada68e6bbdcc314c20f6
+Author:     Fabricio Breve <fbreve@gmail.com>
+AuthorDate: Sun Oct 25 16:59:36 2026 -0300
+Commit:     Fabricio Breve <fbreve@gmail.com>
+CommitDate: Sun Oct 25 16:59:36 2026 -0300
+
+    Fix ROM request restart across savestates
+    
+    Invalidate stale ROM transaction state during savestate restore and deterministically restart the request required by the restored CPU state.
+    
+    Prevent paused System E snapshots loaded during running execution from losing the restored ROM request or consuming stale opcode data.
+    
+    Retain savestate format version 16.
+
+diff --git a/SMS.sv b/SMS.sv
+index fea8a28..e878d01 100644
+--- a/SMS.sv
++++ b/SMS.sv
+@@ -608,7 +608,9 @@ sdram ram
+ 
+ 	.init(~locked),
+ 	.clk(clk_sys),
+-	.clkref(systeme ? ce_pix : turbo ? ce_pix : ce_cpu),
++	// Private CPU replay uses /15 even in System E/turbo. Align the ROM
++	// acceptance slot with its T1 so the restored read completes before T2.
++	.clkref((ss_cpu_prepare || !(systeme || turbo)) ? ce_cpu : ce_pix),
+ 
+ 	.waddr(romwr_a),
+ 	.din(ioctl_dout),

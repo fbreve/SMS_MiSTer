@@ -1,0 +1,11 @@
+const fs=require('fs'),p=require('path');
+const root=__dirname,src=p.resolve(root,'../ym2413_registermemory_auto/prepare_physical.js');
+let s=fs.readFileSync(src,'utf8').replaceAll('rtl/VM2413/registermemory.vhd','rtl/VM2413/outputmemory.vhd').replaceAll('regs_array','data_array').replaceAll('"AUTO"','"MLAB"').replaceAll('experiment/ym2413-registermemory-auto','experiment/ym2413-outputmemory-mlab');
+s=s.replace("fs.mkdirSync(d);", "fs.mkdirSync(d);\nconst approved=JSON.parse(fs.readFileSync(p.join(task,'synthesis/inputs.json')));");
+s=s.replace("const dest=p.join(d,'candidate',f);", "assert.equal(sha(bytes),approved.builds.candidate.inputs[f].SHA256,'Previously approved synthesis source '+f);\n const dest=p.join(d,'candidate',f);");
+s=s.replace("fs.writeFileSync(p.join(d,'inputs.json')", "assert.equal(manifest.sourceHash,approved.sourceHash,'Previously approved aggregate source');\nfs.writeFileSync(p.join(d,'inputs.json')");
+s=s.replace("const previous=p.join(repo,'tests/ym2413_selfhealing_combined/physical_seed2');", "const previous=p.join(repo,'tests/ym2413_registermemory_auto/physical_seed2');");
+s=s.slice(0,s.indexOf('let paths='))+`let paths=fs.readFileSync(p.join(d,'paths.tcl'),'utf8').replace('snapshot registers','snapshot outputs').replace('*u_register_memory*','*Mmem*');fs.writeFileSync(p.join(d,'paths.tcl'),paths);
+console.log(JSON.stringify({PASS:true,sourceHash:manifest.sourceHash,inputs:Object.keys(inputs).length,baseline:{needed:r.neededALMs,placed:r.placedALMs,registers:r.fittedRegisters,M10K:r.M10K,WNS:r.setupSlack,TNS:r.setupTNS}},null,2));
+`;
+fs.writeFileSync(p.join(root,'prepare_physical.js'),s);

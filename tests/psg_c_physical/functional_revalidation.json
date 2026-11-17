@@ -1,0 +1,101 @@
+{
+  "baseline": "8443a0d19a88aff7a5900011bccf386daf146945",
+  "candidateBranch": "experiment/psg-c-controls",
+  "reviewedDiffSHA256": "d3ae1a5d820fd790cb7fb96987c9038b03febca9f4813cd1a45839576104fcdd",
+  "changedFiles": [
+    "SMS.sv",
+    "rtl/AudioMix.vhd",
+    "rtl/jt89/jt89.v",
+    "rtl/jt89/jt89.vhd",
+    "rtl/jt89/jt89_noise.v",
+    "rtl/jt89/jt89_tone.v",
+    "rtl/jt89/jt89_vol.v",
+    "rtl/savestates.sv",
+    "rtl/system.vhd"
+  ],
+  "manifestFiles": 203,
+  "tests": {
+    "sim_A/replay.log": {
+      "hash": "b4ca32a484068e483caa453dca4bd2679d086e55921e835f6617cfd930ac51a6",
+      "pass": [
+        "# PASS PSG replay: 128 cases, 8 noise controls, all 16 divider phases, 20000 compared cycles/case"
+      ]
+    },
+    "strong_A/strengthened.log": {
+      "hash": "21353dc1d37cca7d5b573c02a473eb1146bcb6b9953a52da348a85aacecbf6b4",
+      "pass": [
+        "# PASS PSG replay: 128 cases, 8 noise controls, all 16 divider phases, 20000 compared cycles/case"
+      ]
+    },
+    "strong_B/strengthened.log": {
+      "hash": "320462a32eba573d85495db61a5d4c051d3631052121b915525424fc7074837a",
+      "pass": [
+        "# PASS reduced PSG contract: cases=128 different_cases=128 output_mismatches=2454216 final1000_mismatches=113608 raw_mismatches=2560000 config_errors=0"
+      ]
+    },
+    "strong_C/strengthened.log": {
+      "hash": "320462a32eba573d85495db61a5d4c051d3631052121b915525424fc7074837a",
+      "pass": [
+        "# PASS reduced PSG contract: cases=128 different_cases=128 output_mismatches=2454216 final1000_mismatches=113608 raw_mismatches=2560000 config_errors=0"
+      ]
+    },
+    "sim_B/controller_final.log": {
+      "hash": "1454e71264948c96ab9e333580de505f6517104bba9cca5757c842949a8b49f7",
+      "pass": [
+        "# PASS controller B: cycles=16710342 ops=32 loads=16 PSG2=8 safe_rejections=8 reads=115104 writes=57532 busy=2109739 controls=intentionally_not_restored"
+      ]
+    },
+    "analyze_B/system_analysis_pass.log": {
+      "hash": "e82eb43cbcc22b562c943b1b199abfad3ab4d00aac50c57e9173bedaa7571a30",
+      "pass": [
+        "# PASS production system VHDL analysis B"
+      ]
+    },
+    "sim_C/controller_final.log": {
+      "hash": "430659f1af97eea7874a37a89b7b21999a9a81f19d19adbca298a462c1ee6191",
+      "pass": [
+        "# PASS controller C: cycles=16689121 ops=31 loads=16 PSG2=8 safe_rejections=7 reads=115089 writes=57532 busy=2104516 controls=restored"
+      ]
+    },
+    "analyze_C/system_analysis_pass.log": {
+      "hash": "2f514b657bc672dd75379899ab5f45493e030ab862210133db17af8fe45f5e55",
+      "pass": [
+        "# PASS production system VHDL analysis C"
+      ]
+    },
+    "native/native.log": {
+      "hash": "9bf6c31a0f91c6147d9a13b35cf746552f826afc73b50dffd148b4934698b4c2",
+      "pass": [
+        "# PASS native A/B/C: cycles=198392 checks=198354 nonzero=197861 stereo=146792 control_changes=2662 resets=9 dual_PSG exact config/sample/mixer/control equivalence"
+      ]
+    },
+    "native/focused_qualified.log": {
+      "hash": "1c9e454f2ea3fc18b36d3552dd6fdeea48d5cce9d558949ce98fe45699d51da6",
+      "pass": [
+        "# PASS sample transient tone=0 mismatches=72 first=0 last=71 stable_through=999",
+        "# PASS sample transient tone=1 mismatches=72 first=0 last=71 stable_through=999",
+        "# PASS sample transient tone=2 mismatches=72 first=0 last=71 stable_through=999",
+        "# PASS sample transient tone=3 mismatches=72 first=0 last=71 stable_through=999",
+        "# PASS sample transient tone=4 mismatches=72 first=0 last=71 stable_through=999",
+        "# PASS sample transient tone=5 mismatches=72 first=0 last=71 stable_through=999",
+        "# PASS isolated history mode=0 output_mismatches=6592 tail40000=5120",
+        "# PASS isolated history mode=1 output_mismatches=6144 tail40000=4096",
+        "# PASS isolated history mode=2 output_mismatches=4096 tail40000=4096",
+        "# PASS isolated history mode=3 output_mismatches=6160 tail40000=4944",
+        "# PASS isolated history mode=4 output_mismatches=22334 tail40000=19326",
+        "# PASS isolated history mode=5 output_mismatches=14227 tail40000=12179",
+        "# PASS isolated history mode=6 output_mismatches=8080 tail40000=8080",
+        "# PASS isolated history mode=7 output_mismatches=14966 tail40000=12534",
+        "# PASS isolated history mode=8 output_mismatches=25780 tail40000=20599",
+        "# PASS focused history: six sample-playback transients converge; eight noise modes plus tone retain waveform differences; total_mismatches=108379"
+      ]
+    },
+    "native/controls.log": {
+      "hash": "b66bb132f2bc184988dff01e0130d9e1bfe62bc9312cae3ce8549fc1d51729ed",
+      "pass": [
+        "# PASS control consumers: checks=16000 C_matches_master=16000 B_persistent_control=16000 B_FM_gate=16000 B_swapped_stereo=16000 SMS/GG/SystemE det_values0..7"
+      ]
+    }
+  },
+  "note": "Read-only revalidation; old reports/generators/simulators were not rerun or rewritten. Final source token equality verified against tested controller/JT89."
+}

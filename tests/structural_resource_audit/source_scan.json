@@ -1,0 +1,1152 @@
+[
+  {
+    "file": "SMS.sv",
+    "line": 62,
+    "text": "wire       joy8_sig = swap ? joy_1[8] : joy_0[8];"
+  },
+  {
+    "file": "SMS.sv",
+    "line": 115,
+    "text": "wire [3:0] vcopt    = status[54:51];"
+  },
+  {
+    "file": "SMS.sv",
+    "line": 160,
+    "text": "wire [1:0] ar = status[27:26];"
+  },
+  {
+    "file": "SMS.sv",
+    "line": 436,
+    "text": "wire raw_reset = RESET | status[0] | buttons[1] | cart_download | bios_download | gg_bios_download | bios_config_reset | bk_loading | eject_rom | evolution_reset_combo;"
+  },
+  {
+    "file": "SMS.sv",
+    "line": 455,
+    "text": "wire  [7:0] joy[4];"
+  },
+  {
+    "file": "SMS.sv",
+    "line": 557,
+    "text": "wire cart_download = ioctl_download & ~code_index & (ioctl_index[4:0]!=3) & (ioctl_index[4:0]!=4) & (ioctl_index!=254);"
+  },
+  {
+    "file": "SMS.sv",
+    "line": 599,
+    "text": "reg [7:0] SYSMODE[1];"
+  },
+  {
+    "file": "SMS.sv",
+    "line": 600,
+    "text": "reg [7:0] DSW[3];"
+  },
+  {
+    "file": "SMS.sv",
+    "line": 754,
+    "text": "wire [7:0] ioctl_ext_b0 = ioctl_file_ext[7:0];"
+  },
+  {
+    "file": "SMS.sv",
+    "line": 755,
+    "text": "wire [7:0] ioctl_ext_b1 = ioctl_file_ext[15:8];"
+  },
+  {
+    "file": "SMS.sv",
+    "line": 756,
+    "text": "wire [7:0] ioctl_ext_b2 = ioctl_file_ext[23:16];"
+  },
+  {
+    "file": "SMS.sv",
+    "line": 757,
+    "text": "wire [7:0] ioctl_ext_b3 = ioctl_file_ext[31:24];"
+  },
+  {
+    "file": "SMS.sv",
+    "line": 988,
+    "text": "wire [3:0] mapper_sel = status[48:45];"
+  },
+  {
+    "file": "SMS.sv",
+    "line": 1450,
+    "text": "wire ss_hotkey = joy_0[12] | joy_1[12];"
+  },
+  {
+    "file": "SMS.sv",
+    "line": 1451,
+    "text": "wire [7:0] joy_0_masked = ss_hotkey ? {joy_0[7:4], 4'b0000} : joy_0[7:0];"
+  },
+  {
+    "file": "SMS.sv",
+    "line": 1452,
+    "text": "wire [7:0] joy_1_masked = ss_hotkey ? {joy_1[7:4], 4'b0000} : joy_1[7:0];"
+  },
+  {
+    "file": "SMS.sv",
+    "line": 1460,
+    "text": "wire [1:0] p1_controller_type = status[65:64];"
+  },
+  {
+    "file": "SMS.sv",
+    "line": 1461,
+    "text": "wire [1:0] p2_controller_type = status[67:66];"
+  },
+  {
+    "file": "SMS.sv",
+    "line": 1462,
+    "text": "wire [31:0] p1_joy = status[1] ? joy_1 : joy_0;"
+  },
+  {
+    "file": "SMS.sv",
+    "line": 1463,
+    "text": "wire [31:0] p2_joy = status[1] ? joy_0 : joy_1;"
+  },
+  {
+    "file": "SMS.sv",
+    "line": 1465,
+    "text": "wire [1:0] userio_mode = status[56:55];"
+  },
+  {
+    "file": "SMS.sv",
+    "line": 1476,
+    "text": "wire [1:0] sc_cart_ram = status[60:59];"
+  },
+  {
+    "file": "SMS.sv",
+    "line": 1526,
+    "text": "wire has_pedal = SYSMODE[0][3];"
+  },
+  {
+    "file": "SMS.sv",
+    "line": 1527,
+    "text": "wire [7:0] pedal = paddle_en ? paddle_1 : !joy0_y[7] ? 8'h00: {~joy0_y[6:0],~joy0_y[6]};"
+  },
+  {
+    "file": "SMS.sv",
+    "line": 1528,
+    "text": "wire [7:0] paddlein = paddle_en ? paddle_0 : has_pedal ? {~joy0_x[7],joy0_x[6:0]} : {joy0_x[7],joy0_x[7],joy0_x[7],joy0_x[7],joy0_x[7],joy0_x[7:5]};"
+  },
+  {
+    "file": "SMS.sv",
+    "line": 1530,
+    "text": "wire [7:0] pedallimit = paddlein[7:5]==3'b111 ? 8'hE0 : paddlein[7:5]==3'b000 ? 8'h20 : paddlein;"
+  },
+  {
+    "file": "SMS.sv",
+    "line": 1735,
+    "text": "wire [2:0] scale = status[5:3];"
+  },
+  {
+    "file": "SMS.sv",
+    "line": 1746,
+    "text": "wire [3:0] vid_r = se_pause_gate ? {1'b0, color[3:1]}  : color[3:0];"
+  },
+  {
+    "file": "SMS.sv",
+    "line": 1747,
+    "text": "wire [3:0] vid_g = se_pause_gate ? {1'b0, color[7:5]}  : color[7:4];"
+  },
+  {
+    "file": "SMS.sv",
+    "line": 1748,
+    "text": "wire [3:0] vid_b = se_pause_gate ? {1'b0, color[11:9]} : color[11:8];"
+  },
+  {
+    "file": "SMS.sv",
+    "line": 1814,
+    "text": "wire bk_save    = status[7] | (bk_pending & OSD_STATUS && status[25]);"
+  },
+  {
+    "file": "SMS.sv",
+    "line": 1883,
+    "text": "wire [1:0] gun_mode = status[19:18];"
+  },
+  {
+    "file": "SMS.sv",
+    "line": 1890,
+    "text": "wire [1:0] gun_crosshair = status[23:22];"
+  },
+  {
+    "file": "SMS.sv",
+    "line": 1924,
+    "text": "wire       paddle_en    = status[37] | status[38];"
+  },
+  {
+    "file": "mist/SMS.sv",
+    "line": 101,
+    "text": "wire [1:0] scanlines = status[4:3];"
+  },
+  {
+    "file": "mist/SMS.sv",
+    "line": 108,
+    "text": "wire [1:0] lightgun = status[14:13];"
+  },
+  {
+    "file": "mist/SMS.sv",
+    "line": 128,
+    "text": "wire  [6:0] joy[4];"
+  },
+  {
+    "file": "mist/SMS.sv",
+    "line": 473,
+    "text": "wire [24:0] ps2_mouse = { mouse_strobe_level, mouse_y[7:0], mouse_x[7:0], mouse_flags };"
+  },
+  {
+    "file": "mist/SMS.sv",
+    "line": 504,
+    "text": "wire  [3:0] VGA_R_O = HBlank | VBlank ? 4'h0 : (gun_en & gun_target) ? 4'hf : color[3:0];"
+  },
+  {
+    "file": "mist/SMS.sv",
+    "line": 505,
+    "text": "wire  [3:0] VGA_G_O = HBlank | VBlank ? 4'h0 : (gun_en & gun_target) ? 4'h0 : color[7:4];"
+  },
+  {
+    "file": "mist/SMS.sv",
+    "line": 506,
+    "text": "wire  [3:0] VGA_B_O = HBlank | VBlank ? 4'h0 : (gun_en & gun_target) ? 4'h0 : color[11:8];"
+  },
+  {
+    "file": "rtl/MC8123.v",
+    "line": 25,
+    "text": "wire [2:0] decrypt_type = {key[4]^key[5],"
+  },
+  {
+    "file": "rtl/MC8123.v",
+    "line": 29,
+    "text": "wire [1:0] swap = {key[2]^key[3],"
+  },
+  {
+    "file": "rtl/MC8123.v",
+    "line": 32,
+    "text": "wire [3:0] param = {key[1]^key[6]^key[7],"
+  },
+  {
+    "file": "rtl/SEGASYS1_PRGDEC.v",
+    "line": 82,
+    "text": "wire  [1:0] decidx0 = { mdat[5],  mdat[3] } ^ { f, f };"
+  },
+  {
+    "file": "rtl/SEGASYS1_PRGDEC.v",
+    "line": 83,
+    "text": "wire  [6:0] decidx  = { madr[12], madr[8], madr[4], madr[0], ~madr[15], decidx0 };"
+  },
+  {
+    "file": "rtl/SEGASYS1_PRGDEC.v",
+    "line": 162,
+    "text": "wire [6:0] ix = {madr[14],madr[12],madr[9],madr[6],madr[3],madr[0],~madr[15]};"
+  },
+  {
+    "file": "rtl/T80/T80_Reg.vhd",
+    "line": 100,
+    "text": "type Register_Image is array (natural range <>) of std_logic_vector(7 downto 0);"
+  },
+  {
+    "file": "rtl/VM2413/attacktable.vhd",
+    "line": 93,
+    "text": "type ar_adjust_array is array ( 0 to 127 ) of std_logic_vector( 6 downto 0 );"
+  },
+  {
+    "file": "rtl/VM2413/controller.vhd",
+    "line": 159,
+    "text": "type inst_array is array (ch_type'range) of integer range 0 to 15;"
+  },
+  {
+    "file": "rtl/VM2413/controller.vhd",
+    "line": 162,
+    "text": "type kl_array is array (0 to 15) of std_logic_vector(5 downto 0);"
+  },
+  {
+    "file": "rtl/VM2413/envelopememory.vhd",
+    "line": 60,
+    "text": "type EGDATA_ARRAY is array (0 to 18-1) of EGDATA_VECTOR_TYPE;"
+  },
+  {
+    "file": "rtl/VM2413/feedbackmemory.vhd",
+    "line": 64,
+    "text": "type SIGNED_LI_ARRAY_TYPE is array (0 to 9-1) of SIGNED_LI_VECTOR_TYPE;"
+  },
+  {
+    "file": "rtl/VM2413/feedbackmemory.vhd",
+    "line": 66,
+    "text": "attribute ramstyle : string;"
+  },
+  {
+    "file": "rtl/VM2413/feedbackmemory.vhd",
+    "line": 67,
+    "text": "attribute ramstyle of data_array : signal is \"logic\";"
+  },
+  {
+    "file": "rtl/VM2413/lineartable.vhd",
+    "line": 82,
+    "text": "type log2lin_type is array ( 0 to 127 ) of std_logic_vector( 8 downto 0 );"
+  },
+  {
+    "file": "rtl/VM2413/outputmemory.vhd",
+    "line": 60,
+    "text": "type SIGNED_LI_ARRAY_TYPE is array (0 to 18) of SIGNED_LI_VECTOR_TYPE;"
+  },
+  {
+    "file": "rtl/VM2413/outputmemory.vhd",
+    "line": 62,
+    "text": "attribute ramstyle : string;"
+  },
+  {
+    "file": "rtl/VM2413/outputmemory.vhd",
+    "line": 63,
+    "text": "attribute ramstyle of data_array : signal is \"logic\";"
+  },
+  {
+    "file": "rtl/VM2413/phasegenerator.vhd",
+    "line": 94,
+    "text": "type ML_TABLE is array (0 to 15) of std_logic_vector(4 downto 0);"
+  },
+  {
+    "file": "rtl/VM2413/phasememory.vhd",
+    "line": 59,
+    "text": "type PHASE_ARRAY_TYPE is array (0 to 18-1) of PHASE_TYPE;"
+  },
+  {
+    "file": "rtl/VM2413/phasememory.vhd",
+    "line": 61,
+    "text": "attribute ramstyle : string;"
+  },
+  {
+    "file": "rtl/VM2413/phasememory.vhd",
+    "line": 62,
+    "text": "attribute ramstyle of phase_array : signal is \"logic\";"
+  },
+  {
+    "file": "rtl/VM2413/registermemory.vhd",
+    "line": 63,
+    "text": "type regs_array_type is array (0 to 8) of std_logic_vector( 23 downto 0 );"
+  },
+  {
+    "file": "rtl/VM2413/registermemory.vhd",
+    "line": 65,
+    "text": "attribute ramstyle : string;"
+  },
+  {
+    "file": "rtl/VM2413/registermemory.vhd",
+    "line": 66,
+    "text": "attribute ramstyle of regs_array : signal is \"logic\";"
+  },
+  {
+    "file": "rtl/VM2413/sinetable.vhd",
+    "line": 93,
+    "text": "type sin_type is array (0 to 127) of std_logic_vector( 10 downto 0 );  --   ������ 7bit, ������ 4bit"
+  },
+  {
+    "file": "rtl/VM2413/voicememory.vhd",
+    "line": 64,
+    "text": "type VOICE_ARRAY_TYPE is array (VOICE_ID_TYPE'range) of VOICE_VECTOR_TYPE;"
+  },
+  {
+    "file": "rtl/VM2413/voicerom.vhd",
+    "line": 49,
+    "text": "type VOICE_ARRAY_TYPE is array (VOICE_ID_TYPE'range) of VOICE_VECTOR_TYPE;"
+  },
+  {
+    "file": "rtl/cheatcodes.sv",
+    "line": 34,
+    "text": "reg [ENA_F_S:0] codes[MAX_CODES];"
+  },
+  {
+    "file": "rtl/cheatcodes.sv",
+    "line": 36,
+    "text": "wire [ADDR_WIDTH-1: 0] code_addr    = code[64+:ADDR_WIDTH];"
+  },
+  {
+    "file": "rtl/cheatcodes.sv",
+    "line": 37,
+    "text": "wire [DATA_WIDTH-1: 0] code_compare = code[32+:DATA_WIDTH];"
+  },
+  {
+    "file": "rtl/cheatcodes.sv",
+    "line": 38,
+    "text": "wire [DATA_WIDTH-1: 0] code_data    = code[0+:DATA_WIDTH];"
+  },
+  {
+    "file": "rtl/compressor.sv",
+    "line": 31,
+    "text": "wire [14:0] tbl[0:2047] ="
+  },
+  {
+    "file": "rtl/jt89/jt89.v",
+    "line": 107,
+    "text": "wire [2:0] reg_sel = din[7] ? din[6:4] : regn;"
+  },
+  {
+    "file": "rtl/jt89/jt89_noise.v",
+    "line": 76,
+    "text": "wire fb = ctrl3[2]?(shift[0]^shift[3]):shift[0];"
+  },
+  {
+    "file": "rtl/keyboard.sv",
+    "line": 13,
+    "text": "reg  [11:0] key_row[0:6];"
+  },
+  {
+    "file": "rtl/keyboard.sv",
+    "line": 36,
+    "text": "wire  [7:0] key_code = ps2_key[7:0];"
+  },
+  {
+    "file": "rtl/lightgun.sv",
+    "line": 37,
+    "text": "wire [9:0] new_x = {lg_x[8],lg_x} + {{2{MOUSE[4]}},MOUSE[15:8]};"
+  },
+  {
+    "file": "rtl/lightgun.sv",
+    "line": 38,
+    "text": "wire [9:0] new_y = {lg_y[8],lg_y} - {{2{MOUSE[5]}},MOUSE[23:16]};"
+  },
+  {
+    "file": "rtl/lightgun.sv",
+    "line": 40,
+    "text": "wire [8:0] j_x = {~JOY_X[7], JOY_X[6:0]};"
+  },
+  {
+    "file": "rtl/lightgun.sv",
+    "line": 41,
+    "text": "wire [8:0] j_y = {~JOY_Y[7], JOY_Y[6:0]};"
+  },
+  {
+    "file": "rtl/mapper_detect.vhd",
+    "line": 90,
+    "text": "type castle_signature_t is array (0 to 9) of std_logic_vector(7 downto 0);"
+  },
+  {
+    "file": "rtl/opll_snapshot.sv",
+    "line": 28,
+    "text": "(* ramstyle = \"M10K\" *) reg [31:0] memory [0:255];"
+  },
+  {
+    "file": "rtl/opll_snapshot.sv",
+    "line": 32,
+    "text": "wire [31:0] ram_d = state==CAP_STORE ? state_rdata : state==B_WR_LO ? incoming[31:0] : incoming[63:32];"
+  },
+  {
+    "file": "rtl/parts.v",
+    "line": 15,
+    "text": "reg [(DW-1):0] core[0:((2**AW)-1)];"
+  },
+  {
+    "file": "rtl/parts.v",
+    "line": 35,
+    "text": "reg [7:0] ramcore [0:2047];"
+  },
+  {
+    "file": "rtl/parts.v",
+    "line": 58,
+    "text": "reg [7:0] ramcore [0:4095];"
+  },
+  {
+    "file": "rtl/parts.v",
+    "line": 86,
+    "text": "reg [7:0] core [0:2047];"
+  },
+  {
+    "file": "rtl/parts.v",
+    "line": 114,
+    "text": "reg [7:0] core [0:1023];"
+  },
+  {
+    "file": "rtl/parts.v",
+    "line": 170,
+    "text": "reg [7:0] core [0:1023];"
+  },
+  {
+    "file": "rtl/parts.v",
+    "line": 226,
+    "text": "reg [10:0] ram[1024];"
+  },
+  {
+    "file": "rtl/savestates.sv",
+    "line": 432,
+    "text": "wire has_nvram_8k  = !evolution_state && (mapper_snap[48] | mapper_snap[53]); // Dahjee A / Codemasters CME"
+  },
+  {
+    "file": "rtl/savestates.sv",
+    "line": 434,
+    "text": "wire has_nvram_32k = !evolution_state && (mapper_snap[51] | mapper_snap[52] | mapper_snap[61]); // nvram_ex / nvram_p / The Castle"
+  },
+  {
+    "file": "rtl/savestates.sv",
+    "line": 588,
+    "text": "reg [138:0] bg_snap,bg2_snap;"
+  },
+  {
+    "file": "rtl/savestates.sv",
+    "line": 591,
+    "text": "assign bg_in=bg_snap;"
+  },
+  {
+    "file": "rtl/savestates.sv",
+    "line": 592,
+    "text": "assign bg2_in=bg2_snap;"
+  },
+  {
+    "file": "rtl/savestates.sv",
+    "line": 598,
+    "text": "(bg_word==2?{53'd0,bg2_snap[10:0]}:bg2_snap[63:0]) :"
+  },
+  {
+    "file": "rtl/savestates.sv",
+    "line": 599,
+    "text": "(bg_word==2?{53'd0,bg_snap[10:0]}:bg_snap[63:0]);"
+  },
+  {
+    "file": "rtl/savestates.sv",
+    "line": 605,
+    "text": "reg [4799:0] sprite_snap, sprite2_snap;"
+  },
+  {
+    "file": "rtl/savestates.sv",
+    "line": 610,
+    "text": "assign sprite_in=sprite_snap[4777:0];"
+  },
+  {
+    "file": "rtl/savestates.sv",
+    "line": 611,
+    "text": "assign sprite2_in=sprite2_snap[4777:0];"
+  },
+  {
+    "file": "rtl/savestates.sv",
+    "line": 624,
+    "text": "wire [63:0] sprite_write_word=sprite_second?sprite2_snap[63:0]:sprite_snap[63:0];"
+  },
+  {
+    "file": "rtl/savestates.sv",
+    "line": 731,
+    "text": "wire fm_tag = dout_latch[63:40] == FM_MAGIC || dout_latch[63:40] == SRAM_MAGIC || dout_latch[63:40] == AUDIO_LAST_MAGIC;"
+  },
+  {
+    "file": "rtl/savestates.sv",
+    "line": 732,
+    "text": "wire modern_restart_tag = dout_latch[63:40] == CPU_RESTART_MAGIC || dout_latch[63:40] == RESTART_MAGIC || (dout_latch[63:40] == BACKGROUND_MAGIC || (dout_latch[63:40] == MIXER_MAGIC || fm_tag));"
+  },
+  {
+    "file": "rtl/savestates.sv",
+    "line": 734,
+    "text": "wire [23:0] load_ext_magic = modern_nmi_tag ? EVOLUTION_PENDING_MAGIC : dout_latch[63:40];"
+  },
+  {
+    "file": "rtl/savestates.sv",
+    "line": 1174,
+    "text": "has_restart <= 0; phase_snap <= 0; sprite_snap <= 0; sprite2_snap <= 0;"
+  },
+  {
+    "file": "rtl/savestates.sv",
+    "line": 1175,
+    "text": "has_background<=0;bg_snap<=0;bg2_snap<=0;bg_word<=0;bg_second<=0;"
+  },
+  {
+    "file": "rtl/savestates.sv",
+    "line": 1333,
+    "text": "bg_snap<=bg_out;bg2_snap<=systeme?bg2_out:139'd0;"
+  },
+  {
+    "file": "rtl/savestates.sv",
+    "line": 1335,
+    "text": "sprite_snap <= {22'd0,sprite_out};"
+  },
+  {
+    "file": "rtl/savestates.sv",
+    "line": 1336,
+    "text": "sprite2_snap <= systeme ? {22'd0,sprite2_out} : 4800'd0;"
+  },
+  {
+    "file": "rtl/savestates.sv",
+    "line": 1638,
+    "text": "if (sprite_second) sprite2_snap <= {sprite2_snap[63:0],sprite2_snap[4799:64]};"
+  },
+  {
+    "file": "rtl/savestates.sv",
+    "line": 1639,
+    "text": "else sprite_snap <= {sprite_snap[63:0],sprite_snap[4799:64]};"
+  },
+  {
+    "file": "rtl/savestates.sv",
+    "line": 1660,
+    "text": "if (sprite_second) sprite2_snap <= {dout_latch,sprite2_snap[4799:64]};"
+  },
+  {
+    "file": "rtl/savestates.sv",
+    "line": 1661,
+    "text": "else sprite_snap <= {dout_latch,sprite_snap[4799:64]};"
+  },
+  {
+    "file": "rtl/savestates.sv",
+    "line": 1681,
+    "text": "if (bg_word==2) bg2_snap<={bg2_snap[10:0],bg2_snap[138:11]};"
+  },
+  {
+    "file": "rtl/savestates.sv",
+    "line": 1682,
+    "text": "else bg2_snap<={bg2_snap[63:0],bg2_snap[138:64]};"
+  },
+  {
+    "file": "rtl/savestates.sv",
+    "line": 1684,
+    "text": "if (bg_word==2) bg_snap<={bg_snap[10:0],bg_snap[138:11]};"
+  },
+  {
+    "file": "rtl/savestates.sv",
+    "line": 1685,
+    "text": "else bg_snap<={bg_snap[63:0],bg_snap[138:64]};"
+  },
+  {
+    "file": "rtl/savestates.sv",
+    "line": 1702,
+    "text": "if (bg_word==2) bg2_snap<={dout_latch[10:0],bg2_snap[138:11]};"
+  },
+  {
+    "file": "rtl/savestates.sv",
+    "line": 1703,
+    "text": "else bg2_snap<={dout_latch,bg2_snap[138:64]};"
+  },
+  {
+    "file": "rtl/savestates.sv",
+    "line": 1705,
+    "text": "if (bg_word==2) bg_snap<={dout_latch[10:0],bg_snap[138:11]};"
+  },
+  {
+    "file": "rtl/savestates.sv",
+    "line": 1706,
+    "text": "else bg_snap<={dout_latch,bg_snap[138:64]};"
+  },
+  {
+    "file": "rtl/savestates.sv",
+    "line": 2092,
+    "text": "has_restart <= 0; phase_snap <= 0; sprite_snap <= 0; sprite2_snap <= 0;"
+  },
+  {
+    "file": "rtl/savestates.sv",
+    "line": 2093,
+    "text": "has_background<=0;bg_snap<=0;bg2_snap<=0;bg_word<=0;bg_second<=0;"
+  },
+  {
+    "file": "rtl/vdp_cram.vhd",
+    "line": 25,
+    "text": "type t_ram is array (0 to 31) of std_logic_vector(11 downto 0);"
+  },
+  {
+    "file": "rtl/vdp_sprites.vhd",
+    "line": 58,
+    "text": "type tenable\tis array (0 to MAX_SPPL) of boolean;"
+  },
+  {
+    "file": "rtl/vdp_sprites.vhd",
+    "line": 59,
+    "text": "type tx\t\t\tis array (0 to MAX_SPPL) of std_logic_vector(7 downto 0);"
+  },
+  {
+    "file": "rtl/vdp_sprites.vhd",
+    "line": 60,
+    "text": "type tdata\t\tis array (0 to MAX_SPPL) of std_logic_vector(7 downto 0);"
+  },
+  {
+    "file": "rtl/vdp_sprites.vhd",
+    "line": 68,
+    "text": "type tcolor is array (0 to MAX_SPPL) of std_logic_vector(3 downto 0);"
+  },
+  {
+    "file": "sys/arcade_video.v",
+    "line": 294,
+    "text": "wire [13:0] stride = {bwidth[11:2], 4'd0};"
+  },
+  {
+    "file": "sys/ascal.vhd",
+    "line": 330,
+    "text": "TYPE arr_dw IS  ARRAY (natural RANGE <>) OF unsigned(N_DW-1 DOWNTO 0);"
+  },
+  {
+    "file": "sys/ascal.vhd",
+    "line": 335,
+    "text": "TYPE arr_pix IS ARRAY (natural RANGE <>) OF type_pix;"
+  },
+  {
+    "file": "sys/ascal.vhd",
+    "line": 336,
+    "text": "TYPE arr_pixq IS ARRAY(natural RANGE <>) OF arr_pix(0 TO 3);"
+  },
+  {
+    "file": "sys/ascal.vhd",
+    "line": 337,
+    "text": "ATTRIBUTE ramstyle : string;"
+  },
+  {
+    "file": "sys/ascal.vhd",
+    "line": 342,
+    "text": "TYPE arr_uv48 IS ARRAY (natural RANGE <>) OF unsigned(47 DOWNTO 0);"
+  },
+  {
+    "file": "sys/ascal.vhd",
+    "line": 343,
+    "text": "TYPE arr_uv24 IS ARRAY (natural RANGE <>) OF unsigned(23 DOWNTO 0);"
+  },
+  {
+    "file": "sys/ascal.vhd",
+    "line": 344,
+    "text": "TYPE arr_uv40 IS ARRAY (natural RANGE <>) OF unsigned(39 DOWNTO 0);"
+  },
+  {
+    "file": "sys/ascal.vhd",
+    "line": 345,
+    "text": "TYPE arr_int9 IS ARRAY (natural RANGE <>) OF integer RANGE -256 TO 255;"
+  },
+  {
+    "file": "sys/ascal.vhd",
+    "line": 346,
+    "text": "TYPE arr_uint12 IS ARRAY (natural RANGE <>) OF uint12;"
+  },
+  {
+    "file": "sys/ascal.vhd",
+    "line": 347,
+    "text": "TYPE arr_frac IS ARRAY (natural RANGE <>) OF unsigned(11 DOWNTO 0);"
+  },
+  {
+    "file": "sys/ascal.vhd",
+    "line": 348,
+    "text": "TYPE arr_div IS ARRAY (natural RANGE <>) OF unsigned(20 DOWNTO 0);"
+  },
+  {
+    "file": "sys/ascal.vhd",
+    "line": 383,
+    "text": "ATTRIBUTE ramstyle OF i_dpram : SIGNAL IS \"no_rw_check\";"
+  },
+  {
+    "file": "sys/ascal.vhd",
+    "line": 391,
+    "text": "ATTRIBUTE ramstyle OF i_mem : SIGNAL IS \"no_rw_check\";"
+  },
+  {
+    "file": "sys/ascal.vhd",
+    "line": 460,
+    "text": "ATTRIBUTE ramstyle of pal1_mem : signal is \"no_rw_check\";"
+  },
+  {
+    "file": "sys/ascal.vhd",
+    "line": 461,
+    "text": "ATTRIBUTE ramstyle of pal2_mem : signal is \"no_rw_check\";"
+  },
+  {
+    "file": "sys/ascal.vhd",
+    "line": 496,
+    "text": "ATTRIBUTE ramstyle OF o_dpram : SIGNAL IS \"no_rw_check\";"
+  },
+  {
+    "file": "sys/ascal.vhd",
+    "line": 500,
+    "text": "ATTRIBUTE ramstyle OF o_line0 : SIGNAL IS \"no_rw_check\";"
+  },
+  {
+    "file": "sys/ascal.vhd",
+    "line": 501,
+    "text": "ATTRIBUTE ramstyle OF o_line1 : SIGNAL IS \"no_rw_check\";"
+  },
+  {
+    "file": "sys/ascal.vhd",
+    "line": 502,
+    "text": "ATTRIBUTE ramstyle OF o_line2 : SIGNAL IS \"no_rw_check\";"
+  },
+  {
+    "file": "sys/ascal.vhd",
+    "line": 503,
+    "text": "ATTRIBUTE ramstyle OF o_line3 : SIGNAL IS \"no_rw_check\";"
+  },
+  {
+    "file": "sys/ascal.vhd",
+    "line": 504,
+    "text": "ATTRIBUTE ramstyle OF o_linf0 : SIGNAL IS \"no_rw_check\";"
+  },
+  {
+    "file": "sys/ascal.vhd",
+    "line": 505,
+    "text": "ATTRIBUTE ramstyle OF o_linf1 : SIGNAL IS \"no_rw_check\";"
+  },
+  {
+    "file": "sys/ascal.vhd",
+    "line": 506,
+    "text": "ATTRIBUTE ramstyle OF o_linf2 : SIGNAL IS \"no_rw_check\";"
+  },
+  {
+    "file": "sys/ascal.vhd",
+    "line": 507,
+    "text": "ATTRIBUTE ramstyle OF o_linf3 : SIGNAL IS \"no_rw_check\";"
+  },
+  {
+    "file": "sys/ascal.vhd",
+    "line": 519,
+    "text": "ATTRIBUTE ramstyle OF o_hfrac : SIGNAL IS \"logic\"; -- avoid blockram shift register"
+  },
+  {
+    "file": "sys/ascal.vhd",
+    "line": 536,
+    "text": "TYPE arr_uint4 IS ARRAY (natural RANGE <>) OF natural RANGE 0 TO 15;"
+  },
+  {
+    "file": "sys/ascal.vhd",
+    "line": 544,
+    "text": "ATTRIBUTE ramstyle OF o_hpixq : SIGNAL IS \"logic\"; -- avoid blockram shift register"
+  },
+  {
+    "file": "sys/ascal.vhd",
+    "line": 552,
+    "text": "ATTRIBUTE ramstyle OF o_div, o_dir : SIGNAL IS \"logic\"; -- avoid blockram shift register"
+  },
+  {
+    "file": "sys/ascal.vhd",
+    "line": 1023,
+    "text": "ATTRIBUTE ramstyle OF o_h_poly_mem : SIGNAL IS \"no_rw_check\";"
+  },
+  {
+    "file": "sys/ascal.vhd",
+    "line": 1024,
+    "text": "ATTRIBUTE ramstyle OF o_v_poly_mem : SIGNAL IS \"no_rw_check\";"
+  },
+  {
+    "file": "sys/ascal.vhd",
+    "line": 1025,
+    "text": "ATTRIBUTE ramstyle OF o_a_poly_mem : SIGNAL IS \"no_rw_check\";"
+  },
+  {
+    "file": "sys/audio_out.sv",
+    "line": 72,
+    "text": "wire [31:0] real_ce = sample_rate ? {CE_RATE[30:0],1'b0} : CE_RATE[31:0];"
+  },
+  {
+    "file": "sys/ddr_svc.sv",
+    "line": 63,
+    "text": "reg [63:0] ram_q[2];"
+  },
+  {
+    "file": "sys/gamma_corr.sv",
+    "line": 22,
+    "text": "(* ramstyle=\"no_rw_check\" *) reg [7:0] gamma_curve[768];"
+  },
+  {
+    "file": "sys/gamma_corr.sv",
+    "line": 84,
+    "text": "(* ramstyle=\"no_rw_check\" *) reg [7:0] gamma_curve_r[256];"
+  },
+  {
+    "file": "sys/gamma_corr.sv",
+    "line": 85,
+    "text": "(* ramstyle=\"no_rw_check\" *) reg [7:0] gamma_curve_g[256];"
+  },
+  {
+    "file": "sys/gamma_corr.sv",
+    "line": 86,
+    "text": "(* ramstyle=\"no_rw_check\" *) reg [7:0] gamma_curve_b[256];"
+  },
+  {
+    "file": "sys/gamma_corr.sv",
+    "line": 92,
+    "text": "wire [9:0] gamma_wr_addr = gamma_bus[17:8];"
+  },
+  {
+    "file": "sys/gamma_corr.sv",
+    "line": 93,
+    "text": "wire [7:0] gamma_value = gamma_bus[7:0];"
+  },
+  {
+    "file": "sys/hps_io.sv",
+    "line": 188,
+    "text": "wire [15:0] io_din   = HPS_BUS[31:16];"
+  },
+  {
+    "file": "sys/hps_io.sv",
+    "line": 260,
+    "text": "wire       extended = (~pressed ? (ps2_key_raw[23:16] == 8'he0) : (ps2_key_raw[15:8] == 8'he0));"
+  },
+  {
+    "file": "sys/hps_io.sv",
+    "line": 264,
+    "text": "wire [15:0] disk = 16'd1 << io_din[11:8];"
+  },
+  {
+    "file": "sys/hps_io.sv",
+    "line": 731,
+    "text": "(* ramstyle = \"logic\" *) reg [7:0] fifo[1<<PS2_FIFO_BITS];"
+  },
+  {
+    "file": "sys/hps_io.sv",
+    "line": 1040,
+    "text": "reg [7:0] rom[STRLEN];"
+  },
+  {
+    "file": "sys/hq2x.sv",
+    "line": 35,
+    "text": "(* romstyle = \"MLAB\" *) reg [5:0] hqTable[256];"
+  },
+  {
+    "file": "sys/hq2x.sv",
+    "line": 57,
+    "text": "wire [5:0] hqrule = hqTable[nextpatt];"
+  },
+  {
+    "file": "sys/hq2x.sv",
+    "line": 72,
+    "text": "wire [7:0] new_pattern = {diff1, diff0, pattern[7:2]};"
+  },
+  {
+    "file": "sys/hq2x.sv",
+    "line": 146,
+    "text": "wire [DWIDTH:0] blend_result = HALF_DEPTH ? rgb2h(blend_result_pre) : blend_result_pre[DWIDTH:0];"
+  },
+  {
+    "file": "sys/hq2x.sv",
+    "line": 241,
+    "text": "wire  [DWIDTH:0] out[2];"
+  },
+  {
+    "file": "sys/hq2x.sv",
+    "line": 260,
+    "text": "reg [DWIDTH:0] ram[0:NUMWORDS-1];"
+  },
+  {
+    "file": "sys/hq2x.sv",
+    "line": 278,
+    "text": "wire [7:0] r = rgb1[7:1]   - rgb2[7:1];"
+  },
+  {
+    "file": "sys/hq2x.sv",
+    "line": 279,
+    "text": "wire [7:0] g = rgb1[15:9]  - rgb2[15:9];"
+  },
+  {
+    "file": "sys/hq2x.sv",
+    "line": 280,
+    "text": "wire [7:0] b = rgb1[23:17] - rgb2[23:17];"
+  },
+  {
+    "file": "sys/hq2x.sv",
+    "line": 282,
+    "text": "wire [9:0] y = $signed(t) + $signed({g[7], g});"
+  },
+  {
+    "file": "sys/hq2x.sv",
+    "line": 290,
+    "text": "wire u_inside = (!u[8:4] || &u[8:4]); //(u < 9'h10 || u >= 9'h1f0);"
+  },
+  {
+    "file": "sys/hq2x.sv",
+    "line": 367,
+    "text": "wire [35:0] res = {mul24x3(i1, op[6:4]), 1'b0} + mul24x3(i2, {op[3:2], !op[3:2]}) + mul24x3(i3, {op[1:0], !op[3:2]});"
+  },
+  {
+    "file": "sys/iir_filter.v",
+    "line": 60,
+    "text": "wire [23:0] vcoeff_y0 = use_params ? pcoeff_y0[23:0] : cy0;"
+  },
+  {
+    "file": "sys/iir_filter.v",
+    "line": 61,
+    "text": "wire [23:0] vcoeff_y1 = use_params ? pcoeff_y1[23:0] : cy1;"
+  },
+  {
+    "file": "sys/iir_filter.v",
+    "line": 62,
+    "text": "wire [23:0] vcoeff_y2 = use_params ? pcoeff_y2[23:0] : cy2;"
+  },
+  {
+    "file": "sys/iir_filter.v",
+    "line": 66,
+    "text": "wire [39:0] x = inp_mul[59:20];"
+  },
+  {
+    "file": "sys/iir_filter.v",
+    "line": 114,
+    "text": "wire [15:0] y_clamp = (~y[39] & |y[38:35]) ? 16'h7FFF : (y[39] & ~&y[38:35]) ? 16'h8000 : y[35:20];"
+  },
+  {
+    "file": "sys/iir_filter.v",
+    "line": 165,
+    "text": "wire signed [60:0] y_mul = $signed(y[36:0]) * $signed(cy);"
+  },
+  {
+    "file": "sys/iir_filter.v",
+    "line": 178,
+    "text": "(* ramstyle = \"logic\" *) reg [39:0] intreg[2];"
+  },
+  {
+    "file": "sys/iir_filter.v",
+    "line": 200,
+    "text": "wire [39:0] x  = {din[15], din, 23'd0};"
+  },
+  {
+    "file": "sys/iir_filter.v",
+    "line": 201,
+    "text": "wire [39:0] x0 = x - (sample_rate ? {{11{x[39]}}, x[39:11]} : {{10{x[39]}}, x[39:10]});"
+  },
+  {
+    "file": "sys/iir_filter.v",
+    "line": 202,
+    "text": "wire [39:0] y1 = y - (sample_rate ? {{10{y[39]}}, y[39:10]} : {{09{y[39]}}, y[39:09]});"
+  },
+  {
+    "file": "sys/mcp23009.sv",
+    "line": 104,
+    "text": "wire [15:0] init_data[12] ="
+  },
+  {
+    "file": "sys/mt32pi.sv",
+    "line": 67,
+    "text": "wire clk_in = i ? USER_IN[6] : USER_IN[4];"
+  },
+  {
+    "file": "sys/mt32pi.sv",
+    "line": 91,
+    "text": "wire   i2s_ws   = crossed ? USER_IN[2] : USER_IN[5];"
+  },
+  {
+    "file": "sys/mt32pi.sv",
+    "line": 92,
+    "text": "wire   i2s_data = crossed ? USER_IN[5] : USER_IN[2];"
+  },
+  {
+    "file": "sys/mt32pi.sv",
+    "line": 93,
+    "text": "wire   i2s_bclk = crossed ? USER_IN[4] : USER_IN[6];"
+  },
+  {
+    "file": "sys/mt32pi.sv",
+    "line": 149,
+    "text": "reg  [7:0] lcd_data[1024];"
+  },
+  {
+    "file": "sys/osd.v",
+    "line": 36,
+    "text": "(* ramstyle=\"no_rw_check\" *) reg  [7:0] osd_buffer[OSD_HDR ? (4096+1024) : 4096];"
+  },
+  {
+    "file": "sys/pll_cfg/altera_pll_reconfig_core.v",
+    "line": 222,
+    "text": "reg  [7:0]      temp_c_cnt_lo [0:17];"
+  },
+  {
+    "file": "sys/pll_cfg/altera_pll_reconfig_core.v",
+    "line": 223,
+    "text": "reg  [7:0]      temp_c_cnt_hi [0:17];"
+  },
+  {
+    "file": "sys/sd_card.sv",
+    "line": 175,
+    "text": "wire [7:0] ibuf = OCTAL ? mosi : {sbuf,mosi[0]};"
+  },
+  {
+    "file": "sys/shadowmask.sv",
+    "line": 27,
+    "text": "reg [10:0] mask_lut[256];"
+  },
+  {
+    "file": "sys/sys_top.v",
+    "line": 151,
+    "text": "wire led_p =  led_power[1] ? ~led_power[0] : 1'b0;"
+  },
+  {
+    "file": "sys/sys_top.v",
+    "line": 152,
+    "text": "wire led_d =  led_disk[1]  ? ~led_disk[0]  : ~(led_disk[0] | gp_out[29]);"
+  },
+  {
+    "file": "sys/sys_top.v",
+    "line": 206,
+    "text": "wire btn_r = (mcp_en | SW[3]) ? mcp_btn[1] : (BTN_EN & ~BTN_RESET);"
+  },
+  {
+    "file": "sys/sys_top.v",
+    "line": 207,
+    "text": "wire btn_o = (mcp_en | SW[3]) ? mcp_btn[2] : (BTN_EN & ~BTN_OSD  );"
+  },
+  {
+    "file": "sys/sys_top.v",
+    "line": 208,
+    "text": "wire btn_u = (mcp_en | SW[3]) ? mcp_btn[0] : (BTN_EN & ~BTN_USER );"
+  },
+  {
+    "file": "sys/sys_top.v",
+    "line": 234,
+    "text": "wire [31:0] gp_in = {1'b0, btn_user | btn[1], btn_osd | btn[0], io_dig, 7'd0, ~HDMI_TX_INT, io_ver, io_ack, io_wide, io_dout | io_dout_sys};"
+  },
+  {
+    "file": "sys/sys_top.v",
+    "line": 241,
+    "text": "wire [15:0] io_din = gp_outr[15:0];"
+  },
+  {
+    "file": "sys/sys_top.v",
+    "line": 1021,
+    "text": "wire [47:0] pal_d = {pal_data[55:32], pal_data[23:0]};"
+  },
+  {
+    "file": "sys/sys_top.v",
+    "line": 1022,
+    "text": "wire  [6:0] pal_a = ram2_bcnt[6:0];"
+  },
+  {
+    "file": "sys/sys_top.v",
+    "line": 1527,
+    "text": "wire [1:0] vga_r  = vgas_en ? vgas_o[17:16] : VGA_DISABLE ? 2'd0 : vga_o[17:16];"
+  },
+  {
+    "file": "sys/sys_top.v",
+    "line": 1528,
+    "text": "wire [1:0] vga_g  = vgas_en ? vgas_o[9:8]   : VGA_DISABLE ? 2'd0 : vga_o[9:8];"
+  },
+  {
+    "file": "sys/sys_top.v",
+    "line": 1529,
+    "text": "wire [1:0] vga_b  = vgas_en ? vgas_o[1:0]   : VGA_DISABLE ? 2'd0 : vga_o[1:0];"
+  },
+  {
+    "file": "sys/vga_out.sv",
+    "line": 21,
+    "text": "wire [7:0] red   = din[23:16];"
+  },
+  {
+    "file": "sys/vga_out.sv",
+    "line": 22,
+    "text": "wire [7:0] green = din[15:8];"
+  },
+  {
+    "file": "sys/vga_out.sv",
+    "line": 23,
+    "text": "wire [7:0] blue  = din[7:0];"
+  },
+  {
+    "file": "sys/yc_out.sv",
+    "line": 49,
+    "text": "wire [7:0] red = din[23:16];"
+  },
+  {
+    "file": "sys/yc_out.sv",
+    "line": 50,
+    "text": "wire [7:0] green = din[15:8];"
+  },
+  {
+    "file": "sys/yc_out.sv",
+    "line": 51,
+    "text": "wire [7:0] blue = din[7:0];"
+  },
+  {
+    "file": "sys/yc_out.sv",
+    "line": 89,
+    "text": "localparam logic [7:0] chroma_SIN_LUT[64] = '{"
+  },
+  {
+    "file": "sys/yc_out.sv",
+    "line": 117,
+    "text": "wire [7:0] chroma = phase[4].c[7:0];"
+  },
+  {
+    "file": "sys/yc_out.sv",
+    "line": 133,
+    "text": "wire [7:0] yc_luma_setup = luma_setup_scaled[15:8] + 8'd19;"
+  },
+  {
+    "file": "sys/yc_out.sv",
+    "line": 140,
+    "text": "wire [7:0] cvbs_out = {1'b0, luma_raw[7:1]} + {1'b0, chroma[7:1]};"
+  }
+]

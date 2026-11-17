@@ -1,0 +1,31 @@
+diff --git "a/C:\\Users\\fbrev\\Documents\\Diversos\\Dev\\SMS_MiSTer\\tests\\ym2413_c1_mixer_omission\\worktree\\rtl\\savestates.sv" "b/C:\\Users\\fbrev\\Documents\\Diversos\\Dev\\SMS_MiSTer\\tests\\ym2413_public_v1_integration\\worktree\\rtl\\savestates.sv"
+index 97b3e5f9..4ca6c672 100644
+--- "a/C:\\Users\\fbrev\\Documents\\Diversos\\Dev\\SMS_MiSTer\\tests\\ym2413_c1_mixer_omission\\worktree\\rtl\\savestates.sv"
++++ "b/C:\\Users\\fbrev\\Documents\\Diversos\\Dev\\SMS_MiSTer\\tests\\ym2413_public_v1_integration\\worktree\\rtl\\savestates.sv"
+@@ -20,7 +20,7 @@
+ //   Words 0x1901-0x2100: VDP1 passive 16KB (System E only; inline; written to SD)
+ //   Words 0x2101-0x2900: VDP2 passive 16KB (System E only; inline; written to SD)
+ //
+-//   FM v20: 0x2997 descriptor; 0x2998..0x29c9 = 100 private 32-bit words.
++//   FM public v1: 0x2997 descriptor; 0x2998..0x29c9 = 100 private 32-bit words.
+ //   Video word 0x01a upper bits: [63:40]=0x484311, [39:22]=0.
+ //
+ // Slot size = 0x3000 words = 96KB.  Up to 4 slots.
+@@ -287,14 +287,14 @@ localparam ST_SAVE_AUDIO_INVALID = 7'd66, ST_SAVE_AUDIO_PAYLOAD = 7'd67,
+            ST_SAVE_AUDIO_DESC = 7'd68, ST_SAVE_AUDIO_COMMIT = 7'd69,
+            ST_LOAD_AUDIO_DESC = 7'd70, ST_LOAD_AUDIO_PAYLOAD = 7'd71,
+            ST_SAVE_AUDIO_DRAIN = 7'd72;
+-// FM v20: dedicated free tail of the existing 96 KiB slot.
++// FM public v1: dedicated free tail of the existing 96 KiB slot.
+ // All master regions end at or below 0x2900 (System E passive VRAM).
+ // 32 KiB NVRAM ends at 0x1d00; FM ends at 0x29c9, below 0x3000.
+ // Upper video-word tag discovers this extension; untagged images never read it.
+ localparam [28:0] FM_DESC_ADDR=29'h2997, FM_DATA_ADDR=29'h2998;
+ localparam [23:0] FM_MAGIC = 24'h484311;
+-// Explicit owner, version20, 100 private32-bit rows. Free tail of96KiB slot.
+-localparam [63:0] FM_DESC = {16'd100,8'd20,8'd1,32'h464d5331};
++// Explicit owner, public version1, 100 private32-bit rows. Free tail of96KiB slot.
++localparam [63:0] FM_DESC = {16'd100,8'd1,8'd1,32'h464d5331};
+ localparam ST_FM_CAPTURE=7'd111, ST_FM_SAVE_FETCH=7'd112, ST_FM_SAVE_WAIT=7'd113,
+  ST_FM_SAVE_WRITE=7'd114, ST_FM_SAVE_DESC=7'd115, ST_FM_LOAD_DESC=7'd116,
+  ST_FM_LOAD=7'd117, ST_FM_LOAD_STORE=7'd118, ST_FM_LOAD_NEXT=7'd119,

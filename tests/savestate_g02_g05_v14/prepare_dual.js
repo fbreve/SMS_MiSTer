@@ -1,0 +1,27 @@
+const fs=require('fs'),p=require('path'),d=p.join(__dirname,'dual'),src=p.join(__dirname,'fixture');fs.mkdirSync(d,{recursive:true});
+for(const f of ['header.svh','savestates_sim.sv','T80_sim.vhd','T80s_sim.vhd','compile.do'])fs.copyFileSync(p.join(src,f),p.join(d,f));fs.cpSync(p.join(src,'rtl'),p.join(d,'rtl'),{recursive:true});
+let h=fs.readFileSync(p.join(d,'header.svh'),'utf8').replace("reg systeme = '0;","reg systeme = 1;").replace("reg [383:0] cram2_out = '0;",'wire[383:0]cram2_out;').replace("reg [7:0] vram2_D = '0;",'wire[7:0]vram2_D;').replace('wire[N+41:0]g06_live;','wire[N+41:0]g06_live,g06_live2;wire[4777:0]sprite2_restored;wire[7:0]vd2;wire[11:0]color2;wire irq2;').replace(".sprite2_out(4778'd0)",".sprite2_out({{(4778-(N+42)){1'b0}},g06_live2})").replace('.sprite2_in()','.sprite2_in(sprite2_restored)');
+fs.writeFileSync(p.join(d,'header.svh'),h);
+let s=fs.readFileSync(p.join(src,'vdp_tb.sv'),'utf8');s=s.replace('.DI(!ciq?vd:', '.DI(!ciq?(ca[2]?vd2:vd):').replace(".INT_n(IRQ_ENABLE?irq:1'b1)",".INT_n(IRQ_ENABLE?(irq&irq2):1'b1)");
+let v=s.match(/vdp #\(\.MAX_SPPL\(SLOTS-1\)\) vdp1\([^;]+;/)[0];let v2=v.replace(' vdp1(',' vdp2(').replace('.audit(audit)','.audit(audit2)').replace('.RD_n(crd|ciq)','.RD_n(crd|ciq|!ca[2])').replace('.WR_n(cwr|ciq)','.WR_n(cwr|ciq|!ca[2])').replace('.IRQ_n(irq)','.IRQ_n(irq2)').replace('.D_out(vd)','.D_out(vd2)').replace('.color(color)','.color(color2)');
+for(const port of ['smode_M1','smode_M2','smode_M3','smode_M4'])v2=v2.replace(new RegExp('\\.'+port+'\\(m[1-4]\\)'),'.'+port+'()');
+for(const a of ['vdp_regs','cram','vram','g06_live','sprite_restored']){}
+v2=v2.replaceAll('vdp_regs','vdp2_regs').replace('.ss_regs_out(vdp2_regs)', '.ss_regs_out(vdp2_regs)');
+v2=v2.replaceAll('cram_out','cram2_out').replace('.ss_cram2_out(','.ss_cram_out(').replace('init_cwe|cram_wr','init_cwe|cram2_wr').replace('init_ca:cram_A','init_ca:cram2_A').replace('init_cd:cram_D',"(init_cd^12'hb6d):cram2_D");
+v2=v2.replace('vram_en|setup','vram2_en|setup').replace('.ss_vram_A(vram_A)','.ss_vram_A(vram2_A)').replace('.ss_vram_D(vram_D)','.ss_vram_D(vram2_D)').replace('init_we|vram_WE','init_we|vram2_WE').replace('init_a:vram_WA','init_a:vram2_WA').replace('init_d:vram_WD',"(init_d^8'h5a):vram2_WD").replace('g06_live','g06_live2').replace('sprite_restored[N+41:0]','sprite2_restored[N+41:0]');
+s=s.replace('wire[63:0]audit;', 'wire[63:0]audit,audit2;').replace(v,v.replace('.RD_n(crd|ciq)','.RD_n(crd|ciq|ca[2])').replace('.WR_n(cwr|ciq)','.WR_n(cwr|ciq|ca[2])')+'\n'+v2).replace('assign vdp2_regs=0;','');
+// Independent, initialized secondary oracle scored at the same native pixels.
+s=s.replace('reg scoring=0;', 'reg[135:0]second_regs[0:SAMPLES-1];reg[11:0]second_color[0:SAMPLES-1];reg[7:0]second_ram[0:SAMPLES-1];reg[63:0]second_audit[0:SAMPLES-1];reg scoring=0;');
+s=s.replace('%h %h %h %h %h %h %h %h %h %h\\n",tx[j],ty[j],trace[j],pixels[j],readtrace[j],racc[j],rmem[j],rcpu[j],audit_trace[j],irq_trace[j]','%h %h %h %h %h %h %h %h %h %h %h %h %h %h\\n",tx[j],ty[j],trace[j],pixels[j],readtrace[j],racc[j],rmem[j],rcpu[j],audit_trace[j],irq_trace[j],second_regs[j],second_color[j],second_ram[j],second_audit[j]').replace('if(n!=10)','if(n!=14)');
+s=s.replace('%h %h %h %h %h %h %h %h %h %h",x,y,vdp_regs,color,vd,z80_reg[7:0],ram[256],z80_reg,audit,irq','%h %h %h %h %h %h %h %h %h %h %h %h %h %h",x,y,vdp_regs,color,vd,z80_reg[7:0],ram[256],z80_reg,audit,irq,vdp2_regs,color2,ram[257],audit2');
+s=s.replace('  savechecks++;','  if(!REFERENCE&&{vdp2_regs,color2,ram[257]}!=={second_regs[j],second_color[j],second_ram[j]})$fatal(1,"dual SAVE secondary mismatch pixel%0d",j);\n  savechecks++;');
+s=s.replace('   checks++;','   if($isunknown({vdp2_regs,color2,ram[257]}))$fatal(1,"unknown secondary");\n   if({vdp2_regs,color2,ram[257]}!=={second_regs[j],second_color[j],second_ram[j]})$fatal(1,"dual LOAD secondary mismatch pixel%0d",j);\n   checks++;');
+fs.writeFileSync(p.join(d,'vdp_tb.sv'),s);
+const base=fs.readFileSync(p.join(src,'rom.hex'),'utf8').trim().split(/\s+/).map(x=>parseInt(x,16));
+for(const bus of [0,1]){let rom=Array(65536).fill(0),a=0;const emit=(...b)=>b.forEach(x=>rom[a++]=x),out=(port,val)=>emit(0x3e,val,0xd3,port);emit(...base.slice(0,40));
+for(const port of [0xbb,0xbf]){for(const[r,val]of [[0,4],[1,0x40],[2,14],[3,255],[4,0],[5,126],[6,4],[7,port===0xbb?3:6],[8,port===0xbb?5:19],[9,port===0xbb?0:23],[10,255]]){out(port,val);out(port,0x80|r);}out(port,0);out(port,0xc0);out(port-1,0x53);out(port-1,7);}
+const loop=a;
+for(const port of [0xbb,0xbf]){if(bus){out(port,0x3d);out(port,0x41);out(port-1,port===0xbb?0xa5:0x6c);out(port,0x3c);out(port,0x01);emit(0xdb,port-1);}else emit(0xdb,port);emit(0x32,port===0xbb?0:1,0xc1);}
+emit(0xc3,loop&255,loop>>8);
+for(const ref of [1,0]){const label=(ref?'reference_':'dut_')+(bus?'bus':'status'),dir=p.join(d,label);fs.mkdirSync(dir,{recursive:true});fs.writeFileSync(p.join(dir,'rom.hex'),rom.map(x=>x.toString(16).padStart(2,'0')).join('\n')+'\n');fs.writeFileSync(p.join(dir,'run.do'),`onerror {quit -code 1}\nonbreak {quit -code 1}\nvsim -c -t 1ps -L altera_mf vdp_work.vdp_tb -gSLOTS=8 -gGG=0 -gREQUEST_Y=192 -gWARMUP=1 -gEXT_REFERENCE=1 -gREFERENCE=${ref} -gON_IO=${bus?2:1} -gREPLAYS=3 -g/vdp_tb/dut/TB_FAST=1 -g/vdp_tb/vdp1/vdp_vram_inst/init_file=UNUSED -g/vdp_tb/vdp2/vdp_vram_inst/init_file=UNUSED\nset NumericStdNoWarnings 1\nset StdArithNoWarnings 1\nrun -all\nquit -code 0\n`);}}
+console.log('Prepared two independent initialized System E VDPs');

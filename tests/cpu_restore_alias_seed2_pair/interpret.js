@@ -1,0 +1,24 @@
+const fs=require('fs'),p=require('path'),d=__dirname,file=p.join(d,'review.md');let s=fs.readFileSync(file,'utf8');
+s=s.replace('Failed gates: noRoutingALUTGrowth, noPeakRoutingGrowth.','Both builds pass reported timing, but candidate routing ALUTs increase by105 and final total peak interconnect increases72.8%->72.9%. The placed saving is only4 ALMs. Failed gates: noRoutingALUTGrowth, noPeakRoutingGrowth.');
+const block=`## Concrete physical findings
+
+The seed-2 shadowmask control cone is comfortably positive on both sides: worst RAM->h_cnt slack **+3.100 baseline / +2.679 candidate**, and RAM->dsp_width **+2.829 / +2.673ns**. Neither is the seed-2 global limiter. Both global worst setup paths are now in the scaler's o_line3 RAM->o_vpix_outer logic, with different receiver bits, at **+.401 / +.524ns**. Thus the former seed-1 HDMI shadowmask failure is not reproduced in this seed-2 pair; this is evidence of seed-dependent physical outcomes, not a statistical success rate or proof of repeat-fit determinism.
+
+The selected exact matched h_cnt[5]~DUPLICATE path uses portbdataout[0]->sclr and the same HDMI PLL counter0 output clock, with6.732ns relationship on both sides. Its data delay grows **3.195->3.657ns (+.462)**, skew improves **-.237->-.196ns (+.041)**, and slack falls **3.100->2.679ns (-.421)**. Data routing grows **2.208->2.664ns**,15->17 routing elements; cell delay changes **.989->.992ns**, IC annotation **-.002->+.001ns**. These sum to the observed data-delay change. The RAM moves M10K_X14_Y74_N0->M10K_X14_Y66_N0; decode LUT LABCELL_X12_Y77_N9->LABCELL_X11_Y73_N39; receiver FF_X12_Y80_N46->FF_X12_Y74_N46. Decode fanout remains71, while the RAM output's reported fanout falls28->17. The local route worsens without becoming near-critical, and clock skew offsets part of it. A specific congestion cause is not established.
+
+The original seed-1 failed physical endpoint h_cnt[2]~DUPLICATE exists in baseline2 (+3.106ns) but **not in candidate2**. It cannot be compared as an unchanged physical duplicate across those builds. The ordinary logical h_cnt[2] endpoint does exist on both sides: **+3.100->+2.688ns**, data3.197->3.650, skew-.235->-.194. All22 dsp_width names match, including dsp_width[19] **+3.243->+2.678ns**. Duplicate-name differences are kept explicit rather than stripped to manufacture a match.
+
+The worst direct restore-data path in each build happens to represent the **same image bit185 and the same T80_Reg RegsH[2][1] receiver**. Baseline launches z80_dir[185]; candidate launches z80_snap[185]. Relationship18.626ns is unchanged. Slack improves **+12.637->+14.662ns**; data delay5.274->3.147 and skew-.385->-.487ns. These are physically different launch banks with the previously proven consuming-edge equivalence, not an unchanged physical launch-cell comparison. The unchanged z80_set->IR[5] control pair also remains positive, **+9.010->+10.104ns**. No queried alias data path approaches the native core timing limit.
+
+The230 output FFs disappear and the snapshot stays230. Controller own fitted count changes **14772->14541 (-231)**: exactly z80_dir-230 plus one fewer watchdog duplicate (4->3). Other fitted allocations sum to **+114**, giving whole-design -231+114=-117. This distinguishes target-bank removal from physical mapping elsewhere. Needed ALMs fall107, but placed ALMs fall only4 because the packing-adjustment gap changes: recoverable+104 and unavailable+1. These are whole-design physical outcomes, not an isolated per-FF ALM price.
+
+The routing rejection does not depend on checking horizontal/vertical components separately: **routing ALUT18254->18359 (+105)** and **total peak72.8%->72.9%** already violate the stated no-growth gates. Average total utilization improves49.4%->48.8%; horizontal peak rises70.7%->72.8% and vertical peak falls81.4%->78.3%. An improved average does not waive the peak or routing-ALUT failures. Both M10K counts remain488, all reported timing checks pass, and neither build adds a critical warning relative to the paired baseline.
+
+`;
+s=s.replace('## Interpretation, disposition and limitations',block+'## Interpretation, disposition and limitations');
+// Keep identifiers intact while adding spaces to common prose/measurement joins.
+for(const [a,b]of [['all204','all 204'],['both137','both 137'],['existing40','existing 40'],['The40','The 40'],['complete196608','complete 196608'],['Retained40','Retained 40'],['other136','other 136'],['The40','The 40'],['four230','four 230'],['target230','target 230'],['The230','The 230'],['seed1','seed 1'],['seed2','seed 2'],['seed3','seed 3'],['word209','word 209']]){
+ // Avoid modifying filenames, JSON keys and artifact-directory names for seed labels.
+ if(a.startsWith('seed'))continue;s=s.replaceAll(a,b);
+}
+fs.writeFileSync(file,s);console.log('Added measured physical interpretation and duplicate-identity limits.');

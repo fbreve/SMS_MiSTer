@@ -1,0 +1,6 @@
+const fs=require('fs'),p=require('path');const d=__dirname;
+function tail(f){if(!fs.existsSync(f))return '';const stat=fs.statSync(f),b=Buffer.alloc(Math.min(stat.size,16384)),fd=fs.openSync(f,'r');fs.readSync(fd,b,0,b.length,stat.size-b.length);fs.closeSync(fd);return b.toString();}
+console.log(new Date().toLocaleTimeString('en-GB',{timeZone:'America/Sao_Paulo'}));
+for(const [label,file]of [['baseline','e_baseline_map.log'],['reference','e_reference_map.log'],['corrected','r2/e_sram_map.log']]){const s=tail(p.join(d,file)),frame=[...s.matchAll(/FRAME (\d+).*?stage=(\d+)/g)].pop(),check=[...s.matchAll(/CHECKPOINT (\w+)/g)].pop();console.log(label,s.includes('COMPLETE movement sequence')?'COMPLETE':frame?`frame${frame[1]} stage${frame[2]}`:'running',check?.[1]||'');}
+for(const file of ['r2/fm_results.json','r2/fm_modes_results.json','r2/fm_matrix_results.json'])if(fs.existsSync(p.join(d,file))){const j=JSON.parse(fs.readFileSync(p.join(d,file)));console.log(file,j.results.map(q=>`${q.name||q.mode}:${q.status}`).join(' '));}
+const native=tail(p.join(d,'r2/fm_v2/matrix_s0_m0.log'));console.log('nativeFM last',native.split(/\r?\n/).filter(l=>/PASS independent|PASS fullstate|Time:|Fatal/.test(l)).slice(-2).join(' | '));

@@ -1,0 +1,25 @@
+const fs=require('fs'),p=require('path'),d=__dirname,study=p.join(d,'paired_seed_study');
+let code=fs.readFileSync(p.resolve(d,'../ym2413_registermemory_auto/paired_seed_study/summarize.js'),'utf8');
+const start=code.indexOf(" assert.equal(at('M10K blocks'),'1');"),end=code.indexOf(' assert.deepEqual(r.otherMemoryDifferences',start);
+if(start<0||end<0)throw Error('Unexpected helper template');
+code=code.slice(0,start)+` assert.equal(at('Type'),'MLAB');assert.equal(at('M10K blocks'),'0');assert.equal(at('MLAB cells'),'22');assert.equal(at('Clock Mode'),'Single Clock');
+ assert.equal(at('Port B Input Registers'),'no');assert.equal(at('Port B Output Registers'),'yes');assert.equal(at('Implementation Port B Width'),'22');
+ const locations=at('Location').split(',').map(x=>x.trim());assert.equal(new Set(locations).size,2);assert.equal(b.memoryALMs,20);b.physicalMLABs=2;a.physicalMLABs=0;
+ const seed2Result=JSON.parse(read(p.join(seed2,'results.json')));assert.deepEqual(rm.registerParameters,seed2Result.memoryImplementation.candidate.registerParameters,'Cross-seed inferred RAM parameters');
+ const primitiveBytes=fs.readFileSync(p.join(dir,'candidate/db/dpram_iop1.tdf')),primitive=primitiveBytes.toString('utf8');
+ assert(primitive.includes('mixed_port_feed_through_mode = "dont care"'));assert(primitive.includes('dataout_reg[].clk = outclock;'));assert(primitive.includes('dataout_reg[].d = dataout_wire[];'));assert(primitive.includes('dataout_reg[].ena = outclocken;'));
+ assert.equal(hash(primitiveBytes),hash(fs.readFileSync(p.join(seed2,'candidate/db/dpram_iop1.tdf'))),'Generated MLAB primitive identical across seeds');
+ const packed=read(p.join(dir,'candidate/output_files/SMS.fit.rpt')).split(/\\r?\\n/).filter(x=>x.includes('u_register_memory')&&x.includes('dataout_reg[')&&x.includes('Packed Register'));
+ assert.equal(packed.length,22,'All 22 defined output registers packed');
+ `+code.slice(end);
+code=code.replace("'neededALMs','placedALMs','fittedRegisters','M10K','MLABcells','MLABbits','setupSlack','setupTNS'","'neededALMs','placedALMs','fittedRegisters','M10K','physicalMLABs','MLABcells','MLABbits','memoryALMs','setupSlack','setupTNS'");
+code=code.replace("sourceHash:m.sourceHash,rbf:r.preservedRBF","sourceHash:m.sourceHash,productionSourceHash:m.productionSourceHash,packedOutputRegisters:packed.length,generatedPrimitiveSHA256:hash(primitiveBytes),rbf:r.preservedRBF");
+code=code.replace('.builds.baseline[k])),candidate:', '.builds.baseline[k]??0)),candidate:');
+const outputMarker='fs.writeFileSync(p.join(d,\'results.json\')';
+const insert=code.indexOf(outputMarker);if(insert<0)throw Error('Output marker');
+code=code.slice(0,insert)+`const autoStudy=JSON.parse(read(p.resolve(task,'../ym2413_registermemory_auto/paired_seed_study/results.json')));
+output.AUTOcomparison={};for(const seed of seeds){const ar=JSON.parse(read(p.resolve(task,'../ym2413_registermemory_auto/physical_seed'+seed+'/results.json'))),ab=ar.builds.candidate;for(const [f,h]of Object.entries(ab.reportHashes))assert.equal(hash(fs.readFileSync(p.resolve(task,'../ym2413_registermemory_auto/physical_seed'+seed+'/candidate/output_files',f))),h);output.AUTOcomparison[seed]={values:Object.fromEntries(metrics.map(k=>[k,ab[k]??0])),MLABminusAUTO:Object.fromEntries(metrics.map(k=>[k,results[seed].candidate[k]-(ab[k]??0)])),critical:ab.paths.setup[0],timingPass:ab.qualifiedConstrainedTiming};}
+output.MLABminusAUTOstatistics=Object.fromEntries(metrics.map(k=>[k,stats(seeds.map(s=>output.AUTOcomparison[s].MLABminusAUTO[k]))]));
+output.AUTOstatistics=autoStudy.statistics;
+`+code.slice(insert);
+fs.writeFileSync(p.join(study,'summarize.js'),code);

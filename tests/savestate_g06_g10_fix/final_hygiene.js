@@ -1,0 +1,11 @@
+const fs=require('fs'),p=require('path'),cp=require('child_process'),assert=require('assert'),d=__dirname,r=p.resolve(d,'../..');
+const git=(...args)=>{const z=cp.spawnSync('git',args,{cwd:r,encoding:'utf8'});assert.equal(z.status,0,z.stderr);return z.stdout;};
+const expected=['SMS.sv','rtl/T80/T80s.vhd','rtl/savestates.sv','rtl/system.vhd','rtl/vdp.vhd','rtl/vdp_main.vhd','rtl/vdp_sprite_shifter.vhd','rtl/vdp_sprites.vhd'];
+const changed=git('diff','--name-only').trim().split(/\r?\n/).sort();assert.deepEqual(changed,expected.sort());
+const head=git('rev-parse','HEAD').trim(),branch=git('branch','--show-current').trim(),staged=git('diff','--cached','--name-only');
+assert.equal(head,'8ffd15e2a7e530c0d77b07c6eeae3e8dc0aa0c8a');assert.equal(branch,'fix/savestate-g06-g10-restart');assert.equal(staged,'');assert.equal(git('diff','--check'),'');
+const compilerTracked=git('ls-files','tests/savestate_g06_g10_fix/quartus','tests/savestate_g06_g10_fix/quartus_failed_port_read','tests/savestate_g06_g10_fix/quartus_stopped_q_gate','tests/savestate_g06_g10_fix/quartus_baseline_date','tests/savestate_g06_g10_fix/quartus_failed_congestion');assert.equal(compilerTracked,'');
+const additions=git('ls-files','--others','--exclude-standard','tests/savestate_g06_g10_fix').trim().split(/\r?\n/);
+assert(!additions.some(s=>/\/(?:quartus(?:_failed_port_read|_stopped_q_gate|_baseline_date|_failed_congestion)?|[^/]*_work)\/|\.wlf(?:\.|$)|modelsim\.ini$/.test(s)),'Unignored compiler artifact');
+const result={head,branch,diffStat:git('diff','--stat'),status:git('status','--short'),staged,changed,localEvidenceFiles:additions.length,compilerTracked,diffCheck:'PASS',commitPushPR:'None performed'};
+fs.writeFileSync(p.join(d,'hygiene.json'),JSON.stringify(result,null,2)+'\n');console.log(JSON.stringify(result,null,2));

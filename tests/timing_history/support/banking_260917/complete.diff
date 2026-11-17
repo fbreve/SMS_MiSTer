@@ -1,0 +1,1297 @@
+diff --git a/files.qip b/files.qip
+index e66337b..adb14e4 100644
+--- a/files.qip
++++ b/files.qip
+@@ -23,6 +23,7 @@ set_global_assignment -name VHDL_FILE rtl/vdp_cram.vhd
+ set_global_assignment -name VHDL_FILE rtl/vdp_background.vhd
+ set_global_assignment -name VHDL_FILE rtl/vdp.vhd
+ set_global_assignment -name VHDL_FILE rtl/mapper_detect.vhd
++set_global_assignment -name VHDL_FILE rtl/mapper_ctrl.vhd
+ set_global_assignment -name VHDL_FILE rtl/system.vhd
+ set_global_assignment -name VHDL_FILE rtl/evolution_mapper.vhd
+ set_global_assignment -name VHDL_FILE rtl/eeprom_93c46.vhd
+diff --git a/mist/sms_mist.qsf b/mist/sms_mist.qsf
+index 643545e..9138f12 100644
+--- a/mist/sms_mist.qsf
++++ b/mist/sms_mist.qsf
+@@ -305,6 +305,7 @@ set_global_assignment -name VHDL_FILE ../rtl/vdp_background.vhd
+ set_global_assignment -name VHDL_FILE ../rtl/vdp.vhd
+ set_global_assignment -name SYSTEMVERILOG_FILE ../rtl/sdram.sv
+ set_global_assignment -name VHDL_FILE ../rtl/mapper_detect.vhd
++set_global_assignment -name VHDL_FILE ../rtl/mapper_ctrl.vhd
+ set_global_assignment -name VHDL_FILE ../rtl/system.vhd
+ set_global_assignment -name VHDL_FILE ../rtl/sprom.vhd
+ set_global_assignment -name VHDL_FILE ../rtl/spram.vhd
+diff --git a/rtl/system.vhd b/rtl/system.vhd
+index 5dd219c..21fe41c 100644
+--- a/rtl/system.vhd
++++ b/rtl/system.vhd
+@@ -222,7 +222,6 @@ architecture Behavioral of system is
+ 	signal A:					std_logic_vector(15 downto 0);
+ 	signal D_in:				std_logic_vector(7 downto 0);
+ 	signal D_out:				std_logic_vector(7 downto 0);
+-	signal last_read_addr:  std_logic_vector(15 downto 0);
+ 	signal ce_z80:				std_logic;
+ 	
+ 	signal vdp_RD_n:			std_logic;
+@@ -360,10 +359,10 @@ architecture Behavioral of system is
+ 	signal irom_D_out:		std_logic_vector(7 downto 0);
+ 	signal irom_RD_n:			std_logic := '1';
+ 
+-	signal bank0:				std_logic_vector(7 downto 0) := "00000000";
+-	signal bank1:				std_logic_vector(7 downto 0) := "00000001";
+-	signal bank2:				std_logic_vector(7 downto 0) := "00000010";
+-	signal bank3:				std_logic_vector(7 downto 0) := "00000011";
++	signal bank0:				std_logic_vector(7 downto 0);
++	signal bank1:				std_logic_vector(7 downto 0);
++	signal bank2:				std_logic_vector(7 downto 0);
++	signal bank3:				std_logic_vector(7 downto 0);
+   
+ 	signal vdp_se_bank:		std_logic := '0';
+ 	signal vdp2_se_bank:		std_logic := '0';
+@@ -427,15 +426,15 @@ architecture Behavioral of system is
+ 	signal sc_multicart_open:	std_logic;
+ 
+ 	signal nvram_WR:		   std_logic;
+-	signal nvram_e:         std_logic := '0';
+-	signal nvram_ex:        std_logic := '0';
+-	signal nvram_p:         std_logic := '0';
+-	signal nvram_cme:       std_logic := '0'; -- codemasters ram extension
++	signal nvram_e:         std_logic;
++	signal nvram_ex:        std_logic;
++	signal nvram_p:         std_logic;
++	signal nvram_cme:       std_logic; -- codemasters ram extension
+ 	signal nvram_D_out:     std_logic_vector(7 downto 0);
+ 	
+-	signal lock_mapper_B:	std_logic := '0';
+-	signal mapper_codies:	std_logic := '0'; -- Ernie Els Golf mapper
+-	signal mapper_codies_lock:	std_logic := '0'; 
++	signal lock_mapper_B:	std_logic;
++	signal mapper_codies:	std_logic; -- Ernie Els Golf mapper
++	signal mapper_codies_lock:	std_logic;
+ 	
+ 	signal mapper_msx_check0 : boolean := false ;
+ 	signal mapper_msx_check1 : boolean := false ;
+@@ -445,9 +444,8 @@ architecture Behavioral of system is
+ 
+ 	-- 4-PAK All Action mapper signals (HES 4 PAK All Action)
+ 	-- References: MAME sega8_4pak_device (src/devices/bus/sega8/rom.cpp)
+-	signal mapper_4pak :		std_logic := '0';
+-	signal pak4_reg0 :		std_logic_vector(7 downto 0) := "00000000"; -- written at $3FFE
+-	signal pak4_reg2 :		std_logic_vector(7 downto 0) := "00000000"; -- written at $BFFF
++	signal mapper_4pak :		std_logic;
++	signal pak4_reg2 :		std_logic_vector(7 downto 0); -- written at $BFFF
+ 
+ 	-- Zemina/Nemesis mapper family (MAME: sega8_zemina_device / sega8_nemesis_device)
+ 	-- Zemina:    8KB banking via writes to $0000-$0003; $0000-$1FFF starts from page 0.
+@@ -475,7 +473,7 @@ architecture Behavioral of system is
+ 	signal mapper_dahjee_a : std_logic;
+ 	signal mapper_eeprom : std_logic;
+ 	signal use_zem : std_logic;
+-	signal nem_bank0          : std_logic_vector(7 downto 0) := "00000000";  -- $0000-$1FFF bank
++	signal nem_bank0          : std_logic_vector(7 downto 0);  -- $0000-$1FFF bank
+ 
+ 	-- GG EEPROM mapper (Pro Yakyuu GG League, Majors Pro Baseball,
+ 	-- World Series Baseball v0/v1, World Series Baseball '95)
+@@ -486,12 +484,9 @@ architecture Behavioral of system is
+ 	signal eeprom_nvram_di      : std_logic_vector(7 downto 0);
+ 	signal eeprom_nvram_we      : std_logic;
+ 	signal eeprom_bus_active    : std_logic;
+-	signal eeprom_soft_reset    : std_logic := '0';
++	signal eeprom_soft_reset    : std_logic;
+ 	signal eeprom_ss_out_i      : std_logic_vector(63 downto 0);
+ 
+-	signal mapper_wonderkid_prev: std_logic := '0';
+-	signal reset_n_prev         : std_logic := '0';  -- for synchronous rising-edge detection of RESET_n
+-	signal bootloader_n_prev    : std_logic := '0';  -- for rising-edge detection of bootloader_n (BIOS->cart handoff)
+ 
+ 	signal mc8123_D_out    : std_logic_vector(7 downto 0);
+ 	signal segadect2_D_out : std_logic_vector(7 downto 0);
+@@ -507,10 +502,10 @@ architecture Behavioral of system is
+ 	end function;
+ 
+ 	-- Janggun mapper (Janggun-ui Adeul): CRC32-based auto-detection
+-	signal jang_bank1, jang_bank2 : std_logic_vector(5 downto 0) := "000010"; -- $4000 (page 2), $6000 (page 3)
+-	signal jang_bank3, jang_bank4 : std_logic_vector(5 downto 0) := "000100"; -- $8000 (page 4), $A000 (page 5)
+-	signal jang_rev1, jang_rev2   : std_logic := '0';
+-	signal jang_rev3, jang_rev4   : std_logic := '0';
++	signal jang_bank1, jang_bank2 : std_logic_vector(5 downto 0); -- $4000 (page 2), $6000 (page 3)
++	signal jang_bank3, jang_bank4 : std_logic_vector(5 downto 0); -- $8000 (page 4), $A000 (page 5)
++	signal jang_rev1, jang_rev2   : std_logic;
++	signal jang_rev3, jang_rev4   : std_logic;
+ 	signal janggun_reverse_active : std_logic := '0';
+ 
+ 	component CODES is
+@@ -1554,346 +1549,64 @@ port map(
+ 		end if;
+ 	end process;
+ 	
+-	-- external ram control
+-	process (RESET_n,clk_sys)
+-	begin
+-		if RESET_n='0' then
+-			bank0 <= "00000000";
+-			bank1 <= "00000001";
+-			bank2 <= "00000010";
+-			bank3 <= "00000011";
+-			jang_bank1 <= "000010";
+-			jang_bank2 <= "000011";
+-			jang_bank3 <= "000100";
+-			jang_bank4 <= "000101";
+-			jang_rev1 <= '0';
+-			jang_rev2 <= '0';
+-			jang_rev3 <= '0';
+-			jang_rev4 <= '0';
+-			nvram_e  <= '0';
+-			nvram_ex <= '0';
+-			nvram_p  <= '0';
+-			nvram_cme <= '0';
+-			lock_mapper_B <= '0' ;
+-			mapper_codies <= '0' ;
+-			mapper_codies_lock <= '0' ;
+-			-- heuristic detectors are initialized in the dedicated detection process
+-			mapper_4pak <= '0' ;
+-			pak4_reg0 <= "00000000" ;
+-			pak4_reg2 <= "00000000" ;
+-			nem_bank0 <= (others => '0');
+-			mapper_wonderkid_prev <= '0';
+-			reset_n_prev <= '0';
+-			bootloader_n_prev <= '0';
+-
+-		else
+-			if rising_edge(clk_sys) then
+-				eeprom_soft_reset <= '0';
+-				-- The Evolution launcher stores data in the top bytes of RAM,
+-				-- which alias the standard SMS mapper registers in this core.
+-				-- Start each selected game with the normal Sega power-on banks.
+-				if evolution_game_launch = '1' then
+-					bank0 <= x"00";
+-					bank1 <= x"01";
+-					bank2 <= x"02";
+-					bank3 <= x"03";
+-				end if;
+-				if mapper_set = '1' then
+-					if mapper_evolution = '1' and
+-					   evolution_ss_in(31 downto 16) = x"E132" then
+-						bank0 <= mapper_in(47 downto 40);
+-						bank1 <= mapper_in(39 downto 32);
+-						bank2 <= mapper_in(31 downto 24);
+-						bank3 <= mapper_in(23 downto 16);
+-						nvram_e <= '0';
+-						nvram_ex <= '0';
+-						nvram_p <= '0';
+-						nvram_cme <= '0';
+-						lock_mapper_B <= '0';
+-						mapper_codies <= '0';
+-						mapper_codies_lock <= '0';
+-						mapper_4pak <= '0';
+-					elsif mapper_janggun = '1' then
+-						jang_bank1 <= mapper_in(5 downto 0);
+-						jang_rev1  <= mapper_in(7);
+-						jang_bank2 <= mapper_in(13 downto 8);
+-						jang_rev2  <= mapper_in(15);
+-						jang_bank3 <= mapper_in(21 downto 16);
+-						jang_rev3  <= mapper_in(23);
+-						jang_bank4 <= mapper_in(29 downto 24);
+-						jang_rev4  <= mapper_in(31);
+-					else
+-						-- For System E, mapper_in(7:0) is IO port 0xF7 state (VDP bank
+-						-- selects + rom_bank), NOT bank0.  The IO module restores the
+-						-- SE banking via se_mapper_set, so skip bank0/pak4_reg0 here.
+-						if systeme = '0' then
+-							bank0          <= mapper_in(7 downto 0);
+-						end if;
+-						bank1              <= mapper_in(15 downto 8);
+-						bank2              <= mapper_in(23 downto 16);
+-						bank3              <= mapper_in(31 downto 24);
+-						if systeme = '0' then
+-							pak4_reg0      <= mapper_in(7 downto 0);
+-						end if;
+-						pak4_reg2          <= mapper_in(39 downto 32);
+-						nem_bank0          <= mapper_in(47 downto 40);
+-						nvram_e            <= mapper_in(50);
+-						nvram_ex           <= mapper_in(51);
+-						nvram_p            <= mapper_in(52);
+-						nvram_cme          <= mapper_in(53);
+-						mapper_4pak        <= mapper_in(57);
+-						mapper_codies      <= mapper_in(58);
+-						lock_mapper_B      <= mapper_in(59);
+-						mapper_codies_lock <= mapper_in(60);
+-					end if;
+-					-- Prevent edge detector registers from triggering false transitions
+-					-- in the next clock cycle after state restoration.
+-					bootloader_n_prev     <= bootloader_n;
+-					reset_n_prev          <= RESET_n;
+-					mapper_wonderkid_prev <= mapper_wonderkid;
+-				else
+-				if bootloader_n = '0' and mapper_lock = '0' then
+-					lock_mapper_B <= '0';
+-					mapper_codies <= '0';
+-					mapper_codies_lock <= '0';
+-				end if;
+-				-- BIOS handoff: restore standard cartridge startup banks.
+-				-- BIOS bank writes can leave bank0/1/2 in non-default states, which
+-				-- breaks static Codemasters detection and forced Codemasters start.
+-				if bootloader_n = '1' and bootloader_n_prev = '0' then
+-					bank0 <= "00000000";
+-					bank1 <= "00000001";
+-					bank2 <= "00000010";
+-					bank3 <= "00000011";
+-					jang_bank1 <= "000010";
+-					jang_bank2 <= "000011";
+-					jang_bank3 <= "000100";
+-					jang_bank4 <= "000101";
+-					jang_rev1 <= '0';
+-					jang_rev2 <= '0';
+-					jang_rev3 <= '0';
+-					jang_rev4 <= '0';
+-					nvram_e  <= '0';
+-					nvram_ex <= '0';
+-					nvram_p  <= '0';
+-					nvram_cme <= '0';
+-					if mapper_wonderkid = '1' then
+-						bank1 <= "00000000";
+-						bank2 <= "00000000";
+-						lock_mapper_B <= '1';
+-					elsif (detect_codies_static = '1' or mapper_codies_force = '1') and mapper_lock = '0' and mapper_eeprom = '0' then
+-						lock_mapper_B      <= '1';
+-						mapper_codies      <= '1';
+-						mapper_codies_lock <= '1';
+-						bank2              <= "00000000";
+-					end if;
+-				end if;
+-				-- On the first clock after RESET_n rises, initialise mapper state.
+-				-- rom_size_pages is stable here because
+-				-- cart_download holds RESET_n low throughout the entire ROM transfer.
+-				if RESET_n = '1' and reset_n_prev = '0' then
+-					if mapper_janggun = '1' then
+-						jang_bank1 <= "000010";
+-						jang_bank2 <= "000011";
+-						jang_bank3 <= "000100";
+-						jang_bank4 <= "000101";
+-						jang_rev1 <= '0';
+-						jang_rev2 <= '0';
+-						jang_rev3 <= '0';
+-						jang_rev4 <= '0';
+-					end if;
+-					if mapper_zemina_force = '1' then
+-						nem_bank0 <= (others => '0');
+-					elsif mapper_nemesis_auto = '1' and unsigned(rom_size_pages) /= 0 then
+-						-- Nemesis I needs $0000-$1FFF mapped to the last 8KB page on boot.
+-						nem_bank0 <= std_logic_vector(unsigned(rom_size_pages) - 1);
+-					else
+-						nem_bank0 <= (others => '0');
+-					end if;
+-					if mapper_wonderkid = '1' then
+-						-- All slots start at page 0; pre-lock to prevent 4-PAK misdetection
+-						bank1         <= "00000000";
+-						bank2         <= "00000000";
+-						lock_mapper_B <= '1';
+-					elsif (detect_codies_static = '1' or mapper_codies_force = '1') and mapper_lock = '0' and mapper_eeprom = '0' then
+-						if bootloader_n = '1' then
+-							lock_mapper_B      <= '1';
+-							mapper_codies      <= '1';
+-							mapper_codies_lock <= '1';
+-							bank2              <= "00000000";
+-						end if;
+-					end if;
+-					-- Initialize detection window (ticks run while bootloader active)
+-					-- detection window initialization is handled by the detection process
+-				end if;
+-				-- Auto-detected Wonder Kid becomes active after reset; apply init once.
+-				if mapper_wonderkid = '1' and mapper_wonderkid_prev = '0' then
+-					bank1         <= "00000000";
+-					bank2         <= "00000000";
+-					lock_mapper_B <= '1';
+-				end if;
+-				mapper_wonderkid_prev <= mapper_wonderkid;
+-				reset_n_prev <= RESET_n;
+-				bootloader_n_prev <= bootloader_n;
+-				if ce_z80 = '1' then
+-					if WR_n='1' and MREQ_n='0' then
+-						last_read_addr <= A; -- gyurco anti-ldir patch
+-					end if;
+-				end if;
+-
+-				if mapper_janggun = '1' and bootloader_n = '1' then
+-					if ss_freeze = '0' and WR_n = '0' and MREQ_n = '0' then
+-						case A is
+-							when x"4000" =>
+-								jang_bank1 <= D_in(5 downto 0);
+-								jang_rev1  <= D_in(7);
+-
+-							when x"6000" =>
+-								jang_bank2 <= D_in(5 downto 0);
+-								jang_rev2  <= D_in(7);
+-
+-							when x"8000" =>
+-								jang_bank3 <= D_in(5 downto 0);
+-								jang_rev3  <= D_in(7);
+-
+-							when x"A000" =>
+-								jang_bank4 <= D_in(5 downto 0);
+-								jang_rev4  <= D_in(7);
+-
+-							when x"FFFE" =>
+-								jang_bank1 <= D_in(4 downto 0) & '0';
+-								jang_bank2 <= D_in(4 downto 0) & '1';
+-								jang_rev1  <= D_in(6) or D_in(7);
+-								jang_rev2  <= D_in(6) or D_in(7);
+-
+-							when x"FFFF" =>
+-								jang_bank3 <= D_in(4 downto 0) & '0';
+-								jang_bank4 <= D_in(4 downto 0) & '1';
+-								jang_rev3  <= D_in(6) or D_in(7);
+-								jang_rev4  <= D_in(6) or D_in(7);
+-
+-							when others =>
+-								null;
+-						end case;
+-					end if;
+-				elsif mapper_eeprom = '1' then
+-					-- EEPROM carts (93C46) always use the plain Sega $FFFC-$FFFF register map.
+-					-- Must take priority over every other mapper heuristic below (4-PAK $3FFE
+-					-- write-trigger, Zemina opcode scan, Dahjee/linear/castle/etc.) so a false
+-					-- positive on one of those heuristics can never steal the $FFFC write.
+-					if ss_freeze = '0' and WR_n='0' and MREQ_n='0' and A(15 downto 2)="11111111111111" then
+-						case A(1 downto 0) is
+-							when "00" =>
+-								eeprom_soft_reset  <= D_in(7);
+-							when "01" => bank0 <= D_in;
+-							when "10" => bank1 <= D_in;
+-							when "11" => bank2 <= D_in;
+-						end case;
+-					end if;
+-				elsif systeme = '1' or sc3000_en = '1' or mapper_castle = '1' or mapper_linear = '1' or mapper_dahjee_a = '1' or mapper_sega_locked = '1' then
+-					-- no System E, SC-3000, Castle (32KB RAM), linear, Dahjee Type A, or Sega-locked mappers
+-				elsif mapper_4pak = '1' then
+-					-- 4-PAK All Action mapper (per MAME sega8_4pak_device):
+-					-- $3FFE: reg0=D; bank0=D; bank2=(reg0[5:4]+reg2)
+-					-- $7FFF: bank1=D (independent)
+-					-- $BFFF: reg2=D; bank2=(reg0[5:4]+D)
+-					if ss_freeze = '0' and WR_n='0' and MREQ_n='0' then
+-						if A=x"3FFE" then
+-							pak4_reg0 <= D_in;
+-							bank0 <= D_in;
+-							bank2 <= std_logic_vector(
+-								unsigned(D_in(5 downto 4) & "0000") +
+-								unsigned(pak4_reg2));
+-						elsif A=x"7FFF" then
+-							bank1 <= D_in;
+-						elsif A=x"BFFF" then
+-							pak4_reg2 <= D_in;
+-							bank2 <= std_logic_vector(
+-								unsigned(pak4_reg0(5 downto 4) & "0000") +
+-								unsigned(D_in));
+-						end if;
+-					end if;
+-				elsif use_zem = '1' and bootloader_n = '1' then
+-					-- Zemina/Nemesis register map (verified against working nemesis-mapper branch):
+-					-- $0000 -> bank2 ($8000-$9FFF), $0001 -> bank3 ($A000-$BFFF)
+-					-- $0002 -> bank0 ($4000-$5FFF), $0003 -> bank1 ($6000-$7FFF)
+-					-- $0000-$1FFF is nem_bank0 (fixed at reset); $2000-$3FFF is always page 1.
+-					-- Suppressed while BIOS is running (bootloader_n='0') so the BIOS can
+-					-- bank-switch its own pages via the standard Sega mapper ($FFFC-$FFFF).
+-					if ss_freeze = '0' and WR_n='0' and MREQ_n='0' and A(15 downto 2)="00000000000000" then
+-						case A(1 downto 0) is
+-							when "00" => bank2 <= D_in;
+-							when "01" => bank3 <= D_in;
+-							when "10" => bank0 <= D_in;
+-							when "11" => bank1 <= D_in;
+-						end case;
+-					end if ;
+-				elsif ss_freeze = '0' and mapper_manual_force = '0' and bootloader_n = '1' and WR_n='0' and MREQ_n='0' and A=x"3FFE" and sega_mapper_write_seen = '0' then
+-					-- 4-PAK All Action: first write to $3FFE when no mapper active (gated by sega_mapper_write_seen='0').
+-					mapper_4pak <= '1';
+-					pak4_reg0 <= D_in;
+-					pak4_reg2 <= "00000000";
+-					bank0 <= D_in;
+-					bank1 <= "00000001";
+-					bank2 <= std_logic_vector(
+-						("00" & unsigned(D_in(5 downto 4)) & "0000") +
+-						to_unsigned(0, 8)); -- reg2=0 initially
+-				else
+-					-- No write-triggered Zemina detection here.
+-					-- Zemina mode is selected by header/CRC/OSD; once active, writes are handled in the use_zem branch above.
+-					if ss_freeze = '0' and WR_n='0' and MREQ_n='0' and A(15 downto 2)="11111111111111" then
+-						-- A write to $FFFC-$FFFF is a Sega mapper register; disable Codemasters
+-						-- detection unless it was already confirmed (mapper_codies_lock='1') or forced.
+-						if mapper_codies_force = '0' and mapper_codies_lock = '0' and detect_codies_static = '0' then
+-							mapper_codies <= '0' ;
+-						end if;
+-						if (mapper_codies = '0' and (detect_codies_static = '0' or bootloader_n = '0')) or mapper_eeprom = '1' then
+-							case A(1 downto 0) is
+-								when "00" => 
+-									if mapper_eeprom = '0' then
+-										nvram_ex <= D_in(4);
+-										nvram_e  <= D_in(3);
+-										nvram_p  <= D_in(2);
+-									end if;
+-								when "01" => bank0 <= D_in;
+-								when "10" => bank1 <= D_in;
+-								when "11" => bank2 <= D_in ; 
+-							end case;
+-						end if;
+-					end if;
+-					if ss_freeze = '0' and WR_n='0' and MREQ_n='0' and nvram_e='0' and mapper_lock='0' then
+-						case A(15 downto 0) is
+-							-- Codemasters-style banking; Wonder Kid mapper #41 uses only $8000.
+-							when x"0000" => 
+-								if mapper_codies = '1' or detect_codies_static = '1' or mapper_codies_force = '1' then
+-									bank0 <= D_in ;
+-								end if;
+-							when x"4000" => 
+-								if (mapper_codies = '1' or detect_codies_static = '1' or mapper_codies_force = '1') and mapper_eeprom = '0' then
+-									bank1(6 downto 0) <= D_in(6 downto 0) ;
+-									bank1(7) <= '0' ;
+-									nvram_cme <= D_in(7) ;
+-								end if ;
+-							when x"8000" => 
+-								if (mapper_codies = '1' or detect_codies_static = '1' or mapper_codies_force = '1' or mapper_wonderkid = '1') and mapper_eeprom = '0' then
+-									bank2 <= D_in ; 
+-								end if;
+-							-- Korean mapper (Sangokushi 3, Dodgeball King (Dallyeora Pigu-Wang), Jang Pung II, Jang Pung 3)
+-							when x"A000" => 
+-								if last_read_addr /= x"A000" then -- gyurco anti-ldir patch
+-									if mapper_codies='0' then
+-										bank2 <= D_in ;
+-									end if ;
+-								end if ;
+-							when others => null ;
+-						end case ;
+-					end if;
+-				end if;
+-				end if; -- mapper_set
+-			end if;
+-		end if;
+-	end process;
+-
++	mapper_banking : entity work.mapper_ctrl
++		port map (
++			RESET_n => RESET_n,
++			clk_sys => clk_sys,
++			evolution_game_launch => evolution_game_launch,
++			mapper_set => mapper_set,
++			mapper_evolution => mapper_evolution,
++			evolution_ss_in => evolution_ss_in,
++			mapper_in => mapper_in,
++			mapper_janggun => mapper_janggun,
++			systeme => systeme,
++			bootloader_n => bootloader_n,
++			mapper_wonderkid => mapper_wonderkid,
++			mapper_lock => mapper_lock,
++			detect_codies_static => detect_codies_static,
++			mapper_codies_force => mapper_codies_force,
++			mapper_eeprom => mapper_eeprom,
++			mapper_zemina_force => mapper_zemina_force,
++			mapper_nemesis_auto => mapper_nemesis_auto,
++			rom_size_pages => rom_size_pages,
++			ce_z80 => ce_z80,
++			WR_n => WR_n,
++			MREQ_n => MREQ_n,
++			A => A,
++			ss_freeze => ss_freeze,
++			D_in => D_in,
++			sc3000_en => sc3000_en,
++			mapper_castle => mapper_castle,
++			mapper_linear => mapper_linear,
++			mapper_dahjee_a => mapper_dahjee_a,
++			mapper_sega_locked => mapper_sega_locked,
++			use_zem => use_zem,
++			mapper_manual_force => mapper_manual_force,
++			sega_mapper_write_seen => sega_mapper_write_seen,
++			bank0_out => bank0,
++			bank1_out => bank1,
++			bank2_out => bank2,
++			bank3_out => bank3,
++			jang_bank1_out => jang_bank1,
++			jang_bank2_out => jang_bank2,
++			jang_bank3_out => jang_bank3,
++			jang_bank4_out => jang_bank4,
++			jang_rev1_out => jang_rev1,
++			jang_rev2_out => jang_rev2,
++			jang_rev3_out => jang_rev3,
++			jang_rev4_out => jang_rev4,
++			nvram_e_out => nvram_e,
++			nvram_ex_out => nvram_ex,
++			nvram_p_out => nvram_p,
++			nvram_cme_out => nvram_cme,
++			lock_mapper_B_out => lock_mapper_B,
++			mapper_codies_out => mapper_codies,
++			mapper_codies_lock_out => mapper_codies_lock,
++			mapper_4pak_out => mapper_4pak,
++			pak4_reg2_out => pak4_reg2,
++			nem_bank0_out => nem_bank0,
++			eeprom_soft_reset_out => eeprom_soft_reset
++		);
+ 
+ 	-- 4-PAK auto-detection is write-based only ($3FFE first-write pattern).
+ 
+diff --git a/rtl/mapper_ctrl.vhd b/rtl/mapper_ctrl.vhd
+new file mode 100644
+--- /dev/null
++++ b/rtl/mapper_ctrl.vhd
+@@ -0,0 +1,460 @@
++library IEEE;
++use IEEE.STD_LOGIC_1164.ALL;
++use IEEE.NUMERIC_STD.ALL;
++
++-- Mapper banking/register state. Selection and save-state packing remain in system.
++entity mapper_ctrl is
++	port (
++		RESET_n : in std_logic;
++		clk_sys : in std_logic;
++		evolution_game_launch : in std_logic;
++		mapper_set : in std_logic;
++		mapper_evolution : in std_logic;
++		evolution_ss_in : in std_logic_vector(95 downto 0);
++		mapper_in : in std_logic_vector(63 downto 0);
++		mapper_janggun : in std_logic;
++		systeme : in std_logic;
++		bootloader_n : in std_logic;
++		mapper_wonderkid : in std_logic;
++		mapper_lock : in std_logic;
++		detect_codies_static : in std_logic;
++		mapper_codies_force : in std_logic;
++		mapper_eeprom : in std_logic;
++		mapper_zemina_force : in std_logic;
++		mapper_nemesis_auto : in std_logic;
++		rom_size_pages : in std_logic_vector(7 downto 0);
++		ce_z80 : in std_logic;
++		WR_n : in std_logic;
++		MREQ_n : in std_logic;
++		A : in std_logic_vector(15 downto 0);
++		ss_freeze : in std_logic;
++		D_in : in std_logic_vector(7 downto 0);
++		sc3000_en : in std_logic;
++		mapper_castle : in std_logic;
++		mapper_linear : in std_logic;
++		mapper_dahjee_a : in std_logic;
++		mapper_sega_locked : in std_logic;
++		use_zem : in std_logic;
++		mapper_manual_force : in std_logic;
++		sega_mapper_write_seen : in std_logic;
++		bank0_out : out std_logic_vector(7 downto 0);
++		bank1_out : out std_logic_vector(7 downto 0);
++		bank2_out : out std_logic_vector(7 downto 0);
++		bank3_out : out std_logic_vector(7 downto 0);
++		jang_bank1_out : out std_logic_vector(5 downto 0);
++		jang_bank2_out : out std_logic_vector(5 downto 0);
++		jang_bank3_out : out std_logic_vector(5 downto 0);
++		jang_bank4_out : out std_logic_vector(5 downto 0);
++		jang_rev1_out : out std_logic;
++		jang_rev2_out : out std_logic;
++		jang_rev3_out : out std_logic;
++		jang_rev4_out : out std_logic;
++		nvram_e_out : out std_logic;
++		nvram_ex_out : out std_logic;
++		nvram_p_out : out std_logic;
++		nvram_cme_out : out std_logic;
++		lock_mapper_B_out : out std_logic;
++		mapper_codies_out : out std_logic;
++		mapper_codies_lock_out : out std_logic;
++		mapper_4pak_out : out std_logic;
++		pak4_reg2_out : out std_logic_vector(7 downto 0);
++		nem_bank0_out : out std_logic_vector(7 downto 0);
++		eeprom_soft_reset_out : out std_logic
++	);
++end entity;
++
++architecture rtl of mapper_ctrl is
++	signal bank0 : std_logic_vector(7 downto 0) := "00000000";
++	signal bank1 : std_logic_vector(7 downto 0) := "00000001";
++	signal bank2 : std_logic_vector(7 downto 0) := "00000010";
++	signal bank3 : std_logic_vector(7 downto 0) := "00000011";
++	signal jang_bank1 : std_logic_vector(5 downto 0) := "000010";
++	signal jang_bank2 : std_logic_vector(5 downto 0) := "000010";
++	signal jang_bank3 : std_logic_vector(5 downto 0) := "000100";
++	signal jang_bank4 : std_logic_vector(5 downto 0) := "000100";
++	signal jang_rev1 : std_logic := '0';
++	signal jang_rev2 : std_logic := '0';
++	signal jang_rev3 : std_logic := '0';
++	signal jang_rev4 : std_logic := '0';
++	signal nvram_e : std_logic := '0';
++	signal nvram_ex : std_logic := '0';
++	signal nvram_p : std_logic := '0';
++	signal nvram_cme : std_logic := '0';
++	signal lock_mapper_B : std_logic := '0';
++	signal mapper_codies : std_logic := '0';
++	signal mapper_codies_lock : std_logic := '0';
++	signal mapper_4pak : std_logic := '0';
++	signal pak4_reg0 : std_logic_vector(7 downto 0) := "00000000";
++	signal pak4_reg2 : std_logic_vector(7 downto 0) := "00000000";
++	signal nem_bank0 : std_logic_vector(7 downto 0) := "00000000";
++	signal mapper_wonderkid_prev : std_logic := '0';
++	signal reset_n_prev : std_logic := '0';
++	signal bootloader_n_prev : std_logic := '0';
++	signal eeprom_soft_reset : std_logic := '0';
++	signal last_read_addr : std_logic_vector(15 downto 0);
++begin
++	bank0_out <= bank0;
++	bank1_out <= bank1;
++	bank2_out <= bank2;
++	bank3_out <= bank3;
++	jang_bank1_out <= jang_bank1;
++	jang_bank2_out <= jang_bank2;
++	jang_bank3_out <= jang_bank3;
++	jang_bank4_out <= jang_bank4;
++	jang_rev1_out <= jang_rev1;
++	jang_rev2_out <= jang_rev2;
++	jang_rev3_out <= jang_rev3;
++	jang_rev4_out <= jang_rev4;
++	nvram_e_out <= nvram_e;
++	nvram_ex_out <= nvram_ex;
++	nvram_p_out <= nvram_p;
++	nvram_cme_out <= nvram_cme;
++	lock_mapper_B_out <= lock_mapper_B;
++	mapper_codies_out <= mapper_codies;
++	mapper_codies_lock_out <= mapper_codies_lock;
++	mapper_4pak_out <= mapper_4pak;
++	pak4_reg2_out <= pak4_reg2;
++	nem_bank0_out <= nem_bank0;
++	eeprom_soft_reset_out <= eeprom_soft_reset;
++
++	-- external ram control
++	process (RESET_n,clk_sys)
++	begin
++		if RESET_n='0' then
++			bank0 <= "00000000";
++			bank1 <= "00000001";
++			bank2 <= "00000010";
++			bank3 <= "00000011";
++			jang_bank1 <= "000010";
++			jang_bank2 <= "000011";
++			jang_bank3 <= "000100";
++			jang_bank4 <= "000101";
++			jang_rev1 <= '0';
++			jang_rev2 <= '0';
++			jang_rev3 <= '0';
++			jang_rev4 <= '0';
++			nvram_e  <= '0';
++			nvram_ex <= '0';
++			nvram_p  <= '0';
++			nvram_cme <= '0';
++			lock_mapper_B <= '0' ;
++			mapper_codies <= '0' ;
++			mapper_codies_lock <= '0' ;
++			-- heuristic detectors are initialized in the dedicated detection process
++			mapper_4pak <= '0' ;
++			pak4_reg0 <= "00000000" ;
++			pak4_reg2 <= "00000000" ;
++			nem_bank0 <= (others => '0');
++			mapper_wonderkid_prev <= '0';
++			reset_n_prev <= '0';
++			bootloader_n_prev <= '0';
++
++		else
++			if rising_edge(clk_sys) then
++				eeprom_soft_reset <= '0';
++				-- The Evolution launcher stores data in the top bytes of RAM,
++				-- which alias the standard SMS mapper registers in this core.
++				-- Start each selected game with the normal Sega power-on banks.
++				if evolution_game_launch = '1' then
++					bank0 <= x"00";
++					bank1 <= x"01";
++					bank2 <= x"02";
++					bank3 <= x"03";
++				end if;
++				if mapper_set = '1' then
++					if mapper_evolution = '1' and
++					   evolution_ss_in(31 downto 16) = x"E132" then
++						bank0 <= mapper_in(47 downto 40);
++						bank1 <= mapper_in(39 downto 32);
++						bank2 <= mapper_in(31 downto 24);
++						bank3 <= mapper_in(23 downto 16);
++						nvram_e <= '0';
++						nvram_ex <= '0';
++						nvram_p <= '0';
++						nvram_cme <= '0';
++						lock_mapper_B <= '0';
++						mapper_codies <= '0';
++						mapper_codies_lock <= '0';
++						mapper_4pak <= '0';
++					elsif mapper_janggun = '1' then
++						jang_bank1 <= mapper_in(5 downto 0);
++						jang_rev1  <= mapper_in(7);
++						jang_bank2 <= mapper_in(13 downto 8);
++						jang_rev2  <= mapper_in(15);
++						jang_bank3 <= mapper_in(21 downto 16);
++						jang_rev3  <= mapper_in(23);
++						jang_bank4 <= mapper_in(29 downto 24);
++						jang_rev4  <= mapper_in(31);
++					else
++						-- For System E, mapper_in(7:0) is IO port 0xF7 state (VDP bank
++						-- selects + rom_bank), NOT bank0.  The IO module restores the
++						-- SE banking via se_mapper_set, so skip bank0/pak4_reg0 here.
++						if systeme = '0' then
++							bank0          <= mapper_in(7 downto 0);
++						end if;
++						bank1              <= mapper_in(15 downto 8);
++						bank2              <= mapper_in(23 downto 16);
++						bank3              <= mapper_in(31 downto 24);
++						if systeme = '0' then
++							pak4_reg0      <= mapper_in(7 downto 0);
++						end if;
++						pak4_reg2          <= mapper_in(39 downto 32);
++						nem_bank0          <= mapper_in(47 downto 40);
++						nvram_e            <= mapper_in(50);
++						nvram_ex           <= mapper_in(51);
++						nvram_p            <= mapper_in(52);
++						nvram_cme          <= mapper_in(53);
++						mapper_4pak        <= mapper_in(57);
++						mapper_codies      <= mapper_in(58);
++						lock_mapper_B      <= mapper_in(59);
++						mapper_codies_lock <= mapper_in(60);
++					end if;
++					-- Prevent edge detector registers from triggering false transitions
++					-- in the next clock cycle after state restoration.
++					bootloader_n_prev     <= bootloader_n;
++					reset_n_prev          <= RESET_n;
++					mapper_wonderkid_prev <= mapper_wonderkid;
++				else
++				if bootloader_n = '0' and mapper_lock = '0' then
++					lock_mapper_B <= '0';
++					mapper_codies <= '0';
++					mapper_codies_lock <= '0';
++				end if;
++				-- BIOS handoff: restore standard cartridge startup banks.
++				-- BIOS bank writes can leave bank0/1/2 in non-default states, which
++				-- breaks static Codemasters detection and forced Codemasters start.
++				if bootloader_n = '1' and bootloader_n_prev = '0' then
++					bank0 <= "00000000";
++					bank1 <= "00000001";
++					bank2 <= "00000010";
++					bank3 <= "00000011";
++					jang_bank1 <= "000010";
++					jang_bank2 <= "000011";
++					jang_bank3 <= "000100";
++					jang_bank4 <= "000101";
++					jang_rev1 <= '0';
++					jang_rev2 <= '0';
++					jang_rev3 <= '0';
++					jang_rev4 <= '0';
++					nvram_e  <= '0';
++					nvram_ex <= '0';
++					nvram_p  <= '0';
++					nvram_cme <= '0';
++					if mapper_wonderkid = '1' then
++						bank1 <= "00000000";
++						bank2 <= "00000000";
++						lock_mapper_B <= '1';
++					elsif (detect_codies_static = '1' or mapper_codies_force = '1') and mapper_lock = '0' and mapper_eeprom = '0' then
++						lock_mapper_B      <= '1';
++						mapper_codies      <= '1';
++						mapper_codies_lock <= '1';
++						bank2              <= "00000000";
++					end if;
++				end if;
++				-- On the first clock after RESET_n rises, initialise mapper state.
++				-- rom_size_pages is stable here because
++				-- cart_download holds RESET_n low throughout the entire ROM transfer.
++				if RESET_n = '1' and reset_n_prev = '0' then
++					if mapper_janggun = '1' then
++						jang_bank1 <= "000010";
++						jang_bank2 <= "000011";
++						jang_bank3 <= "000100";
++						jang_bank4 <= "000101";
++						jang_rev1 <= '0';
++						jang_rev2 <= '0';
++						jang_rev3 <= '0';
++						jang_rev4 <= '0';
++					end if;
++					if mapper_zemina_force = '1' then
++						nem_bank0 <= (others => '0');
++					elsif mapper_nemesis_auto = '1' and unsigned(rom_size_pages) /= 0 then
++						-- Nemesis I needs $0000-$1FFF mapped to the last 8KB page on boot.
++						nem_bank0 <= std_logic_vector(unsigned(rom_size_pages) - 1);
++					else
++						nem_bank0 <= (others => '0');
++					end if;
++					if mapper_wonderkid = '1' then
++						-- All slots start at page 0; pre-lock to prevent 4-PAK misdetection
++						bank1         <= "00000000";
++						bank2         <= "00000000";
++						lock_mapper_B <= '1';
++					elsif (detect_codies_static = '1' or mapper_codies_force = '1') and mapper_lock = '0' and mapper_eeprom = '0' then
++						if bootloader_n = '1' then
++							lock_mapper_B      <= '1';
++							mapper_codies      <= '1';
++							mapper_codies_lock <= '1';
++							bank2              <= "00000000";
++						end if;
++					end if;
++					-- Initialize detection window (ticks run while bootloader active)
++					-- detection window initialization is handled by the detection process
++				end if;
++				-- Auto-detected Wonder Kid becomes active after reset; apply init once.
++				if mapper_wonderkid = '1' and mapper_wonderkid_prev = '0' then
++					bank1         <= "00000000";
++					bank2         <= "00000000";
++					lock_mapper_B <= '1';
++				end if;
++				mapper_wonderkid_prev <= mapper_wonderkid;
++				reset_n_prev <= RESET_n;
++				bootloader_n_prev <= bootloader_n;
++				if ce_z80 = '1' then
++					if WR_n='1' and MREQ_n='0' then
++						last_read_addr <= A; -- gyurco anti-ldir patch
++					end if;
++				end if;
++
++				if mapper_janggun = '1' and bootloader_n = '1' then
++					if ss_freeze = '0' and WR_n = '0' and MREQ_n = '0' then
++						case A is
++							when x"4000" =>
++								jang_bank1 <= D_in(5 downto 0);
++								jang_rev1  <= D_in(7);
++
++							when x"6000" =>
++								jang_bank2 <= D_in(5 downto 0);
++								jang_rev2  <= D_in(7);
++
++							when x"8000" =>
++								jang_bank3 <= D_in(5 downto 0);
++								jang_rev3  <= D_in(7);
++
++							when x"A000" =>
++								jang_bank4 <= D_in(5 downto 0);
++								jang_rev4  <= D_in(7);
++
++							when x"FFFE" =>
++								jang_bank1 <= D_in(4 downto 0) & '0';
++								jang_bank2 <= D_in(4 downto 0) & '1';
++								jang_rev1  <= D_in(6) or D_in(7);
++								jang_rev2  <= D_in(6) or D_in(7);
++
++							when x"FFFF" =>
++								jang_bank3 <= D_in(4 downto 0) & '0';
++								jang_bank4 <= D_in(4 downto 0) & '1';
++								jang_rev3  <= D_in(6) or D_in(7);
++								jang_rev4  <= D_in(6) or D_in(7);
++
++							when others =>
++								null;
++						end case;
++					end if;
++				elsif mapper_eeprom = '1' then
++					-- EEPROM carts (93C46) always use the plain Sega $FFFC-$FFFF register map.
++					-- Must take priority over every other mapper heuristic below (4-PAK $3FFE
++					-- write-trigger, Zemina opcode scan, Dahjee/linear/castle/etc.) so a false
++					-- positive on one of those heuristics can never steal the $FFFC write.
++					if ss_freeze = '0' and WR_n='0' and MREQ_n='0' and A(15 downto 2)="11111111111111" then
++						case A(1 downto 0) is
++							when "00" =>
++								eeprom_soft_reset  <= D_in(7);
++							when "01" => bank0 <= D_in;
++							when "10" => bank1 <= D_in;
++							when "11" => bank2 <= D_in;
++						end case;
++					end if;
++				elsif systeme = '1' or sc3000_en = '1' or mapper_castle = '1' or mapper_linear = '1' or mapper_dahjee_a = '1' or mapper_sega_locked = '1' then
++					-- no System E, SC-3000, Castle (32KB RAM), linear, Dahjee Type A, or Sega-locked mappers
++				elsif mapper_4pak = '1' then
++					-- 4-PAK All Action mapper (per MAME sega8_4pak_device):
++					-- $3FFE: reg0=D; bank0=D; bank2=(reg0[5:4]+reg2)
++					-- $7FFF: bank1=D (independent)
++					-- $BFFF: reg2=D; bank2=(reg0[5:4]+D)
++					if ss_freeze = '0' and WR_n='0' and MREQ_n='0' then
++						if A=x"3FFE" then
++							pak4_reg0 <= D_in;
++							bank0 <= D_in;
++							bank2 <= std_logic_vector(
++								unsigned(D_in(5 downto 4) & "0000") +
++								unsigned(pak4_reg2));
++						elsif A=x"7FFF" then
++							bank1 <= D_in;
++						elsif A=x"BFFF" then
++							pak4_reg2 <= D_in;
++							bank2 <= std_logic_vector(
++								unsigned(pak4_reg0(5 downto 4) & "0000") +
++								unsigned(D_in));
++						end if;
++					end if;
++				elsif use_zem = '1' and bootloader_n = '1' then
++					-- Zemina/Nemesis register map (verified against working nemesis-mapper branch):
++					-- $0000 -> bank2 ($8000-$9FFF), $0001 -> bank3 ($A000-$BFFF)
++					-- $0002 -> bank0 ($4000-$5FFF), $0003 -> bank1 ($6000-$7FFF)
++					-- $0000-$1FFF is nem_bank0 (fixed at reset); $2000-$3FFF is always page 1.
++					-- Suppressed while BIOS is running (bootloader_n='0') so the BIOS can
++					-- bank-switch its own pages via the standard Sega mapper ($FFFC-$FFFF).
++					if ss_freeze = '0' and WR_n='0' and MREQ_n='0' and A(15 downto 2)="00000000000000" then
++						case A(1 downto 0) is
++							when "00" => bank2 <= D_in;
++							when "01" => bank3 <= D_in;
++							when "10" => bank0 <= D_in;
++							when "11" => bank1 <= D_in;
++						end case;
++					end if ;
++				elsif ss_freeze = '0' and mapper_manual_force = '0' and bootloader_n = '1' and WR_n='0' and MREQ_n='0' and A=x"3FFE" and sega_mapper_write_seen = '0' then
++					-- 4-PAK All Action: first write to $3FFE when no mapper active (gated by sega_mapper_write_seen='0').
++					mapper_4pak <= '1';
++					pak4_reg0 <= D_in;
++					pak4_reg2 <= "00000000";
++					bank0 <= D_in;
++					bank1 <= "00000001";
++					bank2 <= std_logic_vector(
++						("00" & unsigned(D_in(5 downto 4)) & "0000") +
++						to_unsigned(0, 8)); -- reg2=0 initially
++				else
++					-- No write-triggered Zemina detection here.
++					-- Zemina mode is selected by header/CRC/OSD; once active, writes are handled in the use_zem branch above.
++					if ss_freeze = '0' and WR_n='0' and MREQ_n='0' and A(15 downto 2)="11111111111111" then
++						-- A write to $FFFC-$FFFF is a Sega mapper register; disable Codemasters
++						-- detection unless it was already confirmed (mapper_codies_lock='1') or forced.
++						if mapper_codies_force = '0' and mapper_codies_lock = '0' and detect_codies_static = '0' then
++							mapper_codies <= '0' ;
++						end if;
++						if (mapper_codies = '0' and (detect_codies_static = '0' or bootloader_n = '0')) or mapper_eeprom = '1' then
++							case A(1 downto 0) is
++								when "00" => 
++									if mapper_eeprom = '0' then
++										nvram_ex <= D_in(4);
++										nvram_e  <= D_in(3);
++										nvram_p  <= D_in(2);
++									end if;
++								when "01" => bank0 <= D_in;
++								when "10" => bank1 <= D_in;
++								when "11" => bank2 <= D_in ; 
++							end case;
++						end if;
++					end if;
++					if ss_freeze = '0' and WR_n='0' and MREQ_n='0' and nvram_e='0' and mapper_lock='0' then
++						case A(15 downto 0) is
++							-- Codemasters-style banking; Wonder Kid mapper #41 uses only $8000.
++							when x"0000" => 
++								if mapper_codies = '1' or detect_codies_static = '1' or mapper_codies_force = '1' then
++									bank0 <= D_in ;
++								end if;
++							when x"4000" => 
++								if (mapper_codies = '1' or detect_codies_static = '1' or mapper_codies_force = '1') and mapper_eeprom = '0' then
++									bank1(6 downto 0) <= D_in(6 downto 0) ;
++									bank1(7) <= '0' ;
++									nvram_cme <= D_in(7) ;
++								end if ;
++							when x"8000" => 
++								if (mapper_codies = '1' or detect_codies_static = '1' or mapper_codies_force = '1' or mapper_wonderkid = '1') and mapper_eeprom = '0' then
++									bank2 <= D_in ; 
++								end if;
++							-- Korean mapper (Sangokushi 3, Dodgeball King (Dallyeora Pigu-Wang), Jang Pung II, Jang Pung 3)
++							when x"A000" => 
++								if last_read_addr /= x"A000" then -- gyurco anti-ldir patch
++									if mapper_codies='0' then
++										bank2 <= D_in ;
++									end if ;
++								end if ;
++							when others => null ;
++						end case ;
++					end if;
++				end if;
++				end if; -- mapper_set
++			end if;
++		end if;
++	end process;
++
++end architecture;
+diff --git a/tests/mapper_banking/run.py b/tests/mapper_banking/run.py
+new file mode 100644
+--- /dev/null
++++ b/tests/mapper_banking/run.py
+@@ -0,0 +1,251 @@
++"""Audit extraction and run VHDL-93 directed/differential banking simulation.
++
++Usage: python run.py --modelsim C:/intelFPGA_lite/17.0/modelsim_ase/win32aloem
++Generated files and logs go to simulation/mapper_banking (ignored by Git).
++"""
++import argparse
++from pathlib import Path
++import re
++import subprocess
++
++ROOT = Path(__file__).resolve().parents[2]
++BASE = '47a48e0382aed4923eef34616175bacc0c8dad52'
++OUT = ROOT / 'simulation/mapper_banking'
++
++
++def original(name):
++    return subprocess.check_output(['git', 'show', BASE + ':' + name], cwd=ROOT).decode('utf-8').replace('\r\n', '\n')
++
++
++def process(text):
++    start = text.index('\t-- external ram control\n')
++    end = text.index('\tend process;', start) + len('\tend process;')
++    return text[start:end]
++
++
++def simulation_cases(text):
++    # Quartus accepts four binary choices without others; ModelSim requires all
++    # nine-valued std_logic choices. Adapt BOTH simulation copies identically.
++    pattern = r'(case A\(1 downto 0\) is.*?)(\s*end case;)'
++    text, count = re.subn(pattern, r'\1\nwhen others => null;\2', text, flags=re.S)
++    assert count == 3
++    return text
++
++
++def main():
++    parser = argparse.ArgumentParser(description=__doc__)
++    parser.add_argument('--modelsim', required=True, type=Path)
++    args = parser.parse_args()
++    OUT.mkdir(parents=True, exist_ok=True)
++    old = original('rtl/system.vhd')
++    new = (ROOT / 'rtl/system.vhd').read_text(encoding='utf-8')
++    ctrl = (ROOT / 'rtl/mapper_ctrl.vhd').read_text(encoding='utf-8')
++    assert process(old) == process(ctrl), 'Banking process changed'
++    assert original('rtl/mapper_detect.vhd') == (ROOT / 'rtl/mapper_detect.vhd').read_text(encoding='utf-8')
++    ports = re.findall(r'^\s*(\w+) : (in|out) (std_logic(?:_vector\(\d+ downto 0\))?)', ctrl, re.M)
++    inputs = [(n, t) for n, d, t in ports if d == 'in']
++    outputs = [(n, t) for n, d, t in ports if d == 'out']
++    owned = set(re.findall(r'\b(\w+)\s*(?:\([^;\n]*?\))?\s*<=', process(old)))
++    public = {n.removesuffix('_out') for n, t in outputs}
++    private = owned - public
++    instance = re.search(r'\tmapper_banking : entity work.mapper_ctrl\s+port map \((.*?)\n\t\t\);', new, re.S)
++    mappings = re.findall(r'(\w+) => (\w+)', instance[1])
++    assert len(mappings) == len(ports) == len(set(n for n, v in mappings))
++    assert dict(mappings) == {n: n.removesuffix('_out') if d == 'out' else n for n, d, t in ports}
++    for name in owned:
++        assert not re.search(r'\b' + name + r'\s*(?:\([^;\n]*?\))?\s*<=', new), name
++        assert len(re.findall(r'^\s*signal ' + name + r'\s*:', ctrl, re.M)) == 1
++    # Reconstruct only the permitted system edits and require whole-file equality.
++    expected = old.replace(process(old) + '\n', instance[0])
++    for name in private:
++        expected, count = re.subn(r'^\tsignal\s+' + name + r'\s*:[^\n]*\n', '', expected, flags=re.M)
++        assert count == 1
++    for name in public:
++        expected = re.sub(r'(^\tsignal\s+[\w, ]*\b' + name + r'\b[\w, ]*\s*:[^;\n]*?)\s*:=\s*[^;]+;', r'\1;', expected, flags=re.M)
++    expected = expected.replace('\tsignal mapper_codies_lock:\tstd_logic; \n', '\tsignal mapper_codies_lock:\tstd_logic;\n')
++    assert expected == new, 'Unrelated system logic changed'
++    for filename in ['files.qip', 'mist/sms_mist.qsf']:
++        before = original(filename)
++        line = next(x for x in before.splitlines(True) if 'mapper_detect.vhd' in x)
++        assert (ROOT / filename).read_text(encoding='utf-8') == before.replace(line, line + line.replace('mapper_detect', 'mapper_ctrl'))
++    # Independently retrieve every initial state from baseline declarations.
++    declarations = {}
++    for match in re.finditer(r'^\s*signal\s+([\w, ]+)\s*:\s*([^;]+);', old, re.M):
++        for name in match[1].replace(' ', '').split(','):
++            declarations[name] = match[2].strip()
++    for name in owned:
++        assert re.search(r'\bsignal ' + name + r'\s*:\s*' + re.escape(declarations[name]) + ';', ctrl)
++    header = ctrl[:ctrl.index('architecture rtl')].replace('mapper_ctrl', 'mapper_baseline')
++    reference = header + 'architecture reference of mapper_baseline is\n'
++    reference += ''.join(f'signal {n} : {declarations[n]};\n' for n in sorted(owned))
++    reference += 'begin\n' + ''.join(f'{n}_out <= {n};\n' for n in sorted(public))
++    reference += process(old) + '\nend architecture;\n'
++    (OUT / 'mapper_baseline.vhd').write_text(simulation_cases(reference), encoding='utf-8')
++    (OUT / 'mapper_ctrl_sim.vhd').write_text(simulation_cases(ctrl), encoding='utf-8')
++    tb = 'library ieee; use ieee.std_logic_1164.all; use ieee.numeric_std.all;\nentity tb is end;\narchitecture test of tb is\n'
++    for name, typ in inputs:
++        default = "(others => '0')" if 'vector' in typ else "'0'"
++        tb += f'signal {name} : {typ} := {default};\n'
++    for name, typ in outputs:
++        tb += f'signal {name}, ref_{name} : {typ};\n'
++    tb += 'begin\n'
++    for entity, label, prefix in [('mapper_ctrl', 'dut', ''), ('mapper_baseline', 'baseline', 'ref_')]:
++        mapping = [f'{n} => {n}' for n, t in inputs] + [f'{n} => {prefix}{n}' for n, t in outputs]
++        tb += f'{label}: entity work.{entity} port map (' + ', '.join(mapping) + ');\n'
++    tb += 'stimulus: process\nvariable cycles : natural := 0;\nvariable rng : unsigned(31 downto 0) := x"12345678";\n'
++    tb += 'procedure tick is begin\nclk_sys <= \'0\'; wait for 5 ns; clk_sys <= \'1\'; wait for 5 ns;\n'
++    for name, typ in outputs:
++        tb += f'assert {name} = ref_{name} report "Differential mismatch: {name}" severity failure;\n'
++    tb += "cycles := cycles + 1; clk_sys <= '0'; end procedure;\n"
++    tb += 'procedure reset is begin\n'
++    for name, typ in inputs:
++        if name != 'clk_sys':
++            default = "(others => '0')" if 'vector' in typ else "'0'"
++            tb += f'{name} <= {default};\n'
++    tb += "WR_n <= '1'; MREQ_n <= '1'; ce_z80 <= '1'; tick; RESET_n <= '1'; bootloader_n <= '1'; tick; tick; end procedure;\n"
++    tb += '''procedure wr(addr, data : natural) is begin
++A <= std_logic_vector(to_unsigned(addr, 16)); D_in <= std_logic_vector(to_unsigned(data, 8));
++WR_n <= '0'; MREQ_n <= '0'; tick; WR_n <= '1'; MREQ_n <= '1'; tick; end procedure;
++procedure banks(b0,b1,b2,b3 : natural) is begin
++assert unsigned(bank0_out)=b0 and unsigned(bank1_out)=b1 and unsigned(bank2_out)=b2 and unsigned(bank3_out)=b3
++report "Unexpected bank state at cycle " & integer'image(cycles) severity failure; end procedure;
++begin
++reset; banks(0,1,2,3);
++wr(16#FFFD#, 9); wr(16#FFFE#, 10); wr(16#FFFF#, 11); banks(9,10,11,3);
++wr(16#FFFC#, 28);
++assert nvram_e_out='1' and nvram_ex_out='1' and nvram_p_out='1' severity failure;
++ss_freeze <= '1'; wr(16#FFFD#, 99); banks(9,10,11,3);
++mapper_in <= x"1E7C554433221100"; mapper_set <= '1'; tick;
++banks(0,17,34,51);
++assert pak4_reg2_out=x"44" and nem_bank0_out=x"55" and nvram_p_out='1' and nvram_e_out='1'
++and nvram_ex_out='1' and nvram_cme_out='1' and mapper_4pak_out='1' and mapper_codies_out='1'
++and lock_mapper_B_out='1' and mapper_codies_lock_out='1' severity failure;
++mapper_set <= '0'; tick; banks(0,17,34,51);
++report "PASS Sega, NVRAM, freeze, standard restore";
++
++reset; mapper_codies_force <= '1'; bootloader_n <= '0'; tick; bootloader_n <= '1'; tick;
++banks(0,1,0,3); assert mapper_codies_out='1' and mapper_codies_lock_out='1' severity failure;
++wr(0,7); wr(16#4000#,16#85#); wr(16#8000#,9); banks(7,5,9,3);
++assert nvram_cme_out='1' severity failure;
++wr(16#FFFF#,22); banks(7,5,9,3);
++reset; detect_codies_static <= '1'; bootloader_n <= '0'; tick; bootloader_n <= '1'; tick;
++assert mapper_codies_out='1' severity failure; wr(16#8000#,13); banks(0,1,13,3);
++report "PASS forced/static Codemasters";
++
++reset; mapper_wonderkid <= '1'; tick; banks(0,0,0,3);
++assert lock_mapper_B_out='1' severity failure;
++wr(0,17); wr(16#4000#,18); banks(0,0,0,3);
++wr(16#8000#,19); banks(0,0,19,3);
++ss_freeze <= '1'; wr(16#8000#,20); banks(0,0,19,3);
++ss_freeze <= '0'; mapper_lock <= '1'; wr(16#8000#,20); banks(0,0,19,3);
++mapper_lock <= '0'; wr(16#FFFC#,8); wr(16#8000#,20); banks(0,0,19,3);
++mapper_eeprom <= '1'; wr(16#8000#,21); banks(0,0,19,3);
++wr(16#FFFF#,22); banks(0,0,22,3);
++report "PASS Wonder Kid $8000 and gating";
++
++reset; use_zem <= '1'; wr(0,12); wr(1,13); wr(2,14); wr(3,15); banks(14,15,12,13);
++wr(16#FFFF#,99); banks(14,15,12,13);
++RESET_n <= '0'; mapper_nemesis_auto <= '1'; rom_size_pages <= x"20"; tick; RESET_n <= '1'; tick;
++assert nem_bank0_out=x"1F" severity failure;
++RESET_n <= '0'; mapper_zemina_force <= '1'; tick; RESET_n <= '1'; tick;
++assert nem_bank0_out=x"00" severity failure;
++RESET_n <= '0'; mapper_zemina_force <= '0'; rom_size_pages <= x"00"; tick; RESET_n <= '1'; tick;
++assert nem_bank0_out=x"00" severity failure;
++report "PASS Zemina and Nemesis defaults";
++
++reset; wr(16#3FFE#,16#20#); banks(32,1,32,3); assert mapper_4pak_out='1' severity failure;
++wr(16#BFFF#,5); banks(32,1,37,3); assert pak4_reg2_out=x"05" severity failure;
++wr(16#3FFE#,16#10#); wr(16#7FFF#,7); banks(16,7,21,3);
++wr(16#BFFF#,255); banks(16,7,15,3);
++reset; mapper_manual_force <= '1'; wr(16#3FFE#,32); banks(0,1,2,3);
++assert mapper_4pak_out='0' severity failure;
++reset; sega_mapper_write_seen <= '1'; wr(16#3FFE#,32); assert mapper_4pak_out='0' severity failure;
++report "PASS 4-PAK writes and trigger exclusion";
++
++reset; mapper_janggun <= '1'; wr(16#4000#,16#89#); wr(16#6000#,10); wr(16#8000#,16#8B#); wr(16#A000#,12);
++assert jang_bank1_out="001001" and jang_bank2_out="001010" and jang_bank3_out="001011" and jang_bank4_out="001100"
++and jang_rev1_out='1' and jang_rev2_out='0' and jang_rev3_out='1' and jang_rev4_out='0' severity failure;
++wr(16#FFFE#,16#43#); wr(16#FFFF#,16#85#);
++assert unsigned(jang_bank1_out)=6 and unsigned(jang_bank2_out)=7 and unsigned(jang_bank3_out)=10 and unsigned(jang_bank4_out)=11
++and jang_rev1_out='1' and jang_rev2_out='1' and jang_rev3_out='1' and jang_rev4_out='1' severity failure;
++mapper_in <= x"000000008C0B8A09"; mapper_set <= '1'; ss_freeze <= '1'; tick;
++assert unsigned(jang_bank1_out)=9 and unsigned(jang_bank2_out)=10 and unsigned(jang_bank3_out)=11 and unsigned(jang_bank4_out)=12
++and jang_rev1_out='0' and jang_rev2_out='1' and jang_rev3_out='0' and jang_rev4_out='1' severity failure;
++report "PASS Janggun banks, reversal, paired writes and restore";
++'''
++    for inhibit in ['mapper_castle', 'mapper_dahjee_a', 'mapper_linear', 'mapper_sega_locked', 'systeme', 'sc3000_en']:
++        tb += f"reset; {inhibit} <= '1'; wr(16#FFFD#,9); wr(16#8000#,8); wr(16#3FFE#,32); banks(0,1,2,3);\n"
++        tb += f'assert mapper_4pak_out=\'0\' severity failure; report "PASS {inhibit} inhibits banking";\n'
++    tb += '''reset; wr(16#FFFD#,9); bootloader_n <= '0'; tick; wr(16#FFFE#,10); banks(9,10,2,3);
++bootloader_n <= '1'; ss_freeze <= '1'; tick; banks(0,1,2,3);
++bootloader_n <= '0'; tick; mapper_in <= x"0000000033221109"; mapper_set <= '1'; bootloader_n <= '1'; tick;
++banks(9,17,34,51); mapper_set <= '0'; tick; banks(9,17,34,51);
++reset; use_zem <= '1'; bootloader_n <= '0'; tick; wr(16#FFFD#,7); banks(7,1,2,3);
++bootloader_n <= '1'; tick; banks(0,1,2,3);
++report "PASS BIOS handoff, frozen handoff, restore edge suppression and BIOS Sega writes";
++
++reset; mapper_eeprom <= '1'; mapper_castle <= '1'; use_zem <= '1'; mapper_codies_force <= '1';
++wr(16#3FFE#,32); wr(16#8000#,20); banks(0,1,2,3); assert mapper_4pak_out='0' severity failure;
++wr(16#FFFD#,7); wr(16#FFFE#,8); wr(16#FFFF#,9); banks(7,8,9,3);
++A <= x"FFFC"; D_in <= x"9C"; WR_n <= '0'; MREQ_n <= '0'; tick;
++assert eeprom_soft_reset_out='1' and nvram_e_out='0' and nvram_ex_out='0' and nvram_p_out='0' severity failure;
++WR_n <= '1'; tick; assert eeprom_soft_reset_out='0' severity failure;
++WR_n <= '0'; ss_freeze <= '1'; tick; assert eeprom_soft_reset_out='0' severity failure;
++ss_freeze <= '0'; mapper_janggun <= '1'; tick; assert eeprom_soft_reset_out='0' severity failure;
++report "PASS EEPROM priority, pulse and Janggun precedence";
++
++reset; mapper_evolution <= '1'; evolution_ss_in(31 downto 16) <= x"E132";
++mapper_in <= x"0000090807060000"; mapper_set <= '1'; tick; banks(9,8,7,6);
++assert nvram_e_out='0' and mapper_4pak_out='0' and mapper_codies_out='0' severity failure;
++mapper_set <= '0'; evolution_game_launch <= '1'; ss_freeze <= '1'; tick; banks(0,1,2,3);
++ss_freeze <= '0'; A <= x"FFFF"; D_in <= x"19"; WR_n <= '0'; MREQ_n <= '0'; tick; banks(0,1,25,3);
++reset; wr(16#FFFD#,9); systeme <= '1'; mapper_in <= x"0000000033221108"; mapper_set <= '1'; tick; banks(9,17,34,51);
++report "PASS Evolution restore/launch priorities and System E restore layout";
++
++reset; A <= x"A000"; WR_n <= '1'; MREQ_n <= '0'; tick;
++wr(16#A000#,9); banks(0,1,2,3);
++A <= x"9000"; MREQ_n <= '0'; tick; wr(16#A000#,9); banks(0,1,9,3);
++report "PASS Korean anti-LDIR banking";
++
++reset;
++for i in 0 to 19999 loop
++rng := rng(30 downto 0) & (rng(31) xor rng(21) xor rng(1) xor rng(0));
++D_in <= std_logic_vector(rng(15 downto 8));
++case to_integer(rng(3 downto 0)) is
++when 0 => A <= x"FFFC"; when 1 => A <= x"FFFD"; when 2 => A <= x"FFFE"; when 3 => A <= x"FFFF";
++when 4 => A <= x"0000"; when 5 => A <= x"0001"; when 6 => A <= x"0002"; when 7 => A <= x"0003";
++when 8 => A <= x"3FFE"; when 9 => A <= x"7FFF"; when 10 => A <= x"BFFF";
++when 11 => A <= x"4000"; when 12 => A <= x"6000"; when 13 => A <= x"8000"; when 14 => A <= x"A000";
++when others => A <= std_logic_vector(rng(31 downto 16)); end case;
++WR_n <= rng(4); MREQ_n <= rng(5); ss_freeze <= rng(6); ce_z80 <= rng(7);
++mapper_in <= std_logic_vector(rng & (not rng)); rom_size_pages <= std_logic_vector(rng(15 downto 8));
++if i mod 37 = 0 then RESET_n <= '0'; else RESET_n <= '1'; end if;
++if i mod 19 = 0 then mapper_set <= '1'; else mapper_set <= '0'; end if;
++if i mod 23 = 0 then evolution_game_launch <= '1'; else evolution_game_launch <= '0'; end if;
++if i mod 3 = 0 then evolution_ss_in(31 downto 16) <= x"E132"; else evolution_ss_in(31 downto 16) <= x"0000"; end if;
++'''
++    flags = [n for n, t in inputs if t == 'std_logic' and n not in ['RESET_n', 'clk_sys', 'WR_n', 'MREQ_n', 'ss_freeze', 'ce_z80', 'mapper_set', 'evolution_game_launch']]
++    for bit, name in enumerate(flags):
++        tb += f'{name} <= rng({bit + 8});\n'
++    tb += 'tick;\nend loop;\nreport "PASS all directed tests and 20000 differential cycles"; wait; end process; end;\n'
++    (OUT / 'tb.vhd').write_text(tb, encoding='utf-8')
++    print(f'AUDIT PASS: verbatim process, {len(owned)} state owners, {len(ports)} unique mappings, initializers, detector, save packing, unrelated logic and source lists', flush=True)
++    commands = [
++        ['vlib', 'work'],
++        ['vcom', '-93', 'mapper_ctrl_sim.vhd', 'mapper_baseline.vhd', 'tb.vhd'],
++        ['vsim', '-c', '-onfinish', 'stop', 'work.tb', '-do', 'onerror {quit -code 1}; onbreak {quit -code 1}; run 250 us; quit -code 0'],
++    ]
++    with (OUT / 'simulation.log').open('w', encoding='utf-8') as log:
++        for command in commands:
++            command[0] = str(args.modelsim / (command[0] + '.exe'))
++            result = subprocess.run(command, cwd=OUT, stdout=subprocess.PIPE, stderr=subprocess.STDOUT, text=True)
++            log.write(result.stdout)
++            print(result.stdout, flush=True)
++            if result.returncode:
++                raise SystemExit(result.returncode)
++        if 'PASS all directed tests and 20000 differential cycles' not in result.stdout:
++            raise SystemExit('Simulation did not complete')
++
++
++if __name__ == '__main__':
++    main()
+diff --git a/tests/mapper_banking/README.md b/tests/mapper_banking/README.md
+new file mode 100644
+--- /dev/null
++++ b/tests/mapper_banking/README.md
+@@ -0,0 +1,42 @@
++Run from any directory with Python 3.9+ and ModelSim:
++
++```powershell
++python tests/mapper_banking/run.py --modelsim C:/intelFPGA_lite/17.0/modelsim_ase/win32aloem
++```
++
++The script compares the extraction with merged PR #1 commit
++`47a48e0382aed4923eef34616175bacc0c8dad52`. It checks the complete banking process,
++all initial values, state ownership, every port association, project source lists,
++and the rest of `system.vhd`. It also checks that `mapper_detect.vhd` is unchanged.
++Thus the final save-state packing, address decoding, and bus mux must remain
++unchanged for the audit to pass.
++
++Simulation uses VHDL-93. Directed assertions cover Sega, forced/static
++Codemasters, Wonder Kid and its write exclusions, Zemina/Nemesis, 4-PAK,
++Janggun/reversal, Castle, Dahjee A, linear, Sega-locked, System E and SC-3000
++bank-write inhibition, reset, freeze, restore, BIOS handoff, EEPROM priority and
++soft reset, Evolution bank restore/launch, and Korean anti-LDIR behavior.
++Every directed clock and 20,000 deterministic randomized clocks compare all
++23 exported state signals against a separately generated baseline process.
++Randomized inputs include conflicting selections to exercise branch priority.
++
++The baseline RTL has three two-bit `std_logic_vector` case statements with only
++binary choices. Quartus accepts these, but ModelSim requires coverage of the
++remaining nine-valued logic combinations. The script adds `when others => null`
++to **both generated simulation copies only**. Repository RTL is untouched, and
++stimulus uses binary addresses. This does not verify behavior for nonbinary
++addresses. The run is a banking-process simulation, not a full-core or hardware
++regression.
++
++Generated VHDL, the simulator work library, and `simulation.log` are written to
++`simulation/mapper_banking/`, which is already ignored by the repository.
++Any assertion failure or missing completion marker fails the command.
++
++For full-core validation, create clean baseline/refactored source snapshots,
++including identical supporting sources and suppression settings, then run
++`quartus_sh --flow compile SMS` in each. Compare `SMS.map.summary`,
++`SMS.fit.summary`, `SMS.sta.rpt`, and warning messages in both `.rpt` and `.smsg`
++files. Normalize snapshot paths, moved source-line numbers, and the added
++`mapper_ctrl:mapper_banking|` hierarchy when comparing messages. Do not interpret
++fitter/timing variation as a performance improvement. Hardware regression is a
++separate review step.

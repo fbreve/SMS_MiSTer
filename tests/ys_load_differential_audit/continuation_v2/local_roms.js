@@ -1,0 +1,3 @@
+const fs=require('fs'),p=require('path'),crypto=require('crypto');const root=p.resolve(__dirname,'../../..'),base=p.resolve(root,'../SMS_MiSTer bak/tools/everdrive_extract');
+const roms=[['standard','1 US - A-Z/Ys - The Vanished Omens (USA, Europe, Brazil) (En).sms'],['japan','2 Japan - A-Z/Ys (Japan).sms']].map(([name,rel])=>{const path=p.join(base,rel),b=fs.readFileSync(path);return{name,path,bytes:b.length,SHA256:crypto.createHash('sha256').update(b).digest('hex')};});
+fs.writeFileSync(p.join(__dirname,'local_rom_identity.json'),JSON.stringify({use:'Read originals in place for local diagnostics only; no content copied or dumped.',roms},null,2)+'\n');console.log(roms.map(({path,...r})=>r));

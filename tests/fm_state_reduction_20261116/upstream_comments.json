@@ -1,0 +1,74 @@
+{
+  "comments": [
+    {
+      "url": "https://github.com/MiSTer-devel/SMS_MiSTer/pull/227#issuecomment-6874771214",
+      "body": "looking at added complexity - is it really necessary? Does temporary sound hiccup worth these resources and timings?",
+      "user": {
+        "login": "sorgelig",
+        "name": "sorgelig",
+        "email": null,
+        "avatar_url": "https://avatars.githubusercontent.com/u/917089?v=4",
+        "id": 917089
+      },
+      "id": 6874771214,
+      "pull_request_review_id": null,
+      "in_reply_to_id": null,
+      "created_at": "2026-11-14T08:48:52Z",
+      "updated_at": "2026-11-14T08:48:52Z",
+      "review": null,
+      "side": null,
+      "line": null,
+      "start_line": null,
+      "path": null,
+      "body_html": "<p dir=\"auto\">looking at added complexity - is it really necessary? Does temporary sound hiccup worth these resources and timings?</p>"
+    },
+    {
+      "url": "https://github.com/MiSTer-devel/SMS_MiSTer/pull/227#issuecomment-6887475719",
+      "body": "Thanks for the feedback. I agree that the added complexity and FPGA resource usage need to be justified.\r\n\r\nI've confirmed on real MiSTer hardware that the audio issue without FM state restoration is not just a temporary hiccup. The incorrect sound persists until a later game event:\r\n\r\n- **Double Dragon:** Until the end of the stage.\r\n- **Ys:** Until changing environments.\r\n- **California Games:** Until the next attempt in the event.\r\n\r\nI also recorded a video demonstrating the issue:\r\n\r\nhttps://youtube.com/live/S75BnybLV-4\r\n\r\nTo quantify the hardware cost, I completed six matched Quartus Prime Lite 17.0.2 builds, comparing the exact PR base (`66f16d5c`) against the proposed implementation (`8cd53ccc`), using seeds 1–3 and identical build settings.\r\n\r\nThe measured incremental cost was:\r\n\r\n- **+876–890 needed ALMs (+3.31–3.37%)**\r\n- **+680–776 placed ALMs**\r\n- **+270 mapped registers**\r\n- **+1 M10K (8,192 logical memory bits)**\r\n- **No additional DSPs**\r\n\r\nThe maximum observed placed-ALM utilization increased from 75.09% to 76.88% of the FPGA capacity.\r\n\r\nAll six builds completed successfully with positive constrained setup and hold margins and zero TNS. The minimum candidate margins across all seeds were +0.453 ns setup and +0.151 ns hold.\r\n\r\nTiming changes varied between seeds, so I'm not claiming a timing improvement. No new critical warnings were introduced, although the existing unconstrained I/O paths remain.\r\n\r\nI understand that the implementation adds maintenance complexity. However, considering that the incorrect audio can persist throughout an entire stage or environment, and that the measured resource increase is relatively modest, I believe the improvement is worthwhile.\r\n\r\nI'm open to suggestions for simplifying the implementation further without compromising restoration correctness.",
+      "user": {
+        "login": "fbreve",
+        "name": "fbreve",
+        "email": null,
+        "avatar_url": "https://avatars.githubusercontent.com/u/7475908?v=4",
+        "id": 7475908
+      },
+      "id": 6887475719,
+      "pull_request_review_id": null,
+      "in_reply_to_id": null,
+      "created_at": "2026-11-15T01:43:54Z",
+      "updated_at": "2026-11-15T01:43:54Z",
+      "review": null,
+      "side": null,
+      "line": null,
+      "start_line": null,
+      "path": null,
+      "body_html": "<p dir=\"auto\">Thanks for the feedback. I agree that the added complexity and FPGA resource usage need to be justified.</p>\n<p dir=\"auto\">I've confirmed on real MiSTer hardware that the audio issue without FM state restoration is not just a temporary hiccup. The incorrect sound persists until a later game event:</p>\n<ul dir=\"auto\">\n<li><strong>Double Dragon:</strong> Until the end of the stage.</li>\n<li><strong>Ys:</strong> Until changing environments.</li>\n<li><strong>California Games:</strong> Until the next attempt in the event.</li>\n</ul>\n<p dir=\"auto\">I also recorded a video demonstrating the issue:</p>\n<p dir=\"auto\"><a href=\"https://youtube.com/live/S75BnybLV-4\" rel=\"nofollow\">https://youtube.com/live/S75BnybLV-4</a></p>\n<p dir=\"auto\">To quantify the hardware cost, I completed six matched Quartus Prime Lite 17.0.2 builds, comparing the exact PR base (<code class=\"notranslate\">66f16d5c</code>) against the proposed implementation (<code class=\"notranslate\">8cd53ccc</code>), using seeds 1–3 and identical build settings.</p>\n<p dir=\"auto\">The measured incremental cost was:</p>\n<ul dir=\"auto\">\n<li><strong>+876–890 needed ALMs (+3.31–3.37%)</strong></li>\n<li><strong>+680–776 placed ALMs</strong></li>\n<li><strong>+270 mapped registers</strong></li>\n<li><strong>+1 M10K (8,192 logical memory bits)</strong></li>\n<li><strong>No additional DSPs</strong></li>\n</ul>\n<p dir=\"auto\">The maximum observed placed-ALM utilization increased from 75.09% to 76.88% of the FPGA capacity.</p>\n<p dir=\"auto\">All six builds completed successfully with positive constrained setup and hold margins and zero TNS. The minimum candidate margins across all seeds were +0.453 ns setup and +0.151 ns hold.</p>\n<p dir=\"auto\">Timing changes varied between seeds, so I'm not claiming a timing improvement. No new critical warnings were introduced, although the existing unconstrained I/O paths remain.</p>\n<p dir=\"auto\">I understand that the implementation adds maintenance complexity. However, considering that the incorrect audio can persist throughout an entire stage or environment, and that the measured resource increase is relatively modest, I believe the improvement is worthwhile.</p>\n<p dir=\"auto\">I'm open to suggestions for simplifying the implementation further without compromising restoration correctness.</p>"
+    },
+    {
+      "url": "https://github.com/MiSTer-devel/SMS_MiSTer/pull/227#issuecomment-6911777524",
+      "body": "It's hard to suggest without deep analyzing, so just some generic suggestion: probably you don't need to restore every bit of YM2413 chip but only some macro states like current frequency attack, decay and similar. So if hiccup happens then it will go away in one-two seconds.",
+      "user": {
+        "login": "sorgelig",
+        "name": "sorgelig",
+        "email": null,
+        "avatar_url": "https://avatars.githubusercontent.com/u/917089?v=4",
+        "id": 917089
+      },
+      "id": 6911777524,
+      "pull_request_review_id": null,
+      "in_reply_to_id": null,
+      "created_at": "2026-11-16T08:50:53Z",
+      "updated_at": "2026-11-16T08:50:53Z",
+      "review": null,
+      "side": null,
+      "line": null,
+      "start_line": null,
+      "path": null,
+      "body_html": "<p dir=\"auto\">It's hard to suggest without deep analyzing, so just some generic suggestion: probably you don't need to restore every bit of YM2413 chip but only some macro states like current frequency attack, decay and similar. So if hiccup happens then it will go away in one-two seconds.</p>"
+    }
+  ],
+  "url": "https://github.com/MiSTer-devel/SMS_MiSTer/pull/227",
+  "title": "MiSTer-devel/SMS_MiSTer PR #227 comments",
+  "display_url": "https://github.com/MiSTer-devel/SMS_MiSTer/pull/227",
+  "display_title": "MiSTer-devel/SMS_MiSTer PR #227 comments"
+}

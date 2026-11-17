@@ -1,0 +1,8 @@
+const fs=require('fs'),p=require('path'),d=__dirname,root=p.resolve(d,'../..');
+const files=['vm2413','slotcounter','voicerom','voicememory','registermemory','attacktable','envelopememory','envelopegenerator','phasememory','phasegenerator','sinetable','operator','feedbackmemory','outputmemory','lineartable','outputgenerator','temporalmixer','controller','opll'];
+fs.mkdirSync(p.join(d,'sim_opll'),{recursive:true});
+for(const n of files){let s=fs.readFileSync(p.join(root,'rtl/VM2413',n+'.vhd'),'latin1').replace(/\bRelease\b/g,'EGRelease').replace(/VOICE_ID_TYPE'range/gi,'0 to 37').replace(/ch_type'range/gi,'0 to 8').replace(/--[^\r\n]*/g,'');
+let stack=[],insert=[];for(const m of s.matchAll(/\bcase\s+[^;\n]+?\bis\b|\bwhen\s+others\b|\bend\s+case\b/gi)){if(/^case/i.test(m[0]))stack.push(false);else if(/^when/i.test(m[0]))stack[stack.length-1]=true;else if(!stack.pop())insert.push(m.index);}for(const i of insert.reverse())s=s.slice(0,i)+'when others => null; '+s.slice(i);fs.writeFileSync(p.join(d,'sim_opll',n+'.vhd'),s,'latin1');}
+fs.writeFileSync(p.join(d,'local_compile.do'),`onerror {quit -code 1}\nvlib local_work\nvcom -work local_work -2008 ${files.map(f=>'sim_opll/'+f+'.vhd').join(' ')}\nquit -code 0\n`);
+fs.writeFileSync(p.join(d,'local_test.do'),`onerror {quit -code 1}\nonbreak {quit -code 1}\nvlib original_work\nvcom -work original_work -2008 ${files.map(f=>'../savestate_f01_opll_architecture/sim_opll/'+f+'.vhd').join(' ')}\nvcom -work local_work -2008 local_tb.vhd\nvsim -t 1ps local_work.local_tb\nset NumericStdNoWarnings 1\nset StdArithNoWarnings 1\nrun -all\nquit -code 0\n`);
+fs.writeFileSync(p.join(d,'.gitignore'),'local_work/\nsim_work/\nmodelsim.ini\ntranscript\n*.wlf\n*_stdout.log\n');

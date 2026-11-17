@@ -1,0 +1,12 @@
+const fs=require('fs'),p=require('path'),crypto=require('crypto'),assert=require('assert'),d=__dirname;
+const read=f=>{const b=fs.readFileSync(p.join(d,f));return b[0]===255&&b[1]===254?b.subarray(2).toString('utf16le'):b.toString();};
+const hash=f=>crypto.createHash('sha256').update(fs.readFileSync(p.join(d,f))).digest('hex');
+function image(f){const words=read(f).trim().split(/\s+/);assert.equal(words.length,12288);assert(words.every(w=>/^[0-9a-f]{16}$/i.test(w)),f+' not fully known');return {words:words.length,sha256:hash(f),tag:words[0x1a],descriptor:words[0x2e],phase:words[0x2f]};}
+const g01=JSON.parse(read('matrix_g01/cases.json')),nmi=JSON.parse(read('matrix_nmi/cases.json')),pause=JSON.parse(read('pause_known/cases.json'));
+const stable=o=>JSON.stringify(Object.fromEntries(Object.entries(o).sort(([a],[b])=>a.localeCompare(b))));
+const nmiDefaults={SOURCE:0,PROGRAM:0,EDGE:-15,WIDTH:5,SECOND:9999999,HELD:0,SCHEDULE:0,FORMAT:0,REPLAYS:3,RELEASE_SECOND:0};
+const triplets=[...new Set(nmi.flatMap(c=>[...read('matrix_nmi/case_'+c.id+'.log').matchAll(/normalized([01]{3})/g)].map(m=>m[1])))].sort();assert.equal(triplets.length,8);
+const pauseMetrics=pause.map(c=>{const s=read('pause_known/'+c.id+'.log');return {id:c.id,latencies:[...s.matchAll(/latency(\d+)/g)].map(m=>+m[1]),overrideCPU:[...s.matchAll(/overrideCPU(\d+)/g)].map(m=>+m[1]),privateClocks:[...s.matchAll(/PREPARATION clocks(\d+)/g)].map(m=>+m[1])};});
+const b0=image('baseline_phase/phase23/image.hex'),b1=image('baseline_phase/phase27/image.hex');assert.equal(b0.sha256,b1.sha256);
+const result={baselinePositivePair:b0,currentKnown:image('candidate/known64_turbo/image.hex'),currentNaturalPhase:image('candidate/known64_natural13_turbo/image.hex'),naturalHistory0:image('search/history0_64/image.hex'),naturalHistory1:image('search/history1_64/image.hex'),naturalHistorySuffixHash:hash('search/history0_64/suffix.dat'),naturalHistoryProgram:JSON.parse(read('search/program.json')),G01:{cases:g01.length,distinctArguments:new Set(g01.map(c=>stable(c.args))).size},F16:{invocations:nmi.length,distinctArguments:new Set(nmi.map(c=>stable({...nmiDefaults,...c.args}))).size,normalizedTriplets:triplets},F12:{cases:pause.length,maxCaptureLatency:Math.max(...pauseMetrics.flatMap(c=>c.latencies)),maxPrivateClocks:Math.max(...pauseMetrics.flatMap(c=>c.privateClocks)),details:pauseMetrics}};
+fs.writeFileSync(p.join(d,'evidence_metrics.json'),JSON.stringify(result,null,2)+'\n');console.log(JSON.stringify({...result,F12:{...result.F12,details:undefined}},null,2));

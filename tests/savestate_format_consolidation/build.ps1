@@ -1,0 +1,18 @@
+param([ValidateSet('experiment','confirmation','final')][string]$Name='experiment')
+$ErrorActionPreference='Stop'
+if(Get-Process quartus_sh,quartus_map,quartus_fit,quartus_sta -ErrorAction SilentlyContinue){throw 'Another Quartus process is active'}
+$repoRoot=(Resolve-Path "$PSScriptRoot/../..").Path
+if(-not(Test-Path Z:/)){& subst.exe Z: $repoRoot;if($LASTEXITCODE){throw 'Short path mapping failed'}}
+$line=@(& subst.exe)|Where-Object{$_ -match '^Z:\\:'}
+if(-not $line -or ($line -split ' => ',2)[1].TrimEnd('\') -ne $repoRoot.TrimEnd('\')){throw 'Z: maps another directory'}
+Push-Location "$PSScriptRoot/quartus_$Name"
+try{
+ foreach($stage in @('map','fit','asm','sta')){
+  $ErrorActionPreference='Continue'
+  if($stage -eq 'sta'){& "C:/intelFPGA_lite/17.0/quartus/bin64/quartus_$stage.exe" "Z:/tests/savestate_format_consolidation/quartus_$Name/SMS" *> "$stage.log"}
+  else{& "C:/intelFPGA_lite/17.0/quartus/bin64/quartus_$stage.exe" --read_settings_files=on --write_settings_files=off "Z:/tests/savestate_format_consolidation/quartus_$Name/SMS" *> "$stage.log"}
+  $result=$LASTEXITCODE;$ErrorActionPreference='Stop';if($result){throw "STOP: $Name $stage failed ($result)"}
+  Write-Output "PASS $Name $stage"
+ }
+}finally{Pop-Location}
+Write-Output "PASS controlled Quartus $Name"

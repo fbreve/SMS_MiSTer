@@ -1,0 +1,20 @@
+const fs=require('fs'),path=require('path'),cp=require('child_process'),d=__dirname,r=path.resolve(d,'../..');
+const git=(...a)=>cp.execFileSync('git',['-c','core.safecrlf=false',...a],{cwd:r,encoding:'utf8',stdio:['ignore','pipe','pipe']}).trim();
+const assert=(b,m)=>{if(!b)throw Error(m);};
+assert(git('branch','--show-current')==='fix/savestate-mapper-detection','wrong branch');
+assert(git('rev-parse','HEAD').startsWith('b61f307'),'wrong F12 base');
+const expected=['SMS.sv','rtl/mapper_ctrl.vhd','rtl/mapper_detect.vhd','rtl/savestates.sv','rtl/system.vhd'];
+assert(JSON.stringify(git('diff','--name-only').split(/\r?\n/).sort())===JSON.stringify(expected.sort()),'production scope differs');
+assert(git('diff','--cached','--stat')==='','index changed');
+let s=fs.readFileSync(path.join(r,'rtl/savestates.sv'),'utf8'),b=git('show','HEAD:rtl/savestates.sv');
+function oldWrites(x){return [...x.matchAll(/\bddram_(?:cmd_)?write\s*\(\s*base_addr[\s\S]*?\)\s*;/g)].map(m=>m[0].replace(/\s+/g,'')).filter(x=>!x.includes("29'h02a")&&!x.includes("29'h02b"));}
+const a=oldWrites(s),z=oldWrites(b);
+assert(JSON.stringify(a)===JSON.stringify(z),'existing payload write expressions changed');
+assert(s.includes('video_word = {MAPPER_HISTORY_MAGIC')&&s.includes("MAPPER_HISTORY_MAGIC = 24'h484309"),'v9 writer absent');
+assert(s.includes("MAPPER_HISTORY_DESC = 64'h000000124d444839")&&s.includes('dout_latch[63:18] == 0'),'history validation absent');
+assert(s.includes('mapper_history_in <= mapper_history_snap;'),'saved history not restored');
+const top=fs.readFileSync(path.join(r,'SMS.sv'),'utf8');
+assert((top.match(/\.mapper_history_out\(ss_mapper_history_out\)/g)||[]).length===2&&(top.match(/\.mapper_history_in\(ss_mapper_history_in\)/g)||[]).length===2,'top history not wired end-to-end');
+let ctrl=fs.readFileSync(path.join(r,'rtl/mapper_ctrl.vhd'),'utf8');assert(ctrl.includes('mapper_restore_pending <= mapper_set;'),'edge priming guard absent');
+fs.writeFileSync(path.join(d,'production.diff'),git('diff')+'\n');fs.writeFileSync(path.join(d,'diff_stat.txt'),git('diff','--stat')+'\n');
+console.log('PASS scope5 files, index untouched, existing v1-v8 payload write expressions identical, validated v9 history, top/system wires and edge guard.');

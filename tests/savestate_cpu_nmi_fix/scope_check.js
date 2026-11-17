@@ -1,0 +1,7 @@
+const fs=require('fs'),p=require('path'),cp=require('child_process'),crypto=require('crypto'),assert=require('assert'),d=__dirname,r=p.resolve(d,'../..');
+const git=(...a)=>cp.execFileSync('git',a,{cwd:r,encoding:'utf8'}).trimEnd(),expected=['SMS.sv','rtl/T80/T80.vhd','rtl/T80/T80s.vhd','rtl/savestates.sv','rtl/system.vhd'];
+assert.equal(git('branch','--show-current'),'fix/savestate-cpu-nmi');assert(git('rev-parse','HEAD').startsWith('d1df590'));assert.equal(git('diff','--cached','--name-only'),'');assert.deepEqual(git('diff','--name-only').split(/\r?\n/).sort(),expected.sort());git('diff','--check');
+const sha=b=>crypto.createHash('sha256').update(b).digest('hex'),sources=JSON.parse(fs.readFileSync(p.join(d,'build_sources.json')));
+for(const [name,h]of Object.entries(sources)){assert.equal(sha(fs.readFileSync(p.join(r,name))),h,name);if(name==='SMS.qsf')require('./verify_qsf')();else assert.equal(sha(fs.readFileSync(p.join(d,'candidate',name))),h,name);}
+const result={branch:git('branch','--show-current'),baseline:git('rev-parse','HEAD'),staged:false,trackedChanges:expected,compiledSourcesMatch:true,sourceCount:Object.keys(sources).length,diffStat:git('diff','--stat'),status:git('status','--short'),f06:'intentionally unresolved'};
+fs.writeFileSync(p.join(d,'scope.json'),JSON.stringify(result,null,2));console.log('PASS branch, five-file production scope, clean index and compiled-source hashes.');

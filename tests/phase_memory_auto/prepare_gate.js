@@ -1,0 +1,11 @@
+const fs=require('fs'),p=require('path');const d=__dirname;
+const g=p.join(d,'gate_candidate');fs.mkdirSync(g,{recursive:true});
+fs.copyFileSync(p.join(d,'candidate/rtl/VM2413/vm2413.vhd'),p.join(g,'vm2413.vhd'));
+fs.copyFileSync(p.join(d,'candidate/rtl/VM2413/phasememory.vhd'),p.join(g,'phasememory.vhd'));
+fs.writeFileSync(p.join(g,'PhaseMemory.qpf'),'QUARTUS_VERSION = "17.0"\nPROJECT_REVISION = "PhaseMemory"\n');
+fs.writeFileSync(p.join(g,'PhaseMemory.qsf'),'set_global_assignment -name FAMILY "Cyclone V"\nset_global_assignment -name DEVICE 5CSEBA6U23I7\nset_global_assignment -name TOP_LEVEL_ENTITY PhaseMemory\nset_global_assignment -name VHDL_FILE vm2413.vhd\nset_global_assignment -name VHDL_FILE phasememory.vhd\nset_global_assignment -name PROJECT_OUTPUT_DIRECTORY output_files\nset_global_assignment -name OPTIMIZATION_TECHNIQUE SPEED\n');
+let tb=fs.readFileSync(p.join(d,'bank_tb.vhd'),'utf8').replaceAll('bank_tb','gate_tb');
+tb=tb.replace('signal clk:',`component PhaseMemory_gate is port(clk,reset:in std_logic;slot:in std_logic_vector(4 downto 0);memwr:in std_logic;memout:out std_logic_vector(17 downto 0);memin:in std_logic_vector(17 downto 0));end component;\nsignal clk:`);
+tb=tb.replace('b: entity candidate_work.PhaseMemory','b: PhaseMemory_gate');
+tb=tb.replace('assert qa=qb','assert qa=qb or is_x(qa)').replace('PASS bank equivalence:','PASS mapped candidate vs RTL defined-state equivalence:');
+fs.writeFileSync(p.join(d,'gate_tb.vhd'),tb);

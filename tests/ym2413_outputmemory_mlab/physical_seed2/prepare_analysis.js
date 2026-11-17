@@ -1,0 +1,6 @@
+const fs=require('fs'),p=require('path'),d=__dirname;
+let s=fs.readFileSync(p.resolve(d,'../../ym2413_registermemory_auto/physical_seed2/analyze.js'),'utf8').replaceAll('u_register_memory','OutputMemory:Mmem').replaceAll('regs_array','data_array').replaceAll('registerMemory','outputMemory').replaceAll('RegisterMemoryPaths','OutputMemoryPaths').replaceAll('registermemory','outputmemory').replaceAll('registerParameters','outputParameters').replaceAll('registerEvidence','outputEvidence').replaceAll('registerPaths','outputPaths').replaceAll('physical_registers_','physical_outputs_').replaceAll('REGMEM_AUTO','OUTPUTMEM_MLAB');
+s=s.replace("assert(!fs.existsSync(p.join(d,filename)),'Do not overwrite retained RBF');fs.copyFileSync", "if(b.qualifiedConstrainedTiming){assert(!fs.existsSync(p.join(d,filename)),'Do not overwrite retained RBF');fs.copyFileSync");
+s=s.replace("bytes:b.rbf.bytes};", "bytes:b.rbf.bytes};} else r.preservedRBF=null;");
+fs.writeFileSync(p.join(d,'analyze.js'),s);
+let exp=fs.readFileSync(p.resolve(d,'../synthesis/export_netlist.ps1'),'utf8').replaceAll('functional_netlist','fitted_netlist').replace('--functional=on','--functional=off').replace('netlist.exitcode','fitted_netlist.exitcode').replace('Functional post-map','Post-fit timing');fs.writeFileSync(p.join(d,'export_fitted.ps1'),exp);

@@ -1,0 +1,633 @@
+diff --git a/SMS.sv b/SMS.sv
+index 9a97894..944dd1f 100644
+--- a/SMS.sv
++++ b/SMS.sv
+@@ -884,6 +884,8 @@ wire [31:0]  ss_io_out, ss_io_in;
+ wire         ss_io_set;
+ wire [63:0]  eeprom_ss_out, eeprom_ss_in;
+ wire         eeprom_ss_set;
++wire [127:0] eeprom_ext_out, eeprom_ext_in;
++wire eeprom_full, ss_nvram_refill, ss_busy;
+ reg [1:0] restored_vdp_enables;
+ reg [1:0] restored_psg_enables;
+ reg       has_restored_enables = 0;
+@@ -1078,6 +1080,9 @@ system #(63) system
+ 	.evolution_gg_active(evolution_gg_mode),
+ 	.evolution_active(evolution_mode),
+ 	.mapper_eeprom_out(mapper_eeprom),
++	.eeprom_ext_out(eeprom_ext_out),
++	.eeprom_ext_in(eeprom_ext_in),
++	.eeprom_full(eeprom_full),
+ 	.eeprom_ss_out(eeprom_ss_out),
+ 	.eeprom_ss_in (eeprom_ss_in),
+ 	.eeprom_ss_set(eeprom_ss_set),
+@@ -1263,6 +1268,13 @@ savestates savestates_inst (
+ 	.evolution_in    (ss_evolution_in),
+ 	.evolution_set   (ss_evolution_set),
+ 	// EEPROM
++	.storage_busy    (bk_state | sd_ack | sd_rd | sd_wr),
++	.ss_busy         (ss_busy),
++	.nvram_refill    (ss_nvram_refill),
++	.eeprom_present  (eeprom_active),
++	.eeprom_ext_out  (eeprom_ext_out),
++	.eeprom_ext_in   (eeprom_ext_in),
++	.eeprom_full     (eeprom_full),
+ 	.eeprom_out      (eeprom_ss_out),
+ 	.eeprom_in       (eeprom_ss_in),
+ 	.eeprom_set      (eeprom_ss_set),
+@@ -1645,12 +1657,14 @@ video_mixer #(.HALF_DEPTH(1), .LINE_LENGTH(300), .GAMMA(1)) video_mixer
+ 
+ 
+ /////////////////////////  STATE SAVE/LOAD  /////////////////////////////
+-wire bk_save_write = nvram_we;
++wire bk_save_write = nvram_we & ~ss_freeze;
+ reg bk_pending;
+ 
+ always @(posedge clk_sys) begin
+ 	if (~old_downloading & downloading)
+ 		bk_pending <= 1'b0;
++	else if (eeprom_active && ss_freeze && eeprom_ss_set && eeprom_full)
++		bk_pending <= 1'b1;
+ 	else if (bk_ena && ~OSD_STATUS && bk_save_write)
+ 		bk_pending <= 1'b1;
+ 	else if (bk_state)
+@@ -1666,7 +1680,7 @@ reg bk_ena = 0;
+ dpram #(.widthad_a(15), .init_file("rtl/nvram_ff.mif")) nvram_inst
+ (
+ 	.clock_a     (clk_sys),
+-	.address_a   (ss_freeze ? (ss_nvram_WE ? ss_nvram_WA : ss_nvram_A) : nvram_a),
++	.address_a   (ss_freeze ? (ss_nvram_WE ? ss_nvram_WA : (ss_nvram_refill ? nvram_a : ss_nvram_A)) : nvram_a),
+ 	.wren_a      (ss_freeze ? ss_nvram_WE : nvram_we),
+ 	.data_a      (ss_freeze ? ss_nvram_WD : nvram_d),
+ 	.q_a         (nvram_q),
+@@ -1693,6 +1707,9 @@ wire bk_load    = status[6];
+ wire bk_save    = status[7] | (bk_pending & OSD_STATUS && status[25]);
+ reg  bk_loading = 0;
+ reg  bk_state   = 0;
++reg  bk_load_wait = 0, bk_save_wait = 0;
++wire bk_queued_load = bk_load_wait & ~reset_active;
++wire bk_queued_save = bk_save_wait & ~reset_active;
+ 
+ reg osd_btn = 0;
+ always @(posedge clk_sys) begin
+@@ -1714,17 +1731,26 @@ always @(posedge clk_sys) begin
+ 
+ 	old_load <= bk_load & bk_ena;
+ 	old_save <= bk_save & bk_ena;
++	if (reset_active) begin
++		bk_load_wait <= 0;
++		bk_save_wait <= 0;
++	end else if (ss_busy) begin
++		if (~old_load & bk_load & bk_ena) bk_load_wait <= 1;
++		if (~old_save & bk_save & bk_ena) bk_save_wait <= 1;
++	end
+ 	old_ack  <= sd_ack;
+ 
+ 	if(~old_ack & sd_ack) {sd_rd, sd_wr} <= 0;
+ 
+-	if(!bk_state) begin
+-		if((~old_load & bk_load) | (~old_save & bk_save)) begin
++	if(!bk_state && !ss_busy) begin
++		if(bk_queued_load | bk_queued_save | (~old_load & bk_load) | (~old_save & bk_save)) begin
+ 			bk_state <= 1;
+-			bk_loading <= bk_load;
++			bk_loading <= bk_queued_load | bk_load;
+ 			sd_lba <= 0;
+-			sd_rd <=  bk_load;
+-			sd_wr <= ~bk_load;
++			sd_rd <=  bk_queued_load | bk_load;
++			sd_wr <= ~(bk_queued_load | bk_load);
++			bk_load_wait <= 0;
++			bk_save_wait <= 0;
+ 		end
+ 		if(old_downloading & ~downloading & |img_size & bk_ena) begin
+ 			bk_state <= 1;
+@@ -1733,7 +1759,7 @@ always @(posedge clk_sys) begin
+ 			sd_rd <= 1;
+ 			sd_wr <= 0;
+ 		end 
+-	end else begin
++	end else if (bk_state) begin
+ 		if(old_ack & ~sd_ack) begin
+ 			if(&sd_lba[5:0]) begin
+ 				bk_loading <= 0;
+diff --git a/rtl/cart_eeprom.vhd b/rtl/cart_eeprom.vhd
+index 92f605e..10e3b79 100644
+--- a/rtl/cart_eeprom.vhd
++++ b/rtl/cart_eeprom.vhd
+@@ -34,6 +34,10 @@ entity cart_eeprom is
+         nvram_di : out std_logic_vector(7 downto 0);
+         nvram_do : in  std_logic_vector(7 downto 0);
+         nvram_we : out std_logic;
++        ss_ext_out : out std_logic_vector(127 downto 0);
++        ss_ext_in : in std_logic_vector(127 downto 0) := (others => '0');
++        ss_full : in std_logic := '0';
++        ss_freeze : in std_logic := '0';
+         -- Save-state passthrough
+         ss_out   : out std_logic_vector(63 downto 0);
+         ss_in    : in  std_logic_vector(63 downto 0) := (others => '0');
+@@ -71,6 +75,10 @@ begin
+             nvram_we   => nv_we,
+             ss_out     => eep_ss_out,
+             ss_in      => ss_in,
++            ss_ext_out => ss_ext_out,
++            ss_ext_in => ss_ext_in,
++            ss_full => ss_full,
++            ss_freeze => ss_freeze,
+             ss_set     => ss_set
+         );
+ 
+@@ -102,7 +110,7 @@ begin
+                 eep_di           <= ss_in(3);
+                 fffc_window_en   <= ss_in(2);
+                 eep_lines        <= ss_in(10 downto 6) & ss_in(5) & ss_in(4) & ss_in(3);
+-            elsif mapper_eeprom = '1' then
++            elsif mapper_eeprom = '1' and ss_freeze = '0' then
+                 if WR_n = '0' and MREQ_n = '0' then
+                     if A = x"8000" then
+                         eep_cs        <= D_in(2);  -- bit 2 = CS
+diff --git a/rtl/eeprom_93c46.vhd b/rtl/eeprom_93c46.vhd
+index 54c08db..d5cf923 100644
+--- a/rtl/eeprom_93c46.vhd
++++ b/rtl/eeprom_93c46.vhd
+@@ -24,7 +24,11 @@ entity eeprom_93c46 is
+         nvram_di : out std_logic_vector(7 downto 0);
+         nvram_do : in  std_logic_vector(7 downto 0);
+         nvram_we : out std_logic;
+-        -- Save-state (64-bit packed)
++        ss_ext_out : out std_logic_vector(127 downto 0);
++        ss_ext_in : in std_logic_vector(127 downto 0) := (others => '0');
++        ss_full : in std_logic := '0';
++        ss_freeze : in std_logic := '0';
++        -- Legacy 64-bit state; complete protocol extension is separate.
+         ss_out   : out std_logic_vector(63 downto 0);
+         ss_in    : in  std_logic_vector(63 downto 0) := (others => '0');
+         ss_set   : in  std_logic := '0'
+@@ -72,6 +76,21 @@ begin
+     ss_out(17 downto 2)  <= (others => '0');
+     ss_out(1 downto 0)   <= we_r & data_o;
+ 
++    ss_ext_out(3 downto 0) <= std_logic_vector(to_unsigned(t_state'pos(state),4));
++    ss_ext_out(4) <= clk_r;
++    ss_ext_out(12 downto 5) <= opcode;
++    ss_ext_out(28 downto 13) <= data_buf;
++    ss_ext_out(33 downto 29) <= std_logic_vector(cycles);
++    ss_ext_out(34) <= nv_we_r;
++    ss_ext_out(41 downto 35) <= nv_a_r;
++    ss_ext_out(49 downto 42) <= nv_di_r;
++    ss_ext_out(51 downto 50) <= std_logic_vector(to_unsigned(wr_phase,2));
++    ss_ext_out(52) <= wr_all;
++    ss_ext_out(58 downto 53) <= std_logic_vector(all_cnt);
++    ss_ext_out(64 downto 59) <= pending_waddr;
++    ss_ext_out(80 downto 65) <= pending_wdata;
++    ss_ext_out(127 downto 81) <= (others => '0');
++
+     process(clk_sys)
+         variable nxt       : std_logic_vector(7 downto 0);
+         variable op2       : std_logic_vector(1 downto 0);
+@@ -80,6 +99,43 @@ begin
+         variable full_word : std_logic_vector(15 downto 0);
+     begin
+         if rising_edge(clk_sys) then
++            if ss_set = '1' then
++                we_r <= ss_in(1);
++                data_o <= ss_in(0);
++                read_count <= unsigned(ss_in(63 downto 56));
++                read_word0 <= ss_in(55 downto 40);
++                read_word0_addr <= ss_in(39 downto 34);
++                last_read_data <= ss_in(33 downto 18);
++                if ss_full = '1' then
++                    state <= t_state'val(to_integer(unsigned(ss_ext_in(3 downto 0))));
++                    clk_r <= ss_ext_in(4);
++                    opcode <= ss_ext_in(12 downto 5);
++                    data_buf <= ss_ext_in(28 downto 13);
++                    cycles <= unsigned(ss_ext_in(33 downto 29));
++                    nv_we_r <= ss_ext_in(34);
++                    nv_a_r <= ss_ext_in(41 downto 35);
++                    nv_di_r <= ss_ext_in(49 downto 42);
++                    wr_phase <= to_integer(unsigned(ss_ext_in(51 downto 50)));
++                    wr_all <= ss_ext_in(52);
++                    all_cnt <= unsigned(ss_ext_in(58 downto 53));
++                    pending_waddr <= ss_ext_in(64 downto 59);
++                    pending_wdata <= ss_ext_in(80 downto 65);
++                else
++                    state <= WAIT_START;
++                    clk_r <= ss_in(4); -- restored wrapper SK, no invented edge
++                    opcode <= (others => '0');
++                    data_buf <= (others => '0');
++                    cycles <= (others => '0');
++                    nv_we_r <= '0';
++                    nv_a_r <= (others => '0');
++                    nv_di_r <= (others => '0');
++                    wr_phase <= 0; wr_all <= '0';
++                    all_cnt <= (others => '0');
++                    pending_waddr <= (others => '0');
++                    pending_wdata <= (others => '0');
++                end if;
++            elsif ss_freeze = '0' then
++            -- Hold the pending RAM write too: the shared RAM port belongs to DMA.
+             nv_we_r <= '0';
+ 
+             -- Synchronous 2-byte SPRAM write sequence (runs at 53.6MHz clk_sys)
+@@ -115,13 +171,7 @@ begin
+                 end if;
+             end if;
+ 
+-            if ss_set = '1' then
+-                we_r     <= ss_in(1);
+-                data_o   <= ss_in(0);
+-                state    <= WAIT_START;
+-                wr_phase <= 0;
+-
+-            elsif reset_n = '0' then
++            if reset_n = '0' then
+                 state    <= WAIT_START;
+                 data_o   <= '1';
+                 clk_r    <= '0';
+@@ -290,6 +340,7 @@ begin
+                     clk_r <= clk_in;
+                 end if;
+             end if;
++            end if; -- not savestate frozen
+         end if;
+     end process;
+ end rtl;
+diff --git a/rtl/savestates.sv b/rtl/savestates.sv
+index 0ac445e..3175f3d 100644
+--- a/rtl/savestates.sv
++++ b/rtl/savestates.sv
+@@ -112,6 +112,13 @@ module savestates (
+     output reg         evolution_set,
+ 
+     // ---- EEPROM snapshot / restore ----
++    input             storage_busy,
++    output            ss_busy,
++    input             eeprom_present,
++    input     [127:0] eeprom_ext_out,
++    output reg [127:0] eeprom_ext_in,
++    output reg        eeprom_full,
++    output reg        nvram_refill,
+     input      [63:0] eeprom_out,
+     output reg [63:0] eeprom_in,
+     output reg        eeprom_set,
+@@ -278,6 +285,16 @@ localparam ST_SAVE_MD = 7'd75, ST_LOAD_MD = 7'd76;
+ localparam [23:0] MD_EXT_MAGIC = 24'h484303;
+ reg [45:0] md_snap;
+ reg has_md_ext;
++localparam [23:0] EEPROM_EXT_MAGIC = 24'h484304;
++localparam [63:0] EEPROM_DESC = {15'd0,5'd16,3'd2,1'b1,8'd1,32'h45455058};
++localparam [63:0] EEPROM_ABSENT = {24'd0,8'd1,32'h45455058};
++localparam ST_SAVE_EE_DESC=7'd77, ST_SAVE_EE_EXT=7'd78,
++           ST_LOAD_EE_DESC=7'd79, ST_LOAD_EE_EXT=7'd80;
++reg [127:0] eeprom_ext_snap;
++reg eeprom_exists_snap, has_eeprom_tag, eeprom_ext_word;
++reg do_save;
++wire transfer_eeprom = do_save ? eeprom_exists_snap : eeprom_full;
++wire [28:0] nvram_ddr_base = transfer_eeprom ? 29'h040 : 29'h0D01;
+ 
+ // Post-op guard time to avoid pathological immediate re-entry (rapid hammering).
+ localparam [27:0] OP_COOLDOWN_MAX = 28'd26846500; // ~500ms @ 53.7MHz
+@@ -309,12 +326,14 @@ wire has_nvram_16k = !evolution_state && mapper_snap[50];                    //
+ wire has_nvram_32k = !evolution_state && (mapper_snap[51] | mapper_snap[52] | mapper_snap[61]); // nvram_ex / nvram_p / The Castle
+ wire has_nvram     = has_nvram_8k | has_nvram_16k | has_nvram_32k;
+ 
+-wire [14:0] nvram_size_minus_1 = has_nvram_32k ? 15'd32767 :
++wire [14:0] nvram_size_minus_1 = transfer_eeprom ? 15'd127 :
++                                 has_nvram_32k ? 15'd32767 :
+                                  has_nvram_16k ? 15'd16383 :
+                                                  15'd8191;
+ 
+ reg [6:0]  state;
+-reg        do_save;     // 1=save, 0=load
++assign ss_busy = state != ST_IDLE;
++// do_save is declared with EEPROM transfer selection above.
+ reg [1:0]  cur_slot;
+ reg [28:0] base_addr;
+ reg [31:0] ss_change_det; // MiSTer framework change detector (increment to trigger save-to-disk)
+@@ -352,9 +371,10 @@ reg  [31:0] io_snap;
+ reg  [21:0] video_snap;
+ reg  [63:0] eeprom_snap;
+ // Version 3 retains v1/v2 fields and adds word 01e after the two GG words.
++// Version 4 retains that base payload and describes EEPROM at 01f/030/040.
+ // 01e: [22:0] P1, [45:23] P2, [63:46] zero. Per port:
+ // [16:0] timer, [19:17] rises, [20] TH history, [22:21] type history.
+-wire [63:0] video_word = {MD_EXT_MAGIC, 2'd3,
++wire [63:0] video_word = {EEPROM_EXT_MAGIC, 2'd3,
+                          systeme ? vdp2_snap[135:128] : 8'd0,
+                          vdp_snap[135:128], video_snap};
+ 
+@@ -466,7 +486,7 @@ always @(*) begin
+     ddram_cmd_rd = 0; ddram_cmd_we = 0;
+     ddram_cmd_addr = 0; ddram_cmd_data = 0; ddram_cmd_be = 0;
+     case (state)
+-        ST_WAIT_RESTORE_BOUNDARY: if (! DDRAM_BUSY) if (is_old_format ? mapper_snap [ 48 ] : has_nvram) ddram_cmd_read ( base_addr + 29'h0D01 ) ;
++        ST_WAIT_RESTORE_BOUNDARY: if (! DDRAM_BUSY) if (is_old_format ? mapper_snap [ 48 ] : (has_nvram || transfer_eeprom)) ddram_cmd_read ( base_addr + nvram_ddr_base ) ;
+         ST_SAVE_HDR: if (! DDRAM_BUSY) ddram_cmd_write ( base_addr + 29'd1 , { cur_game_id , cur_magic } , 8'hFF ) ;
+         ST_SAVE_CPU0: begin
+             if (! DDRAM_BUSY) begin
+@@ -505,8 +525,21 @@ always @(*) begin
+         ST_SAVE_IO: if (! DDRAM_BUSY) ddram_cmd_write ( base_addr + 29'h019 , { evolution_snap [ 31 : 0 ] , io_snap } , 8'hFF ) ;
+         ST_SAVE_VIDEO: if (! DDRAM_BUSY) ddram_cmd_write ( base_addr + 29'h01a , video_word , 8'hFF ) ;
+         ST_SAVE_GG: if (!DDRAM_BUSY) ddram_cmd_write(base_addr + 29'h01c + {28'd0,gg_word}, gg_word ? gg_snap[127:64] : gg_snap[63:0], 8'hFF);
++        ST_SAVE_EE_DESC: if (!DDRAM_BUSY) ddram_cmd_write(base_addr + 29'h01f, eeprom_exists_snap ? EEPROM_DESC : EEPROM_ABSENT, 8'hFF);
++        ST_SAVE_EE_EXT: if (!DDRAM_BUSY) ddram_cmd_write(base_addr + 29'h030 + {28'd0,eeprom_ext_word}, eeprom_ext_word ? eeprom_ext_snap[127:64] : eeprom_ext_snap[63:0], 8'hFF);
++        ST_LOAD_EE_DESC: if (!(DDRAM_DOUT_READY && dout_expected) && !dout_expected && !DDRAM_BUSY) begin
++            if (eeprom_present && dout_latch == EEPROM_DESC) ddram_cmd_read(base_addr + 29'h030);
++            else ddram_cmd_read(base_addr + 29'h01b);
++        end
++        ST_LOAD_EE_EXT: if (!(DDRAM_DOUT_READY && dout_expected) && !dout_expected && !DDRAM_BUSY) begin
++            if (!eeprom_ext_word) ddram_cmd_read(base_addr + 29'h031);
++            else ddram_cmd_read(base_addr + 29'h01b);
++        end
+         ST_SAVE_MD: if (!DDRAM_BUSY) ddram_cmd_write(base_addr + 29'h01e, {18'd0,md_snap}, 8'hFF);
+-        ST_LOAD_MD: if (!(DDRAM_DOUT_READY && dout_expected) && !dout_expected && !DDRAM_BUSY) ddram_cmd_read(base_addr + 29'h01b);
++        ST_LOAD_MD: if (!(DDRAM_DOUT_READY && dout_expected) && !dout_expected && !DDRAM_BUSY) begin
++            if (has_eeprom_tag) ddram_cmd_read(base_addr + 29'h01f);
++            else ddram_cmd_read(base_addr + 29'h01b);
++        end
+         ST_LOAD_GG: if (!(DDRAM_DOUT_READY && dout_expected) && !dout_expected && !DDRAM_BUSY) begin
+             if (!gg_word) ddram_cmd_read(base_addr + 29'h01d);
+             else if (has_md_ext) ddram_cmd_read(base_addr + 29'h01e);
+@@ -537,7 +570,7 @@ always @(*) begin
+         ST_SAVE_PSG2: if (! DDRAM_BUSY) ddram_cmd_write ( base_addr + 29'h18 , { 8'h0 , psg2_snap } , 8'h7F ) ;
+         ST_SAVE_VRAM , ST_SAVE_VRAM1_PASSIVE , ST_SAVE_VRAM2 , ST_SAVE_VRAM2_PASSIVE: if (!(vram_pipe < 3'd2)) if (vram_byte_cnt < 7 || ! DDRAM_BUSY) if (vram_byte_cnt == 7) ddram_cmd_write ( base_addr + vram_ddr_offset + { 17'd0 , word_cnt } , { vram_d_latched ? vram_d_latch : vram_save_data , vram_word_buf [ 63 : 8 ] } , 8'hFF ) ;
+         ST_SAVE_WRAM: if (!(wram_pipe < 2'd2)) if (wram_byte_cnt < 7 || ! DDRAM_BUSY) if (wram_byte_cnt == 7) ddram_cmd_write ( base_addr + 29'h901 + { 17'd0 , word_cnt } , { wram_d_latched ? wram_d_latch : wram_D , wram_word_buf [ 63 : 8 ] } , 8'hFF ) ;
+-        ST_SAVE_NVRAM: if (!(nvram_pipe < 2'd2)) if (nvram_byte_cnt < 7 || ! DDRAM_BUSY) if (nvram_byte_cnt == 7) ddram_cmd_write ( base_addr + 29'h0D01 + { 17'd0 , word_cnt } , { nvram_d_latched ? nvram_d_latch : nvram_D , nvram_word_buf [ 63 : 8 ] } , 8'hFF ) ;
++        ST_SAVE_NVRAM: if (!(nvram_pipe < 2'd2)) if (nvram_byte_cnt < 7 || ! DDRAM_BUSY) if (nvram_byte_cnt == 7) ddram_cmd_write ( base_addr + nvram_ddr_base + { 17'd0 , word_cnt } , { nvram_d_latched ? nvram_d_latch : nvram_D , nvram_word_buf [ 63 : 8 ] } , 8'hFF ) ;
+         ST_SAVE_AUDIO_INVALID: if (! DDRAM_BUSY) ddram_cmd_write ( base_addr + 29'h00e , { 12'd0 , psg_snap [ 51 : 0 ] } , 8'hFF ) ;
+         ST_SAVE_AUDIO_PAYLOAD: begin
+             if (! DDRAM_BUSY) begin
+@@ -639,7 +672,7 @@ always @(*) begin
+         ST_LOAD_IO: if (!(DDRAM_DOUT_READY && dout_expected)) if (! dout_expected && ! DDRAM_BUSY) ddram_cmd_read ( base_addr + 29'h01a ) ;
+         ST_LOAD_VIDEO: if (!(DDRAM_DOUT_READY && dout_expected) && !dout_expected && !DDRAM_BUSY) begin
+             if ((dout_latch[63:40] == IO_EXT_MAGIC && dout_latch[39:38] == 2'd2) ||
+-                    (dout_latch[63:40] == MD_EXT_MAGIC && dout_latch[39:38] == 2'd3)) ddram_cmd_read(base_addr + 29'h01c);
++                    ((dout_latch[63:40] == MD_EXT_MAGIC || dout_latch[63:40] == EEPROM_EXT_MAGIC) && dout_latch[39:38] == 2'd3)) ddram_cmd_read(base_addr + 29'h01c);
+             else ddram_cmd_read(base_addr + 29'h01b);
+         end
+         ST_LOAD_EEPROM: begin
+@@ -717,7 +750,7 @@ always @(*) begin
+                 end
+             end
+         end
+-        ST_LOAD_NVRAM: if (!(! nvram_load_active)) if (!(nvram_byte_cnt < 7)) if (! DDRAM_BUSY) if (word_cnt < ( nvram_size_minus_1 >> 3 )) ddram_cmd_read ( base_addr + 29'h0D01 + { 17'd0 , word_cnt + 12'd1 } ) ;
++        ST_LOAD_NVRAM: if (!(! nvram_load_active)) if (!(nvram_byte_cnt < 7)) if (! DDRAM_BUSY) if (word_cnt < ( nvram_size_minus_1 >> 3 )) ddram_cmd_read ( base_addr + nvram_ddr_base + { 17'd0 , word_cnt + 12'd1 } ) ;
+         default: begin end
+     endcase
+ end
+@@ -793,6 +826,8 @@ always @(posedge clk or negedge reset_n) begin
+         io_in           <= 32'd0;
+         gg_in <= GG_RESET; gg_snap <= GG_RESET; gg_set <= 0; gg_word <= 0;
+         md_in <= 0; md_snap <= 0; md_set <= 0; md_valid <= 0; has_md_ext <= 0;
++        eeprom_ext_in <= 0; eeprom_ext_snap <= 0; eeprom_full <= 0;
++        eeprom_exists_snap <= 0; has_eeprom_tag <= 0; eeprom_ext_word <= 0; nvram_refill <= 0;
+         io_set          <= 0;
+         io_snap         <= 32'd0;
+         video_state_in  <= 22'd0;
+@@ -881,7 +916,7 @@ always @(posedge clk or negedge reset_n) begin
+             //   - ISet=00   : no prefix active (not mid-way through CB/DD/ED/FD sequence)
+             //   - cpu_ce     : only act on an actual CPU tick, not on held bus
+             //                  levels between ticks.
+-            if (cpu_ce && !z80_m1_n && !z80_mreq_n && z80_iset == 2'b00 && vblank && x < 9'd256) begin
++            if (!storage_busy && cpu_ce && !z80_m1_n && !z80_mreq_n && z80_iset == 2'b00 && vblank && x < 9'd256) begin
+                 base_addr <= ss_bios_mode ? bios_slot_base(cur_slot) : slot_base(cur_slot);
+                 cur_bios_mode <= ss_bios_mode;
+                 cur_magic <= ss_bios_mode ? MAGIC_BIOS : MAGIC;
+@@ -897,6 +932,7 @@ always @(posedge clk or negedge reset_n) begin
+ 
+         // ---------------------------------------------------------------
+         ST_ARM_FREEZE: begin
++            nvram_refill <= 0;
+             // Freeze is asserted one clk_sys cycle after boundary detection so
+             // it is guaranteed active before the next CPU/VDP CE pulse.
+             // We capture VDP/PSG snapshots here (one cycle late) so they reflect
+@@ -916,7 +952,7 @@ always @(posedge clk or negedge reset_n) begin
+             io_snap          <= io_out;
+             gg_snap          <= gg_out;
+             video_snap       <= video_state_out;
+-            eeprom_snap      <= eeprom_out;
++
+             
+             ss_freeze        <= 1;
+             freeze_drain_cnt <= 0;
+@@ -951,6 +987,9 @@ always @(posedge clk or negedge reset_n) begin
+                 // CPU, VDP, mapper, IO and video capture edges above are unchanged.
+                 // MD pads run every clk_sys: capture after freeze is active.
+                 md_snap <= md_out;
++                eeprom_snap <= eeprom_out;
++                eeprom_ext_snap <= eeprom_ext_out;
++                eeprom_exists_snap <= eeprom_present;
+                 psg_snap <= psg_out;
+                 psg2_snap <= psg2_out;
+                 psg_ext_snap <= psg_ext_out;
+@@ -974,17 +1013,16 @@ always @(posedge clk or negedge reset_n) begin
+                 mapper_set <= 1;
+                 evolution_in  <= evolution_snap;
+                 evolution_set <= 1;
+-                eeprom_in  <= eeprom_snap;
+-                eeprom_set <= 1;
++
+                 // Old format only ever wrote NVRAM for Dahjee-A (mapper_snap[48]);
+                 // reading the broadened has_nvram region for other mappers would
+                 // DMA an unwritten slot area over live cartridge SRAM.
+-                if (is_old_format ? mapper_snap[48] : has_nvram) begin
++                if (is_old_format ? mapper_snap[48] : (has_nvram || transfer_eeprom)) begin
+                     nvram_load_addr   <= 0;
+                     nvram_byte_cnt    <= 0;
+                     nvram_load_active <= 0;
+                     word_cnt          <= 0;
+-                    ddram_read(base_addr + 29'h0D01);
++                    ddram_read(base_addr + nvram_ddr_base);
+                     state             <= ST_LOAD_NVRAM;
+                 end else begin
+                     state             <= ST_LOAD_RESTORE;
+@@ -1095,7 +1133,22 @@ always @(posedge clk or negedge reset_n) begin
+         ST_SAVE_MD: begin
+             if (!DDRAM_BUSY) begin
+                 ddram_write(base_addr + 29'h01e, {18'd0,md_snap}, 8'hFF);
+-                state <= ST_SAVE_EEPROM;
++                state <= ST_SAVE_EE_DESC;
++            end
++        end
++
++        ST_SAVE_EE_DESC: begin
++            if (!DDRAM_BUSY) begin
++                ddram_write(base_addr + 29'h01f, eeprom_exists_snap ? EEPROM_DESC : EEPROM_ABSENT, 8'hFF);
++                eeprom_ext_word <= 0;
++                state <= eeprom_exists_snap ? ST_SAVE_EE_EXT : ST_SAVE_EEPROM;
++            end
++        end
++        ST_SAVE_EE_EXT: begin
++            if (!DDRAM_BUSY) begin
++                ddram_write(base_addr + 29'h030 + {28'd0,eeprom_ext_word}, eeprom_ext_word ? eeprom_ext_snap[127:64] : eeprom_ext_snap[63:0], 8'hFF);
++                if (eeprom_ext_word) state <= ST_SAVE_EEPROM;
++                else eeprom_ext_word <= 1;
+             end
+         end
+ 
+@@ -1257,7 +1310,12 @@ always @(posedge clk or negedge reset_n) begin
+                             end
+                             ST_SAVE_VRAM2_PASSIVE: begin
+                                 vram2_en <= 0;
+-                                state    <= ST_SAVE_AUDIO_PAYLOAD;
++                                if (transfer_eeprom) begin
++                                    nvram_save_addr <= 0; nvram_byte_cnt <= 0;
++                                    nvram_word_buf <= 0; nvram_pipe <= 0;
++                                    nvram_A <= 0; word_cnt <= 0; nvram_d_latched <= 0;
++                                    state <= ST_SAVE_NVRAM;
++                                end else state <= ST_SAVE_AUDIO_PAYLOAD;
+                             end
+                         endcase
+                     end
+@@ -1307,7 +1365,7 @@ always @(posedge clk or negedge reset_n) begin
+                             word_cnt       <= 0;
+                             vram_d_latched <= 0;
+                             state          <= ST_SAVE_VRAM2;
+-                        end else if (has_nvram) begin
++                        end else if (has_nvram || transfer_eeprom) begin
+                             // Save NVRAM (up to 32KB)
+                             nvram_save_addr <= 0;
+                             nvram_byte_cnt  <= 0;
+@@ -1343,7 +1401,7 @@ always @(posedge clk or negedge reset_n) begin
+                                        nvram_word_buf[63:8]};
+                     nvram_byte_cnt <= nvram_byte_cnt + 3'd1;
+                     if (nvram_byte_cnt == 7) begin
+-                        ddram_write(base_addr + 29'h0D01 + {17'd0, word_cnt},
++                        ddram_write(base_addr + nvram_ddr_base + {17'd0, word_cnt},
+                                     {nvram_d_latched ? nvram_d_latch : nvram_D,
+                                      nvram_word_buf[63:8]}, 8'hFF);
+                         word_cnt <= word_cnt + 12'd1;
+@@ -1452,6 +1510,9 @@ always @(posedge clk or negedge reset_n) begin
+                 vdp2_snap[135:128] <= 8'd0;
+                 gg_snap <= GG_RESET;
+                 md_snap <= 0; md_valid <= 0; has_md_ext <= 0;
++                eeprom_full <= 0; eeprom_ext_snap <= 0; has_eeprom_tag <= 0;
++                // Old 64K files bypass the EEPROM word entirely.
++                eeprom_snap <= 64'd1; // inactive wrapper, writes disabled, DO ready
+                 ddram_read(base_addr + 29'd0);
+                 state <= ST_LOAD_HDR_WT;
+             end
+@@ -1665,10 +1726,11 @@ always @(posedge clk or negedge reset_n) begin
+                 dout_latch    <= DDRAM_DOUT;
+             end else if (!dout_expected && !DDRAM_BUSY) begin
+                 video_snap       <= dout_latch[21:0];
+-                has_md_ext <= dout_latch[63:40] == MD_EXT_MAGIC && dout_latch[39:38] == 2'd3;
++                has_eeprom_tag <= dout_latch[63:40] == EEPROM_EXT_MAGIC && dout_latch[39:38] == 2'd3;
++                has_md_ext <= (dout_latch[63:40] == MD_EXT_MAGIC || dout_latch[63:40] == EEPROM_EXT_MAGIC) && dout_latch[39:38] == 2'd3;
+                 if ((dout_latch[63:40] == HCOUNTER_MAGIC && dout_latch[39:38] == 2'd0) ||
+                     (dout_latch[63:40] == IO_EXT_MAGIC && dout_latch[39:38] == 2'd2) ||
+-                    (dout_latch[63:40] == MD_EXT_MAGIC && dout_latch[39:38] == 2'd3)) begin
++                    ((dout_latch[63:40] == MD_EXT_MAGIC || dout_latch[63:40] == EEPROM_EXT_MAGIC) && dout_latch[39:38] == 2'd3)) begin
+                     vdp_snap[135:128] <= dout_latch[29:22];
+                     vdp2_snap[135:128] <= systeme ? dout_latch[37:30] : 8'd0;
+                 end else begin
+@@ -1676,7 +1738,7 @@ always @(posedge clk or negedge reset_n) begin
+                     vdp2_snap[135:128] <= 8'd0;
+                 end
+                 if ((dout_latch[63:40] == IO_EXT_MAGIC && dout_latch[39:38] == 2'd2) ||
+-                    (dout_latch[63:40] == MD_EXT_MAGIC && dout_latch[39:38] == 2'd3)) begin
++                    ((dout_latch[63:40] == MD_EXT_MAGIC || dout_latch[63:40] == EEPROM_EXT_MAGIC) && dout_latch[39:38] == 2'd3)) begin
+                     gg_word <= 0;
+                     ddram_read(base_addr + 29'h01c);
+                     state <= ST_LOAD_GG;
+@@ -1721,8 +1783,43 @@ always @(posedge clk or negedge reset_n) begin
+                             dout_latch[16:0] < 80540 && dout_latch[39:23] < 80540 &&
+                             dout_latch[19:17] <= 4 && dout_latch[42:40] <= 4;
+                 md_snap <= dout_latch[45:0];
+-                ddram_read(base_addr + 29'h01b);
+-                state <= ST_LOAD_EEPROM;
++                if (has_eeprom_tag) begin
++                    ddram_read(base_addr + 29'h01f);
++                    state <= ST_LOAD_EE_DESC;
++                end else begin
++                    ddram_read(base_addr + 29'h01b);
++                    state <= ST_LOAD_EEPROM;
++                end
++            end
++        end
++
++        ST_LOAD_EE_DESC: begin
++            if (DDRAM_DOUT_READY && dout_expected) begin
++                dout_expected <= 0; dout_latch <= DDRAM_DOUT;
++            end else if (!dout_expected && !DDRAM_BUSY) begin
++                if (eeprom_present && dout_latch == EEPROM_DESC) begin
++                    eeprom_ext_word <= 0;
++                    ddram_read(base_addr + 29'h030); state <= ST_LOAD_EE_EXT;
++                end else begin
++                    ddram_read(base_addr + 29'h01b); state <= ST_LOAD_EEPROM;
++                end
++            end
++        end
++        ST_LOAD_EE_EXT: begin
++            if (DDRAM_DOUT_READY && dout_expected) begin
++                dout_expected <= 0; dout_latch <= DDRAM_DOUT;
++            end else if (!dout_expected && !DDRAM_BUSY) begin
++                if (!eeprom_ext_word) begin
++                    eeprom_ext_snap[63:0] <= dout_latch; eeprom_ext_word <= 1;
++                    ddram_read(base_addr + 29'h031);
++                end else begin
++                    eeprom_ext_snap[127:64] <= dout_latch;
++                    eeprom_full <= dout_latch[63:17] == 0 &&
++                                   eeprom_ext_snap[3:0] <= 8 &&
++                                   eeprom_ext_snap[33:29] <= 15 &&
++                                   eeprom_ext_snap[51:50] <= 2;
++                    ddram_read(base_addr + 29'h01b); state <= ST_LOAD_EEPROM;
++                end
+             end
+         end
+ 
+@@ -1731,6 +1828,7 @@ always @(posedge clk or negedge reset_n) begin
+                 dout_expected <= 0;
+                 dout_latch    <= DDRAM_DOUT;
+             end else if (!dout_expected && !DDRAM_BUSY) begin
++                if (dout_latch[17:11] != 0) eeprom_full <= 0;
+                 if (evolution_snap[31:16] == 16'hE132) begin
+                     evolution_snap[95:32] <= dout_latch;
+                     eeprom_snap <= 64'd0;
+@@ -1961,7 +2059,7 @@ always @(posedge clk or negedge reset_n) begin
+                         nvram_byte_cnt  <= 0;
+                         if (word_cnt < (nvram_size_minus_1 >> 3)) begin
+                             word_cnt <= word_cnt + 12'd1;
+-                            ddram_read(base_addr + 29'h0D01 + {17'd0, word_cnt + 12'd1});
++                            ddram_read(base_addr + nvram_ddr_base + {17'd0, word_cnt + 12'd1});
+                         end else begin
+                             state      <= ST_LOAD_RESTORE;
+                             cram_entry <= 0;
+@@ -2036,6 +2134,12 @@ always @(posedge clk or negedge reset_n) begin
+         end
+ 
+         ST_PRE_UNFREEZE: begin
++            // Refill shared synchronous RAM from the restored engine address.
++            nvram_refill <= eeprom_present;
++            if (!do_save) begin
++                eeprom_in <= eeprom_snap; eeprom_ext_in <= eeprom_ext_snap;
++                eeprom_set <= 1;
++            end
+             // IO TH has settled during the full restore/flush. Legacy history
+             // is reconstructed here; exact v3 history remains held until release.
+             if (!do_save) begin md_in <= md_snap; md_set <= 1; end
+diff --git a/rtl/system.vhd b/rtl/system.vhd
+index fd5bdfc..fbf10e3 100644
+--- a/rtl/system.vhd
++++ b/rtl/system.vhd
+@@ -180,6 +180,9 @@ entity system is
+ 		evolution_ss_out : out STD_LOGIC_VECTOR(159 downto 0);
+ 		evolution_ss_in  : in  STD_LOGIC_VECTOR(95 downto 0) := (others => '0');
+ 		evolution_ss_set : in  STD_LOGIC := '0';
++		eeprom_ext_out : out STD_LOGIC_VECTOR(127 downto 0);
++		eeprom_ext_in : in STD_LOGIC_VECTOR(127 downto 0) := (others => '0');
++		eeprom_full : in STD_LOGIC := '0';
+ 		eeprom_ss_out : out STD_LOGIC_VECTOR(63 downto 0);
+ 		eeprom_ss_in  : in  STD_LOGIC_VECTOR(63 downto 0) := (others => '0');
+ 		eeprom_ss_set : in  STD_LOGIC := '0';
+@@ -1144,6 +1147,10 @@ port map(
+ 			nvram_di   => eeprom_nvram_di,
+ 			nvram_do   => nvram_q,
+ 			nvram_we   => eeprom_nvram_we,
++			ss_freeze => ss_freeze,
++			ss_ext_out => eeprom_ext_out,
++			ss_ext_in => eeprom_ext_in,
++			ss_full => eeprom_full,
+ 			ss_out     => eeprom_ss_out_i,
+ 			ss_in      => eeprom_ss_in,
+ 			ss_set     => eeprom_ss_set

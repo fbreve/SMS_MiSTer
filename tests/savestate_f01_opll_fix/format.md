@@ -1,0 +1,3 @@
+# v17 FM extension
+
+Tag 484311; container remains96KiB. Descriptor2997 is 00681101464d5331 (104 rows, v17, present1, FMS1). Payload2998..29cb contains52 little-endian64-bit words; low32 row2n, high32 row2n+1. These tail addresses follow sprites ending2996 and precede slot end2fff. No memory region or slot stride changes. FM exists and is captured even when inaudible or System E routes PSG2. Descriptor commits after all FM words; existing audio/header commit machinery remains. Whole FM record validates before applying any live OPLL field. Pre-v17 LOAD uses an explicitly lossy deterministic local reset, complete initialization, and canonical scalar/default phase setup. No missing FM history is claimed reconstructable.

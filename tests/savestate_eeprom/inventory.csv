@@ -1,0 +1,41 @@
+Item,Class,Bits,Disposition
+128-byte shared NVRAM backing,A,1024,Dedicated 16-word payload independent of SRAM flags or current visibility
+we_r,A,1,Legacy word01b bit1 retained
+data_o,A,1,Legacy word01b bit0 retained
+state,A,4,Full extension3:0 includes read wait states and standby
+clk_r,A,1,Full extension4 preserves sampled SK including pending edge
+opcode,A,8,Full extension12:5 includes shift progress and sequential word address
+data_buf,A,16,Full extension28:13 includes input and output shift progress
+cycles,A,5,Full extension33:29 preserves command and data bit positions
+nv_we_r,A,1,Full extension34 preserves uncommitted write strobe while DMA owns RAM
+nv_a_r,A,7,Full extension41:35 preserves read address or pending write address
+nv_di_r,A,8,Full extension49:42 preserves pending byte data
+wr_phase,A,2,Full extension51:50 preserves automatic byte pipeline
+wr_all,A,1,Full extension52 preserves write-all progress
+all_cnt,A,6,Full extension58:53 preserves current write-all word
+pending_waddr,A,6,Full extension64:59 preserves word address for read or write
+pending_wdata,A,16,Full extension80:65 preserves automatic write payload
+read_count,A,8,Legacy word63:56 restored; influences exported first-read diagnostics
+read_word0,A,16,Legacy word55:40 restored diagnostic
+read_word0_addr,A,6,Legacy word39:34 restored diagnostic
+last_read_data,A,16,Legacy word33:18 restored diagnostic
+eep_lines high bits,A,5,Wrapper word10:6 affect guest readback
+eep_cs,A,1,Wrapper word5 preserves latched CS
+eep_clk,A,1,Wrapper word4 preserves latched SK
+eep_di,A,1,Wrapper word3 preserves latched DI
+fffc_window_en,A,1,Wrapper word2 preserves guest window visibility
+eep_lines low bits,B,3,Duplicate CS/SK/DI reconstructed from restored wrapper bits
+shared RAM q_a,B,8,Refill from restored nv_a during release guard; NEW_DATA same-port behavior yields coherent frozen value before observable use
+busy or ready,B,0,No separate implemented busy register; DO derives from saved data_o
+read sequence and wrap,B,0,No extra register; encoded in state opcode pending_waddr cycles and data_buf
+CS or DI engine history,B,0,No separate latches beyond wrapper pins; only sampled SK has engine history
+nxt op2 sp2 waddr full_word variables,B,,Assigned before every read within one activation; no retained value affects future behavior
+EEPROM soft-reset pulse from mapper_ctrl,B,1,Clears every clk and writes gated by ss_freeze; accepted M1 fetch and drain leave pulse zero before capture and release
+ROM banks and mapper registers,A,,Already restored through existing mapper64 interface; unchanged
+mapper_eeprom and enabled,C,,Cartridge CRC/configuration detection; same-media precondition; visibility window is separately saved
+CPU bus and clocks reset soft-reset inputs,C,,External future activity; normal CPU/mapper state handled by existing interfaces
+SD state and dirty or queued requests,C,,Host persistence state excluded from emulated snapshot; interlocked against transport and restored image marked dirty
+ewen_count write_count erase_count,D,24,Incremented but never read exported or consumed
+trace_buf,D,16,Never read or modified after initialization
+ce_cpu,D,0,Unused input; protocol and write pipeline run at clk_sys outside savestate freeze
+unresolved EEPROM state,E,0,None

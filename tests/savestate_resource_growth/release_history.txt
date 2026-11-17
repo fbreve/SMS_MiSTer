@@ -1,0 +1,57 @@
+Local Git release evidence (read-only; no remote fetch)
+fee0b8a16724c6a1ef48680ca6c97dbe6098f753 2026-08-29 02:29:46 -0500 Move Clone to alternative repo (#205)
+3ae7eec9cc2a9e02f824771e2e5652f5992ed906 2026-08-23 18:19:04 +0100 Release 20260823.
+8f3bcb2bb7129139940cfbb18cc66f5ef139bd1f 2026-06-13 00:28:35 -0300 SaveStates and Pause for System-E, enhanced SaveStates for SMS (#192)
+4d364780502d1c5d212ad06962a44341c3bbfeaf 2026-06-03 17:05:29 +0000 Release 20260603.
+0d6981b751bc0669ee9de45469b2a4beb3a59d2c 2025-07-23 22:57:11 -0500 Move Clone to Alternatives (#172)
+100644 blob 26632aabd2f9db6b1f593f460e0701eb2591acce	releases/SMS_20260823.rbf
+100644 blob b592ff3cf2d2a1321ef4428c768b00d7200824fa	releases/SMS_20260603.rbf
+20260823 layout and size constants:
+// savestates.sv
+// Pure-hardware save-state FSM for SMS_MiSTer.
+//
+// Memory layout (DDRAM word addresses, slot n base = 0x3E000000 + n*0x10000):
+//   Word 0x000: MiSTer SS control word [31:0]=change_det, [63:32]=size_in_32b_words
+//   Word 0x001: [31:0]=magic ("SMS1"/"SMSB"), [63:32]=game signature
+//   Word 0x002-0x005: Z80 REG[211:0]   (4 × 64-bit words, MSBs unused)
+//   Word 0x006-0x007: VDP regs [127:0] (2 × 64-bit words)
+//   Word 0x008-0x00D: CRAM [383:0]     (6 × 64-bit words)
+//   Word 0x00E:       PSG  [55:0]      (1 × 64-bit word, upper 8 bits unused)
+//   Word 0x00F:       Mapper [63:0]    (1 × 64-bit word)
+//   Word 0x010-0x011: VDP2 regs [127:0] (System E only; 2 × 64-bit words)
+//   Word 0x012-0x017: CRAM2 [383:0]   (System E only; 6 × 64-bit words)
+//   Word 0x018:       PSG2 [55:0]     (System E only; 1 × 64-bit word)
+//   Words 0x101-0x900: VRAM 16KB       (2048 × 64-bit words)
+//   Words 0x901-0xD00: WRAM 8KB        (1024 × 64-bit words) [SMS/GG]
+//   Words 0x901-0x1100: WRAM 16KB      (2048 × 64-bit words) [System E; reuses NVRAM region]
+//   Words 0xD01-0x1100: NVRAM 8KB (Dahjee A only; mutually exclusive with System E)
+//   Words 0x1101-0x1900: VRAM2 16KB    (System E only; 2048 × 64-bit words)
+//   Words 0x1901-0x2100: VDP1 passive 16KB (System E only; inline; written to SD)
+//   Words 0x2101-0x2900: VDP2 passive 16KB (System E only; inline; written to SD)
+//
+// Slot size = 0x3000 words = 96KB.  Up to 4 slots.
+// Base word address = 29'h07C00000 + slot * 29'h3000
+localparam [31:0] OLD_SS_WORDS = 32'd16382; // 0x3FFE, old 64KB slot format (#191)
+localparam [31:0] NEW_SS_WORDS = 32'd24574; // 0x5FFE, current 96KB slot format
+                ddram_write(base_addr + 29'd0, {NEW_SS_WORDS, ss_change_det}, 8'hFF);
+                is_old_format <= (dout_latch[63:32] == OLD_SS_WORDS);
+20260603 layout:
+// savestates.sv
+// Pure-hardware save-state FSM for SMS_MiSTer.
+//
+// Memory layout (DDRAM word addresses, slot n base = 0x3E000000 + n*0x10000):
+//   Word 0x000: MiSTer SS control word [31:0]=change_det, [63:32]=size_in_32b_words
+//   Word 0x001: magic "SMS1" (0x534D5331)
+//   Word 0x002-0x005: Z80 REG[211:0]   (4 × 64-bit words, MSBs unused)
+//   Word 0x006-0x007: VDP regs [127:0] (2 × 64-bit words)
+//   Word 0x008-0x00D: CRAM [383:0]     (6 × 64-bit words)
+//   Word 0x00E:       PSG  [55:0]      (1 × 64-bit word, upper 8 bits unused)
+//   Word 0x00F:       Mapper [63:0]    (1 × 64-bit word)
+//   Words 0x101-0x900: VRAM 16KB       (2048 × 64-bit words)
+//   Words 0x901-0xD00: WRAM 8KB        (1024 × 64-bit words)
+//   Words 0xD01-0x1100: NVRAM 8KB (Dahjee A only)
+//
+// Slot size = 0x2000 words = 64KB.  Up to 4 slots.
+// Base word address = 29'h07C00000 + slot * 29'h2000
+
+module savestates (

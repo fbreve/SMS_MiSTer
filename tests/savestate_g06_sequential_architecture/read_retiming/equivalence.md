@@ -1,0 +1,13 @@
+# Response-register relocation
+
+The first isolated prototype clocked each shifter's 32-bit returned word, plus the sprite-parent and collision-delay pieces, then ORed those registered pieces. The selected implementation ORs their combinational pieces and clocks one 32-bit word at the VDP boundary. Guest state, private writes, address map, request timing and one-edge response latency are unchanged.
+
+For every returned bit and host edge k, let f_i(S(k),addr(k),read(k)) be an owning module's contribution, zero when the word does not overlap or read is low. The distributed response is OR_i DFF(f_i); the boundary response is DFF(OR_i f_i). All registers use the same host edge, have no distinct clock enable/reset, and explicitly return zero on an idle read. Thus both return OR_i f_i from the preceding sampling edge. This is a compositional synchronous identity, not a reachability assumption, cache reconstruction or new guest tick. Both establish zero on the first idle edge before any private consumer; no uninitialized response is consumed.
+
+The collision-delay contribution is the same fourteen-bit extract at original offsets4764..4777. Its architectural storage and local write process do not move. The only remaining response FF are at the VDP boundary. Logical meaningful response storage falls from 2×(64×32+32+14)=4188 bits to64; this 4124-bit source-level difference is not a measured fitted-FF or placed-ALM saving.
+
+`retiming.log` compares all returned bits at 480848 sampled host clocks, including all150 explicit addresses, randomized read requests/address changes, writes, collision contributions, guest enables, all16 mode/width configurations and 320016 full live-state/output comparisons. Zero tolerance and no resumed-clock grace. The separate `local_root.log` compares the selected receivers against the untouched committed parallel-restore sprite RTL, with gaps0/7/97 between private accesses and exact future state/output.
+
+Earlier integrated native runs used the distributed response prototype. Their controller/format/write implementation is byte-identical to the selected candidate; their read interface is connected to the selected implementation by the identity and miter above. Fresh selected-source native pending-collision and subsequent regressions independently exercise the boundary response. Archived `distributed/rtl` sources make the prototype explicit; do not mistake them for the selected build inputs.
+
+The deliberately dense-read scheduling pilot was interrupted to avoid redundant interpreted function work; no failure was observed. The completed miter retains every-clock equality, every address, all modes and randomized reads. Its terminal markers, rather than the interrupted pilot, supply the count.

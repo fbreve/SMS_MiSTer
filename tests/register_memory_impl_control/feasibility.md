@@ -1,0 +1,30 @@
+# Quartus 17.0.2 implementation-control feasibility
+
+The authority is the executable and help installed with this exact Lite17.0.2 Build602 installation. Its bundled help identifies itself as common/Standard Help17.0, copyright2017; that help alone is not proof of Lite feature availability. `assignment_help.log` queries the running Lite executable's registry. `documentation_manifest.json` records exact installed paths and SHA256 hashes, with text extracts under documentation/. Effective fitter settings and unsupported/ignored warnings are the final check during the selected build.
+
+| Mechanism | Actual 17.0.2 registry/documentation | Relevance and limits |
+| --- | --- | --- |
+| PHYSICAL_SYNTHESIS_REGISTER_RETIMING | Global/instance; On/Off | Already globally On. Permits physical retiming; does not force any transformation or a particular pipeline boundary. Repeating an instance On is not evidence of stronger enforcement. |
+| PHYSICAL_SYNTHESIS_EFFORT | Global; Extra/Fast/Normal | Normal is the retained effective value. Extra allocates additional compiler work to try for more performance; it can influence retiming/physical optimization without RTL or SDC changes. No guaranteed gain. Selected. |
+| ALLOW_REGISTER_RETIMING | Global; On/Off | Separate permission affecting synthesis/fitting; registry says automatic retiming additionally requires performance-focused optimization and is prevented if merging/duplication is globally disabled. Existing HIGH PERFORMANCE EFFORT and physical duplication are enabled. This is not a force-retime primitive. |
+| PLACEMENT_EFFORT_MULTIPLIER | Global; positive numeric value | Current effective value4.0 despite default1.0. More effort can influence placement quality/locality but cannot command baseline retiming or specific RAM/register proximity. |
+| FITTER_EFFORT | Auto Fit/Fast Fit/Standard Fit | Already Standard Fit, which the registry describes as maximum effort independent of requirements. Merely changing to Standard again is not a useful experiment. |
+| ALM_REGISTER_PACKING_EFFORT | High/Low/Medium | Already Low, documented as avoiding packing of unrelated LUT/register combinations for timing flexibility. Increasing it introduces an area/routing tradeoff rather than a narrow retiming remedy. |
+| set_location_assignment | Installed documented project API | Supports absolute placement assignments; not an automatic locality-preservation mechanism. Legal sites, node stability and fit feasibility must be established. Retimed node names change. Hard placements would add many assumptions, so not selected. |
+| PLACE_REGION / LogicLock membership | PLACE_REGION returns unsupported in this edition. LL_MEMBER_OF is recognized, but retained fitter warns292013 that LogicLock needs a subscription | A recognized spelling is not proof of a usable licensed mechanism. No region/member assignments are added or recommended as an immediately available Lite solution. |
+| Preserve Registers | Documented instance/entity logic option preventing sequential optimizations | A preservation directive is not a force-retiming setting. No preserve/dont-touch attributes are added. |
+
+## Why On can yield zero transformations
+
+**Documented:** the physical retiming option allows movement to improve circuit performance; effort controls work spent trying. Permission does not guarantee a profitable/legal move. The actual registry also documents broader retiming dependencies on performance modes and merging/duplication. Installed gate-level-retiming message pages document restrictions for cross-clock connectivity, registers feeding clock/asynchronous controls, and input-pin synchronizer sequences. Those pages describe gate-level diagnostics, not proof that any particular physical-retiming restriction occurred in these AUTO builds. None of these messages has been identified as the AUTO cause.
+
+**Measured:** both retained baselines execute physical retiming and report279ps estimated benefit in the first pass, with383 scaler Retimed Register rows. Both retained AUTO builds execute the pass but report0ps and no Retimed Register rows. The settings remain enabled. This contradicts a claim that retiming was simply turned Off or categorically unavailable in this Lite/device combination.
+
+**Hypotheses:** the changed inferred RAM/netlist may alter critical-path priorities, internal cost estimates, candidate profitability or eligibility within a globally optimized design. Zero estimated benefit may mean no transformations were selected or retained; logs do not expose the decision. A tool heuristic interaction is plausible. A compiler bug, a global M10K prohibition or a specific asynchronous-reset blocker has not been established. Extra effort is a test of search-effort sensitivity, not a presumed cure.
+
+## Ranked minimal reversible experiments (two total)
+
+1. **PHYSICAL_SYNTHESIS_EFFORT Normal→Extra in both fresh seed-2 variants.** One added global assignment per isolated QSF. Expected observation: potentially more/changed retiming or combinational optimization; check actual transformations and timing, not permission alone. Costs: compile time and possible area/routing changes. Recovery is proven only by the complete matched A/B results and comparison to retained Normal2 controls. **Only experiment executed.**
+2. **PLACEMENT_EFFORT_MULTIPLIER effective4.0→6.0 in both copies, retaining Normal physical effort.** One independent global control; supported positive numeric range. Expected observation: placement/route changes, potentially improved shadowmask/OSD locality, with no expectation that seven-level scaler logic automatically becomes four levels. Costs: runtime and seed-dependent QoR. This is lower priority because the retiming difference is structural. **Not executed; no input copies prepared.**
+
+No third candidate is needed. Do not combine controls, sweep seeds, import unlicensed LogicLock constraints, relax clocks/uncertainty, add false paths/multicycles or change video latency. The first completed experiment ends this task.

@@ -1,0 +1,281 @@
+diff --git a/SMS.sv b/SMS.sv
+index 8748ca51..6e0ca67c 100644
+--- a/SMS.sv
++++ b/SMS.sv
+@@ -884,7 +884,8 @@ wire         ss_z80_mreq_n;   // low = normal opcode fetch, high = interrupt ack
+ wire   [1:0] ss_z80_iset;     // "00" = eligible fetch; pending decoder context is saved separately
+ wire [135:0] ss_vdp_regs, ss_vdp_regs_in;
+ wire         ss_vdp_regs_set;
+-wire [383:0] ss_vdp_cram;
++wire [11:0] ss_vdp_cram;
++wire ss_cram_read;
+ wire  [4:0]  ss_cram_A;
+ wire [11:0]  ss_cram_D;
+ wire         ss_cram_wr;
+@@ -952,7 +953,7 @@ wire         ss_video_state_set;
+ // System E VDP2 / PSG2 save-state wires
+ wire [135:0] ss_vdp2_regs, ss_vdp2_regs_in;
+ wire         ss_vdp2_regs_set;
+-wire [383:0] ss_vdp2_cram;
++wire [11:0] ss_vdp2_cram;
+ wire  [4:0]  ss_cram2_A;
+ wire [11:0]  ss_cram2_D;
+ wire         ss_cram2_wr;
+@@ -1172,6 +1173,7 @@ system #(63) system
+ 	.vdp_regs_in (ss_vdp_regs_in),
+ 	.vdp_regs_set(ss_vdp_regs_set),
+ 	.vdp_cram_out(ss_vdp_cram),
++    .ss_cram_read(ss_cram_read),
+ 	.ss_cram_wr  (ss_cram_wr),
+ 	.ss_cram_A   (ss_cram_A),
+ 	.ss_cram_D   (ss_cram_D),
+@@ -1300,6 +1302,7 @@ savestates savestates_inst(
+ 	.vdp_regs_set    (ss_vdp_regs_set),
+ 	// CRAM
+ 	.cram_out        (ss_vdp_cram),
++    .cram_read       (ss_cram_read),
+ 	.cram_A          (ss_cram_A),
+ 	.cram_D          (ss_cram_D),
+ 	.cram_wr         (ss_cram_wr),
+diff --git a/rtl/savestates.sv b/rtl/savestates.sv
+index d3407e50..058fc678 100644
+--- a/rtl/savestates.sv
++++ b/rtl/savestates.sv
+@@ -105,7 +105,8 @@ module savestates (
+     output reg        vdp_regs_set,
+ 
+     // ---- CRAM ----
+-    input     [383:0] cram_out,
++    input      [11:0] cram_out,
++    output cram_read,
+     output reg  [4:0] cram_A,
+     output reg [11:0] cram_D,
+     output reg        cram_wr,
+@@ -208,7 +209,7 @@ module savestates (
+     output reg        vdp2_regs_set,
+ 
+     // ---- CRAM2 (System E second VDP colour RAM) ----
+-    input     [383:0] cram2_out,
++    input      [11:0] cram2_out,
+     output reg  [4:0] cram2_A,
+     output reg [11:0] cram2_D,
+     output reg        cram2_wr,
+@@ -623,6 +624,8 @@ wire [28:0] sprite_address=29'h2901+(sprite_second?29'd75:29'd0)+{22'd0,sprite_w
+ // back to the original record; LOAD shifts each incoming word into place.
+ wire [63:0] sprite_write_word=sprite_second?sprite2_snap[63:0]:sprite_snap[63:0];
+ reg [6:0]  state;
++localparam ST_CRAM_SCAN_WAIT=7'd122, ST_CRAM_SCAN_COLLECT=7'd123;
++assign cram_read = state==ST_CRAM_SCAN_WAIT || state==ST_CRAM_SCAN_COLLECT;
+ assign ss_busy = state != ST_IDLE;
+ // A System E UI pause may hold the CPU outside an opcode-fetch boundary.
+ // Permit only the progress needed to reach that boundary in a capture window.
+@@ -1335,7 +1338,7 @@ always @(posedge clk or negedge reset_n) begin
+             sprite_snap <= {22'd0,sprite_out};
+             sprite2_snap <= systeme ? {22'd0,sprite2_out} : 4800'd0;
+             vdp_snap    <= vdp_regs;
+-            cram_snap   <= cram_out;
++            // Palette capture uses the synchronous entry scan below.
+             psg_snap    <= psg_out;
+             mapper_snap <= mapper_out;
+             sc_size_snap <= sc_ram_size;
+@@ -1343,7 +1346,7 @@ always @(posedge clk or negedge reset_n) begin
+             evolution_snap <= evolution_out;
+             if (systeme) begin
+                 vdp2_snap   <= vdp2_regs;
+-                cram2_snap  <= cram2_out;
++                // The second palette is scanned in parallel while held.
+                 psg2_snap   <= psg2_out;
+             end
+             io_snap          <= io_out;
+@@ -1353,10 +1356,28 @@ always @(posedge clk or negedge reset_n) begin
+             
+             ss_freeze        <= 1;
+             freeze_drain_cnt <= 0;
+-            state            <= ST_FREEZE_DRAIN;
++            // Legacy64 System E retains the live secondary palette.
++            if (do_save || systeme) begin
++                cram_entry<=0;cram_A<=0;cram2_A<=0;
++                state<=ST_CRAM_SCAN_WAIT;
++            end else state<=ST_FREEZE_DRAIN;
+         end
+ 
+         // ---------------------------------------------------------------
++        // Read latency is one clock. Collect the prior registered read,
++        // then issue the next entry. No guest palette writer runs here.
++        ST_CRAM_SCAN_WAIT: state<=ST_CRAM_SCAN_COLLECT;
++        ST_CRAM_SCAN_COLLECT: begin
++            cram_snap<={cram_out,cram_snap[383:12]};
++            if(systeme)cram2_snap<={cram2_out,cram2_snap[383:12]};
++            if(cram_entry==31) begin
++                cram_entry<=0;state<=ST_FREEZE_DRAIN;
++            end else begin
++                cram_entry<=cram_entry+5'd1;
++                cram_A<=cram_entry+5'd1;cram2_A<=cram_entry+5'd1;
++                state<=ST_CRAM_SCAN_WAIT;
++            end
++        end
+         ST_FREEZE_DRAIN: begin
+             // After switching DDRAM ownership, wait for a clean idle window:
+             // no bus busy and no read-data pulses for 32 consecutive clocks.
+diff --git a/rtl/system.vhd b/rtl/system.vhd
+index f86aca77..fc9c9d04 100644
+--- a/rtl/system.vhd
++++ b/rtl/system.vhd
+@@ -160,7 +160,8 @@ entity system is
+ 		vdp_regs_out : out STD_LOGIC_VECTOR(135 downto 0);
+ 		vdp_regs_in  : in  STD_LOGIC_VECTOR(135 downto 0) := (others => '0');
+ 		vdp_regs_set : in  STD_LOGIC := '0';
+-		vdp_cram_out : out STD_LOGIC_VECTOR(383 downto 0);
++		vdp_cram_out : out STD_LOGIC_VECTOR(11 downto 0);
++        ss_cram_read : in STD_LOGIC := '0';
+ 		ss_cram_wr   : in  STD_LOGIC := '0';
+ 		ss_cram_A    : in  STD_LOGIC_VECTOR(4 downto 0)  := (others => '0');
+ 		ss_cram_D    : in  STD_LOGIC_VECTOR(11 downto 0) := (others => '0');
+@@ -208,7 +209,7 @@ entity system is
+ 		vdp2_regs_out : out STD_LOGIC_VECTOR(135 downto 0);
+ 		vdp2_regs_in  : in  STD_LOGIC_VECTOR(135 downto 0) := (others => '0');
+ 		vdp2_regs_set : in  STD_LOGIC := '0';
+-		vdp2_cram_out : out STD_LOGIC_VECTOR(383 downto 0);
++		vdp2_cram_out : out STD_LOGIC_VECTOR(11 downto 0);
+ 		ss_cram2_wr   : in  STD_LOGIC := '0';
+ 		ss_cram2_A    : in  STD_LOGIC_VECTOR(4 downto 0)  := (others => '0');
+ 		ss_cram2_D    : in  STD_LOGIC_VECTOR(11 downto 0) := (others => '0');
+@@ -346,7 +347,7 @@ architecture Behavioral of system is
+ 
+ 	-- VDP2 save-state internal wires (System E)
+ 	signal vdp2_regs_out_i   : std_logic_vector(135 downto 0);
+-	signal vdp2_cram_out_i   : std_logic_vector(383 downto 0);
++	signal vdp2_cram_out_i   : std_logic_vector(11 downto 0);
+ 	signal vdp2_vram_D_i     : std_logic_vector(7 downto 0);
+ 	-- PSG2 save-state internal wire
+ 	signal psg2_out_i        : std_logic_vector(55 downto 0);
+@@ -722,6 +723,7 @@ begin
+ 		ss_regs_in  => vdp_regs_in,
+ 		ss_regs_set => vdp_regs_set,
+ 		ss_cram_out => vdp_cram_out,
++        ss_cram_read => ss_cram_read,
+ 		ss_cram_wr  => ss_cram_wr,
+ 		ss_cram_A   => ss_cram_A,
+ 		ss_cram_D   => ss_cram_D,
+@@ -780,6 +782,7 @@ begin
+ 		ss_regs_in  => vdp2_regs_in,
+ 		ss_regs_set => vdp2_regs_set,
+ 		ss_cram_out => vdp2_cram_out_i,
++        ss_cram_read => ss_cram_read,
+ 		ss_cram_wr  => ss_cram2_wr,
+ 		ss_cram_A   => ss_cram2_A,
+ 		ss_cram_D   => ss_cram2_D,
+diff --git a/rtl/vdp.vhd b/rtl/vdp.vhd
+index f6e8104d..4619ebef 100644
+--- a/rtl/vdp.vhd
++++ b/rtl/vdp.vhd
+@@ -100,8 +100,9 @@ entity vdp is
+ 		ss_regs_in     : in  STD_LOGIC_VECTOR(135 downto 0) := (others => '0');
+ 		ss_regs_set    : in  STD_LOGIC := '0';
+ 
+-		-- CRAM snapshot (32 × 12 bits = 384 bits, combinational)
+-		ss_cram_out    : out STD_LOGIC_VECTOR(383 downto 0);
++		-- CRAM snapshot: registered 12-bit reads while the guest is frozen
++		ss_cram_out    : out STD_LOGIC_VECTOR(11 downto 0);
++        ss_cram_read   : in STD_LOGIC := '0';
+ 		-- CRAM restore: write one entry per cycle
+ 		ss_cram_wr     : in  STD_LOGIC := '0';
+ 		ss_cram_A      : in  STD_LOGIC_VECTOR(4 downto 0) := (others => '0');
+@@ -312,7 +313,8 @@ begin
+ 		vdp_clk			=> clk_sys,
+ 		vdp_A				=> cram_vdp_A,
+ 		vdp_D				=> cram_vdp_D,
+-		ss_D             => ss_cram_out,
++		ss_Q             => ss_cram_out,
++        ss_rd            => ss_cram_read,
+ 		ss_wr            => ss_cram_wr,
+ 		ss_A             => ss_cram_A,
+ 		ss_wD            => ss_cram_D
+diff --git a/rtl/vdp_cram.vhd b/rtl/vdp_cram.vhd
+index 557fdc87..a8a6c74a 100644
+--- a/rtl/vdp_cram.vhd
++++ b/rtl/vdp_cram.vhd
+@@ -1,59 +1,29 @@
+ library IEEE;
+ use IEEE.STD_LOGIC_1164.ALL;
+ use IEEE.NUMERIC_STD.ALL;
+-
+ entity vdp_cram is
+-	port (
+-		cpu_clk:	in  STD_LOGIC;
+-		cpu_WE:	in  STD_LOGIC;
+-		cpu_A:	in  STD_LOGIC_VECTOR (4 downto 0);
+-		cpu_D:	in  STD_LOGIC_VECTOR (11 downto 0);
+-		vdp_clk:	in  STD_LOGIC;
+-		vdp_A:	in  STD_LOGIC_VECTOR (4 downto 0);
+-		vdp_D:	out STD_LOGIC_VECTOR (11 downto 0);
+-		-- Save-state snapshot: all 32 entries read in one cycle (combinational)
+-		ss_D:		out STD_LOGIC_VECTOR (11*32+31 downto 0);  -- 32 × 12 bits = 384 bits
+-		-- Save-state restore: write one entry per cycle
+-		ss_wr:	in  STD_LOGIC := '0';
+-		ss_A:		in  STD_LOGIC_VECTOR (4 downto 0) := (others => '0');
+-		ss_wD:	in  STD_LOGIC_VECTOR (11 downto 0) := (others => '0')
+-	);
+-end vdp_cram;
+-
+-architecture Behavioral of vdp_cram is
+-
+-	type t_ram is array (0 to 31) of std_logic_vector(11 downto 0);
+-	signal ram : t_ram := (others => "111111111111");
+-	
++ port(cpu_clk:in std_logic;cpu_WE:in std_logic;
++ cpu_A:in std_logic_vector(4 downto 0);cpu_D:in std_logic_vector(11 downto 0);
++ vdp_clk:in std_logic;vdp_A:in std_logic_vector(4 downto 0);vdp_D:out std_logic_vector(11 downto 0);
++ ss_rd:in std_logic;ss_Q:out std_logic_vector(11 downto 0);
++ ss_wr:in std_logic;ss_A:in std_logic_vector(4 downto 0);ss_wD:in std_logic_vector(11 downto 0));
++end;
++architecture rtl of vdp_cram is
++ type t_ram is array(0 to 31)of std_logic_vector(11 downto 0);
++ signal ram:t_ram:=(others=>(others=>'1'));
++ attribute ramstyle:string;
++ attribute ramstyle of ram:signal is "M10K";
++ signal addr_a:std_logic_vector(4 downto 0);
+ begin
+-
+-	process (cpu_clk)
+-		variable i : integer range 0 to 31;
+-	begin
+-		if rising_edge(cpu_clk) then
+-			if ss_wr = '1' then
+-				i := to_integer(unsigned(ss_A));
+-				ram(i) <= ss_wD;
+-			elsif cpu_WE='1' then
+-				i := to_integer(unsigned(cpu_A));
+-				ram(i) <= cpu_D;
+-			end if;
+-		end if;
+-	end process;
+-
+-	-- Snapshot: all 32 entries read combinationally for save-state DMA
+-	gen_ss: for idx in 0 to 31 generate
+-		ss_D(idx*12+11 downto idx*12) <= ram(idx);
+-	end generate;
+-
+-	process (vdp_clk)
+-		variable i : integer range 0 to 31;
+-	begin
+-		if rising_edge(vdp_clk) then
+-			i := to_integer(unsigned(vdp_A));
+-			vdp_D <= ram(i);
+-		end if;
+-	end process;
+-
+-end Behavioral;
+-
++ addr_a<=ss_A when ss_rd='1' or ss_wr='1' else cpu_A;
++ process(cpu_clk)begin
++  if rising_edge(cpu_clk)then
++   if ss_wr='1' then ram(to_integer(unsigned(addr_a)))<=ss_wD;
++   elsif cpu_WE='1' then ram(to_integer(unsigned(addr_a)))<=cpu_D;
++   else ss_Q<=ram(to_integer(unsigned(addr_a)));end if;
++  end if;
++ end process;
++ process(vdp_clk)begin
++  if rising_edge(vdp_clk)then vdp_D<=ram(to_integer(unsigned(vdp_A)));end if;
++ end process;
++end;

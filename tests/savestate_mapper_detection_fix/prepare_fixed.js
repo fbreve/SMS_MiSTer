@@ -1,0 +1,11 @@
+const fs=require('fs'),path=require('path'),d=__dirname;
+require('./prepare.js');
+let machine=fs.readFileSync(path.join(d,'machine.sv'),'utf8').replace('input[63:0]mapper_in,','input[63:0]mapper_in,input[17:0]mapper_history_in,output[17:0]mapper_history_out,');
+fs.writeFileSync(path.join(d,'machine.sv'),machine);
+let tb=fs.readFileSync(path.join(d,'history_tb.sv'),'utf8');
+tb=tb.replace('parameter CASE=0;','parameter CASE=0,ITERATIONS=2,STALL=0,SAVE_DELAY=0;');
+tb=tb.replace('cycle=cycle+1;end',"cycle=cycle+1;DDRAM_BUSY=(DDRAM_RD||DDRAM_WE)&&(STALL==1?(cycle%31<13):STALL==2?((cycle*17)%47<29):0);end");
+tb=tb.replace('wire [63:0] mapper_out;','wire [63:0] mapper_out;wire [17:0]mapper_history_out,mapper_history_in;wire[17:0]refhistory,peerhistory;');
+tb=tb.replaceAll('.mapper_in(mapper_in),','.mapper_in(mapper_in),.mapper_history_in(mapper_history_in),.mapper_history_out(mapper_history_out),');
+for(const [n,h]of [['reference','refhistory'],['peer','peerhistory']])tb=tb.replace(new RegExp('(machine '+n+'\\([^;]+?)\\.mapper_in\\(64\\x27d0\\),'),'$1.mapper_in(64\'d0),.mapper_history_in(18\'h0ffff),.mapper_history_out('+h+'),');
+fs.writeFileSync(path.join(d,'history_tb.sv'),tb);

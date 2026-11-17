@@ -1,0 +1,14 @@
+{
+  "base": "b0f4b71",
+  "files": {
+    "SMS.sv": "5a97425813e7a12d36a27be760de516b16416864c4b8284c32023e03e4ec1ac8",
+    "rtl/system.vhd": "9f68ccde0ca24f5e85ebe5c33a5bb15948da3ed5866ae47fcb707c4c0a71f446",
+    "rtl/mapper_ctrl.vhd": "6c69559e9842fe4631931cca01a822537186ffeae3e2f69eb462ed35b470f14f",
+    "rtl/mapper_detect.vhd": "921299c1af0c10942da4965a6da09ec523420f971bc5e5c8ec53d3b4b65928d7",
+    "rtl/memory_bus.vhd": "e8ee429b182ac9367da235d69808b96c5e4d216042b1bd05dc235faf63ca0b22",
+    "rtl/dpram.vhd": "3f531409a5b29d1b636734aeb2055ccfe6fc59a37d138d9a24b6bc8a69a13dae",
+    "rtl/nvram_ff.mif": "8ca287f0f6e54e747ad0d60e79e16412ba58fe203dce8d31892eeacce0d70b49",
+    "rtl/io.vhd": "e21336a23337416a126ed0dfbf1c20fc49ad5a1dd17bb00adf643b11fb600e6d"
+  },
+  "addressExpression": "\tnvram_a <= (\"00000000\" & eeprom_nvram_a)\n                   when eeprom_enabled = '1' else\n               \"0000\" & A(10 downto 0) when sc3000_en = '1' and sc_cart_ram = \"01\" else\n               '0' & A(13 downto 0)    when sc3000_en = '1' and sc_cart_ram = \"10\" else\n               A(14 downto 0)          when (sc3000_en = '1' and sc_cart_ram = \"11\") or mapper_castle = '1' else\n               \"00\" & A(12 downto 0)   when dahjee_cart_access = '1' else\n               (nvram_p and not A(14)) & A(13 downto 0);\n\n"
+}

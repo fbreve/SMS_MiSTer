@@ -1,0 +1,510 @@
+{
+  "base": "60c6552afdbc87dd6f7f3ccfbab14ee41be7195e",
+  "branch": "fix/savestate-gg-io",
+  "sources": {
+    "SMS.sv": {
+      "F07": "14b95d3d7194bef2beb23d840e066bcfdc0bafbd3ad2582b9a98d80386ae3daa",
+      "F02": "a7528c1e553ef129246fa40b5512c4f8bb93b74329929bbfa2daeb5d7e2bcd2a"
+    },
+    "rtl/io.vhd": {
+      "F07": "b51ca7cd32a2af86da645ba1cfe5b7cebe61b89ded9b6e2de991dd2737bb0e41",
+      "F02": "e21336a23337416a126ed0dfbf1c20fc49ad5a1dd17bb00adf643b11fb600e6d"
+    },
+    "rtl/savestates.sv": {
+      "F07": "1cf9bb7d37a660b7a07765e22449acdca34ac5514b79ee1d3e8932f207853056",
+      "F02": "9dcaa56ae82246eecb6d7faf3f3c7cb9518981258bd5f20020d7a27079c34268"
+    },
+    "rtl/system.vhd": {
+      "F07": "c9e46a2ce6f1e5ec97fe0ff63d9a3770e0f9d25cb965fde58bd801a8ef607ebc",
+      "F02": "9db0ddf7406d2bb034eec273f67bf9f91adf685395d97711bb2b5e206c03075b"
+    },
+    "rtl/vdp.vhd": {
+      "F07": "ed1017aeed6f681dd61875fba53357930ea1d27c14af08923e057c8fca6463ee",
+      "F02": "ed1017aeed6f681dd61875fba53357930ea1d27c14af08923e057c8fca6463ee"
+    },
+    "SMS.qsf": {
+      "F07": "3ed28517bc891b10127953c4b477727785988ebc0950234919d9e52b3310aa79",
+      "F02": "3ed28517bc891b10127953c4b477727785988ebc0950234919d9e52b3310aa79"
+    },
+    "files.qip": {
+      "F07": "7987c5adc1482640fffa46aab92abae6d1c62741aee50441f51281ba532a1b48",
+      "F02": "7987c5adc1482640fffa46aab92abae6d1c62741aee50441f51281ba532a1b48"
+    }
+  },
+  "testInputs": {
+    "capture_reference.js": "02e6f2c8f0be8745bf3aab26dadd21f801e34533f1f53911951b0ce944842bda",
+    "controller_model.sv.in": "6f911d605289cd4f2430432b9f3071f3058611b61c8a184502294847a67e2b2e",
+    "gg.do": "d89ce4a25a79fd82e7b10a0f3003c1d9b1a76e862865e9e884fac6dbfca9a1dd",
+    "gg_tb.vhd": "9ab6ce0fa317bc20f4035f2ffe3101dbe159b043225ddfd53a338522b0661390",
+    "integration.do": "31b49198a77528c5caae012724172ee2289d817a2fbcf2cf3fadef9255606e38",
+    "integration_tb.sv": "6a86005f5afebacc57b6301659028f1c7ada1b225181ab6660382e56d6cfd448",
+    "prepare.js": "2c0437ddd6b452e2a8d617a4e5c5334e72f99d3d5318c3eaea19020913827709",
+    "prepare_integration.js": "d61e4477e94aed907b014092324f4fcc0343c04c5f9959a9a82fa80680ebf21e",
+    "results.js": "ad1697035de82f6348909e99c616d7602297b53861b41bfbdfaf1a1df1b60da8",
+    "static_checks.js": "2794110a4fbdad5389ed3244edb923c817a18c09d1aa5962164342c35a457cbe"
+  },
+  "baseline": {
+    "alms": 26532,
+    "registers": 35817,
+    "memoryBits": 3809858,
+    "timing": [
+      {
+        "type": "Setup 'pll_hdmi|pll_hdmi_inst|altera_pll_i|cyclonev_pll|counter[0].output_counter|divclk'",
+        "slack": 0.354,
+        "tns": 0
+      },
+      {
+        "type": "Setup 'emu|pll|pll_inst|altera_pll_i|cyclonev_pll|counter[0].output_counter|divclk'",
+        "slack": 0.862,
+        "tns": 0
+      },
+      {
+        "type": "Setup 'sysmem|fpga_interfaces|clocks_resets|h2f_user0_clk'",
+        "slack": 4.792,
+        "tns": 0
+      },
+      {
+        "type": "Setup 'spi_sck'",
+        "slack": 5.788,
+        "tns": 0
+      },
+      {
+        "type": "Setup 'FPGA_CLK2_50'",
+        "slack": 6.065,
+        "tns": 0
+      },
+      {
+        "type": "Setup 'FPGA_CLK1_50'",
+        "slack": 8.653,
+        "tns": 0
+      },
+      {
+        "type": "Setup 'pll_audio|pll_audio_inst|altera_pll_i|general[0].gpll~PLL_OUTPUT_COUNTER|divclk'",
+        "slack": 14.263,
+        "tns": 0
+      },
+      {
+        "type": "Hold 'emu|pll|pll_inst|altera_pll_i|cyclonev_pll|counter[0].output_counter|divclk'",
+        "slack": 0.188,
+        "tns": 0
+      },
+      {
+        "type": "Hold 'pll_hdmi|pll_hdmi_inst|altera_pll_i|cyclonev_pll|counter[0].output_counter|divclk'",
+        "slack": 0.256,
+        "tns": 0
+      },
+      {
+        "type": "Hold 'pll_audio|pll_audio_inst|altera_pll_i|general[0].gpll~PLL_OUTPUT_COUNTER|divclk'",
+        "slack": 0.265,
+        "tns": 0
+      },
+      {
+        "type": "Hold 'FPGA_CLK1_50'",
+        "slack": 0.273,
+        "tns": 0
+      },
+      {
+        "type": "Hold 'sysmem|fpga_interfaces|clocks_resets|h2f_user0_clk'",
+        "slack": 0.327,
+        "tns": 0
+      },
+      {
+        "type": "Hold 'FPGA_CLK2_50'",
+        "slack": 0.393,
+        "tns": 0
+      },
+      {
+        "type": "Hold 'spi_sck'",
+        "slack": 0.458,
+        "tns": 0
+      },
+      {
+        "type": "Recovery 'pll_hdmi|pll_hdmi_inst|altera_pll_i|cyclonev_pll|counter[0].output_counter|divclk'",
+        "slack": 4.333,
+        "tns": 0
+      },
+      {
+        "type": "Recovery 'sysmem|fpga_interfaces|clocks_resets|h2f_user0_clk'",
+        "slack": 6.716,
+        "tns": 0
+      },
+      {
+        "type": "Recovery 'emu|pll|pll_inst|altera_pll_i|cyclonev_pll|counter[0].output_counter|divclk'",
+        "slack": 8.649,
+        "tns": 0
+      },
+      {
+        "type": "Recovery 'FPGA_CLK1_50'",
+        "slack": 16.708,
+        "tns": 0
+      },
+      {
+        "type": "Recovery 'FPGA_CLK2_50'",
+        "slack": 17.749,
+        "tns": 0
+      },
+      {
+        "type": "Removal 'FPGA_CLK1_50'",
+        "slack": 0.988,
+        "tns": 0
+      },
+      {
+        "type": "Removal 'FPGA_CLK2_50'",
+        "slack": 1.291,
+        "tns": 0
+      },
+      {
+        "type": "Removal 'pll_hdmi|pll_hdmi_inst|altera_pll_i|cyclonev_pll|counter[0].output_counter|divclk'",
+        "slack": 1.319,
+        "tns": 0
+      },
+      {
+        "type": "Removal 'emu|pll|pll_inst|altera_pll_i|cyclonev_pll|counter[0].output_counter|divclk'",
+        "slack": 1.556,
+        "tns": 0
+      },
+      {
+        "type": "Removal 'sysmem|fpga_interfaces|clocks_resets|h2f_user0_clk'",
+        "slack": 1.852,
+        "tns": 0
+      },
+      {
+        "type": "Minimum Pulse Width 'pll_hdmi|pll_hdmi_inst|altera_pll_i|cyclonev_pll|fpll_0|fpll|vcoph[0]'",
+        "slack": 1.122,
+        "tns": 0
+      },
+      {
+        "type": "Minimum Pulse Width 'emu|pll|pll_inst|altera_pll_i|cyclonev_pll|fpll_0|fpll|vcoph[0]'",
+        "slack": 1.164,
+        "tns": 0
+      },
+      {
+        "type": "Minimum Pulse Width 'pll_audio|pll_audio_inst|altera_pll_i|general[0].gpll~FRACTIONAL_PLL|vcoph[0]'",
+        "slack": 1.196,
+        "tns": 0
+      },
+      {
+        "type": "Minimum Pulse Width 'pll_hdmi|pll_hdmi_inst|altera_pll_i|cyclonev_pll|counter[0].output_counter|divclk'",
+        "slack": 1.927,
+        "tns": 0
+      },
+      {
+        "type": "Minimum Pulse Width 'sysmem|fpga_interfaces|clocks_resets|h2f_user0_clk'",
+        "slack": 3.581,
+        "tns": 0
+      },
+      {
+        "type": "Minimum Pulse Width 'spi_sck'",
+        "slack": 4.212,
+        "tns": 0
+      },
+      {
+        "type": "Minimum Pulse Width 'emu|pll|pll_inst|altera_pll_i|cyclonev_pll|counter[0].output_counter|divclk'",
+        "slack": 7.877,
+        "tns": 0
+      },
+      {
+        "type": "Minimum Pulse Width 'FPGA_CLK1_50'",
+        "slack": 9.207,
+        "tns": 0
+      },
+      {
+        "type": "Minimum Pulse Width 'FPGA_CLK2_50'",
+        "slack": 9.216,
+        "tns": 0
+      },
+      {
+        "type": "Minimum Pulse Width 'FPGA_CLK3_50'",
+        "slack": 9.73,
+        "tns": 0
+      },
+      {
+        "type": "Minimum Pulse Width 'pll_audio|pll_audio_inst|altera_pll_i|general[0].gpll~PLL_OUTPUT_COUNTER|divclk'",
+        "slack": 18.912,
+        "tns": 0
+      }
+    ],
+    "criticalWarnings": [
+      "Critical Warning (18061): Ignored Power-Up Level option on the following registers",
+      "Critical Warning (18010): Register emu:emu|system:system|vdp:vdp_inst|spr_address[0] will power up to High",
+      "Critical Warning (18010): Register emu:emu|system:system|vdp:vdp_inst|spr_address[1] will power up to High",
+      "Critical Warning (18010): Register emu:emu|system:system|vdp:vdp_inst|spr_address[2] will power up to High",
+      "Critical Warning (18010): Register emu:emu|system:system|vdp:vdp_inst|spr_address[3] will power up to High",
+      "Critical Warning (18010): Register emu:emu|system:system|vdp:vdp_inst|spr_address[4] will power up to High",
+      "Critical Warning (18010): Register emu:emu|system:system|vdp:vdp_inst|spr_address[5] will power up to High",
+      "Critical Warning (18010): Register emu:emu|system:system|vdp:vdp2_inst|spr_address[0] will power up to High",
+      "Critical Warning (18010): Register emu:emu|system:system|vdp:vdp2_inst|spr_address[1] will power up to High",
+      "Critical Warning (18010): Register emu:emu|system:system|vdp:vdp2_inst|spr_address[2] will power up to High",
+      "Critical Warning (18010): Register emu:emu|system:system|vdp:vdp2_inst|spr_address[3] will power up to High",
+      "Critical Warning (18010): Register emu:emu|system:system|vdp:vdp2_inst|spr_address[4] will power up to High",
+      "Critical Warning (18010): Register emu:emu|system:system|vdp:vdp2_inst|spr_address[5] will power up to High",
+      "Critical Warning (18010): Register emu:emu|system:system|mapper_ctrl:mapper_banking|jang_bank2[0] will power up to High",
+      "Critical Warning (18010): Register emu:emu|system:system|mapper_ctrl:mapper_banking|jang_bank4[0] will power up to High",
+      "Critical Warning (18010): Register emu:emu|system:system|vdp:vdp_inst|irq_line_en will power up to High",
+      "Critical Warning (18010): Register emu:emu|system:system|vdp:vdp_inst|reset_flags will power up to High",
+      "Critical Warning (18010): Register emu:emu|system:system|vdp:vdp2_inst|irq_line_en will power up to High",
+      "Critical Warning (18010): Register emu:emu|system:system|vdp:vdp2_inst|reset_flags will power up to High",
+      "Critical Warning (18010): Register emu:emu|system:system|vdp:vdp_inst|mask_column0 will power up to High",
+      "Critical Warning (18010): Register emu:emu|system:system|vdp:vdp_inst|display_on will power up to Low",
+      "Critical Warning (18010): Register emu:emu|system:system|vdp:vdp2_inst|display_on will power up to Low",
+      "Critical Warning (18010): Register emu:emu|system:system|vdp:vdp_inst|spr_address[6] will power up to High",
+      "Critical Warning (18010): Register emu:emu|system:system|vdp:vdp2_inst|spr_address[6] will power up to High",
+      "Critical Warning (18010): Register emu:emu|system:system|vdp:vdp2_inst|mask_column0 will power up to High",
+      "Critical Warning (18010): Register emu:emu|system:system|vdp:vdp_inst|bg_address[1] will power up to High",
+      "Critical Warning (18010): Register emu:emu|system:system|vdp:vdp_inst|bg_address[2] will power up to High",
+      "Critical Warning (18010): Register emu:emu|system:system|vdp:vdp2_inst|bg_address[1] will power up to High",
+      "Critical Warning (18010): Register emu:emu|system:system|vdp:vdp2_inst|bg_address[2] will power up to High",
+      "Critical Warning (18010): Register emu:emu|system:system|vdp:vdp_inst|bg_address[3] will power up to High",
+      "Critical Warning (18010): Register emu:emu|system:system|vdp:vdp2_inst|bg_address[3] will power up to High",
+      "Critical Warning (18010): Register emu:emu|system:system|io:io_inst|gg_pdr[0] will power up to High",
+      "Critical Warning (18010): Register emu:emu|system:system|io:io_inst|gg_pdr[4] will power up to High",
+      "Critical Warning (18010): Register emu:emu|system:system|io:io_inst|gg_pdr[1] will power up to High",
+      "Critical Warning (18010): Register emu:emu|system:system|io:io_inst|gg_pdr[6] will power up to High",
+      "Critical Warning (18010): Register emu:emu|system:system|io:io_inst|gg_pdr[5] will power up to High",
+      "Critical Warning (18010): Register emu:emu|system:system|io:io_inst|gg_pdr[2] will power up to High",
+      "Critical Warning (18010): Register emu:emu|system:system|io:io_inst|gg_pdr[3] will power up to High"
+    ],
+    "ramBlocks": 487,
+    "dspBlocks": 39
+  },
+  "candidate": {
+    "alms": 26656,
+    "registers": 36100,
+    "memoryBits": 3809858,
+    "ramBlocks": 487,
+    "dspBlocks": 39,
+    "timing": [
+      {
+        "type": "Setup 'emu|pll|pll_inst|altera_pll_i|cyclonev_pll|counter[0].output_counter|divclk'",
+        "slack": 0.434,
+        "tns": 0
+      },
+      {
+        "type": "Setup 'pll_hdmi|pll_hdmi_inst|altera_pll_i|cyclonev_pll|counter[0].output_counter|divclk'",
+        "slack": 0.504,
+        "tns": 0
+      },
+      {
+        "type": "Setup 'sysmem|fpga_interfaces|clocks_resets|h2f_user0_clk'",
+        "slack": 3.301,
+        "tns": 0
+      },
+      {
+        "type": "Setup 'FPGA_CLK2_50'",
+        "slack": 5.765,
+        "tns": 0
+      },
+      {
+        "type": "Setup 'spi_sck'",
+        "slack": 6.708,
+        "tns": 0
+      },
+      {
+        "type": "Setup 'FPGA_CLK1_50'",
+        "slack": 7.269,
+        "tns": 0
+      },
+      {
+        "type": "Setup 'pll_audio|pll_audio_inst|altera_pll_i|general[0].gpll~PLL_OUTPUT_COUNTER|divclk'",
+        "slack": 12.998,
+        "tns": 0
+      },
+      {
+        "type": "Hold 'pll_hdmi|pll_hdmi_inst|altera_pll_i|cyclonev_pll|counter[0].output_counter|divclk'",
+        "slack": 0.153,
+        "tns": 0
+      },
+      {
+        "type": "Hold 'emu|pll|pll_inst|altera_pll_i|cyclonev_pll|counter[0].output_counter|divclk'",
+        "slack": 0.245,
+        "tns": 0
+      },
+      {
+        "type": "Hold 'pll_audio|pll_audio_inst|altera_pll_i|general[0].gpll~PLL_OUTPUT_COUNTER|divclk'",
+        "slack": 0.275,
+        "tns": 0
+      },
+      {
+        "type": "Hold 'FPGA_CLK1_50'",
+        "slack": 0.29,
+        "tns": 0
+      },
+      {
+        "type": "Hold 'sysmem|fpga_interfaces|clocks_resets|h2f_user0_clk'",
+        "slack": 0.314,
+        "tns": 0
+      },
+      {
+        "type": "Hold 'FPGA_CLK2_50'",
+        "slack": 0.418,
+        "tns": 0
+      },
+      {
+        "type": "Hold 'spi_sck'",
+        "slack": 0.452,
+        "tns": 0
+      },
+      {
+        "type": "Recovery 'pll_hdmi|pll_hdmi_inst|altera_pll_i|cyclonev_pll|counter[0].output_counter|divclk'",
+        "slack": 3.929,
+        "tns": 0
+      },
+      {
+        "type": "Recovery 'sysmem|fpga_interfaces|clocks_resets|h2f_user0_clk'",
+        "slack": 6.203,
+        "tns": 0
+      },
+      {
+        "type": "Recovery 'emu|pll|pll_inst|altera_pll_i|cyclonev_pll|counter[0].output_counter|divclk'",
+        "slack": 8.16,
+        "tns": 0
+      },
+      {
+        "type": "Recovery 'FPGA_CLK1_50'",
+        "slack": 16.367,
+        "tns": 0
+      },
+      {
+        "type": "Recovery 'FPGA_CLK2_50'",
+        "slack": 16.958,
+        "tns": 0
+      },
+      {
+        "type": "Removal 'FPGA_CLK2_50'",
+        "slack": 0.912,
+        "tns": 0
+      },
+      {
+        "type": "Removal 'FPGA_CLK1_50'",
+        "slack": 0.953,
+        "tns": 0
+      },
+      {
+        "type": "Removal 'pll_hdmi|pll_hdmi_inst|altera_pll_i|cyclonev_pll|counter[0].output_counter|divclk'",
+        "slack": 1.576,
+        "tns": 0
+      },
+      {
+        "type": "Removal 'emu|pll|pll_inst|altera_pll_i|cyclonev_pll|counter[0].output_counter|divclk'",
+        "slack": 1.839,
+        "tns": 0
+      },
+      {
+        "type": "Removal 'sysmem|fpga_interfaces|clocks_resets|h2f_user0_clk'",
+        "slack": 2.19,
+        "tns": 0
+      },
+      {
+        "type": "Minimum Pulse Width 'pll_hdmi|pll_hdmi_inst|altera_pll_i|cyclonev_pll|fpll_0|fpll|vcoph[0]'",
+        "slack": 1.122,
+        "tns": 0
+      },
+      {
+        "type": "Minimum Pulse Width 'emu|pll|pll_inst|altera_pll_i|cyclonev_pll|fpll_0|fpll|vcoph[0]'",
+        "slack": 1.164,
+        "tns": 0
+      },
+      {
+        "type": "Minimum Pulse Width 'pll_audio|pll_audio_inst|altera_pll_i|general[0].gpll~FRACTIONAL_PLL|vcoph[0]'",
+        "slack": 1.196,
+        "tns": 0
+      },
+      {
+        "type": "Minimum Pulse Width 'pll_hdmi|pll_hdmi_inst|altera_pll_i|cyclonev_pll|counter[0].output_counter|divclk'",
+        "slack": 1.929,
+        "tns": 0
+      },
+      {
+        "type": "Minimum Pulse Width 'sysmem|fpga_interfaces|clocks_resets|h2f_user0_clk'",
+        "slack": 3.588,
+        "tns": 0
+      },
+      {
+        "type": "Minimum Pulse Width 'spi_sck'",
+        "slack": 4.205,
+        "tns": 0
+      },
+      {
+        "type": "Minimum Pulse Width 'emu|pll|pll_inst|altera_pll_i|cyclonev_pll|counter[0].output_counter|divclk'",
+        "slack": 7.876,
+        "tns": 0
+      },
+      {
+        "type": "Minimum Pulse Width 'FPGA_CLK1_50'",
+        "slack": 9.207,
+        "tns": 0
+      },
+      {
+        "type": "Minimum Pulse Width 'FPGA_CLK2_50'",
+        "slack": 9.21,
+        "tns": 0
+      },
+      {
+        "type": "Minimum Pulse Width 'FPGA_CLK3_50'",
+        "slack": 9.73,
+        "tns": 0
+      },
+      {
+        "type": "Minimum Pulse Width 'pll_audio|pll_audio_inst|altera_pll_i|general[0].gpll~PLL_OUTPUT_COUNTER|divclk'",
+        "slack": 18.898,
+        "tns": 0
+      }
+    ],
+    "criticalWarnings": [
+      "Critical Warning (18061): Ignored Power-Up Level option on the following registers",
+      "Critical Warning (18010): Register emu:emu|system:system|vdp:vdp_inst|spr_address[0] will power up to High",
+      "Critical Warning (18010): Register emu:emu|system:system|vdp:vdp_inst|spr_address[1] will power up to High",
+      "Critical Warning (18010): Register emu:emu|system:system|vdp:vdp_inst|spr_address[2] will power up to High",
+      "Critical Warning (18010): Register emu:emu|system:system|vdp:vdp_inst|spr_address[3] will power up to High",
+      "Critical Warning (18010): Register emu:emu|system:system|vdp:vdp_inst|spr_address[4] will power up to High",
+      "Critical Warning (18010): Register emu:emu|system:system|vdp:vdp_inst|spr_address[5] will power up to High",
+      "Critical Warning (18010): Register emu:emu|system:system|vdp:vdp2_inst|spr_address[0] will power up to High",
+      "Critical Warning (18010): Register emu:emu|system:system|vdp:vdp2_inst|spr_address[1] will power up to High",
+      "Critical Warning (18010): Register emu:emu|system:system|vdp:vdp2_inst|spr_address[2] will power up to High",
+      "Critical Warning (18010): Register emu:emu|system:system|vdp:vdp2_inst|spr_address[3] will power up to High",
+      "Critical Warning (18010): Register emu:emu|system:system|vdp:vdp2_inst|spr_address[4] will power up to High",
+      "Critical Warning (18010): Register emu:emu|system:system|vdp:vdp2_inst|spr_address[5] will power up to High",
+      "Critical Warning (18010): Register emu:emu|system:system|vdp:vdp_inst|mask_column0 will power up to High",
+      "Critical Warning (18010): Register emu:emu|system:system|vdp:vdp2_inst|irq_line_en will power up to High",
+      "Critical Warning (18010): Register emu:emu|system:system|vdp:vdp2_inst|reset_flags will power up to High",
+      "Critical Warning (18010): Register emu:emu|system:system|vdp:vdp_inst|irq_line_en will power up to High",
+      "Critical Warning (18010): Register emu:emu|system:system|vdp:vdp_inst|reset_flags will power up to High",
+      "Critical Warning (18010): Register emu:emu|system:system|vdp:vdp_inst|display_on will power up to Low",
+      "Critical Warning (18010): Register emu:emu|system:system|vdp:vdp2_inst|display_on will power up to Low",
+      "Critical Warning (18010): Register emu:emu|system:system|mapper_ctrl:mapper_banking|jang_bank2[0] will power up to High",
+      "Critical Warning (18010): Register emu:emu|system:system|mapper_ctrl:mapper_banking|jang_bank4[0] will power up to High",
+      "Critical Warning (18010): Register emu:emu|system:system|vdp:vdp_inst|spr_address[6] will power up to High",
+      "Critical Warning (18010): Register emu:emu|system:system|vdp:vdp2_inst|spr_address[6] will power up to High",
+      "Critical Warning (18010): Register emu:emu|system:system|vdp:vdp2_inst|mask_column0 will power up to High",
+      "Critical Warning (18010): Register emu:emu|system:system|io:io_inst|gg_pdr[0] will power up to High",
+      "Critical Warning (18010): Register emu:emu|system:system|io:io_inst|gg_pdr[4] will power up to High",
+      "Critical Warning (18010): Register emu:emu|system:system|io:io_inst|gg_pdr[1] will power up to High",
+      "Critical Warning (18010): Register emu:emu|system:system|io:io_inst|gg_pdr[6] will power up to High",
+      "Critical Warning (18010): Register emu:emu|system:system|io:io_inst|gg_pdr[5] will power up to High",
+      "Critical Warning (18010): Register emu:emu|system:system|io:io_inst|gg_pdr[2] will power up to High",
+      "Critical Warning (18010): Register emu:emu|system:system|io:io_inst|gg_pdr[3] will power up to High",
+      "Critical Warning (18010): Register emu:emu|system:system|vdp:vdp_inst|bg_address[1] will power up to High",
+      "Critical Warning (18010): Register emu:emu|system:system|vdp:vdp_inst|bg_address[2] will power up to High",
+      "Critical Warning (18010): Register emu:emu|system:system|vdp:vdp2_inst|bg_address[1] will power up to High",
+      "Critical Warning (18010): Register emu:emu|system:system|vdp:vdp2_inst|bg_address[2] will power up to High",
+      "Critical Warning (18010): Register emu:emu|system:system|vdp:vdp_inst|bg_address[3] will power up to High",
+      "Critical Warning (18010): Register emu:emu|system:system|vdp:vdp2_inst|bg_address[3] will power up to High"
+    ]
+  },
+  "delta": {
+    "alms": 124,
+    "registers": 283,
+    "memoryBits": 0,
+    "ramBlocks": 0,
+    "dspBlocks": 0
+  },
+  "worstSlack": {
+    "F07Setup": 0.354,
+    "F07Hold": 0.188,
+    "F02Setup": 0.434,
+    "F02Hold": 0.153
+  },
+  "newWarnings": [],
+  "newCriticalWarnings": [],
+  "negativeTiming": []
+}

@@ -1,0 +1,18 @@
+# F16 implementation evidence
+
+Read `contract.md`, `review.md`, `simulation_results.json`, `results.json` and `resource_analysis.json` for the contract, results and build ledger. The authoritative prerequisite remains `../savestate_cpu_nmi_capture/review.md`.
+
+Use Node at `C:/Program Files/nodejs/node.exe` and PowerShell with `-NoProfile -ExecutionPolicy Bypass`. Scripts expect the repository root as the working directory unless a fixture folder is passed explicitly.
+
+1. `pre.ps1` runs the retained F15 baseline. Its failures are expected and checked by the script. Do this before production edits for a fresh implementation audit.
+2. `prepare.js` creates ModelSim-compatible current RTL copies and the independent real-CPU/IO/ROM/RAM fixture; `matrix.js` enumerates the 260 cases. Production CPU adapters only qualify VHDL entities and expose observations.
+3. `rerun.ps1` compiles a pilot and launches eight read-only-library partitions with the required `final_batchN.out/.err` summaries. Supply the FIX_SOURCE/PROGRAM/EDGE/WIDTH/SECOND/HELD/SCHEDULE/FORMAT environment parameters as in `extras.ps1` for individual `sim.ps1 -Do fixed.do` invocations. `batch.ps1 -Worker N -Workers 8` runs one partition, for N=0..7. Do not recompile a library while its partitions run. `-MissingOnly` retries missing/failed cases.
+4. `extras.js`, then `extras.ps1`, cover released both-flags and all remaining bad subtypes. `stalls.js`, then `stalls.ps1`, cover DDR busy intervals. Each uses a separate compiled library.
+5. `regress.ps1` and `broad.ps1 -Group a`, `b`, `format` run the copied established fixtures with current RTL. `prepare_regressions.js` adapts fresh copies once; it must not be applied repeatedly to already-adapted fixtures. `legacy_evolution.js` creates the extra legacy real-T80 Evolution replay; invoke `sim.ps1` with `-Folder tests/savestate_cpu_nmi_fix/regression -Do legacy_cpu.do -Label legacy_evolution`, F15_OFFSET=0.
+6. `old_reader.js`, then `old_reader.ps1`, run retained F15-reader format suites to establish actual v12 compatibility limits. After the main workers finish, `legacy_valid.js` and `legacy_valid.ps1` recheck the four genuine v1/v2 version/source combinations on a separate library (v1 subtype0, v2 subtype2), replacing those canonical logs. `check_simulations.js --final` requires all main/additional/established cases, these rechecks, the legacy Evolution replay and both old-reader suites to pass. Original fixture-construction failures remain in retry/debug logs for transparency; only each canonical passing case log is counted, and all eight final worker summaries are required.
+7. `build.ps1` enforces the simulation gate, verifies the committed F15 source manifest, copies source into an isolated candidate and runs the full Quartus flow through the short Z: mapping. It copies no compilation database. The existing build-ID script generates its normal current date.
+8. After build completion: `resource_analysis.js`, `quartus_results.js`, `report.js`. The latter records all 39 requested report items, git scope and resource evidence.
+
+Valid-v12 replay compares all CPU registers, NMI history, PC/SP, active bus data/strobes, GG/IO and guest counters/signatures at every host clock after canonical T2. Every exact replay also compares all 8192 WRAM bytes. Save-only uses an independent uninterrupted reference and identical logical future input sequences. External input remains a live host input, and this suite does not claim to serialize wall-clock host events or external serial peers.
+
+F06 remains unresolved. No staging, commit, push or PR is performed by these scripts.

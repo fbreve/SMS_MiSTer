@@ -1,0 +1,28 @@
+diff --git a/rtl/VM2413/slotcounter.vhd b/rtl/VM2413/slotcounter.vhd
+index c5516c38..14bac407 100644
+--- a/rtl/VM2413/slotcounter.vhd
++++ b/rtl/VM2413/slotcounter.vhd
+@@ -70,6 +70,8 @@ begin
+     process(clk,reset)
+ 
+ 
++-- Select the constant before one bounded adder; preserve modulo-128 bus semantics.
++variable ss_restore_offset : std_logic_vector(6 downto 0);
+ variable ss_v_ff_count : std_logic_vector(6 downto 0);
+ variable ss_response : std_logic_vector(31 downto 0);
+ begin
+@@ -91,7 +93,13 @@ when others => null; end case;
+ end if;
+ if ss_write='1' then
+ case conv_integer(ss_addr) is
+-when 78 => if conv_integer(ss_wdata(6 downto 0)) >= delay then ff_count <= conv_std_logic_vector(conv_integer(ss_wdata(6 downto 0))-delay,7); else ff_count <= conv_std_logic_vector(conv_integer(ss_wdata(6 downto 0))+72-delay,7); end if;
++when 78 =>
++if conv_integer(ss_wdata(6 downto 0)) >= delay then
++    ss_restore_offset := conv_std_logic_vector((128-delay) mod 128,7);
++else
++    ss_restore_offset := conv_std_logic_vector(72-delay,7);
++end if;
++ff_count <= ss_wdata(6 downto 0) + ss_restore_offset;
+ when others => null; end case;
+ end if;
+ end if;

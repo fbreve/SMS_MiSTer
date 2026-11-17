@@ -1,0 +1,15 @@
+const fs=require('fs'),p=require('path'),assert=require('assert'),d=__dirname;
+function parse(which){const s=fs.readFileSync(p.join(d,'protocol',which,'simulation.log'),'utf8');return [...s.matchAll(/LATENCY baseline\d profile(\d+) (SAVE|LOAD\d) frozen(\d+)/g)].map(m=>({profile:+m[1],operation:m[2],clocks:+m[3]}));}
+const a=parse('candidate'),b=parse('golden');assert.equal(a.length,64);assert.equal(b.length,64);
+const rows=a.map((x,i)=>{assert.equal(x.profile,b[i].profile);assert.equal(x.operation,b[i].operation);return {...x,baselineClocks:b[i].clocks,addedClocks:x.clocks-b[i].clocks};});
+const frequenciesMHz={PAL:53.203424,NTSC:53.693175};
+const convert=n=>Object.fromEntries(Object.entries(frequenciesMHz).map(([k,v])=>[k,n/v]));
+function native(file){const s=fs.readFileSync(file,'utf8'),out=[];let accepted;
+ for(const m of s.matchAll(/(ACCEPT|RELEASE) save([01]) cycle(\d+)/g)){if(m[1]==='ACCEPT')accepted={save:+m[2],cycle:+m[3]};else{assert(accepted&&accepted.save===+m[2]);out.push({save:accepted.save,clocks:+m[3]-accepted.cycle});accepted=null;}}return out;
+}
+const na=native(p.join(d,'phases/dut_phases_root/simulation.log')),nb=native(p.join(d,'../savestate_f01_opll_fix/reg_g10/dut_phases/simulation.log'));assert.equal(na.length,nb.length);
+const nativeRows=na.map((x,i)=>({...x,baselineClocks:nb[i].clocks,addedClocks:x.clocks-nb[i].clocks}));
+const result={frequenciesMHz,source:'Unchanged rtl/pll.v gui_output_clock_frequency0/1 and SMS.sv PAL reconfiguration, clk_sys=outclk0. Nominal physical frequencies; not the artificial ModelSim 100MHz clock.',localCapture:{clocks:600,microseconds:convert(600)},localApplySMS:{clocks:300,microseconds:convert(300)},localApplySystemE:{clocks:600,microseconds:convert(600)},nominalAdded:{SAVE:{clocks:1348,microseconds:convert(1348)},LOAD_SMS:{clocks:1053,microseconds:convert(1053)},LOAD_SystemE:{clocks:1353,microseconds:convert(1353)}},rows,nativeRows,scope:'Exact ready-DDR fixture counts for fixed response and unchanged F01/header timing; transport-stalled totals are phase-dependent and not a universal wall-clock constant. Actual private CPU preparation quantizes to the unchanged /15 enable. Native rows include a legacy warmup LOAD without modern sprite payload; distinguish its added application cost from modern LOAD. External DDR waiting has no finite universal bound. No added guest ticks.'};
+for(const profile of [0,15])for(const r of rows.filter(x=>x.profile===profile))assert.equal(r.addedClocks,r.operation==='SAVE'?1348:profile===0?1053:1353);
+result.nativeScope='Natural-phase fixture calibrates and adjusts its last DDR response by modulo30 clocks to reach 12 specified preparation histories. Its observed modern LOAD deltas1050/1080 include that deliberate response-delay difference; they are not an intrinsic alternative to the fixed-response +1053 budget. Legacy warmup delta300 is a separate no-sprite-payload case. Native future comparisons remain strict from the first resumed clock.';
+fs.writeFileSync(p.join(d,'latency.json'),JSON.stringify(result,null,2)+'\n');console.log(JSON.stringify(result.nominalAdded,null,2));

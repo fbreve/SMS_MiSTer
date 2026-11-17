@@ -1,0 +1,356 @@
+commit 02838b753751530576045c3c15cbfafa684c5f6e
+Author:     Fabricio Breve <fbreve@gmail.com>
+AuthorDate: Tue Oct 20 11:21:31 2026 -0300
+Commit:     Fabricio Breve <fbreve@gmail.com>
+CommitDate: Tue Oct 20 11:21:31 2026 -0300
+
+    Preserve Game Gear I/O state across savestates
+    
+    Preserve Game Gear I/O registers and local serial protocol state across savestate save/load cycles, including PDR/DDR, TX/RX state, transfer progress, status flags, synchronizer history, and local NMI sources.
+    
+    Extend the tagged savestate payload to version 2 while keeping the existing HCounter extension layout unchanged. Legacy snapshots remain supported and
+    deterministically reset Game Gear state that was not previously stored.
+    
+    Add directed serial replay and full DDRAM save/load coverage, including legacy and invalid metadata, transfer stalls, and non-Game Gear modes.
+
+diff --git a/SMS.sv b/SMS.sv
+index 3990358..6c7cc51 100644
+--- a/SMS.sv
++++ b/SMS.sv
+@@ -876,6 +876,8 @@ wire [63:0]  ss_mapper_out, ss_mapper_in;
+ wire [95:0]  ss_evolution_out, ss_evolution_in;
+ wire         ss_evolution_set;
+ wire         ss_mapper_set;
++wire [127:0] ss_gg_out, ss_gg_in;
++wire ss_gg_set;
+ wire [31:0]  ss_io_out, ss_io_in;
+ wire         ss_io_set;
+ wire [63:0]  eeprom_ss_out, eeprom_ss_in;
+@@ -1165,6 +1167,9 @@ system #(63) system
+ 	.psg2_out     (ss_psg2_out),
+ 	.psg2_in      (ss_psg2_in),
+ 	.psg2_set     (ss_psg2_set),
++	.gg_state_out(ss_gg_out),
++	.gg_state_in(ss_gg_in),
++	.gg_state_set(ss_gg_set),
+ 	.io_state_out (ss_io_out),
+ 	.io_state_in  (ss_io_in),
+ 	.io_state_set (ss_io_set)
+@@ -1259,6 +1264,9 @@ savestates savestates_inst (
+ 	.eeprom_out      (eeprom_ss_out),
+ 	.eeprom_in       (eeprom_ss_in),
+ 	.eeprom_set      (eeprom_ss_set),
++	.gg_out          (ss_gg_out),
++	.gg_in           (ss_gg_in),
++	.gg_set          (ss_gg_set),
+ 	.io_out          (ss_io_out),
+ 	.io_in           (ss_io_in),
+ 	.io_set          (ss_io_set),
+diff --git a/rtl/io.vhd b/rtl/io.vhd
+index e9e1e5f..5c413fb 100644
+--- a/rtl/io.vhd
++++ b/rtl/io.vhd
+@@ -73,6 +73,10 @@ entity io is
+ 		se_mapper_set: in  STD_LOGIC := '0';
+ 		vdp_enables:   in  STD_LOGIC_VECTOR(1 downto 0) := (others => '0');
+ 		psg_enables:   in  STD_LOGIC_VECTOR(1 downto 0) := (others => '0');
++		-- Local Game Gear state; remote link pins/peer are not serialized.
++		gg_state_out: out STD_LOGIC_VECTOR(127 downto 0);
++		gg_state_in: in STD_LOGIC_VECTOR(127 downto 0) := (others => '0');
++		gg_state_set: in STD_LOGIC := '0';
+ 		io_state_out: out STD_LOGIC_VECTOR(31 downto 0);
+ 		io_state_in:  in  STD_LOGIC_VECTOR(31 downto 0) := (others => '0');
+ 		io_state_set: in  STD_LOGIC := '0';
+@@ -197,6 +201,32 @@ begin
+ 	sk1100_port_a <= sk1100_row_data(7 downto 0);
+ 	sk1100_port_b <= sk1100_row_data(11 downto 8);
+ 
++	-- Versioned GG payload bits 113:0; 127:114 are reserved zero.
++	gg_state_out(7 downto 0) <= gg_ddr;
++	gg_state_out(15 downto 8) <= gg_txd;
++	gg_state_out(23 downto 16) <= gg_rxd;
++	gg_state_out(31 downto 24) <= gg_pdr;
++	gg_state_out(36 downto 32) <= gg_sctrl;
++	gg_state_out(37) <= gg_tx_line;
++	gg_state_out(38) <= gg_tx_busy;
++	gg_state_out(47 downto 39) <= gg_tx_shift(9 downto 1);
++	gg_state_out(61 downto 48) <= std_logic_vector(gg_tx_cnt);
++	gg_state_out(65 downto 62) <= std_logic_vector(gg_tx_bits);
++	gg_state_out(66) <= gg_tx_pending;
++	gg_state_out(74 downto 67) <= gg_tx_pending_data;
++	gg_state_out(77 downto 75) <= gg_rx_sync;
++	gg_state_out(80 downto 78) <= gg_pc6_sync;
++	gg_state_out(81) <= gg_pc6_prev;
++	gg_state_out(83 downto 82) <= std_logic_vector(gg_rx_state);
++	gg_state_out(97 downto 84) <= std_logic_vector(gg_rx_cnt);
++	gg_state_out(100 downto 98) <= std_logic_vector(gg_rx_bits);
++	gg_state_out(108 downto 101) <= gg_rx_shift;
++	gg_state_out(109) <= gg_rx_ready;
++	gg_state_out(110) <= gg_rx_frame_err;
++	gg_state_out(111) <= gg_nmi_serial;
++	gg_state_out(112) <= gg_nmi_pc6;
++	gg_state_out(113) <= gg_tx_wr_d;
++	gg_state_out(127 downto 114) <= (others => '0');
+ 	io_state_out(7 downto 0) <= ctrl;
+ 	io_state_out(15 downto 8) <= sc_multicart_latch;
+ 	io_state_out(23 downto 16) <= sk1100_port_c;
+@@ -241,6 +271,7 @@ begin
+ 			analog_player <= '0';
+ 			analog_upper <= '0';
+ 		elsif rising_edge(clk) then
++			if ss_freeze = '0' then
+ 			if gg='0' or gg_link_en='0' then
+ 				gg_tx_line <= '1';
+ 				gg_tx_busy <= '0';
+@@ -348,6 +379,8 @@ begin
+ 				gg_nmi_serial <= '0';
+ 			end if;
+ 
++			end if; -- GG protocol and read side effects hold while frozen.
++
+ 			if ss_freeze = '0' and gg='1' and A(7 downto 3) = "00000" then
+ 				if WR_n='0' then
+ 					case A(2 downto 0) is
+@@ -432,11 +465,13 @@ begin
+ 					ctrl <= D_in;
+ 				end if ;
+ 			end if;
++			if ss_freeze = '0' then
+ 			if gg='1' and A(7 downto 3)="00000" and WR_n='0' and A(2 downto 0)="011" then
+ 				gg_tx_wr_d <= '1';
+ 			else
+ 				gg_tx_wr_d <= '0';
+ 			end if;
++			end if;
+ 			-- savestate restore: System E IO port 0xF7 state
+ 			if se_mapper_set = '1' and systeme = '1' then
+ 				vdp1_bank    <= se_mapper_in(7);
+@@ -444,6 +479,33 @@ begin
+ 				vdp_cpu_bank <= se_mapper_in(5);
+ 				rom_bank     <= se_mapper_in(3 downto 0);
+ 			end if;
++			-- Last assignments win over normal bus/protocol updates on this edge.
++			if gg_state_set = '1' then
++				gg_ddr <= gg_state_in(7 downto 0);
++				gg_txd <= gg_state_in(15 downto 8);
++				gg_rxd <= gg_state_in(23 downto 16);
++				gg_pdr <= gg_state_in(31 downto 24);
++				gg_sctrl <= gg_state_in(36 downto 32);
++				gg_tx_line <= gg_state_in(37);
++				gg_tx_busy <= gg_state_in(38);
++				gg_tx_shift <= gg_state_in(47 downto 39) & '0';
++				gg_tx_cnt <= unsigned(gg_state_in(61 downto 48));
++				gg_tx_bits <= unsigned(gg_state_in(65 downto 62));
++				gg_tx_pending <= gg_state_in(66);
++				gg_tx_pending_data <= gg_state_in(74 downto 67);
++				gg_rx_sync <= gg_state_in(77 downto 75);
++				gg_pc6_sync <= gg_state_in(80 downto 78);
++				gg_pc6_prev <= gg_state_in(81);
++				gg_rx_state <= unsigned(gg_state_in(83 downto 82));
++				gg_rx_cnt <= unsigned(gg_state_in(97 downto 84));
++				gg_rx_bits <= unsigned(gg_state_in(100 downto 98));
++				gg_rx_shift <= gg_state_in(108 downto 101);
++				gg_rx_ready <= gg_state_in(109);
++				gg_rx_frame_err <= gg_state_in(110);
++				gg_nmi_serial <= gg_state_in(111);
++				gg_nmi_pc6 <= gg_state_in(112);
++				gg_tx_wr_d <= gg_state_in(113);
++			end if;
+ 			if io_state_set = '1' then
+ 				ctrl               <= io_state_in(7 downto 0);
+ 				sc_multicart_latch <= io_state_in(15 downto 8);
+diff --git a/rtl/savestates.sv b/rtl/savestates.sv
+index e4f4fb3..d47c737 100644
+--- a/rtl/savestates.sv
++++ b/rtl/savestates.sv
+@@ -158,6 +158,9 @@ module savestates (
+     output reg        psg2_set,
+ 
+     // ---- IO snapshot / restore ----
++    input     [127:0] gg_out,
++    output reg [127:0] gg_in,
++    output reg        gg_set,
+     input      [31:0] io_out,
+     output reg [31:0] io_in,
+     output reg        io_set,
+@@ -263,6 +266,10 @@ localparam ST_SAVE_VIDEO         = 6'd60;
+ localparam ST_LOAD_VIDEO         = 6'd61;
+ localparam ST_LOAD_HDR_WT2       = 6'd62;
+ localparam ST_UNFREEZE_SETTLE = 6'd63;
++localparam ST_SAVE_GG = 7'd73, ST_LOAD_GG = 7'd74;
++localparam [127:0] GG_RESET = 128'h00001fe00003f8000000ffa07fff00ff;
++reg [127:0] gg_snap;
++reg gg_word;
+ 
+ // Post-op guard time to avoid pathological immediate re-entry (rapid hammering).
+ localparam [27:0] OP_COOLDOWN_MAX = 28'd26846500; // ~500ms @ 53.7MHz
+@@ -328,12 +335,15 @@ reg [135:0] vdp2_snap;
+ // Video word extension v1: previously-written zero padding is never latch data
+ // unless the full tag and reserved bits match. Legacy snapshots restore zero.
+ localparam [23:0] HCOUNTER_MAGIC = 24'h484301; // "HC", version 1
++// Version 2 preserves the HCounter layout and adds two local GG words (01c/01d).
++// Bits 39:38 now give the GG payload length, exactly two 64-bit words.
++localparam [23:0] IO_EXT_MAGIC = 24'h484302;
+ reg [383:0] cram2_snap;
+ reg  [55:0] psg2_snap;
+ reg  [31:0] io_snap;
+ reg  [21:0] video_snap;
+ reg  [63:0] eeprom_snap;
+-wire [63:0] video_word = {HCOUNTER_MAGIC, 2'd0,
++wire [63:0] video_word = {IO_EXT_MAGIC, 2'd2,
+                          systeme ? vdp2_snap[135:128] : 8'd0,
+                          vdp_snap[135:128], video_snap};
+ 
+@@ -483,6 +493,11 @@ always @(*) begin
+         ST_SAVE_MAPPER: if (! DDRAM_BUSY) ddram_cmd_write ( base_addr + 29'd15 , mapper_snap , 8'hFF ) ;
+         ST_SAVE_IO: if (! DDRAM_BUSY) ddram_cmd_write ( base_addr + 29'h019 , { evolution_snap [ 31 : 0 ] , io_snap } , 8'hFF ) ;
+         ST_SAVE_VIDEO: if (! DDRAM_BUSY) ddram_cmd_write ( base_addr + 29'h01a , video_word , 8'hFF ) ;
++        ST_SAVE_GG: if (!DDRAM_BUSY) ddram_cmd_write(base_addr + 29'h01c + {28'd0,gg_word}, gg_word ? gg_snap[127:64] : gg_snap[63:0], 8'hFF);
++        ST_LOAD_GG: if (!(DDRAM_DOUT_READY && dout_expected) && !dout_expected && !DDRAM_BUSY) begin
++            if (!gg_word) ddram_cmd_read(base_addr + 29'h01d);
++            else ddram_cmd_read(base_addr + 29'h01b);
++        end
+         ST_SAVE_EEPROM: if (! DDRAM_BUSY) ddram_cmd_write ( base_addr + 29'h01b , evolution_snap [ 31 : 16 ] == 16'hE132 ? evolution_snap [ 95 : 32 ] : eeprom_snap , 8'hFF ) ;
+         ST_SAVE_VDP2REG: begin
+             if (! DDRAM_BUSY) begin
+@@ -608,7 +623,10 @@ always @(*) begin
+             end
+         end
+         ST_LOAD_IO: if (!(DDRAM_DOUT_READY && dout_expected)) if (! dout_expected && ! DDRAM_BUSY) ddram_cmd_read ( base_addr + 29'h01a ) ;
+-        ST_LOAD_VIDEO: if (!(DDRAM_DOUT_READY && dout_expected)) if (! dout_expected && ! DDRAM_BUSY) ddram_cmd_read ( base_addr + 29'h01b ) ;
++        ST_LOAD_VIDEO: if (!(DDRAM_DOUT_READY && dout_expected) && !dout_expected && !DDRAM_BUSY) begin
++            if (dout_latch[63:40] == IO_EXT_MAGIC && dout_latch[39:38] == 2'd2) ddram_cmd_read(base_addr + 29'h01c);
++            else ddram_cmd_read(base_addr + 29'h01b);
++        end
+         ST_LOAD_EEPROM: begin
+             if (!(DDRAM_DOUT_READY && dout_expected)) begin
+                 if (! dout_expected && ! DDRAM_BUSY) begin
+@@ -758,6 +776,7 @@ always @(posedge clk or negedge reset_n) begin
+         vram2_WE        <= 0;
+         dout_latch      <= 64'd0;
+         io_in           <= 32'd0;
++        gg_in <= GG_RESET; gg_snap <= GG_RESET; gg_set <= 0; gg_word <= 0;
+         io_set          <= 0;
+         io_snap         <= 32'd0;
+         video_state_in  <= 22'd0;
+@@ -797,6 +816,7 @@ always @(posedge clk or negedge reset_n) begin
+         psg2_set     <= 0;
+         vram2_WE     <= 0;
+         io_set       <= 0;
++        gg_set <= 0;
+         video_state_set <= 0;
+         audio_ext_set <= 0;
+         audio_phase_set <= 0;
+@@ -877,6 +897,7 @@ always @(posedge clk or negedge reset_n) begin
+                 psg2_snap   <= psg2_out;
+             end
+             io_snap          <= io_out;
++            gg_snap          <= gg_out;
+             video_snap       <= video_state_out;
+             eeprom_snap      <= eeprom_out;
+             
+@@ -1039,7 +1060,16 @@ always @(posedge clk or negedge reset_n) begin
+         ST_SAVE_VIDEO: begin
+             if (!DDRAM_BUSY) begin
+                 ddram_write(base_addr + 29'h01a, video_word, 8'hFF);
+-                state <= ST_SAVE_EEPROM;
++                gg_word <= 0;
++                state <= ST_SAVE_GG;
++            end
++        end
++
++        ST_SAVE_GG: begin
++            if (!DDRAM_BUSY) begin
++                ddram_write(base_addr + 29'h01c + {28'd0,gg_word}, gg_word ? gg_snap[127:64] : gg_snap[63:0], 8'hFF);
++                if (gg_word) state <= ST_SAVE_EEPROM;
++                else gg_word <= 1;
+             end
+         end
+ 
+@@ -1394,6 +1424,7 @@ always @(posedge clk or negedge reset_n) begin
+                 // Old 64KB files bypass ST_LOAD_VIDEO entirely.
+                 vdp_snap[135:128] <= 8'd0;
+                 vdp2_snap[135:128] <= 8'd0;
++                gg_snap <= GG_RESET;
+                 ddram_read(base_addr + 29'd0);
+                 state <= ST_LOAD_HDR_WT;
+             end
+@@ -1607,15 +1638,41 @@ always @(posedge clk or negedge reset_n) begin
+                 dout_latch    <= DDRAM_DOUT;
+             end else if (!dout_expected && !DDRAM_BUSY) begin
+                 video_snap       <= dout_latch[21:0];
+-                if (dout_latch[63:40] == HCOUNTER_MAGIC && dout_latch[39:38] == 2'd0) begin
++                if ((dout_latch[63:40] == HCOUNTER_MAGIC && dout_latch[39:38] == 2'd0) ||
++                    (dout_latch[63:40] == IO_EXT_MAGIC && dout_latch[39:38] == 2'd2)) begin
+                     vdp_snap[135:128] <= dout_latch[29:22];
+                     vdp2_snap[135:128] <= systeme ? dout_latch[37:30] : 8'd0;
+                 end else begin
+                     vdp_snap[135:128] <= 8'd0;
+                     vdp2_snap[135:128] <= 8'd0;
+                 end
+-                ddram_read(base_addr + 29'h01b);
+-                state            <= ST_LOAD_EEPROM;
++                if (dout_latch[63:40] == IO_EXT_MAGIC && dout_latch[39:38] == 2'd2) begin
++                    gg_word <= 0;
++                    ddram_read(base_addr + 29'h01c);
++                    state <= ST_LOAD_GG;
++                end else begin
++                    ddram_read(base_addr + 29'h01b);
++                    state <= ST_LOAD_EEPROM;
++                end
++            end
++        end
++
++        ST_LOAD_GG: begin
++            if (DDRAM_DOUT_READY && dout_expected) begin
++                dout_expected <= 0;
++                dout_latch <= DDRAM_DOUT;
++            end else if (!dout_expected && !DDRAM_BUSY) begin
++                if (!gg_word) begin
++                    gg_snap[63:0] <= dout_latch;
++                    gg_word <= 1;
++                    ddram_read(base_addr + 29'h01d);
++                end else begin
++                    // Invalid/truncated padding never becomes local protocol state.
++                    if (dout_latch[63:50] == 14'd0) gg_snap[127:64] <= dout_latch;
++                    else gg_snap <= GG_RESET;
++                    ddram_read(base_addr + 29'h01b);
++                    state <= ST_LOAD_EEPROM;
++                end
+             end
+         end
+ 
+@@ -1874,6 +1931,8 @@ always @(posedge clk or negedge reset_n) begin
+             if (cram_entry == 0) begin
+                 // CPU is frozen; restore all registers unconditionally.
+                 // z80_set loads z80_dir into T80s regardless of CEN.
++                gg_in <= gg_snap;
++                gg_set <= 1; // Includes legacy64K, which intentionally skips ordinary IO restore.
+                 z80_dir      <= z80_snap;
+                 z80_set      <= 1;
+                 vdp_regs_in  <= vdp_snap;
+diff --git a/rtl/system.vhd b/rtl/system.vhd
+index e875cc9..fd5bdfc 100644
+--- a/rtl/system.vhd
++++ b/rtl/system.vhd
+@@ -208,6 +208,10 @@ entity system is
+ 		psg2_in       : in  STD_LOGIC_VECTOR(55 downto 0) := (others => '0');
+ 		psg2_set      : in  STD_LOGIC := '0';
+ 		-- Save-state interface for IO registers
++		-- Local Game Gear state; remote link pins/peer are not serialized.
++		gg_state_out: out STD_LOGIC_VECTOR(127 downto 0);
++		gg_state_in: in STD_LOGIC_VECTOR(127 downto 0) := (others => '0');
++		gg_state_set: in STD_LOGIC := '0';
+ 		io_state_out  : out STD_LOGIC_VECTOR(31 downto 0);
+ 		io_state_in   : in  STD_LOGIC_VECTOR(31 downto 0) := (others => '0');
+ 		io_state_set  : in  STD_LOGIC := '0';
+@@ -929,6 +933,9 @@ port map(
+ 		psg_enables   => psg_enables,
+ 		se_mapper_in  => mapper_in(7 downto 0),
+ 		se_mapper_set => mapper_set,
++		gg_state_out => gg_state_out,
++		gg_state_in => gg_state_in,
++		gg_state_set => gg_state_set,
+ 		io_state_out  => io_state_out_i,
+ 		io_state_in   => io_state_in,
+ 		io_state_set  => io_state_set,

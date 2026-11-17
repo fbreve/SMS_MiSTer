@@ -1,0 +1,13 @@
+const fs=require('fs'),p=require('path'),cp=require('child_process'),crypto=require('crypto'),assert=require('assert');const root=p.resolve(__dirname,'../..'),out=p.join(__dirname,'physical_r2'),sha=b=>crypto.createHash('sha256').update(b).digest('hex');
+const gate=JSON.parse(fs.readFileSync(p.join(__dirname,'r2/functional_gate.json')));assert.equal(gate.status,'PASS');assert.equal(sha(fs.readFileSync(p.join(root,'rtl/savestates.sv'))),gate.identity.productionSHA256);
+assert(!fs.existsSync('Z:/'),'Z: occupied; do not replace existing mapping');cp.execFileSync('subst.exe',['Z:',out]);const results=[];
+try{
+ for(const seed of [1,2,3]){
+  const manifest=JSON.parse(fs.readFileSync(p.join(out,`seed${seed}_candidate_inputs.json`)));for(const [f,h]of Object.entries(manifest.files))assert.equal(sha(fs.readFileSync(p.join(out,`seed${seed}/candidate`,f))),h,f);
+  const name='seed'+seed,stdout=fs.openSync(p.join(out,name+'.stdout.log'),'wx'),stderr=fs.openSync(p.join(out,name+'.stderr.log'),'wx');const start=new Date().toISOString();console.log('START',name,start);
+  const r=cp.spawnSync('C:/intelFPGA_lite/17.0/quartus/bin64/quartus_sh.exe',['--flow','compile',`Z:/seed${seed}/candidate/SMS`],{cwd:`Z:/seed${seed}/candidate`,stdio:['ignore',stdout,stderr],windowsHide:true});fs.closeSync(stdout);fs.closeSync(stderr);
+  const status={seed,start,finish:new Date().toISOString(),exit:r.status,error:r.error?.message};results.push(status);fs.writeFileSync(p.join(out,name+'.status.json'),JSON.stringify(status,null,2));fs.writeFileSync(p.join(out,'build_status.json'),JSON.stringify({functionalGateSHA256:sha(fs.readFileSync(p.join(__dirname,'r2/functional_gate.json'))),results},null,2));if(r.status!==0){status.qualified=false;if(seed===1)throw Error('Quartus failed seed1');continue;}
+  cp.execFileSync(process.execPath,[p.join(__dirname,'collect_physical.js')],{cwd:root,stdio:'ignore'});cp.execFileSync(process.execPath,[p.join(__dirname,'compare_physical.js')],{cwd:root,stdio:'inherit'});
+  const q=JSON.parse(fs.readFileSync(p.join(out,'comparison.json'))).pairs.find(q=>q.seed===seed);status.qualified=q.fitSuccessful&&q.timingAnalysisCompleted&&q.setupHoldPass&&q.otherNegativeTiming.length===0;fs.writeFileSync(p.join(out,name+'.status.json'),JSON.stringify(status,null,2));fs.writeFileSync(p.join(out,'build_status.json'),JSON.stringify({functionalGateSHA256:sha(fs.readFileSync(p.join(__dirname,'r2/functional_gate.json'))),results},null,2));console.log(status.qualified?'QUALIFIED':'NOT_QUALIFIED',name);if(seed===1)assert(status.qualified,'physical qualification failed seed1');
+ }if(results.some(q=>!q.qualified))process.exitCode=1;
+}finally{cp.execFileSync('subst.exe',['Z:','/D']);}
