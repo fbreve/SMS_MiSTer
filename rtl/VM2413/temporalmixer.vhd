@@ -119,8 +119,7 @@ maddr <= ss_v_maddr;
 ss_v_mix(13 downto 0) := ss_wdata(19 downto 6);
 mix <= ss_v_mix;
 when 102 =>
-ss_v_mixout(13 downto 0) := ss_wdata(13 downto 0);
-mixout <= ss_v_mixout;
+null; -- Experiment: output is refreshed by the next normal mixer update.
 when others => null; end case;
 end if;
 end if;

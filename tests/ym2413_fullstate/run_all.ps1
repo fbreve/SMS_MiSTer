@@ -9,7 +9,7 @@ function Invoke-Simulation([string]$DoFile,[string]$Log,[string]$PassPattern){
 Push-Location $PSScriptRoot
 try {
  node verify_scope.js;if($LASTEXITCODE -ne 0){throw 'scope validation failed'}
- node prepare_tests.js;node prepare_nonfm.js;node prepare_phases.js;node prepare_patterns.js
+ foreach($prepare in @('prepare_tests.js','prepare_nonfm.js','prepare_phases.js','prepare_patterns.js')) { node $prepare; if($LASTEXITCODE -ne 0){throw "Preparation failed: $prepare"} }
  Invoke-Simulation compile.do compile 'Errors: 0|do compile.do'
  Invoke-Simulation fast_compile.do fast_compile 'Errors: 0|do fast_compile.do'
  Invoke-Simulation phase_compile.do phase_compile 'Errors: 0|do phase_compile.do'
