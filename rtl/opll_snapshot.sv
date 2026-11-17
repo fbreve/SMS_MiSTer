@@ -16,7 +16,7 @@ module opll_snapshot (
     output [31:0] state_wdata,
     input [31:0] state_rdata
 );
-    localparam WORDS=104;
+    localparam WORDS=100;
     localparam IDLE=0,CAP_READ=1,CAP_STORE=2,AP_READ=3,AP_WRITE=4,
                REFILL=5,B_RD_LO=6,B_GET_LO=7,B_RD_HI=8,B_GET_HI=9,
                B_WR_LO=10,B_WR_HI=11,LEG_RESET=12,LEG_INIT=13;
@@ -51,7 +51,6 @@ module opll_snapshot (
             8'd78: legacy_word=32'h47;
             8'd88: legacy_word=32'h8000;
             8'd90: legacy_word=32'h3ffff;
-            8'd101: legacy_word=32'h1;
 
 
             default: legacy_word=0;
